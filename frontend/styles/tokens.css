@@ -1,0 +1,193 @@
+/* ============================================
+   DEV DRIP DESIGN TOKENS v1.1
+   Monochrome — "Industrial Paper"
+   ============================================ */
+
+:root {
+  /* ---- Fonts ---- */
+  --font-display: "Space Mono", monospace;
+  --font-body: "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-data: "JetBrains Mono", monospace;
+
+  /* ---- Type Scale ---- */
+  --t-hero: 48px;
+  --t-h1: 36px;
+  --t-h2: 28px;
+  --t-h3: 22px;
+  --t-h4: 18px;
+  --t-body: 16px;
+  --t-body-s: 14px;
+  --t-caption: 12px;
+  --t-micro: 11px;
+  --t-data-l: 32px;
+  --t-data-m: 20px;
+  --t-data-s: 14px;
+  --t-data-xs: 12px;
+
+  /* ---- Line Heights ---- */
+  --lh-tight: 1.1;
+  --lh-snug: 1.2;
+  --lh-normal: 1.35;
+  --lh-relaxed: 1.5;
+  --lh-loose: 1.6;
+
+  /* ---- Font Weights ---- */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ---- Letter Spacing ---- */
+  --ls-tight: -0.03em;
+  --ls-snug: -0.02em;
+  --ls-normal: 0em;
+  --ls-wide: 0.02em;
+  --ls-wider: 0.06em;
+  --ls-widest: 0.08em;
+
+  /* ---- Spacing (4px base) ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+
+  /* ---- Border Radius ---- */
+  --r-none: 0px;
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-pill: 9999px;
+
+  /* ---- Transitions ---- */
+  --ease-micro: 100ms ease-out;
+  --ease-fast: 150ms ease-out;
+  --ease-default: 200ms ease-in-out;
+  --ease-smooth: 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-slow: 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-vanish: 120ms ease-in;
+
+  /* ---- Z-Index ---- */
+  --z-base: 0;
+  --z-above: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+
+  /* ---- Grid ---- */
+  --grid-columns: 12;
+  --grid-gutter: 16px;
+  --grid-max: 1200px;
+  --content-max: 680px;
+
+  /* ---- Dot Grid ---- */
+  --dot-size: 1px;
+  --dot-spacing: 16px;
+}
+
+/* ============================================
+   LIGHT MODE (Default)
+   "Paper" — warm white, dark ink
+   ============================================ */
+
+[data-theme="light"],
+:root {
+  --bg-primary: #f7f6f3;
+  --bg-secondary: #eeedea;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f2f1ee;
+  --bg-inset: #e8e7e3;
+  --bg-elevated: #ffffff;
+
+  --ink-primary: #0e0e11;
+  --ink-secondary: #5c5c66;
+  --ink-tertiary: #9c9ca5;
+  --ink-faint: #c5c5bf;
+  --ink-inverse: #f7f6f3;
+
+  --rule-default: #ddddd8;
+  --rule-subtle: #eeeeea;
+  --rule-strong: #c5c5bf;
+  --dot-grid-color: #d4d4ce;
+
+  --em-primary: #0e0e11;
+  --em-hover: #2a2a2f;
+  --em-surface: #f0efeb;
+  --em-glow: rgba(14, 14, 17, 0.06);
+
+  --status-negative: #c13438;
+  --status-negative-surface: #fcf0f0;
+  --status-caution: #b8860b;
+  --status-caution-surface: #fbf5e6;
+
+  --shadow-sm: 0 1px 2px rgba(14, 14, 17, 0.04);
+  --shadow-md: 0 2px 8px rgba(14, 14, 17, 0.06);
+  --shadow-lg: 0 8px 24px rgba(14, 14, 17, 0.08);
+}
+
+/* ============================================
+   DARK MODE
+   "Terminal" — near-black, bright ink
+   ============================================ */
+
+[data-theme="dark"] {
+  --bg-primary: #0a0a0c;
+  --bg-secondary: #111113;
+  --bg-surface: #18181b;
+  --bg-surface-hover: #1f1f23;
+  --bg-inset: #0f0f11;
+  --bg-elevated: #222226;
+
+  --ink-primary: #ededf0;
+  --ink-secondary: #8a8a94;
+  --ink-tertiary: #5c5c66;
+  --ink-faint: #3a3a40;
+  --ink-inverse: #0a0a0c;
+
+  --rule-default: #27272b;
+  --rule-subtle: #1e1e22;
+  --rule-strong: #3a3a40;
+  --dot-grid-color: #1e1e22;
+
+  --em-primary: #ededf0;
+  --em-hover: #d0d0d6;
+  --em-surface: #1f1f23;
+  --em-glow: rgba(237, 237, 240, 0.06);
+
+  --status-negative: #e8585c;
+  --status-negative-surface: #2a1214;
+  --status-caution: #e0a020;
+  --status-caution-surface: #2a2210;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================
+   DOT-GRID PATTERN (CSS fallback)
+   ============================================ */
+
+.dd-dot-grid {
+  background-image: radial-gradient(
+    circle,
+    var(--dot-grid-color) var(--dot-size),
+    transparent var(--dot-size)
+  );
+  background-size: var(--dot-spacing) var(--dot-spacing);
+}
+
+.dd-dot-grid-subtle {
+  opacity: 0.25;
+}
+.dd-dot-grid-wide {
+  --dot-spacing: 24px;
+}
