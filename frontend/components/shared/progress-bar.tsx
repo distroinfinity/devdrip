@@ -30,9 +30,9 @@ export function ProgressBar({
           ${current.toFixed(2)} / ${total.toFixed(2)}
         </span>
       </div>
-      <div className="h-1 bg-[var(--bg-inset)] rounded-pill overflow-hidden">
+      <div className="h-2 bg-[var(--bg-inset)] rounded-pill overflow-hidden">
         <div
-          className="h-full bg-[var(--ink-primary)] rounded-pill"
+          className="h-full bg-[var(--accent-color)] rounded-pill"
           style={{ width: `${percentage}%`, transition: "width 600ms ease-out" }}
         />
       </div>
