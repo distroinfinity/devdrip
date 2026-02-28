@@ -56,9 +56,13 @@ export function NumberTicker({
     <span
       ref={ref}
       className={cn(
-        "inline-block tracking-wider text-black tabular-nums dark:text-white",
+        "inline-block tracking-wider text-[var(--ink-primary)] tabular-nums",
         className
       )}
+      aria-label={Intl.NumberFormat("en-US", {
+        minimumFractionDigits: decimalPlaces,
+        maximumFractionDigits: decimalPlaces,
+      }).format(value)}
       {...props}
     >
       {startValue}
