@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { tokens } from "@/lib/design-tokens";
 
 const SPONSOR = {
   name: "Railway",

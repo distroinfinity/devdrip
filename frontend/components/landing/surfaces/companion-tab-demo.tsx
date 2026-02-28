@@ -76,7 +76,7 @@ export function CompanionTabDemo() {
         <div
           className="rounded-md p-4 mb-3"
           style={{
-            background: "#16161A",
+            background: tc.bgInset,
             border: `1px solid ${tc.border}`,
           }}
         >
@@ -173,7 +173,7 @@ export function CompanionTabDemo() {
                 key={item.name}
                 className="flex-1 rounded p-2.5"
                 style={{
-                  background: "#16161A",
+                  background: tc.bgInset,
                   border: `1px solid ${tc.border}`,
                 }}
               >
