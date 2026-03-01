@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react"
 import { motion, AnimatePresence } from "motion/react";
 import { tokens, terminalColors as tc } from "@/lib/design-tokens";
 import { BlurFade } from "@/components/ui/blur-fade";
+import { DotGrid } from "@/components/shared/dot-grid";
 import { SurfaceInfoBar } from "./surfaces/surface-info-bar";
 import {
   Monitor,
@@ -196,7 +197,8 @@ export function SurfacesSection() {
   }, []);
 
   return (
-    <section id="surfaces" className="mx-auto max-w-grid px-6 py-16 lg:py-24">
+    <section id="surfaces" className="relative overflow-hidden mx-auto max-w-grid px-6 py-20 scroll-mt-20">
+      <DotGrid opacity={0.15} variant="static" />
       <div className="relative">
         {/* header */}
         <BlurFade inView delay={0}>
@@ -213,7 +215,7 @@ export function SurfacesSection() {
         </BlurFade>
 
         {/* tab bar + content */}
-        <BlurFade inView delay={0.15}>
+        <BlurFade inView delay={0.1}>
           <div>
             {/* tab bar */}
             <div
@@ -298,7 +300,7 @@ export function SurfacesSection() {
         </BlurFade>
 
         {/* trust strip */}
-        <BlurFade inView delay={0.3}>
+        <BlurFade inView delay={0.2}>
           <div className="mt-12 pt-6 border-t border-[var(--rule-default)] flex flex-wrap justify-center gap-x-6 gap-y-2">
             {[
               "Every surface is opt-in individually",
