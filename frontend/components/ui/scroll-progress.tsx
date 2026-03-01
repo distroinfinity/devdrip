@@ -23,7 +23,7 @@ export function ScrollProgress({
       ref={ref}
       aria-hidden="true"
       className={cn(
-        "fixed inset-x-0 top-0 z-50 h-px origin-left bg-[var(--ink-primary)]",
+        "fixed inset-x-0 top-0 z-[var(--z-toast)] h-[2px] origin-left bg-[var(--ink-primary)] will-animate",
         className
       )}
       style={{

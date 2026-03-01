@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { terminalColors as tc, tokens } from "@/lib/design-tokens";
 import { BlurFade } from "@/components/ui/blur-fade";
+import { DotGrid } from "@/components/shared/dot-grid";
 import { AgentTerminal } from "@/components/shared/agent-terminal";
 import { TerminalTV } from "@/components/shared/terminal-tv";
 
@@ -389,7 +390,10 @@ export function HowItWorksSection() {
   }, [phase]);
 
   return (
-    <section id="how-it-works" className="mx-auto max-w-grid px-6 py-16 lg:py-24">
+    <section id="how-it-works" className="relative overflow-hidden scroll-mt-20">
+      <DotGrid opacity={0.2} variant="static" />
+
+      <div className="relative mx-auto max-w-grid px-6 py-20">
       {/* section header */}
       <BlurFade inView delay={0}>
         <div className="max-w-content mx-auto text-center mb-12 lg:mb-16">
@@ -698,6 +702,7 @@ export function HowItWorksSection() {
           </span>
         </div>
       </BlurFade>
+      </div>
     </section>
   );
 }

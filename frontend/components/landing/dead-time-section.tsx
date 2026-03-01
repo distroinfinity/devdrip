@@ -17,11 +17,11 @@ export function DeadTimeSection() {
     <section
       id="dead-time"
       aria-labelledby="dead-time-heading"
-      className="relative bg-[var(--bg-secondary)] overflow-hidden"
+      className="relative bg-[var(--bg-secondary)] overflow-hidden scroll-mt-20"
     >
-      <DotGrid opacity={0.3} variant="heartbeat" />
+      <DotGrid opacity={0.18} variant="heartbeat" />
 
-      <div className="relative mx-auto max-w-grid px-6 py-16 lg:py-24">
+      <div className="relative mx-auto max-w-grid px-6 py-20">
         <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-12 lg:gap-16 items-center">
           {/* left — copy + data */}
           <div>
@@ -60,7 +60,7 @@ export function DeadTimeSection() {
           </div>
 
           {/* right — terminal demo */}
-          <BlurFade inView delay={0.15}>
+          <BlurFade inView delay={0.3}>
             <AgentTerminal />
           </BlurFade>
         </div>

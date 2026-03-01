@@ -29,7 +29,37 @@ export function Footer() {
 
         {/* attribution */}
         <span className="font-data text-[10px] text-[var(--ink-faint)]">
-          Powered by USD on Base
+          built with{" "}
+          <svg
+            width="9"
+            height="9"
+            viewBox="0 0 9 9"
+            fill="currentColor"
+            className="inline-block -mt-px text-[var(--ink-tertiary)]"
+            role="img"
+            aria-label="love"
+          >
+            {/* 9x9 pixel heart on a 1px grid */}
+            <rect x="1" y="0" width="2" height="1" />
+            <rect x="6" y="0" width="2" height="1" />
+            <rect x="0" y="1" width="4" height="1" />
+            <rect x="5" y="1" width="4" height="1" />
+            <rect x="0" y="2" width="9" height="1" />
+            <rect x="0" y="3" width="9" height="1" />
+            <rect x="1" y="4" width="7" height="1" />
+            <rect x="2" y="5" width="5" height="1" />
+            <rect x="3" y="6" width="3" height="1" />
+            <rect x="4" y="7" width="1" height="1" />
+          </svg>
+          {" "}by{" "}
+          <a
+            href="https://www.linkedin.com/in/manurajput2911"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--ink-tertiary)] hover:text-[var(--ink-primary)] transition-colors underline underline-offset-2"
+          >
+            manu
+          </a>
         </span>
       </div>
     </footer>
