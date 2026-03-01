@@ -7,11 +7,13 @@ import {
   useMotionValueEvent,
 } from "motion/react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 export const FloatingNav = ({
   navItems,
   className,
   ctaLabel = "Join Waitlist",
+  ctaHref,
   onCtaClick,
 }: {
   navItems: {
@@ -21,6 +23,7 @@ export const FloatingNav = ({
   }[];
   className?: string;
   ctaLabel?: string;
+  ctaHref?: string;
   onCtaClick?: () => void;
 }) => {
   const { scrollYProgress } = useScroll();
@@ -77,12 +80,25 @@ export const FloatingNav = ({
 
           <div className="h-5 w-px bg-[var(--rule-default)]" />
 
-          <button
-            onClick={onCtaClick}
-            className="relative rounded-full bg-[var(--ink-primary)] px-4 py-2 text-sm font-medium text-[var(--ink-inverse)] transition-all hover:bg-[var(--em-hover)] hover:shadow-md font-body"
-          >
-            <span>{ctaLabel}</span>
-          </button>
+          <ThemeToggle className="hidden sm:block px-3 py-1.5 rounded-full text-[12px]" />
+
+          <div className="h-5 w-px bg-[var(--rule-default)]" />
+
+          {ctaHref ? (
+            <a
+              href={ctaHref}
+              className="relative rounded-full bg-[var(--ink-primary)] px-4 py-2 text-sm font-medium text-[var(--ink-inverse)] transition-all hover:bg-[var(--em-hover)] hover:shadow-md font-body"
+            >
+              {ctaLabel}
+            </a>
+          ) : (
+            <button
+              onClick={onCtaClick}
+              className="relative rounded-full bg-[var(--ink-primary)] px-4 py-2 text-sm font-medium text-[var(--ink-inverse)] transition-all hover:bg-[var(--em-hover)] hover:shadow-md font-body"
+            >
+              <span>{ctaLabel}</span>
+            </button>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>
