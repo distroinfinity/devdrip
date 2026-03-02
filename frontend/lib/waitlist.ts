@@ -80,5 +80,14 @@ export async function submitWaitlist(
     body: JSON.stringify(payload),
   });
 
-  return res.json();
+  const data: WaitlistResponse = await res.json();
+
+  // fire conversion event on successful signup
+  if (data.success) {
+    import("@vercel/analytics").then(({ track }) => {
+      track("Waitlist Signup", { source: payload.source });
+    });
+  }
+
+  return data;
 }
