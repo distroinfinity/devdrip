@@ -4,20 +4,8 @@ export const runtime = "edge";
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
-async function loadFont(family: string, weight: number): Promise<ArrayBuffer> {
-  const css = await fetch(
-    `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}:wght@${weight}`,
-    { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)" } },
-  ).then((r) => r.text());
-
-  const url = css.match(/src: url\((.+?)\)/)?.[1];
-  if (!url) throw new Error(`font url not found for ${family}`);
-  return fetch(url).then((r) => r.arrayBuffer());
-}
-
-export default async function Icon() {
-  const spaceMono = await loadFont("Space Mono", 400);
-
+// matches the navbar logo: dark rounded square with white droplet/shield shape
+export default function Icon() {
   return new ImageResponse(
     (
       <div
@@ -31,30 +19,17 @@ export default async function Icon() {
           borderRadius: 6,
         }}
       >
-        <span
+        <div
           style={{
-            fontFamily: "Space Mono",
-            fontSize: 18,
-            fontWeight: 400,
-            color: "#EDEDF0",
-            letterSpacing: "-1.5px",
-            lineHeight: 1,
+            width: 8,
+            height: 14,
+            backgroundColor: "#EDEDF0",
+            borderRadius: "0 0 4px 4px",
+            opacity: 0.9,
           }}
-        >
-          dd
-        </span>
+        />
       </div>
     ),
-    {
-      ...size,
-      fonts: [
-        {
-          name: "Space Mono",
-          data: spaceMono,
-          weight: 400,
-          style: "normal",
-        },
-      ],
-    },
+    { ...size },
   );
 }
