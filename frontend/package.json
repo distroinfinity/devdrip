@@ -16,6 +16,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@react-email/components": "^1.0.8",
     "@react-email/render": "^2.0.4",
+    "@vercel/analytics": "^1.6.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.3",
