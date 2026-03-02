@@ -22,7 +22,6 @@ type Metric = TickerMetric | StaticMetric;
 const METRICS: Metric[] = [
   { label: "THIS MONTH", prefix: "$", value: 14.72, decimals: 2 },
   { label: "REVENUE SHARE", suffix: "%", value: 70, decimals: 0 },
-  { label: "TX FEE", prefix: "$", value: 0.002, decimals: 3 },
   { label: "DISMISS", static: "<200ms" },
 ];
 
@@ -40,7 +39,7 @@ export function HeroDataStrip({ className }: HeroDataStripProps) {
       {/* top rule */}
       <div className="h-px bg-[var(--rule-default)] mb-6" />
 
-      <div className="grid grid-cols-2 gap-6 lg:grid-cols-4 lg:gap-0">
+      <div className="grid grid-cols-2 gap-6 lg:grid-cols-3 lg:gap-0">
         {METRICS.map((metric, i) => (
           <BlurFade
             key={metric.label}

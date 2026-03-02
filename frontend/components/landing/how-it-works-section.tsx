@@ -18,20 +18,18 @@ const STEPS = [
     number: "01",
     label: "YOUR AGENT STARTS WORKING",
     description: "Dev Drip detects idle state and waits 3 seconds.",
-    subtext: "Nothing appears during quick completions \u2014 only agentic tasks.",
   },
   {
     number: "02",
     label: "CONTENT APPEARS",
     description:
-      "A native-looking panel shows a developer tool recommendation, sponsored tip, or coding challenge.",
+      "Shows a tool, tip, or coding challenge.",
   },
   {
     number: "03",
     label: "YOU EARN USD",
     description:
-      "$0.01\u2013$0.10 per impression, deposited in real-time. 70% to you. 5% to open-source.",
-    subtext: "The moment you start typing, everything vanishes in <200ms.",
+      "$0.10\u2013$0.25 per impression, deposited in real-time.",
   },
 ];
 
@@ -686,22 +684,6 @@ export function HowItWorksSection() {
         </div>
       </BlurFade>
 
-      {/* trust details strip */}
-      <BlurFade inView delay={0.55}>
-        <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 font-body text-caption text-[var(--ink-tertiary)]">
-          <span>Inline completions never trigger content</span>
-          <span className="hidden sm:inline text-[var(--rule-default)]">
-            &middot;
-          </span>
-          <span>8-second minimum idle before first impression</span>
-          <span className="hidden sm:inline text-[var(--rule-default)]">
-            &middot;
-          </span>
-          <span>
-            First 10 minutes of any session are always content-free
-          </span>
-        </div>
-      </BlurFade>
       </div>
     </section>
   );
