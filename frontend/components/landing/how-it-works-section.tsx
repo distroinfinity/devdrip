@@ -200,14 +200,12 @@ function StepCard({
   number,
   label,
   description,
-  subtext,
   isActive,
   delay,
 }: {
   number: string;
   label: string;
   description: string;
-  subtext?: string;
   isActive: boolean;
   delay: number;
 }) {
@@ -237,11 +235,6 @@ function StepCard({
         <div className="font-body text-body-s text-[var(--ink-secondary)] leading-relaxed">
           {description}
         </div>
-        {subtext && (
-          <div className="font-body text-caption text-[var(--ink-tertiary)] mt-2">
-            {subtext}
-          </div>
-        )}
       </div>
     </BlurFade>
   );
@@ -417,7 +410,6 @@ export function HowItWorksSection() {
             number={step.number}
             label={step.label}
             description={step.description}
-            subtext={step.subtext}
             isActive={activeStep === i}
             delay={0.1 + i * 0.1}
           />
