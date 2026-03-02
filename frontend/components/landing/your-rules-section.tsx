@@ -76,7 +76,7 @@ function SurfaceToggle({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between py-3">
+    <div className="flex items-center justify-between py-2">
       <span className="font-body text-body-s text-[var(--ink-primary)]">{label}</span>
       <button
         type="button"
@@ -120,8 +120,8 @@ function RangeControl({
   const pct = ((value - min) / (max - min)) * 100;
 
   return (
-    <div className="py-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="py-2.5">
+      <div className="flex items-center justify-between mb-2">
         <span className="font-body text-[10px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.1em]">
           {label}
         </span>
@@ -163,14 +163,6 @@ function RangeControl({
           background: `linear-gradient(to right, var(--ink-tertiary) 0%, var(--ink-tertiary) ${pct}%, var(--rule-default) ${pct}%, var(--rule-default) 100%)`,
         }}
       />
-      <div className="flex justify-between mt-1.5">
-        <span className="font-data text-[10px] text-[var(--ink-faint)]">
-          {formatValue(min)}
-        </span>
-        <span className="font-data text-[10px] text-[var(--ink-faint)]">
-          {formatValue(max)}
-        </span>
-      </div>
     </div>
   );
 }
@@ -276,7 +268,7 @@ function ControlPanel() {
     <div className="relative rounded-md border border-[var(--rule-default)] bg-[var(--bg-surface)] overflow-hidden">
       <DotGrid opacity={0.1} variant="static" />
 
-      <div className="relative p-5 lg:p-6">
+      <div className="relative p-4 lg:p-5">
         {/* surfaces */}
         <div className="mb-1">
           <div className="font-body text-[10px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.1em] mb-1">
@@ -294,7 +286,7 @@ function ControlPanel() {
           </div>
         </div>
 
-        <div className="border-t border-[var(--rule-default)] my-2" />
+        <div className="border-t border-[var(--rule-default)] my-1" />
 
         {/* frequency */}
         <RangeControl
@@ -316,10 +308,10 @@ function ControlPanel() {
           formatValue={(v) => `${v}s`}
         />
 
-        <div className="border-t border-[var(--rule-default)] my-2" />
+        <div className="border-t border-[var(--rule-default)] my-1" />
 
         {/* schedule */}
-        <div className="py-3">
+        <div className="py-2">
           <div className="font-body text-[10px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.1em] mb-2">
             Schedule
           </div>
@@ -335,14 +327,14 @@ function ControlPanel() {
           />
         </div>
 
-        <div className="border-t border-[var(--rule-default)] my-2" />
+        <div className="border-t border-[var(--rule-default)] my-1" />
 
         {/* categories */}
-        <div className="py-3">
+        <div className="py-2">
           <div className="font-body text-[10px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.1em] mb-3">
             Categories
           </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <div className="grid grid-cols-3 gap-x-3 gap-y-1">
             {CATEGORIES.map((c) => (
               <CategoryCheckbox
                 key={c.key}
@@ -396,45 +388,31 @@ export function YourRulesSection() {
       <DotGrid opacity={0.18} variant="heartbeat" />
 
       <div className="relative mx-auto max-w-grid px-6 py-20">
-        {/* heading */}
-        <BlurFade inView delay={0}>
-          <div className="font-body text-[10px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.1em] mb-3">
-            Your Rules
-          </div>
-          <h2
-            id="your-rules-heading"
-            className="font-display text-h2 md:text-h1 font-bold text-[var(--ink-primary)] tracking-[-0.02em] mb-10 lg:mb-12"
-          >
-            You configure everything.
-          </h2>
-        </BlurFade>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-          {/* left — copy + never list */}
+          {/* left — heading + copy + never list */}
           <div>
-            <BlurFade inView delay={0.1}>
-              <div className="space-y-4 mb-2">
-                <p className="font-body text-body text-[var(--ink-secondary)] leading-[1.6]">
-                  Which surfaces show content. How often. What categories.
-                  What time of day. How long to wait before anything appears.
-                </p>
-                <p className="font-body text-body text-[var(--ink-secondary)] leading-[1.6]">
-                  We even reduce frequency by 50% after 11 PM because{" "}
-                  <span className="font-semibold text-[var(--ink-primary)]">
-                    you&apos;re tired and your tolerance is lower.
-                  </span>{" "}
-                  We thought about that.
-                </p>
-                <p className="font-body text-body text-[var(--ink-secondary)] leading-[1.6]">
-                  If you say 5 ads per day, that&apos;s the ceiling. Not the target.
-                </p>
+            <BlurFade inView delay={0}>
+              <div className="font-body text-[10px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.1em] mb-3">
+                Your Rules
               </div>
+              <h2
+                id="your-rules-heading"
+                className="font-display text-h2 md:text-h1 font-bold text-[var(--ink-primary)] tracking-[-0.02em] mb-6"
+              >
+                You configure everything.
+              </h2>
+            </BlurFade>
+
+            <BlurFade inView delay={0.1}>
+              <p className="font-body text-body text-[var(--ink-secondary)] leading-[1.6] mb-2">
+                Surfaces, frequency, categories, schedule. If you say 5 per day, that&apos;s the ceiling.
+              </p>
             </BlurFade>
 
             <NeverList />
           </div>
 
-          {/* right — control panel */}
+          {/* right — control panel, aligned with heading */}
           <BlurFade inView delay={0.2}>
             <ControlPanel />
           </BlurFade>

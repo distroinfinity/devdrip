@@ -7,10 +7,11 @@ import { EncryptedText } from "@/components/ui/encrypted-text";
 import { WaitlistButton } from "@/components/shared/waitlist-button";
 import { HeroVisual } from "./hero-visual";
 import { HeroDataStrip } from "./hero-data-strip";
+import { ScrollNudge } from "./scroll-nudge";
 
 export function HeroSection() {
   return (
-    <section className="relative overflow-hidden mx-auto max-w-grid px-6 pt-10 pb-16 lg:pt-10 lg:pb-20">
+    <section className="relative overflow-hidden mx-auto max-w-grid px-6 pt-10 pb-6 lg:pt-10 lg:pb-8 min-h-[calc(100svh-60px)] flex flex-col">
       <DotGrid opacity={0.15} variant="static" />
 
       <div className="relative grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-14 items-center">
@@ -51,7 +52,7 @@ export function HeroSection() {
           {/* subhead */}
           <BlurFade delay={1.1} direction="up" duration={0.4} inView>
             <p className="font-body text-[15px] text-[var(--ink-secondary)] max-w-[480px] mb-6 leading-relaxed">
-              Opt-in developer content during AI idle time.
+              Opt-in content during AI idle time.
               <br className="hidden sm:block" />
               Skip anything. Earn USD.
             </p>
@@ -69,9 +70,10 @@ export function HeroSection() {
         </BlurFade>
       </div>
 
-      {/* data strip — sits at/just below fold */}
-      <div className="mt-14 lg:mt-16">
+      {/* data strip + scroll nudge — pushed to bottom of viewport */}
+      <div className="mt-auto pt-10">
         <HeroDataStrip />
+        <ScrollNudge />
       </div>
     </section>
   );

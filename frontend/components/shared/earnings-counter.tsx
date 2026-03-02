@@ -105,7 +105,7 @@ export function EarningsCounter({
       <AnimatePresence>
         {showDelta && (
           <motion.div
-            className="absolute -right-16 top-8 font-data text-[14px] font-bold text-[var(--accent-color)]"
+            className="font-data text-[14px] font-bold text-[var(--accent-color)] mt-1"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
