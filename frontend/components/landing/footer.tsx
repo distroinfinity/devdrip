@@ -1,11 +1,7 @@
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 const NAV_LINKS = [
-  { label: "Docs", href: "#" },
-  { label: "GitHub", href: "https://github.com/distroinfinity/devdrip" },
   { label: "Twitter", href: "https://x.com/devdrip_" },
-  { label: "Privacy", href: "#" },
-  { label: "Terms", href: "#" },
 ] as const;
 
 export function Footer() {
