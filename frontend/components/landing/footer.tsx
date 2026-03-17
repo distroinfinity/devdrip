@@ -12,7 +12,7 @@ export function Footer() {
         {/* nav links */}
         <nav className="flex items-center gap-4">
           <a
-            href="https://x.com/devdrip_"
+            href="https://x.com/devdripdotxyz"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="X (Twitter)"
