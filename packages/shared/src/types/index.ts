@@ -5,6 +5,7 @@ export interface AdPayload {
   campaignId: string
   format: AdFormat
   headline: string
+  body?: string
   url: string
   displayTimeMs: number
 }

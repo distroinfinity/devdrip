@@ -9,7 +9,9 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
-    "lint": {},
+    "lint": {
+      "inputs": ["src/**/*.{ts,tsx}", "eslint.config.*", ".eslintrc*"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
