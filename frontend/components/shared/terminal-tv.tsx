@@ -1,23 +1,23 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useCallback } from "react";
-import { cn } from "@/lib/utils";
-import { terminalColors as tc } from "@/lib/design-tokens";
+import { useState, useEffect, useCallback } from "react"
+import { cn } from "@/lib/utils"
+import { terminalColors as tc } from "@/lib/design-tokens"
 
 interface TerminalTVContent {
-  sponsor: string;
-  description: string;
-  cta: string;
-  earning: string;
+  sponsor: string
+  description: string
+  cta: string
+  earning: string
 }
 
 interface TerminalTVProps {
-  contents?: TerminalTVContent[];
-  rotationIntervalMs?: number;
-  className?: string;
-  onDiscover?: () => void;
-  onSkip?: () => void;
-  onMute?: () => void;
+  contents?: TerminalTVContent[]
+  rotationIntervalMs?: number
+  className?: string
+  onDiscover?: () => void
+  onSkip?: () => void
+  onMute?: () => void
 }
 
 const defaultContents: TerminalTVContent[] = [
@@ -39,7 +39,7 @@ const defaultContents: TerminalTVContent[] = [
     cta: "turso.tech/devdrip",
     earning: "$0.02",
   },
-];
+]
 
 export function TerminalTV({
   contents = defaultContents,
@@ -49,71 +49,65 @@ export function TerminalTV({
   onSkip,
   onMute,
 }: TerminalTVProps) {
-  const [contentIndex, setContentIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [muted, setMuted] = useState(false);
+  const [contentIndex, setContentIndex] = useState(0)
+  const [progress, setProgress] = useState(0)
+  const [muted, setMuted] = useState(false)
 
-  const current = contents[contentIndex];
+  const current = contents[contentIndex]
 
   // content rotation
   useEffect(() => {
     const iv = setInterval(() => {
-      setContentIndex((prev) => (prev + 1) % contents.length);
-      setProgress(0);
-    }, rotationIntervalMs);
-    return () => clearInterval(iv);
-  }, [contents.length, rotationIntervalMs]);
+      setContentIndex((prev) => (prev + 1) % contents.length)
+      setProgress(0)
+    }, rotationIntervalMs)
+    return () => clearInterval(iv)
+  }, [contents.length, rotationIntervalMs])
 
   // progress bar
   useEffect(() => {
-    const iv = setInterval(
-      () => setProgress((prev) => (prev >= 100 ? 0 : prev + 1)),
-      90,
-    );
-    return () => clearInterval(iv);
-  }, []);
+    const iv = setInterval(() => setProgress((prev) => (prev >= 100 ? 0 : prev + 1)), 90)
+    return () => clearInterval(iv)
+  }, [])
 
-  const filled = Math.floor(progress / 5);
-  const bar = "\u2593".repeat(filled) + "\u2591".repeat(20 - filled);
+  const filled = Math.floor(progress / 5)
+  const bar = "\u2593".repeat(filled) + "\u2591".repeat(20 - filled)
 
   const handleSkip = useCallback(() => {
-    setContentIndex((prev) => (prev + 1) % contents.length);
-    setProgress(0);
-    onSkip?.();
-  }, [contents.length, onSkip]);
+    setContentIndex((prev) => (prev + 1) % contents.length)
+    setProgress(0)
+    onSkip?.()
+  }, [contents.length, onSkip])
 
   const handleMute = useCallback(() => {
-    setMuted(true);
-    onMute?.();
-    setTimeout(() => setMuted(false), 3000); // brief visual feedback
-  }, [onMute]);
+    setMuted(true)
+    onMute?.()
+    setTimeout(() => setMuted(false), 3000) // brief visual feedback
+  }, [onMute])
 
   // keyboard handling — only when focused
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      const key = e.key.toLowerCase();
+      const key = e.key.toLowerCase()
       if (key === "s") {
-        e.preventDefault();
-        handleSkip();
+        e.preventDefault()
+        handleSkip()
       } else if (key === "d") {
-        e.preventDefault();
-        onDiscover?.();
+        e.preventDefault()
+        onDiscover?.()
       } else if (key === "m") {
-        e.preventDefault();
-        handleMute();
+        e.preventDefault()
+        handleMute()
       }
     },
-    [handleSkip, onDiscover, handleMute],
-  );
+    [handleSkip, onDiscover, handleMute]
+  )
 
   return (
     <div
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className={cn(
-        "overflow-hidden outline-none focus:ring-1 focus:ring-[#5C5C66]",
-        className,
-      )}
+      className={cn("overflow-hidden outline-none focus:ring-1 focus:ring-[#5C5C66]", className)}
       style={{
         background: tc.bg,
         border: `1px solid ${tc.border}`,
@@ -134,22 +128,16 @@ export function TerminalTV({
         }}
       >
         <span>DEV DRIP TV</span>
-        <span style={{ color: tc.text, fontWeight: 700 }}>
-          {current?.earning}
-        </span>
+        <span style={{ color: tc.text, fontWeight: 700 }}>{current?.earning}</span>
       </div>
 
       {/* content */}
       <div className="px-3.5 pt-3.5 pb-2.5">
         {muted ? (
-          <div style={{ color: tc.textTertiary, fontSize: 12 }}>
-            Muted for 30 min
-          </div>
+          <div style={{ color: tc.textTertiary, fontSize: 12 }}>Muted for 30 min</div>
         ) : (
           <>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              {current?.sponsor}
-            </div>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>{current?.sponsor}</div>
             <div
               style={{
                 color: tc.textSecondary,
@@ -199,5 +187,5 @@ export function TerminalTV({
         <span style={{ color: tc.textTertiary }}>{progress}%</span>
       </div>
     </div>
-  );
+  )
 }

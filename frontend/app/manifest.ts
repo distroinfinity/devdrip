@@ -1,4 +1,4 @@
-import type { MetadataRoute } from "next";
+import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -10,5 +10,5 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "browser",
     background_color: "#F7F6F3",
     theme_color: "#0E0E11",
-  };
+  }
 }

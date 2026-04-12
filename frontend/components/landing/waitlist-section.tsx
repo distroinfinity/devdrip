@@ -1,124 +1,118 @@
-"use client";
+"use client"
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { BlurFade } from "@/components/ui/blur-fade";
-import { DotGrid } from "@/components/shared/dot-grid";
-import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-vanish-input";
-import { cn } from "@/lib/utils";
-import { AI_TOOLS, MONTHLY_SPEND_OPTIONS, isValidEmail, submitWaitlist } from "@/lib/waitlist";
-import type { AiTool, MonthlySpend, WaitlistResponse } from "@/lib/waitlist";
+import { useState, useRef, useEffect } from "react"
+import { motion, AnimatePresence } from "motion/react"
+import { BlurFade } from "@/components/ui/blur-fade"
+import { DotGrid } from "@/components/shared/dot-grid"
+import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-vanish-input"
+import { cn } from "@/lib/utils"
+import { AI_TOOLS, MONTHLY_SPEND_OPTIONS, isValidEmail, submitWaitlist } from "@/lib/waitlist"
+import type { AiTool, MonthlySpend, WaitlistResponse } from "@/lib/waitlist"
 
 const EMAIL_PLACEHOLDERS = [
   "your@email.com",
   "developer@startup.io",
   "coder@bangalore.dev",
   "hacker@localhost",
-];
+]
 
 // smooth easing used across sections
-const EASE_SMOOTH = [0.16, 1, 0.3, 1] as const;
+const EASE_SMOOTH = [0.16, 1, 0.3, 1] as const
 
 type Step =
-  | "email"        // step 1: just the email input
+  | "email" // step 1: just the email input
   | "transitioning" // vanish animation playing, input still mounted
-  | "questions"     // step 2: ICP fields + submit
-  | "submitting"    // API call in flight
-  | "success"       // done
-  | "error";        // API error, auto-recovers to questions
+  | "questions" // step 2: ICP fields + submit
+  | "submitting" // API call in flight
+  | "success" // done
+  | "error" // API error, auto-recovers to questions
 
 export function WaitlistSection() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("")
   // tools selected at the top level (e.g. "claude", "cursor")
-  const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [selectedTools, setSelectedTools] = useState<string[]>([])
   // sub-options selected (e.g. "claude:terminal", "github-copilot:vscode")
-  const [selectedSubOptions, setSelectedSubOptions] = useState<string[]>([]);
-  const [monthlySpend, setMonthlySpend] = useState<MonthlySpend>("");
-  const [honey, setHoney] = useState("");
-  const [step, setStep] = useState<Step>("email");
-  const [result, setResult] = useState<WaitlistResponse | null>(null);
-  const [validationError, setValidationError] = useState("");
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const [selectedSubOptions, setSelectedSubOptions] = useState<string[]>([])
+  const [monthlySpend, setMonthlySpend] = useState<MonthlySpend>("")
+  const [honey, setHoney] = useState("")
+  const [step, setStep] = useState<Step>("email")
+  const [result, setResult] = useState<WaitlistResponse | null>(null)
+  const [validationError, setValidationError] = useState("")
+  const timerRef = useRef<ReturnType<typeof setTimeout>>()
 
-  useEffect(() => () => clearTimeout(timerRef.current), []);
+  useEffect(() => () => clearTimeout(timerRef.current), [])
 
   const toggleTool = (tool: AiTool) => {
-    const isSelected = selectedTools.includes(tool.value);
+    const isSelected = selectedTools.includes(tool.value)
 
     if (isSelected) {
       // deselect tool + clear its sub-options
-      setSelectedTools((prev) => prev.filter((t) => t !== tool.value));
+      setSelectedTools((prev) => prev.filter((t) => t !== tool.value))
       if (tool.subOptions) {
-        const subValues = tool.subOptions.map((s) => s.value);
-        setSelectedSubOptions((prev) =>
-          prev.filter((s) => !subValues.includes(s)),
-        );
+        const subValues = tool.subOptions.map((s) => s.value)
+        setSelectedSubOptions((prev) => prev.filter((s) => !subValues.includes(s)))
       }
     } else {
-      setSelectedTools((prev) => [...prev, tool.value]);
+      setSelectedTools((prev) => [...prev, tool.value])
     }
-  };
+  }
 
   const toggleSubOption = (subValue: string) => {
     setSelectedSubOptions((prev) =>
-      prev.includes(subValue)
-        ? prev.filter((s) => s !== subValue)
-        : [...prev, subValue],
-    );
-  };
+      prev.includes(subValue) ? prev.filter((s) => s !== subValue) : [...prev, subValue]
+    )
+  }
 
   // build final ai_tools array for the API:
   // tools without sub-options → just the value ("cursor")
   // tools with sub-options → only send selected sub-values ("claude:terminal")
   // if a tool with sub-options is selected but no sub-option chosen → send parent value
   const buildAiToolsPayload = (): string[] => {
-    const tools: string[] = [];
+    const tools: string[] = []
     for (const toolValue of selectedTools) {
-      const tool = AI_TOOLS.find((t) => t.value === toolValue);
-      if (!tool) continue;
+      const tool = AI_TOOLS.find((t) => t.value === toolValue)
+      if (!tool) continue
 
       if (!tool.subOptions) {
-        tools.push(tool.value);
+        tools.push(tool.value)
       } else {
-        const selected = tool.subOptions.filter((s) =>
-          selectedSubOptions.includes(s.value),
-        );
+        const selected = tool.subOptions.filter((s) => selectedSubOptions.includes(s.value))
         if (selected.length > 0) {
-          tools.push(...selected.map((s) => s.value));
+          tools.push(...selected.map((s) => s.value))
         } else {
           // selected parent but no sub-option — store parent
-          tools.push(tool.value);
+          tools.push(tool.value)
         }
       }
     }
-    return tools;
-  };
+    return tools
+  }
 
   // tools that have sub-options and are currently selected
   const toolsWithVisibleSubs = AI_TOOLS.filter(
-    (t) => t.subOptions && selectedTools.includes(t.value),
-  );
+    (t) => t.subOptions && selectedTools.includes(t.value)
+  )
 
   // step 1: capture email, let vanish animation play, then reveal step 2
   const handleEmailSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setValidationError("");
+    e.preventDefault()
+    setValidationError("")
 
     if (!isValidEmail(email)) {
-      setValidationError("Enter a valid email address.");
-      return;
+      setValidationError("Enter a valid email address.")
+      return
     }
 
-    setStep("transitioning");
+    setStep("transitioning")
     // wait for vanish particle animation to finish (~500-700ms)
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setStep("questions"), 700);
-  };
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setStep("questions"), 700)
+  }
 
   // step 2: send everything to the API
   const handleFinalSubmit = async () => {
-    setStep("submitting");
-    setValidationError("");
+    setStep("submitting")
+    setValidationError("")
 
     try {
       const res = await submitWaitlist({
@@ -127,30 +121,30 @@ export function WaitlistSection() {
         monthlySpend,
         source: "bottom",
         _honey: honey,
-      });
+      })
 
-      setResult(res);
+      setResult(res)
 
       if (res.success) {
-        setStep("success");
+        setStep("success")
       } else {
-        setValidationError(res.message);
-        setStep("error");
-        clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(() => setStep("questions"), 3000);
+        setValidationError(res.message)
+        setStep("error")
+        clearTimeout(timerRef.current)
+        timerRef.current = setTimeout(() => setStep("questions"), 3000)
       }
     } catch {
-      setValidationError("Something went wrong. Try again.");
-      setStep("error");
-      clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setStep("questions"), 3000);
+      setValidationError("Something went wrong. Try again.")
+      setStep("error")
+      clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => setStep("questions"), 3000)
     }
-  };
+  }
 
   const handleEditEmail = () => {
-    setStep("email");
-    setValidationError("");
-  };
+    setStep("email")
+    setValidationError("")
+  }
 
   return (
     <section
@@ -208,17 +202,13 @@ export function WaitlistSection() {
                   exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
                   transition={{ duration: 0.25, ease: EASE_SMOOTH }}
                 >
-                  <div
-                    className={
-                      step === "transitioning" ? "pointer-events-none" : ""
-                    }
-                  >
+                  <div className={step === "transitioning" ? "pointer-events-none" : ""}>
                     <PlaceholdersAndVanishInput
                       placeholders={EMAIL_PLACEHOLDERS}
                       defaultValue={email}
                       onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (validationError) setValidationError("");
+                        setEmail(e.target.value)
+                        if (validationError) setValidationError("")
                       }}
                       onSubmit={handleEmailSubmit}
                     />
@@ -287,7 +277,7 @@ export function WaitlistSection() {
                     {/* main tool pills */}
                     <div className="flex flex-wrap justify-center gap-2">
                       {AI_TOOLS.map((tool) => {
-                        const active = selectedTools.includes(tool.value);
+                        const active = selectedTools.includes(tool.value)
                         return (
                           <button
                             key={tool.value}
@@ -297,12 +287,12 @@ export function WaitlistSection() {
                               "px-3 py-1.5 rounded-full text-[13px] font-medium font-body border transition-all duration-150",
                               active
                                 ? "bg-[var(--ink-primary)] text-[var(--ink-inverse)] border-[var(--ink-primary)]"
-                                : "bg-transparent text-[var(--ink-tertiary)] border-[var(--rule-default)] hover:border-[var(--ink-tertiary)] hover:text-[var(--ink-secondary)]",
+                                : "bg-transparent text-[var(--ink-tertiary)] border-[var(--rule-default)] hover:border-[var(--ink-tertiary)] hover:text-[var(--ink-secondary)]"
                             )}
                           >
                             {tool.label}
                           </button>
-                        );
+                        )
                       })}
                     </div>
 
@@ -322,7 +312,7 @@ export function WaitlistSection() {
                               {tool.label}:
                             </span>
                             {tool.subOptions!.map((sub) => {
-                              const subActive = selectedSubOptions.includes(sub.value);
+                              const subActive = selectedSubOptions.includes(sub.value)
                               return (
                                 <button
                                   key={sub.value}
@@ -332,12 +322,12 @@ export function WaitlistSection() {
                                     "px-2.5 py-1 rounded-full text-[11px] font-medium font-body border transition-all duration-150",
                                     subActive
                                       ? "bg-[var(--ink-secondary)] text-[var(--ink-inverse)] border-[var(--ink-secondary)]"
-                                      : "bg-transparent text-[var(--ink-faint)] border-[var(--rule-subtle)] hover:border-[var(--ink-faint)] hover:text-[var(--ink-tertiary)]",
+                                      : "bg-transparent text-[var(--ink-faint)] border-[var(--rule-subtle)] hover:border-[var(--ink-faint)] hover:text-[var(--ink-tertiary)]"
                                   )}
                                 >
                                   {sub.label}
                                 </button>
-                              );
+                              )
                             })}
                           </div>
                         </motion.div>
@@ -356,24 +346,22 @@ export function WaitlistSection() {
                     </p>
                     <div className="flex flex-wrap justify-center gap-2">
                       {MONTHLY_SPEND_OPTIONS.map((opt) => {
-                        const active = monthlySpend === opt.value;
+                        const active = monthlySpend === opt.value
                         return (
                           <button
                             key={opt.value}
                             type="button"
-                            onClick={() =>
-                              setMonthlySpend(active ? "" : opt.value)
-                            }
+                            onClick={() => setMonthlySpend(active ? "" : opt.value)}
                             className={cn(
                               "px-3 py-1.5 rounded-full text-[13px] font-medium font-data border transition-all duration-150 tabular-nums",
                               active
                                 ? "bg-[var(--ink-primary)] text-[var(--ink-inverse)] border-[var(--ink-primary)]"
-                                : "bg-transparent text-[var(--ink-tertiary)] border-[var(--rule-default)] hover:border-[var(--ink-tertiary)] hover:text-[var(--ink-secondary)]",
+                                : "bg-transparent text-[var(--ink-tertiary)] border-[var(--rule-default)] hover:border-[var(--ink-tertiary)] hover:text-[var(--ink-secondary)]"
                             )}
                           >
                             {opt.label}/mo
                           </button>
-                        );
+                        )
                       })}
                     </div>
                   </motion.div>
@@ -393,7 +381,7 @@ export function WaitlistSection() {
                         "h-11 px-8 rounded-sm font-body text-sm font-medium transition-all",
                         step === "submitting"
                           ? "bg-[var(--ink-primary)] text-[var(--ink-inverse)] cursor-wait opacity-70"
-                          : "bg-[var(--ink-primary)] text-[var(--ink-inverse)] hover:bg-[var(--em-hover)] cursor-pointer",
+                          : "bg-[var(--ink-primary)] text-[var(--ink-inverse)] hover:bg-[var(--em-hover)] cursor-pointer"
                       )}
                     >
                       {step === "submitting" ? (
@@ -447,6 +435,5 @@ export function WaitlistSection() {
         </div>
       </div>
     </section>
-  );
+  )
 }
-

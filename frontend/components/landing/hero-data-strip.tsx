@@ -1,36 +1,36 @@
-"use client";
+"use client"
 
-import { cn } from "@/lib/utils";
-import { BlurFade } from "@/components/ui/blur-fade";
-import { NumberTicker } from "@/components/ui/number-ticker";
+import { cn } from "@/lib/utils"
+import { BlurFade } from "@/components/ui/blur-fade"
+import { NumberTicker } from "@/components/ui/number-ticker"
 
 type TickerMetric = {
-  label: string;
-  prefix?: string;
-  suffix?: string;
-  value: number;
-  decimals: number;
-};
+  label: string
+  prefix?: string
+  suffix?: string
+  value: number
+  decimals: number
+}
 
 type StaticMetric = {
-  label: string;
-  static: string;
-};
+  label: string
+  static: string
+}
 
-type Metric = TickerMetric | StaticMetric;
+type Metric = TickerMetric | StaticMetric
 
 const METRICS: Metric[] = [
   { label: "THIS MONTH", prefix: "$", value: 14.72, decimals: 2 },
   { label: "REVENUE SHARE", suffix: "%", value: 70, decimals: 0 },
   { label: "DISMISS", static: "<200ms" },
-];
+]
 
 // base stagger offset for the data strip entrance
-const BASE_DELAY = 2.0;
-const STAGGER = 0.15;
+const BASE_DELAY = 2.0
+const STAGGER = 0.15
 
 interface HeroDataStripProps {
-  className?: string;
+  className?: string
 }
 
 export function HeroDataStrip({ className }: HeroDataStripProps) {
@@ -78,5 +78,5 @@ export function HeroDataStrip({ className }: HeroDataStripProps) {
         ))}
       </div>
     </div>
-  );
+  )
 }
