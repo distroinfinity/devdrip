@@ -1,14 +1,14 @@
-import type { Metadata } from "next";
-import { spaceMono, dmSans, jetbrainsMono } from "@/lib/fonts";
-import { Analytics } from "@vercel/analytics/react";
-import "@/styles/tokens.css";
-import "./globals.css";
+import type { Metadata } from "next"
+import { spaceMono, dmSans, jetbrainsMono } from "@/lib/fonts"
+import { Analytics } from "@vercel/analytics/react"
+import "@/styles/tokens.css"
+import "./globals.css"
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://devdrip.xyz";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://devdrip.xyz"
 
-const title = "Dev Drip — Earn while your AI agent codes";
+const title = "Dev Drip — Earn while your AI agent codes"
 const description =
-  "Opt-in developer content during AI coding tool idle time. Skip anything. Earn USD. Offset your Copilot and Cursor subscriptions.";
+  "Opt-in developer content during AI coding tool idle time. Skip anything. Earn USD. Offset your Copilot and Cursor subscriptions."
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: siteUrl,
   },
-};
+}
 
 // structured data for search engines
 const jsonLd = {
@@ -81,12 +81,12 @@ const jsonLd = {
       url: siteUrl,
     },
   ],
-};
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html
@@ -110,5 +110,5 @@ export default function RootLayout({
         <Analytics />
       </body>
     </html>
-  );
+  )
 }

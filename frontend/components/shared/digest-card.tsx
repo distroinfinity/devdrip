@@ -1,17 +1,17 @@
-import { cn } from "@/lib/utils";
-import { DotGrid } from "./dot-grid";
+import { cn } from "@/lib/utils"
+import { DotGrid } from "./dot-grid"
 
 interface DigestItem {
-  tag: string;
-  title: string;
-  sponsor: string;
+  tag: string
+  title: string
+  sponsor: string
 }
 
 interface DigestCardProps {
-  greeting?: string;
-  yesterdayEarnings?: string;
-  items?: DigestItem[];
-  className?: string;
+  greeting?: string
+  yesterdayEarnings?: string
+  items?: DigestItem[]
+  className?: string
 }
 
 const defaultItems: DigestItem[] = [
@@ -30,7 +30,7 @@ const defaultItems: DigestItem[] = [
     title: "Staff Engineer @ Stripe (Remote)",
     sponsor: "Stripe",
   },
-];
+]
 
 export function DigestCard({
   greeting = "Good Morning",
@@ -42,7 +42,7 @@ export function DigestCard({
     <div
       className={cn(
         "bg-[var(--bg-surface)] border border-[var(--rule-default)] rounded-lg p-5 relative overflow-hidden",
-        className,
+        className
       )}
     >
       <DotGrid opacity={0.15} />
@@ -54,9 +54,7 @@ export function DigestCard({
 
         {/* yesterday earnings */}
         <div className="flex justify-between items-baseline mb-3.5">
-          <span className="font-body text-caption text-[var(--ink-tertiary)]">
-            Yesterday
-          </span>
+          <span className="font-body text-caption text-[var(--ink-tertiary)]">Yesterday</span>
           <span className="font-data text-[16px] font-bold text-[var(--ink-primary)]">
             {yesterdayEarnings}
           </span>
@@ -70,7 +68,7 @@ export function DigestCard({
             key={i}
             className={cn(
               "py-2 flex gap-2.5 items-start",
-              i < items.length - 1 && "border-b border-[var(--rule-subtle)]",
+              i < items.length - 1 && "border-b border-[var(--rule-subtle)]"
             )}
           >
             <span className="font-body text-[9px] font-semibold tracking-[0.06em] bg-[var(--bg-inset)] text-[var(--ink-tertiary)] px-1.5 py-0.5 rounded-[3px] shrink-0 mt-0.5">
@@ -96,7 +94,7 @@ export function DigestCard({
                 "font-body text-[11px] font-medium cursor-pointer",
                 i === 0
                   ? "text-[var(--ink-primary)] border-b border-[var(--rule-strong)] pb-px"
-                  : "text-[var(--ink-tertiary)]",
+                  : "text-[var(--ink-tertiary)]"
               )}
             >
               {action}
@@ -105,5 +103,5 @@ export function DigestCard({
         </div>
       </div>
     </div>
-  );
+  )
 }

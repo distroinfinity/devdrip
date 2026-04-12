@@ -1,6 +1,6 @@
-"use client";
+"use client"
 
-import { BlurFade } from "@/components/ui/blur-fade";
+import { BlurFade } from "@/components/ui/blur-fade"
 
 export function ScrollNudge() {
   return (
@@ -30,5 +30,5 @@ export function ScrollNudge() {
         </svg>
       </a>
     </BlurFade>
-  );
+  )
 }

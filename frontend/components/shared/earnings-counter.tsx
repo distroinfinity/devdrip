@@ -1,14 +1,14 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { useState, useEffect, useRef, useCallback } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { cn } from "@/lib/utils"
 
 interface EarningsCounterProps {
-  initialValue?: number;
-  increment?: number;
-  intervalMs?: number;
-  className?: string;
+  initialValue?: number
+  increment?: number
+  intervalMs?: number
+  className?: string
 }
 
 // individual digit that rolls when value changes
@@ -32,7 +32,7 @@ function RollingDigit({ digit, index }: { digit: string; index: number }) {
         </motion.span>
       </AnimatePresence>
     </span>
-  );
+  )
 }
 
 export function EarningsCounter({
@@ -41,32 +41,32 @@ export function EarningsCounter({
   intervalMs = 3800,
   className,
 }: EarningsCounterProps) {
-  const [value, setValue] = useState(initialValue);
-  const [showDelta, setShowDelta] = useState(false);
-  const [glowActive, setGlowActive] = useState(false);
-  const deltaTimeout = useRef<ReturnType<typeof setTimeout>>();
-  const glowTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const [value, setValue] = useState(initialValue)
+  const [showDelta, setShowDelta] = useState(false)
+  const [glowActive, setGlowActive] = useState(false)
+  const deltaTimeout = useRef<ReturnType<typeof setTimeout>>()
+  const glowTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   const tick = useCallback(() => {
-    setValue((prev) => Math.round((prev + increment) * 100) / 100);
-    setGlowActive(true);
-    setShowDelta(true);
+    setValue((prev) => Math.round((prev + increment) * 100) / 100)
+    setGlowActive(true)
+    setShowDelta(true)
 
-    glowTimeout.current = setTimeout(() => setGlowActive(false), 500);
-    deltaTimeout.current = setTimeout(() => setShowDelta(false), 2200);
-  }, [increment]);
+    glowTimeout.current = setTimeout(() => setGlowActive(false), 500)
+    deltaTimeout.current = setTimeout(() => setShowDelta(false), 2200)
+  }, [increment])
 
   useEffect(() => {
-    const iv = setInterval(tick, intervalMs);
+    const iv = setInterval(tick, intervalMs)
     return () => {
-      clearInterval(iv);
-      if (deltaTimeout.current) clearTimeout(deltaTimeout.current);
-      if (glowTimeout.current) clearTimeout(glowTimeout.current);
-    };
-  }, [tick, intervalMs]);
+      clearInterval(iv)
+      if (deltaTimeout.current) clearTimeout(deltaTimeout.current)
+      if (glowTimeout.current) clearTimeout(glowTimeout.current)
+    }
+  }, [tick, intervalMs])
 
-  const formatted = `$${value.toFixed(2)}`;
-  const digits = formatted.split("");
+  const formatted = `$${value.toFixed(2)}`
+  const digits = formatted.split("")
 
   return (
     <div className={cn("relative", className)}>
@@ -92,14 +92,12 @@ export function EarningsCounter({
             </span>
           ) : (
             <RollingDigit key={`pos-${i}`} digit={d} index={i} />
-          ),
+          )
         )}
       </div>
 
       {/* usdc label */}
-      <div className="font-data text-[11px] text-[var(--ink-tertiary)] mt-1 tracking-wide">
-        USD
-      </div>
+      <div className="font-data text-[11px] text-[var(--ink-tertiary)] mt-1 tracking-wide">USD</div>
 
       {/* delta badge */}
       <AnimatePresence>
@@ -119,5 +117,5 @@ export function EarningsCounter({
         )}
       </AnimatePresence>
     </div>
-  );
+  )
 }
