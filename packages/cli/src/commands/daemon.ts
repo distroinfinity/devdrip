@@ -1,8 +1,7 @@
 import { Command } from "commander"
-import { DAEMON_SOCKET_PATH } from "@devdrip/shared"
 
 const start = new Command("start").description("start the background daemon").action(() => {
-  console.log("TODO: start daemon at", DAEMON_SOCKET_PATH)
+  console.log("TODO: start daemon")
 })
 
 const stop = new Command("stop").description("stop the background daemon").action(() => {

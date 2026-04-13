@@ -1,4 +1,6 @@
+import { realpathSync } from "node:fs"
 import { createRequire } from "node:module"
+import { fileURLToPath } from "node:url"
 import { Command } from "commander"
 import { initCmd } from "./commands/init.js"
 import { authCmd } from "./commands/auth.js"
@@ -17,12 +19,15 @@ import { adminCmd } from "./commands/admin.js"
 import { hookCmd } from "./commands/hook.js"
 
 const require = createRequire(import.meta.url)
-const { version } = require("../package.json") as { version: string }
+const { version = "0.0.0" } = require("../package.json") as {
+  version?: string
+}
 
-const program = new Command()
+export const program = new Command()
   .name("devdrip")
   .description("earn while your AI agent codes")
   .version(version)
+  .exitOverride()
 
 program
   .addCommand(initCmd)
@@ -41,4 +46,12 @@ program
   .addCommand(adminCmd)
   .addCommand(hookCmd)
 
-program.parse()
+async function main() {
+  await program.parseAsync()
+}
+
+const self = realpathSync(fileURLToPath(import.meta.url))
+const entry = process.argv[1] ? realpathSync(process.argv[1]) : ""
+if (self === entry) {
+  main().catch(() => process.exit(0))
+}
