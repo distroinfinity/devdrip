@@ -1,0 +1,9 @@
+[build]
+builder = "nixpacks"
+buildCommand = "pnpm install --frozen-lockfile && pnpm turbo run build --filter=@devdrip/api"
+watchPatterns = ["packages/api/**", "packages/shared/**"]
+
+[deploy]
+startCommand = "node packages/api/dist/index.js"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
