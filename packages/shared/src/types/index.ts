@@ -60,6 +60,16 @@ export enum ImpressionResult {
   Interrupted = "interrupted",
 }
 
+// ── billing ─────────────────────────────────────────────────────────────────
+
+export interface BillingInfo {
+  method: "stripe" | "crypto" | "invoice"
+  stripeCustomerId?: string
+  walletAddress?: string
+  billingEmail?: string
+  taxId?: string
+}
+
 // ── targeting ───────────────────────────────────────────────────────────────
 
 export interface TargetingRules {

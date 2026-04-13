@@ -28,10 +28,14 @@ export const campaigns = pgTable(
       .notNull()
       .references(() => advertisers.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 255 }).notNull(),
-    budgetTotal: numeric("budget_total", { precision: 12, scale: 6 }).notNull(),
-    budgetDaily: numeric("budget_daily", { precision: 12, scale: 6 }).notNull(),
-    budgetSpent: numeric("budget_spent", { precision: 12, scale: 6 }).notNull().default("0"),
-    cpmRate: numeric("cpm_rate", { precision: 12, scale: 6 }).notNull(),
+    budgetTotal: numeric("budget_total", { precision: 12, scale: 6, mode: "number" }).notNull(),
+    budgetDaily: numeric("budget_daily", { precision: 12, scale: 6, mode: "number" }).notNull(),
+    budgetSpent: numeric("budget_spent", { precision: 12, scale: 6, mode: "number" })
+      .notNull()
+      .default(0),
+    cpmRate: numeric("cpm_rate", { precision: 12, scale: 6, mode: "number" }).notNull(),
+    // text[] — app-layer validation against AdCategory/AdSurface enums;
+    // drizzle doesn't support pgEnum arrays natively
     targetCategories: text("target_categories").array().notNull().default([]),
     targetSurfaces: text("target_surfaces").array().notNull().default([]),
     targetingRules: jsonb("targeting_rules"),

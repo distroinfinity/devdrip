@@ -1,4 +1,5 @@
 -- down migration: reverse FK order
+DROP TRIGGER IF EXISTS set_referrals_updated_at ON "referrals";
 DROP TRIGGER IF EXISTS set_preferences_updated_at ON "preferences";
 DROP TRIGGER IF EXISTS set_payouts_updated_at ON "payouts";
 DROP TRIGGER IF EXISTS set_creatives_updated_at ON "creatives";
@@ -23,10 +24,12 @@ DROP TYPE IF EXISTS "public"."referral_status";
 DROP TYPE IF EXISTS "public"."payout_status";
 DROP TYPE IF EXISTS "public"."pacing_strategy";
 DROP TYPE IF EXISTS "public"."impression_result";
+DROP TYPE IF EXISTS "public"."ide_type";
 DROP TYPE IF EXISTS "public"."earning_status";
 DROP TYPE IF EXISTS "public"."campaign_status";
 DROP TYPE IF EXISTS "public"."ad_surface";
 DROP TYPE IF EXISTS "public"."ad_source";
 DROP TYPE IF EXISTS "public"."ad_format";
+DROP TYPE IF EXISTS "public"."ad_category";
 
 DROP FUNCTION IF EXISTS set_updated_at();

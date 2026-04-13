@@ -30,6 +30,16 @@ export const adSurfaceEnum = pgEnum("ad_surface", [
   "audio",
 ])
 
+export const adCategoryEnum = pgEnum("ad_category", [
+  "cloud-infrastructure",
+  "developer-tools",
+  "databases",
+  "monitoring-observability",
+  "developer-recruiting",
+  "developer-education",
+  "saas-products",
+])
+
 export const creatives = pgTable(
   "creatives",
   {
@@ -43,9 +53,9 @@ export const creatives = pgTable(
     ctaUrl: varchar("cta_url", { length: 2048 }),
     format: adFormatEnum("format").notNull().default("text"),
     surface: adSurfaceEnum("surface").notNull().default("terminal-tv"),
-    category: varchar("category", { length: 50 }).notNull(),
+    category: adCategoryEnum("category").notNull(),
     source: adSourceEnum("source").notNull(),
-    cpmRate: numeric("cpm_rate", { precision: 12, scale: 6 }).notNull(),
+    cpmRate: numeric("cpm_rate", { precision: 12, scale: 6, mode: "number" }).notNull(),
     externalCampaignId: varchar("external_campaign_id", { length: 255 }),
     externalCreativeId: varchar("external_creative_id", { length: 255 }),
     impressionBeaconUrl: varchar("impression_beacon_url", { length: 2048 }),

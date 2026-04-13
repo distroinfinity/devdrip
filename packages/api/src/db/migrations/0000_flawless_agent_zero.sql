@@ -3,11 +3,13 @@ CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;--> statement-breakpoint
+CREATE TYPE "public"."ad_category" AS ENUM('cloud-infrastructure', 'developer-tools', 'databases', 'monitoring-observability', 'developer-recruiting', 'developer-education', 'saas-products');--> statement-breakpoint
 CREATE TYPE "public"."ad_format" AS ENUM('text', 'banner', 'sponsored-link');--> statement-breakpoint
 CREATE TYPE "public"."ad_source" AS ENUM('direct', 'carbon', 'ethicalads', 'google', 'amazon', 'x402');--> statement-breakpoint
 CREATE TYPE "public"."ad_surface" AS ENUM('terminal-tv', 'companion-tab', 'idle-dashboard', 'digest', 'challenge', 'audio');--> statement-breakpoint
 CREATE TYPE "public"."campaign_status" AS ENUM('draft', 'active', 'paused', 'completed');--> statement-breakpoint
 CREATE TYPE "public"."earning_status" AS ENUM('pending', 'confirmed');--> statement-breakpoint
+CREATE TYPE "public"."ide_type" AS ENUM('terminal', 'vscode', 'cursor');--> statement-breakpoint
 CREATE TYPE "public"."impression_result" AS ENUM('completed', 'skipped', 'expired', 'interrupted');--> statement-breakpoint
 CREATE TYPE "public"."pacing_strategy" AS ENUM('even', 'front_loaded', 'asap');--> statement-breakpoint
 CREATE TYPE "public"."payout_status" AS ENUM('pending', 'processing', 'confirmed', 'failed');--> statement-breakpoint
@@ -29,7 +31,7 @@ CREATE TABLE "campaigns" (
 	"name" varchar(255) NOT NULL,
 	"budget_total" numeric(12, 6) NOT NULL,
 	"budget_daily" numeric(12, 6) NOT NULL,
-	"budget_spent" numeric(12, 6) DEFAULT '0' NOT NULL,
+	"budget_spent" numeric(12, 6) DEFAULT 0 NOT NULL,
 	"cpm_rate" numeric(12, 6) NOT NULL,
 	"target_categories" text[] DEFAULT '{}' NOT NULL,
 	"target_surfaces" text[] DEFAULT '{}' NOT NULL,
@@ -45,7 +47,6 @@ CREATE TABLE "campaigns" (
 CREATE TABLE "clicks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"impression_id" uuid NOT NULL,
-	"creative_id" uuid NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "clicks_impression_id_unique" UNIQUE("impression_id")
 );
@@ -59,7 +60,7 @@ CREATE TABLE "creatives" (
 	"cta_url" varchar(2048),
 	"format" "ad_format" DEFAULT 'text' NOT NULL,
 	"surface" "ad_surface" DEFAULT 'terminal-tv' NOT NULL,
-	"category" varchar(50) NOT NULL,
+	"category" "ad_category" NOT NULL,
 	"source" "ad_source" NOT NULL,
 	"cpm_rate" numeric(12, 6) NOT NULL,
 	"external_campaign_id" varchar(255),
@@ -77,7 +78,7 @@ CREATE TABLE "devices" (
 	"machine_id_hash" varchar(64) NOT NULL,
 	"device_name" varchar(255),
 	"os" varchar(50) NOT NULL,
-	"ide_type" varchar(20) NOT NULL,
+	"ide_type" "ide_type" NOT NULL,
 	"last_heartbeat" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -87,8 +88,8 @@ CREATE TABLE "earnings_ledger" (
 	"user_id" uuid NOT NULL,
 	"impression_id" uuid NOT NULL,
 	"amount_usdc" numeric(12, 6) NOT NULL,
-	"surface" varchar(30) NOT NULL,
-	"ad_category" varchar(50) NOT NULL,
+	"surface" "ad_surface" NOT NULL,
+	"ad_category" "ad_category" NOT NULL,
 	"status" "earning_status" DEFAULT 'pending' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -96,7 +97,6 @@ CREATE TABLE "earnings_ledger" (
 CREATE TABLE "impressions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"creative_id" uuid NOT NULL,
-	"campaign_id" uuid NOT NULL,
 	"device_id" uuid NOT NULL,
 	"source" "ad_source" NOT NULL,
 	"surface" "ad_surface" NOT NULL,
@@ -104,7 +104,6 @@ CREATE TABLE "impressions" (
 	"result" "impression_result" NOT NULL,
 	"cpm_rate" numeric(12, 6) NOT NULL,
 	"earned_amount" numeric(12, 6) NOT NULL,
-	"clicked" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -154,12 +153,13 @@ CREATE TABLE "referrals" (
 	"status" "referral_status" DEFAULT 'pending' NOT NULL,
 	"bonus_paid" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "referrals_referee_id_unique" UNIQUE("referee_id")
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"github_id" integer,
+	"github_id" bigint,
 	"github_login" varchar(255),
 	"email" varchar(255) NOT NULL,
 	"avatar_url" varchar(512),
@@ -177,13 +177,11 @@ CREATE TABLE "users" (
 --> statement-breakpoint
 ALTER TABLE "campaigns" ADD CONSTRAINT "campaigns_advertiser_id_advertisers_id_fk" FOREIGN KEY ("advertiser_id") REFERENCES "public"."advertisers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "clicks" ADD CONSTRAINT "clicks_impression_id_impressions_id_fk" FOREIGN KEY ("impression_id") REFERENCES "public"."impressions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "clicks" ADD CONSTRAINT "clicks_creative_id_creatives_id_fk" FOREIGN KEY ("creative_id") REFERENCES "public"."creatives"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "creatives" ADD CONSTRAINT "creatives_campaign_id_campaigns_id_fk" FOREIGN KEY ("campaign_id") REFERENCES "public"."campaigns"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "devices" ADD CONSTRAINT "devices_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "earnings_ledger" ADD CONSTRAINT "earnings_ledger_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "earnings_ledger" ADD CONSTRAINT "earnings_ledger_impression_id_impressions_id_fk" FOREIGN KEY ("impression_id") REFERENCES "public"."impressions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "impressions" ADD CONSTRAINT "impressions_creative_id_creatives_id_fk" FOREIGN KEY ("creative_id") REFERENCES "public"."creatives"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "impressions" ADD CONSTRAINT "impressions_campaign_id_campaigns_id_fk" FOREIGN KEY ("campaign_id") REFERENCES "public"."campaigns"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "impressions" ADD CONSTRAINT "impressions_device_id_devices_id_fk" FOREIGN KEY ("device_id") REFERENCES "public"."devices"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invite_codes" ADD CONSTRAINT "invite_codes_used_by_users_id_fk" FOREIGN KEY ("used_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payouts" ADD CONSTRAINT "payouts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
@@ -195,12 +193,31 @@ CREATE INDEX "creatives_source_active_idx" ON "creatives" USING btree ("source",
 CREATE INDEX "creatives_category_idx" ON "creatives" USING btree ("category");--> statement-breakpoint
 CREATE UNIQUE INDEX "devices_user_machine_idx" ON "devices" USING btree ("user_id","machine_id_hash");--> statement-breakpoint
 CREATE INDEX "earnings_user_created_idx" ON "earnings_ledger" USING btree ("user_id","created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "earnings_impression_unique_idx" ON "earnings_ledger" USING btree ("impression_id");--> statement-breakpoint
 CREATE INDEX "impressions_device_created_idx" ON "impressions" USING btree ("device_id","created_at");--> statement-breakpoint
 CREATE INDEX "payouts_user_idx" ON "payouts" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "referrals_code_idx" ON "referrals" USING btree ("code");--> statement-breakpoint
 -- updated_at triggers for mutable tables
 CREATE TRIGGER set_users_updated_at BEFORE UPDATE ON "users" FOR EACH ROW EXECUTE FUNCTION set_updated_at();--> statement-breakpoint
 CREATE TRIGGER set_advertisers_updated_at BEFORE UPDATE ON "advertisers" FOR EACH ROW EXECUTE FUNCTION set_updated_at();--> statement-breakpoint
 CREATE TRIGGER set_campaigns_updated_at BEFORE UPDATE ON "campaigns" FOR EACH ROW EXECUTE FUNCTION set_updated_at();--> statement-breakpoint
 CREATE TRIGGER set_creatives_updated_at BEFORE UPDATE ON "creatives" FOR EACH ROW EXECUTE FUNCTION set_updated_at();--> statement-breakpoint
 CREATE TRIGGER set_payouts_updated_at BEFORE UPDATE ON "payouts" FOR EACH ROW EXECUTE FUNCTION set_updated_at();--> statement-breakpoint
-CREATE TRIGGER set_preferences_updated_at BEFORE UPDATE ON "preferences" FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER set_preferences_updated_at BEFORE UPDATE ON "preferences" FOR EACH ROW EXECUTE FUNCTION set_updated_at();--> statement-breakpoint
+CREATE TRIGGER set_referrals_updated_at BEFORE UPDATE ON "referrals" FOR EACH ROW EXECUTE FUNCTION set_updated_at();--> statement-breakpoint
+-- CHECK constraints: financial guardrails
+ALTER TABLE "campaigns" ADD CONSTRAINT "campaigns_budget_total_positive" CHECK (budget_total >= 0);--> statement-breakpoint
+ALTER TABLE "campaigns" ADD CONSTRAINT "campaigns_budget_daily_positive" CHECK (budget_daily >= 0);--> statement-breakpoint
+ALTER TABLE "campaigns" ADD CONSTRAINT "campaigns_budget_spent_positive" CHECK (budget_spent >= 0);--> statement-breakpoint
+ALTER TABLE "campaigns" ADD CONSTRAINT "campaigns_cpm_rate_positive" CHECK (cpm_rate >= 0);--> statement-breakpoint
+ALTER TABLE "campaigns" ADD CONSTRAINT "campaigns_dates_valid" CHECK (ends_at IS NULL OR starts_at IS NULL OR ends_at > starts_at);--> statement-breakpoint
+ALTER TABLE "creatives" ADD CONSTRAINT "creatives_cpm_rate_positive" CHECK (cpm_rate >= 0);--> statement-breakpoint
+ALTER TABLE "impressions" ADD CONSTRAINT "impressions_duration_positive" CHECK (duration_ms > 0);--> statement-breakpoint
+ALTER TABLE "impressions" ADD CONSTRAINT "impressions_earned_positive" CHECK (earned_amount >= 0);--> statement-breakpoint
+ALTER TABLE "impressions" ADD CONSTRAINT "impressions_cpm_positive" CHECK (cpm_rate >= 0);--> statement-breakpoint
+ALTER TABLE "earnings_ledger" ADD CONSTRAINT "earnings_amount_positive" CHECK (amount_usdc > 0);--> statement-breakpoint
+ALTER TABLE "payouts" ADD CONSTRAINT "payouts_amount_positive" CHECK (amount_usdc > 0);--> statement-breakpoint
+-- CHECK constraints: data integrity
+ALTER TABLE "referrals" ADD CONSTRAINT "referrals_no_self_referral" CHECK (referrer_id != referee_id);--> statement-breakpoint
+ALTER TABLE "preferences" ADD CONSTRAINT "preferences_quiet_hours_valid" CHECK (quiet_hours_start IS NULL OR (quiet_hours_start >= 0 AND quiet_hours_start <= 23));--> statement-breakpoint
+ALTER TABLE "preferences" ADD CONSTRAINT "preferences_quiet_hours_end_valid" CHECK (quiet_hours_end IS NULL OR (quiet_hours_end >= 0 AND quiet_hours_end <= 23));

@@ -1,5 +1,5 @@
 {
-  "id": "55b2e12b-2f96-498b-ad93-252bc0fd23dd",
+  "id": "a7363e61-9626-47b5-9a20-cd540fe33bf4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -108,7 +108,7 @@
           "type": "numeric(12, 6)",
           "primaryKey": false,
           "notNull": true,
-          "default": "'0'"
+          "default": 0
         },
         "cpm_rate": {
           "name": "cpm_rate",
@@ -236,12 +236,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "creative_id": {
-          "name": "creative_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -257,15 +251,6 @@
           "tableFrom": "clicks",
           "tableTo": "impressions",
           "columnsFrom": ["impression_id"],
-          "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "clicks_creative_id_creatives_id_fk": {
-          "name": "clicks_creative_id_creatives_id_fk",
-          "tableFrom": "clicks",
-          "tableTo": "creatives",
-          "columnsFrom": ["creative_id"],
           "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
@@ -342,7 +327,8 @@
         },
         "category": {
           "name": "category",
-          "type": "varchar(50)",
+          "type": "ad_category",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -497,7 +483,8 @@
         },
         "ide_type": {
           "name": "ide_type",
-          "type": "varchar(20)",
+          "type": "ide_type",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -586,13 +573,15 @@
         },
         "surface": {
           "name": "surface",
-          "type": "varchar(30)",
+          "type": "ad_surface",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
         "ad_category": {
           "name": "ad_category",
-          "type": "varchar(50)",
+          "type": "ad_category",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -630,6 +619,21 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "earnings_impression_unique_idx": {
+          "name": "earnings_impression_unique_idx",
+          "columns": [
+            {
+              "expression": "impression_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -674,12 +678,6 @@
         },
         "creative_id": {
           "name": "creative_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "campaign_id": {
-          "name": "campaign_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -729,13 +727,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "clicked": {
-          "name": "clicked",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -773,15 +764,6 @@
           "tableFrom": "impressions",
           "tableTo": "creatives",
           "columnsFrom": ["creative_id"],
-          "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "impressions_campaign_id_campaigns_id_fk": {
-          "name": "impressions_campaign_id_campaigns_id_fk",
-          "tableFrom": "impressions",
-          "tableTo": "campaigns",
-          "columnsFrom": ["campaign_id"],
           "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
@@ -1126,9 +1108,32 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "referrals_code_idx": {
+          "name": "referrals_code_idx",
+          "columns": [
+            {
+              "expression": "code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "referrals_referrer_id_users_id_fk": {
           "name": "referrals_referrer_id_users_id_fk",
@@ -1174,7 +1179,7 @@
         },
         "github_id": {
           "name": "github_id",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": false
         },
@@ -1269,6 +1274,19 @@
     }
   },
   "enums": {
+    "public.ad_category": {
+      "name": "ad_category",
+      "schema": "public",
+      "values": [
+        "cloud-infrastructure",
+        "developer-tools",
+        "databases",
+        "monitoring-observability",
+        "developer-recruiting",
+        "developer-education",
+        "saas-products"
+      ]
+    },
     "public.ad_format": {
       "name": "ad_format",
       "schema": "public",
@@ -1293,6 +1311,11 @@
       "name": "earning_status",
       "schema": "public",
       "values": ["pending", "confirmed"]
+    },
+    "public.ide_type": {
+      "name": "ide_type",
+      "schema": "public",
+      "values": ["terminal", "vscode", "cursor"]
     },
     "public.impression_result": {
       "name": "impression_result",

@@ -15,7 +15,7 @@ export const payouts = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    amountUsdc: numeric("amount_usdc", { precision: 12, scale: 6 }).notNull(),
+    amountUsdc: numeric("amount_usdc", { precision: 12, scale: 6, mode: "number" }).notNull(),
     walletAddress: varchar("wallet_address", { length: 42 }).notNull(),
     txHash: varchar("tx_hash", { length: 66 }).unique(),
     status: payoutStatusEnum("status").notNull().default("pending"),
