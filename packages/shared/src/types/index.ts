@@ -60,6 +60,17 @@ export enum ImpressionResult {
   Interrupted = "interrupted",
 }
 
+// ── targeting ───────────────────────────────────────────────────────────────
+
+export interface TargetingRules {
+  geoAllow?: string[]
+  geoDeny?: string[]
+  osAllow?: string[]
+  ideAllow?: IdeType[]
+  minIdleMs?: number
+  maxImpressions?: number
+}
+
 // ── types ───────────────────────────────────────────────────────────────────
 
 export type AdFormat = "text" | "banner" | "sponsored-link"
