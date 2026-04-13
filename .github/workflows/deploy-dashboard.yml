@@ -1,0 +1,49 @@
+name: Deploy Dashboard
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: ["main"]
+    types: [completed]
+
+concurrency:
+  group: deploy-dashboard
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy dashboard → vercel
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: check dashboard/shared changed
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          base: ${{ github.event.workflow_run.head_sha }}~1
+          ref: ${{ github.event.workflow_run.head_sha }}
+          filters: |
+            dashboard:
+              - 'packages/dashboard/**'
+              - 'packages/shared/**'
+
+      - name: install vercel cli
+        if: steps.filter.outputs.dashboard == 'true'
+        run: npm install -g vercel
+
+      - name: deploy to vercel
+        if: steps.filter.outputs.dashboard == 'true'
+        working-directory: packages/dashboard
+        run: vercel deploy --prod --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_DASHBOARD }}
