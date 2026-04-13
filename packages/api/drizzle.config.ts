@@ -1,8 +1,13 @@
 import { defineConfig } from "drizzle-kit"
 import "dotenv/config"
 
-const url = process.env["DATABASE_URL_UNPOOLED"]
-if (!url) throw new Error("DATABASE_URL_UNPOOLED is required — set it in .env or environment")
+const target = process.env["DB_TARGET"] ?? "local"
+const url =
+  target === "local"
+    ? process.env["DATABASE_URL_LOCAL_UNPOOLED"]
+    : process.env["DATABASE_URL_UNPOOLED"]
+
+if (!url) throw new Error(`database url required for DB_TARGET=${target} — set it in .env`)
 
 export default defineConfig({
   schema: "./src/db/schema/index.ts",

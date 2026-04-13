@@ -1,13 +1,30 @@
+import "dotenv/config"
 import express from "express"
+import type { Request, Response, NextFunction } from "express"
+import cookieParser from "cookie-parser"
+import { env } from "./config/env.js"
+import { authRouter } from "./routes/auth.js"
+import { requireAuth } from "./middleware/auth.js"
 
 const app = express()
 app.use(express.json())
+app.use(cookieParser())
 
-app.get("/health", (_req, res) => {
-  res.json({ ok: true })
+app.get("/health", async (_req, res) => {
+  await res.json({ ok: true })
 })
 
-const port = Number(process.env["PORT"] ?? 3001)
-app.listen(port, () => {
-  console.log(`api listening on :${port}`)
+app.use("/auth", authRouter)
+
+app.get("/me", requireAuth, async (_req, res) => {
+  await res.json({ userId: res.locals["userId"], githubLogin: res.locals["githubLogin"] })
+})
+
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("unhandled error:", err)
+  res.status(500).json({ error: err.message })
+})
+
+app.listen(env.port, () => {
+  console.log(`api listening on :${env.port}`)
 })
