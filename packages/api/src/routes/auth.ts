@@ -238,7 +238,7 @@ authRouter.post("/refresh", refreshLimiter, async (req, res) => {
 })
 
 // ── POST /auth/logout ───────────────────────────────────────────────────────
-authRouter.post("/logout", requireAuth, async (_req, res) => {
+authRouter.post("/logout", requireAuth, authLimiter, async (_req, res) => {
   const userId = res.locals["userId"] as string
   const db = getDb()
 

@@ -3,20 +3,13 @@ import { Ratelimit } from "@upstash/ratelimit"
 import type { Request, Response, NextFunction } from "express"
 import { env } from "../config/env.js"
 
-// lazy singleton — created once on first use
-let _redis: Redis | undefined
+// eager init — crashes at startup if env vars are missing
+const redis = new Redis({
+  url: env.upstashRedisRestUrl,
+  token: env.upstashRedisRestToken,
+})
 
-function getRedis(): Redis {
-  if (!_redis) {
-    _redis = new Redis({
-      url: env.upstashRedisRestUrl,
-      token: env.upstashRedisRestToken,
-    })
-  }
-  return _redis
-}
-
-// cache ratelimit instances per tier (avoid re-creating per request)
+// cache ratelimit instances per tier
 const limiterCache = new Map<string, Ratelimit>()
 
 type LimiterConfig = {
@@ -28,7 +21,7 @@ function getLimiter(name: string, config: LimiterConfig): Ratelimit {
   let limiter = limiterCache.get(name)
   if (!limiter) {
     limiter = new Ratelimit({
-      redis: getRedis(),
+      redis,
       limiter: Ratelimit.slidingWindow(config.requests, config.window),
       prefix: `rl:${name}`,
     })
@@ -49,10 +42,6 @@ function userIdKey(_req: Request, res: Response): string | null {
   return (res.locals["userId"] as string | undefined) ?? null
 }
 
-function deviceIdKey(req: Request): string | null {
-  return (req.headers["x-device-id"] as string | undefined) ?? null
-}
-
 // ── middleware factory ──────────────────────────────────────────────────────
 
 function createLimiter(name: string, config: LimiterConfig, extractKey: KeyExtractor) {
@@ -71,7 +60,7 @@ function createLimiter(name: string, config: LimiterConfig, extractKey: KeyExtra
       if (!success) {
         const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000))
         res.setHeader("Retry-After", retryAfter)
-        await res.status(429).json({ error: "rate_limit_exceeded", retryAfter })
+        await res.status(429).json({ error: "rate_limit_exceeded", tier: name, retryAfter })
         return
       }
 
@@ -114,20 +103,9 @@ export const userLimiter = createLimiter("user", { requests: 60, window: "60 s" 
   return id ? `uid:${id}` : null
 })
 
-export const machineLimiter = createLimiter(
-  "machine",
-  { requests: 300, window: "60 s" },
-  (req, res) => {
-    const deviceId = deviceIdKey(req)
-    if (deviceId) return `dev:${deviceId}`
-    const userId = userIdKey(req, res)
-    return userId ? `uid:${userId}` : null
-  }
-)
-
 export const sensitiveLimiter = createLimiter(
   "sensitive",
-  { requests: 3, window: "3600 s" },
+  { requests: 3, window: "1 h" },
   (_req, res) => {
     const id = userIdKey(_req, res)
     return id ? `uid:${id}` : null

@@ -6,12 +6,12 @@ const MACHINE_ID_HASH_RE = /^[0-9a-f]{64}$/
 const VALID_OS = ["darwin", "linux", "win32"] as const
 const VALID_IDE_TYPES = ["terminal", "vscode", "cursor"] as const
 
-import { userLimiter } from "../middleware/rate-limit.js"
+import { authLimiter } from "../middleware/rate-limit.js"
 
 export const devicesRouter: ReturnType<typeof Router> = Router()
 
 // ── POST /devices ───────────────────────────────────────────────────────────
-devicesRouter.post("/", userLimiter, async (_req, res) => {
+devicesRouter.post("/", authLimiter, async (_req, res) => {
   const userId = res.locals["userId"] as string
   const { machineIdHash, os, ideType, deviceName } = _req.body as {
     machineIdHash?: string
