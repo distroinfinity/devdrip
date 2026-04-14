@@ -4,10 +4,12 @@ import type { Request, Response, NextFunction } from "express"
 import cookieParser from "cookie-parser"
 import { env } from "./config/env.js"
 import { authRouter } from "./routes/auth.js"
+import { devicesRouter } from "./routes/devices.js"
 import { requireAuth } from "./middleware/auth.js"
 import { globalLimiter, publicLimiter, userLimiter } from "./middleware/rate-limit.js"
 
 const app = express()
+app.set("trust proxy", 1)
 app.use(express.json())
 app.use(cookieParser())
 app.use(globalLimiter)
@@ -17,6 +19,7 @@ app.get("/health", publicLimiter, async (_req, res) => {
 })
 
 app.use("/auth", authRouter)
+app.use("/devices", requireAuth, devicesRouter)
 
 app.get("/me", requireAuth, userLimiter, async (_req, res) => {
   await res.json({ userId: res.locals["userId"], githubLogin: res.locals["githubLogin"] })
