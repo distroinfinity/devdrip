@@ -62,15 +62,20 @@ devicesRouter.post("/", deviceLimiter, async (_req, res) => {
     })
     .returning()
 
+  if (!device) {
+    await res.status(500).json({ error: "device_creation_failed" })
+    return
+  }
+
   await res.json({
     device: {
-      id: device!.id,
-      userId: device!.userId,
-      deviceName: device!.deviceName,
-      os: device!.os,
-      ideType: device!.ideType,
-      lastHeartbeat: device!.lastHeartbeat?.toISOString() ?? null,
-      createdAt: device!.createdAt.toISOString(),
+      id: device.id,
+      userId: device.userId,
+      deviceName: device.deviceName,
+      os: device.os,
+      ideType: device.ideType,
+      lastHeartbeat: device.lastHeartbeat?.toISOString() ?? null,
+      createdAt: device.createdAt.toISOString(),
     },
   })
 })
