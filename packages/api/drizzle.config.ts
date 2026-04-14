@@ -1,7 +1,7 @@
 import { defineConfig } from "drizzle-kit"
 import "dotenv/config"
 
-const target = process.env["DB_TARGET"] ?? "local"
+const target = process.env["DB_TARGET"] ?? "neon"
 const url =
   target === "local"
     ? process.env["DATABASE_URL_LOCAL_UNPOOLED"]

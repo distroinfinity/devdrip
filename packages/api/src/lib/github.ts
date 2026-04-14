@@ -72,6 +72,9 @@ export async function fetchPrimaryEmail(accessToken: string): Promise<string | n
   return primary?.email ?? emails.find((e) => e.verified)?.email ?? null
 }
 
+// heuristic: counts the `language` field across the 10 most recently pushed repos.
+// GitHub's repo `language` is set to the language with the most bytes — it doesn't
+// reflect actual contribution frequency. Treat as an approximation for cohort targeting.
 export async function fetchPrimaryLanguage(
   login: string,
   accessToken: string

@@ -4,6 +4,8 @@ import { randomBytes, createHash } from "node:crypto"
 const ALG = "HS256"
 const ACCESS_TTL = "1h"
 const REFRESH_TTL_DAYS = 30
+const ISSUER = "devdrip"
+const AUDIENCE = "devdrip"
 
 function encodeSecret(secret: string) {
   return new TextEncoder().encode(secret)
@@ -20,11 +22,17 @@ export async function signAccessToken(payload: JwtPayload, secret: string): Prom
     .setSubject(payload.sub)
     .setIssuedAt()
     .setExpirationTime(ACCESS_TTL)
+    .setIssuer(ISSUER)
+    .setAudience(AUDIENCE)
     .sign(encodeSecret(secret))
 }
 
 export async function verifyAccessToken(token: string, secret: string): Promise<JwtPayload> {
-  const { payload } = await jwtVerify(token, encodeSecret(secret), { algorithms: [ALG] })
+  const { payload } = await jwtVerify(token, encodeSecret(secret), {
+    algorithms: [ALG],
+    issuer: ISSUER,
+    audience: AUDIENCE,
+  })
   return { sub: payload.sub as string, github_login: payload["github_login"] as string }
 }
 

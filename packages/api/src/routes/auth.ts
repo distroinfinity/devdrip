@@ -1,6 +1,7 @@
 import { Router } from "express"
 import { randomBytes, randomUUID } from "node:crypto"
 import { eq, and, isNull } from "drizzle-orm"
+import rateLimit from "express-rate-limit"
 import { env } from "../config/env.js"
 import { getDb } from "../db/index.js"
 import { users } from "../db/schema/users.js"
@@ -18,11 +19,24 @@ import {
   fetchPrimaryLanguage,
 } from "../lib/github.js"
 import { generateReferralCode } from "../lib/referral.js"
+import { requireAuth } from "../middleware/auth.js"
+
+// one-time code store for secure token delivery (60s TTL)
+// TODO: replace with Redis when scaling to multiple instances
+interface PendingTokens {
+  accessToken: string
+  refreshToken: string
+}
+const pendingCodes = new Map<string, PendingTokens>()
+
+// rate limiters
+const authLimiter = rateLimit({ windowMs: 60_000, limit: 10 })
+const refreshLimiter = rateLimit({ windowMs: 60_000, limit: 20 })
 
 export const authRouter: ReturnType<typeof Router> = Router()
 
 // ── GET /auth/github/redirect ───────────────────────────────────────────────
-authRouter.get("/github/redirect", async (_req, res) => {
+authRouter.get("/github/redirect", authLimiter, async (_req, res) => {
   const state = randomBytes(16).toString("hex")
   const params = new URLSearchParams({
     client_id: env.githubClientId,
@@ -42,11 +56,9 @@ authRouter.get("/github/redirect", async (_req, res) => {
 })
 
 // ── GET /auth/github/callback ───────────────────────────────────────────────
-authRouter.get("/github/callback", async (req, res) => {
+authRouter.get("/github/callback", authLimiter, async (req, res) => {
   const { code, state } = req.query
-  const cookieState = (req as unknown as { cookies: Record<string, string> }).cookies?.[
-    "gh_oauth_state"
-  ]
+  const cookieState = req.cookies["gh_oauth_state"] as string | undefined
 
   if (!state || !cookieState || state !== cookieState) {
     await res.redirect(`${env.clientRedirectUrl}?error=invalid_state`)
@@ -123,9 +135,13 @@ authRouter.get("/github/callback", async (req, res) => {
       expiresAt: refreshTokenExpiresAt(),
     })
 
+    // store tokens behind a one-time code — never expose tokens in URLs
+    const exchangeCode = randomBytes(16).toString("hex")
+    pendingCodes.set(exchangeCode, { accessToken, refreshToken: rawRefresh })
+    setTimeout(() => pendingCodes.delete(exchangeCode), 60_000)
+
     const redirectUrl = new URL(env.clientRedirectUrl)
-    redirectUrl.searchParams.set("token", accessToken)
-    redirectUrl.searchParams.set("refresh_token", rawRefresh)
+    redirectUrl.searchParams.set("code", exchangeCode)
     await res.redirect(redirectUrl.toString())
   } catch (err) {
     console.error("oauth callback error:", err)
@@ -133,8 +149,26 @@ authRouter.get("/github/callback", async (req, res) => {
   }
 })
 
+// ── POST /auth/exchange ─────────────────────────────────────────────────────
+authRouter.post("/exchange", authLimiter, async (req, res) => {
+  const { code } = req.body as { code?: string }
+  if (!code) {
+    await res.status(400).json({ error: "missing_code" })
+    return
+  }
+
+  const tokens = pendingCodes.get(code)
+  if (!tokens) {
+    await res.status(401).json({ error: "invalid_or_expired_code" })
+    return
+  }
+
+  pendingCodes.delete(code)
+  await res.json({ token: tokens.accessToken, refresh_token: tokens.refreshToken })
+})
+
 // ── POST /auth/refresh ──────────────────────────────────────────────────────
-authRouter.post("/refresh", async (req, res) => {
+authRouter.post("/refresh", refreshLimiter, async (req, res) => {
   const { refresh_token } = req.body as { refresh_token?: string }
   if (!refresh_token) {
     await res.status(401).json({ error: "missing_refresh_token" })
@@ -144,61 +178,75 @@ authRouter.post("/refresh", async (req, res) => {
   const db = getDb()
   const hash = hashRefreshToken(refresh_token)
 
-  const [existing] = await db
-    .select()
-    .from(refreshTokens)
-    .where(eq(refreshTokens.tokenHash, hash))
-    .limit(1)
+  // atomic revoke — only one concurrent request can succeed
+  const [revoked] = await db
+    .update(refreshTokens)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(refreshTokens.tokenHash, hash), isNull(refreshTokens.revokedAt)))
+    .returning()
 
-  if (!existing) {
+  if (!revoked) {
+    // distinguish "not found" from "already revoked" (theft detection)
+    const [stale] = await db
+      .select()
+      .from(refreshTokens)
+      .where(eq(refreshTokens.tokenHash, hash))
+      .limit(1)
+
+    if (stale) {
+      // token exists but was already revoked → theft detected, revoke entire family
+      await db
+        .update(refreshTokens)
+        .set({ revokedAt: new Date() })
+        .where(and(eq(refreshTokens.family, stale.family), isNull(refreshTokens.revokedAt)))
+      await res.status(401).json({ error: "refresh_token_reuse_detected" })
+      return
+    }
+
     await res.status(401).json({ error: "invalid_refresh_token" })
     return
   }
 
-  // theft detection: revoked token reused → revoke entire family
-  if (existing.revokedAt !== null) {
-    await db
-      .update(refreshTokens)
-      .set({ revokedAt: new Date() })
-      .where(and(eq(refreshTokens.family, existing.family), isNull(refreshTokens.revokedAt)))
-    await res.status(401).json({ error: "refresh_token_reuse_detected" })
-    return
-  }
-
-  if (existing.expiresAt < new Date()) {
+  if (revoked.expiresAt < new Date()) {
     await res.status(401).json({ error: "refresh_token_expired" })
     return
   }
 
-  // rotate: revoke old + issue new in transaction
+  // issue new token in same family
   const newRaw = generateRefreshToken()
   const newHash = hashRefreshToken(newRaw)
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(refreshTokens)
-      .set({ revokedAt: new Date() })
-      .where(eq(refreshTokens.id, existing.id))
-
-    await tx.insert(refreshTokens).values({
-      userId: existing.userId,
-      tokenHash: newHash,
-      family: existing.family,
-      expiresAt: refreshTokenExpiresAt(),
-    })
+  await db.insert(refreshTokens).values({
+    userId: revoked.userId,
+    tokenHash: newHash,
+    family: revoked.family,
+    expiresAt: refreshTokenExpiresAt(),
   })
 
-  const [user] = await db.select().from(users).where(eq(users.id, existing.userId)).limit(1)
+  const [user] = await db.select().from(users).where(eq(users.id, revoked.userId)).limit(1)
 
-  if (!user) {
-    await res.status(401).json({ error: "user_not_found" })
+  if (!user?.githubLogin) {
+    await res.status(500).json({ error: "internal_error" })
     return
   }
 
   const accessToken = await signAccessToken(
-    { sub: user.id, github_login: user.githubLogin ?? "" },
+    { sub: user.id, github_login: user.githubLogin },
     env.jwtSecret
   )
 
   await res.json({ token: accessToken, refresh_token: newRaw })
+})
+
+// ── POST /auth/logout ───────────────────────────────────────────────────────
+authRouter.post("/logout", requireAuth, async (_req, res) => {
+  const userId = res.locals["userId"] as string
+  const db = getDb()
+
+  await db
+    .update(refreshTokens)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)))
+
+  await res.json({ ok: true })
 })

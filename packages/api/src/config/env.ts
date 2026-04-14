@@ -11,7 +11,12 @@ function optionalEnv(key: string, fallback: string): string {
 export const env = {
   port: Number(optionalEnv("PORT", "3001")),
   nodeEnv: optionalEnv("NODE_ENV", "development"),
-  dbTarget: optionalEnv("DB_TARGET", "local") as "local" | "neon",
+  get dbTarget(): "local" | "neon" {
+    const val = optionalEnv("DB_TARGET", "neon")
+    if (val !== "local" && val !== "neon")
+      throw new Error(`DB_TARGET must be "local" or "neon", got "${val}"`)
+    return val
+  },
 
   // lazy — only throws when auth routes are hit, not at startup
   get githubClientId() {

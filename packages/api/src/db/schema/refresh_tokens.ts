@@ -1,3 +1,5 @@
+// TODO: add a scheduled job to DELETE FROM refresh_tokens WHERE expires_at < NOW()
+// to prevent unbounded table growth. Deferred to a future infra ticket.
 import { pgTable, uuid, varchar, timestamp, index } from "drizzle-orm/pg-core"
 import { users } from "./users.js"
 

@@ -10,11 +10,20 @@ import { preferences } from "./schema/preferences.js"
 import { impressions } from "./schema/impressions.js"
 import { earningsLedger } from "./schema/earnings.js"
 import { inviteCodes } from "./schema/invite_codes.js"
+import { sql } from "drizzle-orm"
 
 async function seed() {
   const db = getDb()
 
   console.log("seeding database...")
+
+  // truncate all seeded tables for idempotency
+  await db.execute(sql`TRUNCATE TABLE
+    earnings_ledger, clicks, impressions, preferences, devices,
+    refresh_tokens, payouts, referrals, invite_codes,
+    creatives, campaigns, advertisers, users
+    CASCADE`)
+  console.log("  tables truncated")
 
   // 1. advertiser
   const [advertiser] = await db
