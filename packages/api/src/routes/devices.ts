@@ -33,7 +33,10 @@ devicesRouter.post("/", deviceLimiter, async (_req, res) => {
     await res.status(400).json({ error: "invalid_ide_type" })
     return
   }
-  if (deviceName !== undefined && (typeof deviceName !== "string" || deviceName.length > 255)) {
+  if (
+    deviceName !== undefined &&
+    (typeof deviceName !== "string" || deviceName.length === 0 || deviceName.length > 255)
+  ) {
     await res.status(400).json({ error: "invalid_device_name" })
     return
   }
@@ -41,41 +44,51 @@ devicesRouter.post("/", deviceLimiter, async (_req, res) => {
   const db = getDb()
   const now = new Date()
 
-  const [device] = await db
-    .insert(devices)
-    .values({
-      userId,
-      machineIdHash,
-      os,
-      ideType: ideType as "terminal" | "vscode" | "cursor",
-      deviceName: deviceName ?? null,
-      lastHeartbeat: now,
-    })
-    .onConflictDoUpdate({
-      target: [devices.userId, devices.machineIdHash],
-      set: {
+  // only update deviceName on re-registration if the caller explicitly provided it
+  const conflictSet: Record<string, unknown> = {
+    os,
+    ideType: ideType as "terminal" | "vscode" | "cursor",
+    lastHeartbeat: now,
+  }
+  if (deviceName !== undefined) {
+    conflictSet["deviceName"] = deviceName
+  }
+
+  try {
+    const [device] = await db
+      .insert(devices)
+      .values({
+        userId,
+        machineIdHash,
         os,
         ideType: ideType as "terminal" | "vscode" | "cursor",
         deviceName: deviceName ?? null,
         lastHeartbeat: now,
+      })
+      .onConflictDoUpdate({
+        target: [devices.userId, devices.machineIdHash],
+        set: conflictSet,
+      })
+      .returning()
+
+    if (!device) {
+      await res.status(500).json({ error: "internal_error" })
+      return
+    }
+
+    await res.json({
+      device: {
+        id: device.id,
+        userId: device.userId,
+        deviceName: device.deviceName,
+        os: device.os,
+        ideType: device.ideType,
+        lastHeartbeat: device.lastHeartbeat?.toISOString() ?? null,
+        createdAt: device.createdAt.toISOString(),
       },
     })
-    .returning()
-
-  if (!device) {
-    await res.status(500).json({ error: "device_creation_failed" })
-    return
+  } catch (err) {
+    console.error("device registration error:", err)
+    await res.status(500).json({ error: "internal_error" })
   }
-
-  await res.json({
-    device: {
-      id: device.id,
-      userId: device.userId,
-      deviceName: device.deviceName,
-      os: device.os,
-      ideType: device.ideType,
-      lastHeartbeat: device.lastHeartbeat?.toISOString() ?? null,
-      createdAt: device.createdAt.toISOString(),
-    },
-  })
 })
