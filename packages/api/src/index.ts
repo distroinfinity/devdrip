@@ -4,6 +4,7 @@ import type { Request, Response, NextFunction } from "express"
 import cookieParser from "cookie-parser"
 import { env } from "./config/env.js"
 import { authRouter } from "./routes/auth.js"
+import { devicesRouter } from "./routes/devices.js"
 import { requireAuth } from "./middleware/auth.js"
 
 const app = express()
@@ -15,6 +16,7 @@ app.get("/health", async (_req, res) => {
 })
 
 app.use("/auth", authRouter)
+app.use("/devices", requireAuth, devicesRouter)
 
 app.get("/me", requireAuth, async (_req, res) => {
   await res.json({ userId: res.locals["userId"], githubLogin: res.locals["githubLogin"] })
