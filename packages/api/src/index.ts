@@ -5,18 +5,20 @@ import cookieParser from "cookie-parser"
 import { env } from "./config/env.js"
 import { authRouter } from "./routes/auth.js"
 import { requireAuth } from "./middleware/auth.js"
+import { globalLimiter, publicLimiter, userLimiter } from "./middleware/rate-limit.js"
 
 const app = express()
 app.use(express.json())
 app.use(cookieParser())
+app.use(globalLimiter)
 
-app.get("/health", async (_req, res) => {
+app.get("/health", publicLimiter, async (_req, res) => {
   await res.json({ ok: true })
 })
 
 app.use("/auth", authRouter)
 
-app.get("/me", requireAuth, async (_req, res) => {
+app.get("/me", requireAuth, userLimiter, async (_req, res) => {
   await res.json({ userId: res.locals["userId"], githubLogin: res.locals["githubLogin"] })
 })
 
