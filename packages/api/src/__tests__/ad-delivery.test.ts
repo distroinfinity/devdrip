@@ -36,6 +36,7 @@ describe("ad delivery tokens", () => {
       surface: AdSurface.TerminalTv,
     })
 
+    const before = Math.floor(Date.now() / 1000) - 1
     const claims = await consumeDeliveryToken(token)
     expect(claims).toMatchObject({
       userId: "user-1",
@@ -43,6 +44,8 @@ describe("ad delivery tokens", () => {
       creativeId: "creative-1",
       surface: AdSurface.TerminalTv,
     })
+    expect(claims.issuedAt).toBeGreaterThanOrEqual(before)
+    expect(claims.issuedAt).toBeLessThanOrEqual(Math.floor(Date.now() / 1000) + 1)
 
     await expect(consumeDeliveryToken(token)).rejects.toThrow("invalid_or_expired_delivery_token")
   })

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { AdSurface, REVENUE_SHARE_DEVELOPER, ImpressionResult } from "@devdrip/shared"
 
 // mock dependencies before imports
@@ -297,5 +297,78 @@ describe("recordClick", () => {
     } as unknown as ReturnType<typeof getDb>)
 
     await expect(recordClick("nonexistent")).rejects.toThrow("impression_not_found")
+  })
+})
+
+// ── duration bounds ────────────────────────────────────────────────────────
+
+import { assertDurationBounds } from "../routes/impressions.js"
+
+describe("assertDurationBounds", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("rejects when durationMs exceeds elapsed + tolerance", () => {
+    vi.setSystemTime(new Date("2026-04-15T00:00:10.000Z"))
+    const issuedAt = Math.floor(new Date("2026-04-15T00:00:00.000Z").getTime() / 1000)
+    // elapsed = 10000ms, tolerance = 1000ms → max claimable = 11000ms
+    expect(() => assertDurationBounds(12000, ImpressionResult.Completed, issuedAt)).toThrow(
+      "invalid_duration_ms"
+    )
+  })
+
+  it("accepts when durationMs is within elapsed + tolerance", () => {
+    vi.setSystemTime(new Date("2026-04-15T00:00:10.000Z"))
+    const issuedAt = Math.floor(new Date("2026-04-15T00:00:00.000Z").getTime() / 1000)
+    expect(() => assertDurationBounds(10000, ImpressionResult.Completed, issuedAt)).not.toThrow()
+  })
+
+  it("rejects completed with durationMs below MIN_COMPLETED_DURATION_MS", () => {
+    vi.setSystemTime(new Date("2026-04-15T00:00:10.000Z"))
+    const issuedAt = Math.floor(new Date("2026-04-15T00:00:00.000Z").getTime() / 1000)
+    expect(() => assertDurationBounds(500, ImpressionResult.Completed, issuedAt)).toThrow(
+      "invalid_duration_ms"
+    )
+  })
+
+  it("does not enforce minimum for non-completed results", () => {
+    vi.setSystemTime(new Date("2026-04-15T00:00:10.000Z"))
+    const issuedAt = Math.floor(new Date("2026-04-15T00:00:00.000Z").getTime() / 1000)
+    expect(() => assertDurationBounds(0, ImpressionResult.Skipped, issuedAt)).not.toThrow()
+  })
+})
+
+// ── validator threshold ────────────────────────────────────────────────────
+
+import { validateRecordImpression } from "../validators/ad.validators.js"
+
+describe("validateRecordImpression duration threshold", () => {
+  it("rejects completed impression with durationMs below 1000ms", () => {
+    expect(() =>
+      validateRecordImpression({ deliveryToken: "tok", durationMs: 500, result: "completed" })
+    ).toThrow("invalid_duration_ms")
+  })
+
+  it("accepts completed impression with durationMs at 1000ms", () => {
+    const result = validateRecordImpression({
+      deliveryToken: "tok",
+      durationMs: 1000,
+      result: "completed",
+    })
+    expect(result.durationMs).toBe(1000)
+  })
+
+  it("accepts skipped impression with durationMs 0", () => {
+    const result = validateRecordImpression({
+      deliveryToken: "tok",
+      durationMs: 0,
+      result: "skipped",
+    })
+    expect(result.durationMs).toBe(0)
   })
 })

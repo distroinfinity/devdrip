@@ -1,4 +1,4 @@
-import { AdSurface, ImpressionResult } from "@devdrip/shared"
+import { AdSurface, ImpressionResult, MIN_COMPLETED_DURATION_MS } from "@devdrip/shared"
 import { ValidationError } from "../errors/index.js"
 import { validateUUID, validateEnumValue, requireBody } from "./common.js"
 
@@ -63,8 +63,8 @@ export function validateRecordImpression(body: unknown): RecordImpressionInput {
 
   const result = validateEnumValue(b["result"], IMPRESSION_RESULTS, "result") as ImpressionResult
 
-  // completed impressions must have non-zero display time to earn revenue
-  if (result === ImpressionResult.Completed && durationMs === 0) {
+  // completed impressions must meet minimum display threshold to earn revenue
+  if (result === ImpressionResult.Completed && durationMs < MIN_COMPLETED_DURATION_MS) {
     throw new ValidationError("invalid_duration_ms")
   }
 

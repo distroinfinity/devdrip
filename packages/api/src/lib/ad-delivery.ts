@@ -24,9 +24,12 @@ export interface DeliveryClaims {
   creativeId: string
   surface: AdSurface
   jti: string
+  issuedAt: number
 }
 
-export async function issueDeliveryToken(input: Omit<DeliveryClaims, "jti">): Promise<string> {
+export async function issueDeliveryToken(
+  input: Omit<DeliveryClaims, "jti" | "issuedAt">
+): Promise<string> {
   const redis = getRedis()
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -74,13 +77,15 @@ export async function consumeDeliveryToken(
   const creativeId = payload["creative_id"]
   const surface = payload["surface"]
   const jti = payload.jti
+  const iat = payload.iat
 
   if (
     typeof userId !== "string" ||
     typeof deviceId !== "string" ||
     typeof creativeId !== "string" ||
     typeof surface !== "string" ||
-    typeof jti !== "string"
+    typeof jti !== "string" ||
+    typeof iat !== "number"
   ) {
     throw new ForbiddenError("invalid_or_expired_delivery_token")
   }
@@ -100,5 +105,6 @@ export async function consumeDeliveryToken(
     creativeId,
     surface: surface as AdSurface,
     jti,
+    issuedAt: iat,
   }
 }

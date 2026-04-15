@@ -701,6 +701,12 @@ Behavior:
 
 Result enum: `completed | skipped | expired | interrupted`
 
+Duration bounds (server-verified):
+
+- `durationMs` cannot exceed `(now - delivery_token.iat) + 1s tolerance` — prevents impossible claims
+- `completed` impressions require `durationMs >= 1000ms` (MIN_COMPLETED_DURATION_MS) — forces at least 1s wait
+- The delivery token `iat` is a server-set timestamp, so the bound is unforgeable
+
 Success: `201` with `{ impression }`
 
 Errors:
