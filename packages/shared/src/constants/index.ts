@@ -25,13 +25,18 @@ export const LATE_NIGHT_FREQUENCY_REDUCTION = 0.5
 
 // ── revenue split ──────────────────────────────────────────────────────────
 
-export const REVENUE_SHARE_DEVELOPER = 0.70
+export const REVENUE_SHARE_DEVELOPER = 0.7
 export const REVENUE_SHARE_PLATFORM = 0.25
 export const REVENUE_SHARE_OSS_FUND = 0.05
 
 // ── payouts ────────────────────────────────────────────────────────────────
 
-export const MIN_PAYOUT_USDC = 1.00
+export const MIN_PAYOUT_USDC = 1.0
+
+// ── impression validation ──────────────────────────────────────────────────
+
+export const MIN_COMPLETED_DURATION_MS = 1_000
+export const IMPRESSION_CLOCK_TOLERANCE_MS = 1_000
 
 // ── ad display ─────────────────────────────────────────────────────────────
 

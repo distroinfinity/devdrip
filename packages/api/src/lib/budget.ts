@@ -169,6 +169,18 @@ export async function getHourlySpend(
   }
 }
 
+export async function rollbackSpend(campaignId: string, cost: number): Promise<void> {
+  try {
+    const redis = getRedis()
+    const rb = redis.pipeline()
+    rb.incrbyfloat(dailyKey(campaignId), -cost)
+    rb.incrbyfloat(hourlyKey(campaignId), -cost)
+    await rb.exec()
+  } catch (err) {
+    logger.warn({ err, campaignId }, "rollbackSpend redis error, spend counter inflated")
+  }
+}
+
 // ── creative rotation ───────────────────────────────────────────────────────
 
 export async function nextCreativeIndex(campaignId: string): Promise<number> {
