@@ -2,6 +2,7 @@ import { Router } from "express"
 import { randomBytes, randomUUID } from "node:crypto"
 import { eq, and, isNull } from "drizzle-orm"
 import { env } from "../config/env.js"
+import { logger } from "../lib/logger.js"
 import { getDb } from "../db/index.js"
 import { users } from "../db/schema/users.js"
 import { refreshTokens } from "../db/schema/refresh_tokens.js"
@@ -141,7 +142,7 @@ authRouter.get("/github/callback", authLimiter, async (req, res) => {
     redirectUrl.searchParams.set("code", exchangeCode)
     await res.redirect(redirectUrl.toString())
   } catch (err) {
-    console.error("oauth callback error:", err)
+    logger.error({ err }, "oauth callback error")
     await res.redirect(`${env.clientRedirectUrl}?error=auth_failed`)
   }
 })
