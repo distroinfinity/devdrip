@@ -16,6 +16,16 @@ if (existsSync(envTestPath)) {
   }
 }
 
+process.env["NODE_ENV"] ??= "test"
+process.env["ALLOWED_ORIGINS"] ??= "http://localhost:3000,http://localhost:3002"
+process.env["JWT_SECRET"] ??=
+  "vitest-secret-000000000000000000000000000000000000000000000000000000000000"
+process.env["ADMIN_SECRET"] ??= "vitest-admin-secret"
+process.env["CLIENT_REDIRECT_URL"] ??= "http://localhost:3000/auth/debug"
+process.env["GITHUB_CLIENT_ID"] ??= "vitest-github-client-id"
+process.env["GITHUB_CLIENT_SECRET"] ??= "vitest-github-client-secret"
+process.env["GITHUB_CALLBACK_URL"] ??= "http://localhost:3001/auth/github/callback"
+
 export default defineConfig({
   test: {
     environment: "node",
