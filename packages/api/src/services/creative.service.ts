@@ -1,9 +1,11 @@
-import { eq, and, count } from "drizzle-orm"
+import { eq, and, count, type InferInsertModel } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import { campaigns } from "../db/schema/campaigns.js"
 import { creatives } from "../db/schema/creatives.js"
 import { NotFoundError, ConflictError, pgErrorCode } from "../errors/index.js"
 import type { CreateCreativeInput, UpdateCreativeInput } from "../validators/creative.validators.js"
+
+type CreativeInsert = InferInsertModel<typeof creatives>
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -23,7 +25,7 @@ export async function create(input: CreateCreativeInput) {
   const db = getDb()
   const [creative] = await db
     .insert(creatives)
-    .values(input as never)
+    .values(input as CreativeInsert)
     .returning()
   if (!creative) throw new Error("insert returned no rows")
   return creative
@@ -78,7 +80,7 @@ export async function update(campaignId: string, id: string, input: UpdateCreati
   const db = getDb()
   const [updated] = await db
     .update(creatives)
-    .set(input as never)
+    .set(input as CreativeInsert)
     .where(and(eq(creatives.id, id), eq(creatives.campaignId, campaignId)))
     .returning()
   if (!updated) throw new NotFoundError("creative")

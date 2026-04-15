@@ -120,8 +120,10 @@ export function validatePagination(query: Record<string, unknown>): {
   limit: number
   offset: number
 } {
-  const limit = Math.min(Math.max(Number(query["limit"] ?? 20), 1), 100)
-  const offset = Math.max(Number(query["offset"] ?? 0), 0)
+  const rawLimit = Number(query["limit"] ?? 20)
+  const rawOffset = Number(query["offset"] ?? 0)
+  const limit = Math.min(Math.max(isNaN(rawLimit) ? 20 : rawLimit, 1), 100)
+  const offset = Math.max(isNaN(rawOffset) ? 0 : rawOffset, 0)
   return { limit, offset }
 }
 

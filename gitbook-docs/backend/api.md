@@ -365,12 +365,13 @@ delete an advertiser and cascade its campaigns/creatives.
 
 Auth: admin secret
 
-Guard: rejects delete if the advertiser has any active campaigns.
+Guard: rejects delete if the advertiser has any non-draft, non-completed campaigns (active or paused). Also catches FK constraint violations if cascade would hit impressions with historical data.
 
 Errors:
 
 - `404 advertiser_not_found`
 - `409 has_active_campaigns`
+- `409 has_historical_data` (cascade blocked by impressions FK RESTRICT)
 
 ## `POST /campaigns`
 
@@ -528,6 +529,8 @@ Response:
 }
 ```
 
+Note: `budgetSpent` is the DB-reconciled historical total (excludes today). Today's live spend appears in `dailySpendToday`. Sum both for true all-time spend.
+
 ## `POST /campaigns/:campaignId/creatives`
 
 Purpose:
@@ -556,13 +559,13 @@ Validation:
 - `headline`: required, 1-60 chars
 - `body`: optional, max 140
 - `ctaText`: optional, max 30
-- `ctaUrl`: optional, max 2048, must start with `https://`
+- `ctaUrl`: optional, max 2048, must be valid HTTPS URL (parsed with `new URL()`)
 - `format`: required, `text|banner|sponsored-link`
 - `surface`: required, valid `AdSurface`
 - `category`: required, valid `AdCategory`
 - `source`: required, valid `AdSource`
 - `cpmRate`: required, > 0
-- `impressionBeaconUrl`, `clickTrackingUrl`: optional, `https://` prefix
+- `impressionBeaconUrl`, `clickTrackingUrl`: optional, must be valid HTTPS URL
 - `externalCampaignId`, `externalCreativeId`: optional, max 255
 
 Success: `201` with `{ creative }`
