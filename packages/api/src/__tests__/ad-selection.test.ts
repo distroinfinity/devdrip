@@ -49,6 +49,7 @@ function baseRequest(overrides: Partial<AdRequest> = {}): AdRequest {
     enabledSurfaces: Object.values(AdSurface) as AdSurface[],
     maxAdsPerHour: 8,
     maxAdsPerDay: 60,
+    tzOffsetMinutes: 0,
     ...overrides,
   }
 }

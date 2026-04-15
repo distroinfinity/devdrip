@@ -96,6 +96,7 @@ export interface UserPreferences {
   enabledSurfaces: AdSurface[]
   quietHoursStart?: number
   quietHoursEnd?: number
+  tzOffsetMinutes: number
   idleSensitivityMs: number
   dataSharingConsent: boolean
 }

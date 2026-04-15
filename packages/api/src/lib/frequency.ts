@@ -122,13 +122,18 @@ export async function incrementFrequency(
 }
 
 // ── quiet hours ─────────────────────────────────────────────────────────────
+// tzOffsetMinutes converts UTC to user-local hour (e.g. UTC-5 = -300)
 
-export function isQuietHours(start?: number, end?: number): boolean {
+export function isQuietHours(start?: number, end?: number, tzOffsetMinutes = 0): boolean {
   if (start === undefined || end === undefined) return false
-  const hour = new Date().getUTCHours()
+  const utcHourNow = new Date().getUTCHours()
+  const utcMinNow = new Date().getUTCMinutes()
+  const localMinutes = utcHourNow * 60 + utcMinNow + tzOffsetMinutes
+  // normalize to 0-23 hour range (handles negative offsets and wrap-around)
+  const localHour = ((Math.floor(localMinutes / 60) % 24) + 24) % 24
   // handles wrap-around (e.g. start=22, end=6 means 22-23 and 0-5)
   if (start <= end) {
-    return hour >= start && hour < end
+    return localHour >= start && localHour < end
   }
-  return hour >= start || hour < end
+  return localHour >= start || localHour < end
 }

@@ -63,6 +63,11 @@ export function validateRecordImpression(body: unknown): RecordImpressionInput {
 
   const result = validateEnumValue(b["result"], IMPRESSION_RESULTS, "result") as ImpressionResult
 
+  // completed impressions must have non-zero display time to earn revenue
+  if (result === ImpressionResult.Completed && durationMs === 0) {
+    throw new ValidationError("invalid_duration_ms")
+  }
+
   return { deliveryToken, durationMs, result }
 }
 

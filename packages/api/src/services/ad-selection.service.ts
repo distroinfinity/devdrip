@@ -1,4 +1,4 @@
-import { eq, and, notInArray, sql } from "drizzle-orm"
+import { eq, and, notInArray, isNotNull, sql } from "drizzle-orm"
 import type {
   AdProvider,
   AdRequest,
@@ -75,7 +75,7 @@ async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
     return []
   }
 
-  if (isQuietHours(request.quietHoursStart, request.quietHoursEnd)) {
+  if (isQuietHours(request.quietHoursStart, request.quietHoursEnd, request.tzOffsetMinutes)) {
     logger.debug("quiet hours active, skipping ad fetch")
     return []
   }
@@ -99,6 +99,7 @@ async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
     eq(campaigns.status, "active"),
     eq(creatives.isActive, true),
     eq(creatives.surface, request.surface as AdSurface),
+    isNotNull(creatives.ctaUrl),
   ]
 
   // exclude blocked categories

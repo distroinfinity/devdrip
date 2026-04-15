@@ -17,6 +17,7 @@ export interface AdRequest {
   maxAdsPerDay: number
   quietHoursStart?: number
   quietHoursEnd?: number
+  tzOffsetMinutes: number
 }
 
 // ── ad provider ────────────────────────────────────────────────────────────

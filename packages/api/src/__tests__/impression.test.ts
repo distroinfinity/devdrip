@@ -277,12 +277,7 @@ describe("recordClick", () => {
     const insertValues = vi.fn(() => ({ returning: insertReturning }))
     const insertFn = vi.fn(() => ({ values: insertValues }))
 
-    const selectWhere = vi.fn().mockResolvedValue([{ id: "imp-1" }])
-    const selectFrom = vi.fn(() => ({ where: selectWhere }))
-    const selectFn = vi.fn(() => ({ from: selectFrom }))
-
     vi.mocked(getDb).mockReturnValue({
-      select: selectFn,
       insert: insertFn,
     } as unknown as ReturnType<typeof getDb>)
 
@@ -290,12 +285,16 @@ describe("recordClick", () => {
     expect(result).toEqual({ clickId: "click-1" })
   })
 
-  it("throws NotFoundError for non-existent impression", async () => {
-    const selectWhere = vi.fn().mockResolvedValue([])
-    const selectFrom = vi.fn(() => ({ where: selectWhere }))
-    const selectFn = vi.fn(() => ({ from: selectFrom }))
+  it("throws NotFoundError when FK constraint fails (impression does not exist)", async () => {
+    const fkError = new Error("FK violation") as Error & { code: string }
+    fkError.code = "23503"
+    const insertReturning = vi.fn().mockRejectedValue(fkError)
+    const insertValues = vi.fn(() => ({ returning: insertReturning }))
+    const insertFn = vi.fn(() => ({ values: insertValues }))
 
-    vi.mocked(getDb).mockReturnValue({ select: selectFn } as unknown as ReturnType<typeof getDb>)
+    vi.mocked(getDb).mockReturnValue({
+      insert: insertFn,
+    } as unknown as ReturnType<typeof getDb>)
 
     await expect(recordClick("nonexistent")).rejects.toThrow("impression_not_found")
   })

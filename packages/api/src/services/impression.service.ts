@@ -120,7 +120,7 @@ export async function recordImpression(input: RecordImpressionInput) {
   })
 
   // fire-and-forget: transition campaign to completed if budget exhausted
-  if (spendResult.allowed && "exhausted" in spendResult && spendResult.exhausted) {
+  if (spendResult.exhausted) {
     transitionStatus(row.campaignId, "completed").catch((err) => {
       logger.warn({ err, campaignId: row.campaignId }, "auto-complete campaign failed")
     })
@@ -130,16 +130,10 @@ export async function recordImpression(input: RecordImpressionInput) {
 }
 
 // ── record click ────────────────────────────────────────────────────────────
+// caller (route handler) must verify impression exists and ownership before calling.
 
 export async function recordClick(impressionId: string) {
   const db = getDb()
-
-  // verify impression exists
-  const [imp] = await db
-    .select({ id: impressions.id })
-    .from(impressions)
-    .where(eq(impressions.id, impressionId))
-  if (!imp) throw new NotFoundError("impression")
 
   try {
     const [click] = await db.insert(clicks).values({ impressionId }).returning()
@@ -149,6 +143,10 @@ export async function recordClick(impressionId: string) {
     // unique constraint on impression_id prevents double-clicks
     if (pgErrorCode(err) === "23505") {
       throw new ConflictError("click_already_recorded")
+    }
+    // FK constraint — impression doesn't exist (shouldn't happen if caller verified)
+    if (pgErrorCode(err) === "23503") {
+      throw new NotFoundError("impression")
     }
     throw err
   }

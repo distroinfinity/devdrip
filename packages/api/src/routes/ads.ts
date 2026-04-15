@@ -55,6 +55,7 @@ adsRouter.post("/next", async (req, res, next) => {
       maxAdsPerDay: Math.min(pref?.maxPerDay ?? MAX_ADS_PER_DAY, MAX_ADS_PER_DAY),
       quietHoursStart: pref?.quietHoursStart ?? undefined,
       quietHoursEnd: pref?.quietHoursEnd ?? undefined,
+      tzOffsetMinutes: pref?.tzOffsetMinutes ?? 0,
     })
 
     await res.json({ ads })

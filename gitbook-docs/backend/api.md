@@ -764,6 +764,8 @@ Frequency caps are tracked in Redis (`lib/frequency.ts`) with TTL-based keys:
 
 Caps are checked before ad selection (read-only) and incremented after impression recording. Redis errors fail open (same pattern as budget tracking).
 
+Quiet hours use the user's `tzOffsetMinutes` preference (stored in the `preferences` table) to convert UTC to local time before comparing against `quietHoursStart`/`quietHoursEnd`. Defaults to UTC (offset 0) if not set.
+
 ## Budget Pacing Engine
 
 Budget tracking lives in `src/lib/budget.ts` and uses Redis with TTL-based keys for automatic daily/hourly reset (no cron needed).
