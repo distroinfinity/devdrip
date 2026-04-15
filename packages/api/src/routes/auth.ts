@@ -150,13 +150,12 @@ authRouter.post("/exchange", authLimiter, async (req, res) => {
   }
 
   const key = `auth:code:${code}`
-  const raw = await redis.get<string>(key)
+  const raw = await redis.getdel<string>(key)
   if (!raw) {
     await res.status(401).json({ error: "invalid_or_expired_code" })
     return
   }
 
-  await redis.del(key)
   const tokens = JSON.parse(raw) as { accessToken: string; refreshToken: string }
   await res.json({ token: tokens.accessToken, refresh_token: tokens.refreshToken })
 })

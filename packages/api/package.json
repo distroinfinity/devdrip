@@ -6,6 +6,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsup",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "dev": "tsx watch src/index.ts",
@@ -36,11 +37,14 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.0",
     "@types/node": "^20",
+    "@types/supertest": "^7.2.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.0.0",
+    "supertest": "^7.2.2",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.8.0",
-    "typescript-eslint": "^8.0.0"
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^4.1.4"
   }
 }
