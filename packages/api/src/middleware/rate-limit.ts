@@ -110,6 +110,12 @@ export const sensitiveLimiter = createLimiter(
   }
 )
 
+export const adminLimiter = createLimiter(
+  "admin",
+  { requests: 30, window: "60 s" },
+  (req) => `ip:${ipKey(req)}`
+)
+
 export const advertiserLimiter = createLimiter(
   "advertiser",
   { requests: 30, window: "60 s" },

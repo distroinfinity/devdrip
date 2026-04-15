@@ -257,6 +257,364 @@ Errors:
 - `400 invalid_device_name`
 - `500 internal_error`
 
+## Admin Routes
+
+All campaign management routes are protected by the `requireAdmin` middleware. This checks for an `X-Admin-Secret` header matching the `ADMIN_SECRET` environment variable. These routes use a dedicated IP-keyed `adminLimiter` (30 requests / 60s) instead of user-keyed limiters.
+
+## `POST /advertisers`
+
+Purpose:
+create an advertiser record.
+
+Auth: admin secret
+
+Request body:
+
+```json
+{
+  "name": "Acme Corp",
+  "contactEmail": "ads@acme.com",
+  "companyName": "Acme Corp",
+  "billingInfo": {
+    "method": "stripe",
+    "stripeCustomerId": "cus_123"
+  }
+}
+```
+
+Validation:
+
+- `name`: required, 1-255 chars
+- `contactEmail`: required, email format, unique
+- `companyName`: optional, max 255
+- `billingInfo`: optional object. `method` must be `stripe|crypto|invoice`. `stripe` requires `stripeCustomerId`, `crypto` requires `walletAddress`
+
+Success: `201` with `{ advertiser }` shape
+
+Errors:
+
+- `400 invalid_name`
+- `400 invalid_contact_email`
+- `400 invalid_billing_method`
+- `400 stripe_customer_id_required`
+- `400 wallet_address_required`
+- `409 email_already_exists`
+
+## `GET /advertisers`
+
+Purpose:
+list advertisers with pagination.
+
+Auth: admin secret
+
+Query params: `limit` (default 20, max 100), `offset` (default 0)
+
+Response:
+
+```json
+{
+  "advertisers": [...],
+  "total": 42,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+## `GET /advertisers/:id`
+
+Purpose:
+get a single advertiser.
+
+Auth: admin secret
+
+Response: `{ advertiser }` or `404 advertiser_not_found`
+
+## `PATCH /advertisers/:id`
+
+Purpose:
+update advertiser fields. At least one field required. Same per-field validation as create.
+
+Auth: admin secret
+
+Errors:
+
+- `400 no_fields_to_update`
+- `404 advertiser_not_found`
+- `409 email_already_exists`
+
+## `DELETE /advertisers/:id`
+
+Purpose:
+delete an advertiser and cascade its campaigns/creatives.
+
+Auth: admin secret
+
+Guard: rejects delete if the advertiser has any active campaigns.
+
+Errors:
+
+- `404 advertiser_not_found`
+- `409 has_active_campaigns`
+
+## `POST /campaigns`
+
+Purpose:
+create a campaign in `draft` status.
+
+Auth: admin secret
+
+Request body:
+
+```json
+{
+  "advertiserId": "uuid",
+  "name": "Dev Tools Q2",
+  "budgetTotal": 100.0,
+  "budgetDaily": 10.0,
+  "cpmRate": 2.5,
+  "targetCategories": ["developer-tools"],
+  "targetSurfaces": ["terminal-tv"],
+  "targetingRules": { "geoAllow": ["US"] },
+  "pacingStrategy": "even",
+  "startsAt": "2026-04-15T00:00:00Z",
+  "endsAt": "2026-07-15T00:00:00Z"
+}
+```
+
+Validation:
+
+- `advertiserId`: required UUID, must exist
+- `name`: required, 1-255 chars
+- `budgetTotal`: required, > 0
+- `budgetDaily`: required, > 0, must be <= `budgetTotal`
+- `cpmRate`: required, > 0
+- `targetCategories`: optional, each must be valid `AdCategory`
+- `targetSurfaces`: optional, each must be valid `AdSurface`
+- `targetingRules`: optional JSONB
+- `pacingStrategy`: optional, `even|front_loaded|asap`, default `even`
+- `startsAt`, `endsAt`: optional ISO8601. If both present, `endsAt > startsAt`
+
+Success: `201` with `{ campaign }`
+
+Errors:
+
+- `400 invalid_*` for each field
+- `400 budget_daily_exceeds_total`
+- `404 advertiser_not_found`
+
+## `GET /campaigns`
+
+Purpose:
+list campaigns with pagination and filters.
+
+Auth: admin secret
+
+Query params: `limit`, `offset`, `status` (filter by campaign status), `advertiserId` (filter by advertiser)
+
+Response: `{ campaigns, total, limit, offset }`
+
+## `GET /campaigns/:id`
+
+Purpose:
+get a single campaign.
+
+Auth: admin secret
+
+Response: `{ campaign }` or `404 campaign_not_found`
+
+## `PATCH /campaigns/:id`
+
+Purpose:
+update campaign fields. Rejects `status` changes (use the dedicated status endpoint).
+
+Auth: admin secret
+
+Budget guards:
+
+- cannot lower `budgetTotal` below current `budgetSpent`
+- `budgetDaily` must remain <= `budgetTotal`
+
+Errors:
+
+- `400 no_fields_to_update`
+- `400 budget_total_below_spent`
+- `400 budget_daily_exceeds_total`
+- `404 campaign_not_found`
+- `422 use_status_endpoint` (if `status` field is sent)
+
+## `PATCH /campaigns/:id/status`
+
+Purpose:
+transition campaign status through the state machine.
+
+Auth: admin secret
+
+Request body:
+
+```json
+{ "status": "active" }
+```
+
+State machine:
+
+```
+draft     → [active]
+active    → [paused, completed]
+paused    → [active, completed]
+completed → []  (terminal)
+```
+
+Guards before activation (`→ active`):
+
+1. campaign must have at least 1 active creative
+2. `endsAt` must be in the future (if set)
+3. `budgetSpent < budgetTotal`
+
+Errors:
+
+- `422 invalid_status_transition` (with `from` and `to` fields)
+- `422 no_active_creatives`
+- `422 campaign_ended`
+- `422 budget_exhausted`
+- `404 campaign_not_found`
+
+## `DELETE /campaigns/:id`
+
+Purpose:
+delete a campaign. Only `draft` campaigns can be deleted.
+
+Auth: admin secret
+
+Errors:
+
+- `404 campaign_not_found`
+- `409 only_draft_deletable`
+
+## `GET /campaigns/:id/stats`
+
+Purpose:
+return aggregated stats for a campaign, combining DB impression/click counts with live Redis spend data.
+
+Auth: admin secret
+
+Response:
+
+```json
+{
+  "campaignId": "uuid",
+  "totalImpressions": 150,
+  "completedImpressions": 120,
+  "clicks": 8,
+  "ctr": 0.0667,
+  "budgetSpent": 0.3,
+  "dailySpendToday": 0.05,
+  "hourlySpendNow": 0.01
+}
+```
+
+## `POST /campaigns/:campaignId/creatives`
+
+Purpose:
+create a creative for a campaign.
+
+Auth: admin secret
+
+Request body:
+
+```json
+{
+  "headline": "Ship faster with Turbo CI",
+  "body": "Cut build times by 70%.",
+  "ctaText": "Try free",
+  "ctaUrl": "https://example.com/turbo",
+  "format": "text",
+  "surface": "terminal-tv",
+  "category": "developer-tools",
+  "source": "direct",
+  "cpmRate": 2.5
+}
+```
+
+Validation:
+
+- `headline`: required, 1-60 chars
+- `body`: optional, max 140
+- `ctaText`: optional, max 30
+- `ctaUrl`: optional, max 2048, must start with `https://`
+- `format`: required, `text|banner|sponsored-link`
+- `surface`: required, valid `AdSurface`
+- `category`: required, valid `AdCategory`
+- `source`: required, valid `AdSource`
+- `cpmRate`: required, > 0
+- `impressionBeaconUrl`, `clickTrackingUrl`: optional, `https://` prefix
+- `externalCampaignId`, `externalCreativeId`: optional, max 255
+
+Success: `201` with `{ creative }`
+
+Errors:
+
+- `400 invalid_*` for each field
+- `404 campaign_not_found`
+
+## `GET /campaigns/:campaignId/creatives`
+
+Purpose:
+list creatives for a campaign with pagination and optional `isActive` filter.
+
+Auth: admin secret
+
+Query params: `limit`, `offset`, `isActive` (`true|false`)
+
+Response: `{ creatives, total, limit, offset }`
+
+## `GET /campaigns/:campaignId/creatives/:id`
+
+Purpose:
+get a single creative. Validates ownership against the campaign.
+
+Auth: admin secret
+
+## `PATCH /campaigns/:campaignId/creatives/:id`
+
+Purpose:
+update creative fields including `isActive` toggle for soft-deactivation.
+
+Auth: admin secret
+
+## `DELETE /campaigns/:campaignId/creatives/:id`
+
+Purpose:
+hard delete a creative.
+
+Guard: impressions FK is `ON DELETE RESTRICT`. If the creative has served impressions, the delete will be rejected.
+
+Errors:
+
+- `404 creative_not_found`
+- `409 creative_has_impressions` (with `hint: "deactivate_instead"`)
+
+## Budget Pacing Engine
+
+Budget tracking lives in `src/lib/budget.ts` and uses Redis with TTL-based keys for automatic daily/hourly reset (no cron needed).
+
+Redis key design (all UTC):
+
+| Key pattern                                    | Type  | TTL  | Purpose                    |
+| ---------------------------------------------- | ----- | ---- | -------------------------- |
+| `budget:daily:{campaignId}:{YYYY-MM-DD}`       | float | 25h  | daily spend accumulator    |
+| `budget:hourly:{campaignId}:{YYYY-MM-DD}:{HH}` | float | 2h   | hourly spend accumulator   |
+| `budget:rotation:{campaignId}`                 | int   | none | creative round-robin index |
+
+Pacing strategies:
+
+- `even`: hourly cap = `budgetDaily / 24`, spread uniformly
+- `front_loaded`: weighted curve (hours 0-7 get 1.5x, 8-15 get 1.0x, 16-23 get 0.5x)
+- `asap`: no hourly cap, daily cap only
+
+The `recordSpend` function uses an optimistic Redis pipeline (INCRBYFLOAT + EXPIRE) with compensating rollback if a cap is exceeded. It returns a `SpendResult` discriminated union so the impression pipeline can auto-pause exhausted campaigns.
+
+Creative rotation uses round-robin via a Redis counter. The ad-serving layer calls `nextCreativeIndex(campaignId)` and applies modulo against active creative count.
+
 ## Rate Limit Tiers
 
 - `global`: 100 requests / 60s by IP
@@ -265,6 +623,7 @@ Errors:
 - `refresh`: 20 requests / 60s by IP
 - `user`: 60 requests / 60s by user ID
 - `sensitive`: 3 requests / 1h by user ID
+- `admin`: 30 requests / 60s by IP
 - `advertiser`: 30 requests / 60s by user ID
 
 Headers set on limited routes:

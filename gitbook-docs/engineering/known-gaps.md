@@ -18,9 +18,9 @@ These are the main current-state gaps that matter when working in this repo.
 
 ## Backend Coverage
 
-- schema covers much more than the current route surface
-- health, auth, and device registration are implemented
-- campaign management, ad serving, impression ingestion, earnings, payouts, preferences, referrals, and invite flows are not yet exposed as API routes
+- health, auth, device registration, and campaign management (advertisers/campaigns/creatives CRUD) are implemented
+- budget pacing engine is built (Redis-backed daily/hourly tracking, pacing strategies, creative rotation) but not yet called from an impression ingestion endpoint
+- ad serving waterfall, impression ingestion, earnings confirmation, payouts, preferences, referrals, and invite flows are not yet exposed as API routes
 
 ## Waitlist Storage
 
