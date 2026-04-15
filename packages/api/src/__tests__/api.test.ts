@@ -90,3 +90,58 @@ describe("POST /auth/refresh", () => {
     expect(res.body.error).toBe("missing_refresh_token")
   })
 })
+
+// ── ad serving endpoints ────────────────────────────────────────────────────
+
+describe("POST /ads/next", () => {
+  it("returns 401 without auth token", async () => {
+    const res = await request(app).post("/ads/next").send({})
+    expect(res.status).toBe(401)
+    expect(res.body.error).toBe("missing_token")
+  })
+
+  it("returns 401 with invalid token", async () => {
+    const res = await request(app)
+      .post("/ads/next")
+      .set("Authorization", "Bearer invalid-token")
+      .send({ deviceId: "00000000-0000-0000-0000-000000000000", surface: "terminal-tv" })
+    expect(res.status).toBe(401)
+  })
+})
+
+describe("POST /impressions", () => {
+  it("returns 401 without auth token", async () => {
+    const res = await request(app).post("/impressions").send({})
+    expect(res.status).toBe(401)
+    expect(res.body.error).toBe("missing_token")
+  })
+
+  it("returns 401 with invalid token", async () => {
+    const res = await request(app)
+      .post("/impressions")
+      .set("Authorization", "Bearer invalid-token")
+      .send({
+        creativeId: "00000000-0000-0000-0000-000000000000",
+        deviceId: "00000000-0000-0000-0000-000000000000",
+        durationMs: 5000,
+        result: "completed",
+      })
+    expect(res.status).toBe(401)
+  })
+})
+
+describe("POST /clicks", () => {
+  it("returns 401 without auth token", async () => {
+    const res = await request(app).post("/clicks").send({})
+    expect(res.status).toBe(401)
+    expect(res.body.error).toBe("missing_token")
+  })
+
+  it("returns 401 with invalid token", async () => {
+    const res = await request(app)
+      .post("/clicks")
+      .set("Authorization", "Bearer invalid-token")
+      .send({ impressionId: "00000000-0000-0000-0000-000000000000" })
+    expect(res.status).toBe(401)
+  })
+})

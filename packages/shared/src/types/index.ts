@@ -207,3 +207,7 @@ export interface Payout {
   createdAt: string
   confirmedAt?: string
 }
+
+// ── ad provider ────────────────────────────────────────────────────────────
+
+export { type AdRequest, type AdProvider } from "./ad-provider.js"

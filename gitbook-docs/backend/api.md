@@ -612,6 +612,155 @@ Errors:
 - `404 creative_not_found`
 - `409 creative_has_impressions` (with `hint: "deactivate_instead"`)
 
+## Ad Serving Endpoints
+
+These routes power the CLI ad pipeline. All require bearer token auth and use the user-keyed rate limiter.
+
+### `POST /ads/next`
+
+Purpose:
+fetch the next batch of ads for a device.
+
+Auth: bearer token
+
+Request body:
+
+```json
+{
+  "deviceId": "uuid",
+  "surface": "terminal-tv",
+  "count": 1
+}
+```
+
+Behavior:
+
+- validates device ownership (device must belong to the authenticated user)
+- loads user preferences (blocked categories, enabled surfaces, quiet hours, frequency caps)
+- runs the ManualAdProvider 4-stage selection pipeline:
+  1. user-level gates (surface enabled, quiet hours, frequency caps via Redis)
+  2. DB query joining active campaigns + active creatives filtered by surface/category
+  3. app-level targeting filter (campaign surface restriction, OS/IDE targeting, budget pre-screen, per-campaign frequency cap)
+  4. creative rotation via `nextCreativeIndex()` round-robin, one per campaign
+- returns `{ ads: [] }` when no matching ads (never errors for empty results)
+
+Response:
+
+```json
+{
+  "ads": [
+    {
+      "id": "creative-uuid",
+      "campaignId": "campaign-uuid",
+      "format": "text",
+      "headline": "Ship faster with Turbo CI",
+      "body": "Cut build times by 70%.",
+      "url": "https://example.com/turbo",
+      "displayTimeMs": 8000
+    }
+  ]
+}
+```
+
+Errors:
+
+- `400 invalid_device_id`, `400 invalid_surface`, `400 invalid_count`
+- `403 device_not_owned`
+- `404 device_not_found`
+
+### `POST /impressions`
+
+Purpose:
+record that an ad was displayed to a user.
+
+Auth: bearer token
+
+Request body:
+
+```json
+{
+  "creativeId": "uuid",
+  "deviceId": "uuid",
+  "durationMs": 6000,
+  "result": "completed"
+}
+```
+
+Behavior:
+
+- validates device ownership
+- resolves creative + campaign data via join (source, surface, category, cpmRate, budget)
+- calculates `earnedAmount = (cpmRate / 1000) * 0.70` for completed impressions (70% developer share)
+- calls `recordSpend()` in Redis for budget tracking (fail-open on error)
+- transactional insert: impression row + earnings_ledger row (for completed only)
+- fire-and-forget: increments frequency counters in Redis
+- fire-and-forget: auto-completes campaign if budget exhausted
+
+Result enum: `completed | skipped | expired | interrupted`
+
+Success: `201` with `{ impression }`
+
+Errors:
+
+- `400 invalid_creative_id`, `400 invalid_duration_ms`, `400 invalid_result`
+- `403 device_not_owned`
+- `404 creative_not_found`, `404 device_not_found`
+
+### `POST /clicks`
+
+Purpose:
+record a click on an impression.
+
+Auth: bearer token
+
+Request body:
+
+```json
+{
+  "impressionId": "uuid"
+}
+```
+
+Behavior:
+
+- validates ownership chain: impression → device → user
+- inserts into clicks table (unique constraint on `impressionId` prevents double-clicks)
+
+Success: `201` with `{ clickId }`
+
+Errors:
+
+- `400 invalid_impression_id`
+- `403 device_not_owned`
+- `404 impression_not_found`
+- `409 click_already_recorded`
+
+## AdProvider Interface
+
+The `AdProvider` interface in `@devdrip/shared` defines a pluggable ad selection abstraction:
+
+```typescript
+interface AdProvider {
+  readonly name: string
+  fetchAds(request: AdRequest): Promise<AdPayload[]>
+}
+```
+
+Currently one implementation exists: `ManualAdProvider` (queries internal campaigns from Neon + Redis). The interface is designed for future providers (Carbon Ads, EthicalAds) to be added as a waterfall — the route handler will iterate providers in order until one returns non-empty results.
+
+## Frequency Cap Engine
+
+Frequency caps are tracked in Redis (`lib/frequency.ts`) with TTL-based keys:
+
+| Key pattern                                             | TTL | Purpose                            |
+| ------------------------------------------------------- | --- | ---------------------------------- |
+| `freq:dev:{deviceId}:surface:{surface}:h:{date}:{hour}` | 2h  | per-surface hourly (cap: 4)        |
+| `freq:dev:{deviceId}:total:h:{date}:{hour}`             | 2h  | total hourly (cap: 8 or user pref) |
+| `freq:dev:{deviceId}:total:d:{date}`                    | 25h | total daily (cap: 60 or user pref) |
+| `freq:dev:{deviceId}:campaign:{campaignId}:d:{date}`    | 25h | per-device-per-campaign daily      |
+
+Caps are checked before ad selection (read-only) and incremented after impression recording. Redis errors fail open (same pattern as budget tracking).
+
 ## Budget Pacing Engine
 
 Budget tracking lives in `src/lib/budget.ts` and uses Redis with TTL-based keys for automatic daily/hourly reset (no cron needed).
@@ -663,3 +812,9 @@ Current API tests cover:
 - auth guard behavior for `/me`
 - basic error cases for `/auth/exchange`
 - basic error case for `/auth/refresh`
+- auth guard behavior for `/ads/next`, `/impressions`, `/clicks`
+
+Unit test suites:
+
+- `ad-selection.test.ts` — 15 tests covering ManualAdProvider selection pipeline (surface gates, quiet hours, frequency caps, targeting filters, budget pre-screen, rotation, count limits)
+- `impression.test.ts` — 8 tests covering impression recording (earnings calculation, spend tracking, frequency increment, campaign auto-completion, click recording)

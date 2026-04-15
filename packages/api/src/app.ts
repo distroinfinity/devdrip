@@ -11,6 +11,9 @@ import { authRouter } from "./routes/auth.js"
 import { devicesRouter } from "./routes/devices.js"
 import { advertisersRouter } from "./routes/advertisers.js"
 import { campaignsRouter } from "./routes/campaigns.js"
+import { adsRouter } from "./routes/ads.js"
+import { impressionsRouter } from "./routes/impressions.js"
+import { clicksRouter } from "./routes/clicks.js"
 import { requireAuth } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
 import { globalLimiter, userLimiter, adminLimiter } from "./middleware/rate-limit.js"
@@ -46,6 +49,9 @@ app.use("/auth", authRouter)
 app.use("/devices", requireAuth, devicesRouter)
 app.use("/advertisers", requireAdmin, adminLimiter, advertisersRouter)
 app.use("/campaigns", requireAdmin, adminLimiter, campaignsRouter)
+app.use("/ads", requireAuth, userLimiter, adsRouter)
+app.use("/impressions", requireAuth, userLimiter, impressionsRouter)
+app.use("/clicks", requireAuth, userLimiter, clicksRouter)
 
 app.get("/me", requireAuth, userLimiter, async (_req, res) => {
   await res.json({ userId: res.locals["userId"], githubLogin: res.locals["githubLogin"] })
