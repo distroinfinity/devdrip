@@ -35,5 +35,5 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 })
 
 app.listen(env.port, () => {
-  console.log(`api listening on :${env.port}`)
+  console.log(`api listening on :${env.port} [${env.nodeEnv}]`)
 })
