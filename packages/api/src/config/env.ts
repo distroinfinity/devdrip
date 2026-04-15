@@ -40,4 +40,10 @@ export const env = {
   get upstashRedisRestToken() {
     return requireEnv("UPSTASH_REDIS_REST_TOKEN")
   },
+  get allowedOrigins(): string[] {
+    return requireEnv("ALLOWED_ORIGINS")
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean)
+  },
 }
