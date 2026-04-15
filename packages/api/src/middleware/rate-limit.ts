@@ -1,13 +1,6 @@
-import { Redis } from "@upstash/redis"
 import { Ratelimit } from "@upstash/ratelimit"
 import type { Request, Response, NextFunction } from "express"
-import { env } from "../config/env.js"
-
-// eager init — crashes at startup if env vars are missing
-const redis = new Redis({
-  url: env.upstashRedisRestUrl,
-  token: env.upstashRedisRestToken,
-})
+import { redis } from "../lib/redis.js"
 
 // cache ratelimit instances per tier
 const limiterCache = new Map<string, Ratelimit>()
