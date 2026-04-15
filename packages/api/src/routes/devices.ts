@@ -1,6 +1,7 @@
 import { Router } from "express"
 import { getDb } from "../db/index.js"
 import { devices } from "../db/schema/devices.js"
+import { logger } from "../lib/logger.js"
 
 const MACHINE_ID_HASH_RE = /^[0-9a-f]{64}$/
 const VALID_OS = ["darwin", "linux", "win32"] as const
@@ -87,7 +88,7 @@ devicesRouter.post("/", authLimiter, async (_req, res) => {
       },
     })
   } catch (err) {
-    console.error("device registration error:", err)
+    logger.error({ err }, "device registration error")
     await res.status(500).json({ error: "internal_error" })
   }
 })

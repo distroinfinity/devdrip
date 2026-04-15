@@ -2,6 +2,7 @@ import { Router } from "express"
 import { randomBytes, randomUUID } from "node:crypto"
 import { eq, and, isNull } from "drizzle-orm"
 import { env } from "../config/env.js"
+import { logger } from "../lib/logger.js"
 import { getDb } from "../db/index.js"
 import { users } from "../db/schema/users.js"
 import { refreshTokens } from "../db/schema/refresh_tokens.js"
@@ -19,6 +20,7 @@ import {
 } from "../lib/github.js"
 import { generateReferralCode } from "../lib/referral.js"
 import { requireAuth } from "../middleware/auth.js"
+import { authLimiter, refreshLimiter } from "../middleware/rate-limit.js"
 
 // one-time code store for secure token delivery (60s TTL)
 // TODO: replace with Redis when scaling to multiple instances
@@ -27,8 +29,6 @@ interface PendingTokens {
   refreshToken: string
 }
 const pendingCodes = new Map<string, PendingTokens>()
-
-import { authLimiter, refreshLimiter } from "../middleware/rate-limit.js"
 
 export const authRouter: ReturnType<typeof Router> = Router()
 
@@ -141,7 +141,7 @@ authRouter.get("/github/callback", authLimiter, async (req, res) => {
     redirectUrl.searchParams.set("code", exchangeCode)
     await res.redirect(redirectUrl.toString())
   } catch (err) {
-    console.error("oauth callback error:", err)
+    logger.error({ err }, "oauth callback error")
     await res.redirect(`${env.clientRedirectUrl}?error=auth_failed`)
   }
 })
