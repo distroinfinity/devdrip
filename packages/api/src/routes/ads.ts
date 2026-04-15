@@ -6,7 +6,7 @@ import { getDb } from "../db/index.js"
 import { devices } from "../db/schema/devices.js"
 import { preferences } from "../db/schema/preferences.js"
 import { validateFetchAds } from "../validators/ad.validators.js"
-import { manualAdProvider } from "../services/ad-selection.service.js"
+import { fetchServedAds } from "../services/ad-delivery.service.js"
 import { ForbiddenError } from "../errors/index.js"
 
 export const adsRouter: ReturnType<typeof Router> = Router()
@@ -42,7 +42,7 @@ adsRouter.post("/next", async (req, res, next) => {
 
     const pref = prefRows[0]
 
-    const ads = await manualAdProvider.fetchAds({
+    const ads = await fetchServedAds({
       deviceId: input.deviceId,
       userId,
       os: device.os,

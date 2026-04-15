@@ -14,8 +14,7 @@ export interface FetchAdsInput {
 }
 
 export interface RecordImpressionInput {
-  creativeId: string
-  deviceId: string
+  deliveryToken: string
   durationMs: number
   result: ImpressionResult
 }
@@ -48,8 +47,10 @@ export function validateFetchAds(body: unknown): FetchAdsInput {
 export function validateRecordImpression(body: unknown): RecordImpressionInput {
   const b = requireBody(body)
 
-  const creativeId = validateUUID(b["creativeId"], "creative_id")
-  const deviceId = validateUUID(b["deviceId"], "device_id")
+  if (typeof b["deliveryToken"] !== "string" || b["deliveryToken"].trim().length === 0) {
+    throw new ValidationError("missing_delivery_token")
+  }
+  const deliveryToken = b["deliveryToken"].trim()
 
   if (
     typeof b["durationMs"] !== "number" ||
@@ -62,7 +63,7 @@ export function validateRecordImpression(body: unknown): RecordImpressionInput {
 
   const result = validateEnumValue(b["result"], IMPRESSION_RESULTS, "result") as ImpressionResult
 
-  return { creativeId, deviceId, durationMs, result }
+  return { deliveryToken, durationMs, result }
 }
 
 // ── record click ────────────────────────────────────────────────────────────

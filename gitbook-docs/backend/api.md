@@ -642,6 +642,7 @@ Behavior:
   2. DB query joining active campaigns + active creatives filtered by surface/category
   3. app-level targeting filter (campaign surface restriction, OS/IDE targeting, budget pre-screen, per-campaign frequency cap)
   4. creative rotation via `nextCreativeIndex()` round-robin, one per campaign
+- issues a short-lived, one-time `deliveryToken` per returned ad; `/impressions` must consume it exactly once
 - returns `{ ads: [] }` when no matching ads (never errors for empty results)
 
 Response:
@@ -656,7 +657,8 @@ Response:
       "headline": "Ship faster with Turbo CI",
       "body": "Cut build times by 70%.",
       "url": "https://example.com/turbo",
-      "displayTimeMs": 8000
+      "displayTimeMs": 8000,
+      "deliveryToken": "jwt"
     }
   ]
 }
@@ -679,8 +681,7 @@ Request body:
 
 ```json
 {
-  "creativeId": "uuid",
-  "deviceId": "uuid",
+  "deliveryToken": "jwt",
   "durationMs": 6000,
   "result": "completed"
 }
@@ -688,10 +689,12 @@ Request body:
 
 Behavior:
 
-- validates device ownership
-- resolves creative + campaign data via join (source, surface, category, cpmRate, budget)
+- validates and consumes the one-time `deliveryToken`
+- rejects replayed, expired, or forged delivery tokens
+- resolves creative + campaign data via join and requires the creative/campaign to still be servable
 - calculates `earnedAmount = (cpmRate / 1000) * 0.70` for completed impressions (70% developer share)
-- calls `recordSpend()` in Redis for budget tracking (fail-open on error)
+- calls `recordSpend()` in Redis for budget tracking
+- rejects the write if the budget guard denies the impression
 - transactional insert: impression row + earnings_ledger row (for completed only)
 - fire-and-forget: increments frequency counters in Redis
 - fire-and-forget: auto-completes campaign if budget exhausted
@@ -702,9 +705,9 @@ Success: `201` with `{ impression }`
 
 Errors:
 
-- `400 invalid_creative_id`, `400 invalid_duration_ms`, `400 invalid_result`
-- `403 device_not_owned`
-- `404 creative_not_found`, `404 device_not_found`
+- `400 missing_delivery_token`, `400 invalid_duration_ms`, `400 invalid_result`
+- `403 delivery_not_owned`, `403 invalid_or_expired_delivery_token`
+- `422 creative_not_servable`, `422 campaign_budget_exhausted`
 
 ### `POST /clicks`
 

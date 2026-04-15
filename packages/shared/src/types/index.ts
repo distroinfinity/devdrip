@@ -147,6 +147,10 @@ export interface AdPayload {
   displayTimeMs: number
 }
 
+export interface ServedAdPayload extends AdPayload {
+  deliveryToken: string
+}
+
 export interface Advertiser {
   id: string
   name: string

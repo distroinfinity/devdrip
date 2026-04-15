@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import type { ImpressionResult, AdSurface, AdSource } from "@devdrip/shared"
 import { REVENUE_SHARE_DEVELOPER } from "@devdrip/shared"
 import { getDb } from "../db/index.js"
@@ -7,8 +7,8 @@ import { campaigns } from "../db/schema/campaigns.js"
 import { impressions } from "../db/schema/impressions.js"
 import { clicks } from "../db/schema/clicks.js"
 import { earningsLedger } from "../db/schema/earnings.js"
-import { NotFoundError, ConflictError, pgErrorCode } from "../errors/index.js"
-import { recordSpend } from "../lib/budget.js"
+import { NotFoundError, ConflictError, StateError, pgErrorCode } from "../errors/index.js"
+import { recordSpend, rollbackSpend } from "../lib/budget.js"
 import { incrementFrequency } from "../lib/frequency.js"
 import { transitionStatus } from "./campaign.service.js"
 import { logger } from "../lib/logger.js"
@@ -19,6 +19,7 @@ export interface RecordImpressionInput {
   creativeId: string
   deviceId: string
   userId: string
+  surface: AdSurface
   durationMs: number
   result: ImpressionResult
 }
@@ -27,8 +28,9 @@ export interface RecordImpressionInput {
 
 export async function recordImpression(input: RecordImpressionInput) {
   const db = getDb()
+  const now = new Date()
 
-  // fetch creative + campaign in one join
+  // fetch the creative only if it is still eligible to be served
   const [row] = await db
     .select({
       creativeId: creatives.id,
@@ -44,9 +46,18 @@ export async function recordImpression(input: RecordImpressionInput) {
     })
     .from(creatives)
     .innerJoin(campaigns, eq(creatives.campaignId, campaigns.id))
-    .where(eq(creatives.id, input.creativeId))
+    .where(
+      and(
+        eq(creatives.id, input.creativeId),
+        eq(creatives.isActive, true),
+        eq(creatives.surface, input.surface),
+        eq(campaigns.status, "active"),
+        sql`(${campaigns.startsAt} IS NULL OR ${campaigns.startsAt} <= ${now})`,
+        sql`(${campaigns.endsAt} IS NULL OR ${campaigns.endsAt} > ${now})`
+      )
+    )
 
-  if (!row) throw new NotFoundError("creative")
+  if (!row) throw new StateError("creative_not_servable")
 
   // calculate earnings
   const costPerImpression = row.cpmRate / 1000
@@ -62,43 +73,46 @@ export async function recordImpression(input: RecordImpressionInput) {
   })
 
   if (!spendResult.allowed) {
-    logger.warn(
-      { campaignId: row.campaignId, reason: spendResult.reason },
-      "budget cap hit on impression, recording anyway"
-    )
+    throw new StateError("campaign_budget_exhausted", { reason: spendResult.reason })
   }
 
   // DB transaction: insert impression + earnings
-  const impression = await db.transaction(async (tx) => {
-    const [imp] = await tx
-      .insert(impressions)
-      .values({
-        creativeId: input.creativeId,
-        deviceId: input.deviceId,
-        source: row.source as AdSource,
-        surface: row.surface as AdSurface,
-        durationMs: input.durationMs,
-        result: input.result,
-        cpmRate: row.cpmRate,
-        earnedAmount,
-      })
-      .returning()
+  let impression
+  try {
+    impression = await db.transaction(async (tx) => {
+      const [imp] = await tx
+        .insert(impressions)
+        .values({
+          creativeId: input.creativeId,
+          deviceId: input.deviceId,
+          source: row.source as AdSource,
+          surface: row.surface as AdSurface,
+          durationMs: input.durationMs,
+          result: input.result,
+          cpmRate: row.cpmRate,
+          earnedAmount,
+        })
+        .returning()
 
-    if (!imp) throw new Error("impression insert returned no rows")
+      if (!imp) throw new Error("impression insert returned no rows")
 
-    // only create earnings for completed impressions
-    if (input.result === "completed" && earnedAmount > 0) {
-      await tx.insert(earningsLedger).values({
-        userId: input.userId,
-        impressionId: imp.id,
-        amountUsdc: earnedAmount,
-        surface: row.surface as AdSurface,
-        adCategory: row.category as (typeof earningsLedger)["$inferInsert"]["adCategory"],
-      })
-    }
+      // only create earnings for completed impressions
+      if (input.result === "completed" && earnedAmount > 0) {
+        await tx.insert(earningsLedger).values({
+          userId: input.userId,
+          impressionId: imp.id,
+          amountUsdc: earnedAmount,
+          surface: row.surface as AdSurface,
+          adCategory: row.category as (typeof earningsLedger)["$inferInsert"]["adCategory"],
+        })
+      }
 
-    return imp
-  })
+      return imp
+    })
+  } catch (err) {
+    await rollbackSpend(row.campaignId, costPerImpression)
+    throw err
+  }
 
   // fire-and-forget: increment frequency counters
   incrementFrequency(input.deviceId, row.campaignId, row.surface as AdSurface).catch((err) => {

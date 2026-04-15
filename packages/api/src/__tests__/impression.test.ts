@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { REVENUE_SHARE_DEVELOPER, ImpressionResult } from "@devdrip/shared"
+import { AdSurface, REVENUE_SHARE_DEVELOPER, ImpressionResult } from "@devdrip/shared"
 
 // mock dependencies before imports
 vi.mock("../db/index.js", () => ({
@@ -8,6 +8,7 @@ vi.mock("../db/index.js", () => ({
 
 vi.mock("../lib/budget.js", () => ({
   recordSpend: vi.fn().mockResolvedValue({ allowed: true, exhausted: false }),
+  rollbackSpend: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock("../lib/frequency.js", () => ({
@@ -29,7 +30,7 @@ vi.mock("../lib/logger.js", () => ({
 
 import { recordImpression, recordClick } from "../services/impression.service.js"
 import { getDb } from "../db/index.js"
-import { recordSpend } from "../lib/budget.js"
+import { recordSpend, rollbackSpend } from "../lib/budget.js"
 import { incrementFrequency } from "../lib/frequency.js"
 import { transitionStatus } from "../services/campaign.service.js"
 
@@ -85,6 +86,7 @@ describe("recordImpression", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(recordSpend).mockResolvedValue({ allowed: true, exhausted: false })
+    vi.mocked(rollbackSpend).mockResolvedValue(undefined)
   })
 
   it("creates impression with correct earned amount for completed result", async () => {
@@ -104,6 +106,7 @@ describe("recordImpression", () => {
       creativeId: "creative-1",
       deviceId: "device-1",
       userId: "user-1",
+      surface: AdSurface.TerminalTv,
       durationMs: 6000,
       result: ImpressionResult.Completed,
     })
@@ -128,6 +131,7 @@ describe("recordImpression", () => {
       creativeId: "creative-1",
       deviceId: "device-1",
       userId: "user-1",
+      surface: AdSurface.TerminalTv,
       durationMs: 2000,
       result: ImpressionResult.Skipped,
     })
@@ -147,6 +151,7 @@ describe("recordImpression", () => {
       creativeId: "creative-1",
       deviceId: "device-1",
       userId: "user-1",
+      surface: AdSurface.TerminalTv,
       durationMs: 6000,
       result: ImpressionResult.Completed,
     })
@@ -167,6 +172,7 @@ describe("recordImpression", () => {
       creativeId: "creative-1",
       deviceId: "device-1",
       userId: "user-1",
+      surface: AdSurface.TerminalTv,
       durationMs: 6000,
       result: ImpressionResult.Completed,
     })
@@ -185,6 +191,7 @@ describe("recordImpression", () => {
       creativeId: "creative-1",
       deviceId: "device-1",
       userId: "user-1",
+      surface: AdSurface.TerminalTv,
       durationMs: 6000,
       result: ImpressionResult.Completed,
     })
@@ -193,7 +200,7 @@ describe("recordImpression", () => {
     expect(transitionStatus).toHaveBeenCalledWith("campaign-1", "completed")
   })
 
-  it("throws NotFoundError when creative does not exist", async () => {
+  it("throws StateError when creative is not servable", async () => {
     mockTxWith(null, {})
 
     await expect(
@@ -201,10 +208,62 @@ describe("recordImpression", () => {
         creativeId: "nonexistent",
         deviceId: "device-1",
         userId: "user-1",
+        surface: AdSurface.TerminalTv,
         durationMs: 6000,
         result: ImpressionResult.Completed,
       })
-    ).rejects.toThrow("creative_not_found")
+    ).rejects.toThrow("creative_not_servable")
+  })
+
+  it("throws StateError when the budget guard blocks the impression", async () => {
+    vi.mocked(recordSpend).mockResolvedValue({ allowed: false, reason: "daily_cap" })
+    const impressionRow = { id: "imp-1", result: "completed", earnedAmount: 0 }
+    const { insertValues } = mockTxWith(mockCreativeRow(), impressionRow)
+
+    await expect(
+      recordImpression({
+        creativeId: "creative-1",
+        deviceId: "device-1",
+        userId: "user-1",
+        surface: AdSurface.TerminalTv,
+        durationMs: 6000,
+        result: ImpressionResult.Completed,
+      })
+    ).rejects.toThrow("campaign_budget_exhausted")
+
+    expect(insertValues).not.toHaveBeenCalled()
+  })
+
+  it("rolls back spend if the DB transaction fails after reserving budget", async () => {
+    const txFn = vi.fn(async () => {
+      throw new Error("db_write_failed")
+    })
+    const selectWhere = vi.fn().mockResolvedValue([mockCreativeRow()])
+    const selectFrom = vi.fn(() => ({
+      innerJoin: vi.fn(() => ({
+        where: selectWhere,
+      })),
+      where: selectWhere,
+    }))
+    const selectFn = vi.fn(() => ({ from: selectFrom }))
+
+    vi.mocked(getDb).mockReturnValue({
+      select: selectFn,
+      transaction: txFn,
+    } as unknown as ReturnType<typeof getDb>)
+
+    await expect(
+      recordImpression({
+        creativeId: "creative-1",
+        deviceId: "device-1",
+        userId: "user-1",
+        surface: AdSurface.TerminalTv,
+        durationMs: 6000,
+        result: ImpressionResult.Completed,
+      })
+    ).rejects.toThrow("db_write_failed")
+
+    expect(rollbackSpend).toHaveBeenCalledWith("campaign-1", 5.0 / 1000)
   })
 })
 
