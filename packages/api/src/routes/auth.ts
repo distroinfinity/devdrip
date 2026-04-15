@@ -2,7 +2,9 @@ import { Router } from "express"
 import { randomBytes, randomUUID } from "node:crypto"
 import { eq, and, isNull } from "drizzle-orm"
 import { env } from "../config/env.js"
+import { logger } from "../lib/logger.js"
 import { getDb } from "../db/index.js"
+import { getRedis } from "../lib/redis.js"
 import { users } from "../db/schema/users.js"
 import { refreshTokens } from "../db/schema/refresh_tokens.js"
 import {
@@ -19,7 +21,6 @@ import {
 } from "../lib/github.js"
 import { generateReferralCode } from "../lib/referral.js"
 import { requireAuth } from "../middleware/auth.js"
-import { redis } from "../lib/redis.js"
 import { authLimiter, refreshLimiter } from "../middleware/rate-limit.js"
 
 export const authRouter: ReturnType<typeof Router> = Router()
@@ -126,7 +127,7 @@ authRouter.get("/github/callback", authLimiter, async (req, res) => {
 
     // store tokens behind a one-time code in Redis (60s TTL)
     const exchangeCode = randomBytes(16).toString("hex")
-    await redis.set(
+    await getRedis().set(
       `auth:code:${exchangeCode}`,
       JSON.stringify({ accessToken, refreshToken: rawRefresh }),
       { ex: 60 }
@@ -136,7 +137,7 @@ authRouter.get("/github/callback", authLimiter, async (req, res) => {
     redirectUrl.searchParams.set("code", exchangeCode)
     await res.redirect(redirectUrl.toString())
   } catch (err) {
-    console.error("oauth callback error:", err)
+    logger.error({ err }, "oauth callback error")
     await res.redirect(`${env.clientRedirectUrl}?error=auth_failed`)
   }
 })
@@ -150,7 +151,7 @@ authRouter.post("/exchange", authLimiter, async (req, res) => {
   }
 
   const key = `auth:code:${code}`
-  const raw = await redis.getdel<string>(key)
+  const raw = await getRedis().getdel<string>(key)
   if (!raw) {
     await res.status(401).json({ error: "invalid_or_expired_code" })
     return

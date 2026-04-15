@@ -1,6 +1,7 @@
 import { Ratelimit } from "@upstash/ratelimit"
 import type { Request, Response, NextFunction } from "express"
-import { redis } from "../lib/redis.js"
+import { getRedis } from "../lib/redis.js"
+import { logger } from "../lib/logger.js"
 
 const isTest = process.env.NODE_ENV === "test"
 
@@ -16,7 +17,7 @@ function getLimiter(name: string, config: LimiterConfig): Ratelimit {
   let limiter = limiterCache.get(name)
   if (!limiter) {
     limiter = new Ratelimit({
-      redis,
+      redis: getRedis(),
       limiter: Ratelimit.slidingWindow(config.requests, config.window),
       prefix: `rl:${name}`,
     })
@@ -63,7 +64,7 @@ function createLimiter(name: string, config: LimiterConfig, extractKey: KeyExtra
 
       next()
     } catch (err) {
-      console.warn(`[rate-limit:${name}] redis error, failing open:`, err)
+      logger.warn({ err, tier: name }, "redis error, failing open")
       next()
     }
   }

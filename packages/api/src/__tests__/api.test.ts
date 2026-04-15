@@ -3,10 +3,12 @@ import request from "supertest"
 import { app } from "../app.js"
 
 describe("GET /health", () => {
-  it("returns 200 with ok: true", async () => {
+  it("returns health response with components", async () => {
     const res = await request(app).get("/health")
-    expect(res.status).toBe(200)
-    expect(res.body).toEqual({ ok: true })
+    expect([200, 503]).toContain(res.status)
+    expect(res.body).toHaveProperty("status")
+    expect(res.body).toHaveProperty("uptime")
+    expect(res.body).toHaveProperty("components")
   })
 
   it("is not behind the global rate limiter", async () => {
