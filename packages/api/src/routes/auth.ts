@@ -20,6 +20,7 @@ import {
 } from "../lib/github.js"
 import { generateReferralCode } from "../lib/referral.js"
 import { requireAuth } from "../middleware/auth.js"
+import { authLimiter, refreshLimiter } from "../middleware/rate-limit.js"
 
 // one-time code store for secure token delivery (60s TTL)
 // TODO: replace with Redis when scaling to multiple instances
@@ -28,8 +29,6 @@ interface PendingTokens {
   refreshToken: string
 }
 const pendingCodes = new Map<string, PendingTokens>()
-
-import { authLimiter, refreshLimiter } from "../middleware/rate-limit.js"
 
 export const authRouter: ReturnType<typeof Router> = Router()
 

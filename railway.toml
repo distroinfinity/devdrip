@@ -8,4 +8,4 @@ startCommand = "node packages/api/dist/index.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 healthcheckPath = "/health"
-healthcheckTimeout = 300
+healthcheckTimeout = 30

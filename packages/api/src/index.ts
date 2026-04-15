@@ -1,4 +1,5 @@
 import "dotenv/config"
+import type { Socket } from "node:net"
 import express from "express"
 import type { Request, Response, NextFunction } from "express"
 import cookieParser from "cookie-parser"
@@ -12,11 +13,26 @@ import { devicesRouter } from "./routes/devices.js"
 import { requireAuth } from "./middleware/auth.js"
 import { globalLimiter, userLimiter } from "./middleware/rate-limit.js"
 
+const REDACTED_HEADERS = new Set(["authorization", "cookie", "set-cookie"])
+
 const app = express()
 app.set("trust proxy", 1)
 app.use(express.json())
 app.use(cookieParser())
-app.use(pinoHttp({ logger }))
+app.use(
+  pinoHttp({
+    logger,
+    serializers: {
+      req(raw: Request) {
+        const headers: Record<string, string | string[] | undefined> = {}
+        for (const [k, v] of Object.entries(raw.headers)) {
+          headers[k] = REDACTED_HEADERS.has(k) ? "[redacted]" : v
+        }
+        return { method: raw.method, url: raw.url, headers }
+      },
+    },
+  })
+)
 
 app.use("/health", healthRouter)
 
@@ -34,9 +50,8 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: err.message })
 })
 
-const server = app.listen(env.port, async () => {
-  logger.info({ port: env.port }, "api listening")
-
+// ── startup ────────────────────────────────────────────────────────────────
+async function start() {
   const [dbResult, redisResult] = await Promise.allSettled([probeDb(), probeRedis()])
 
   if (dbResult.status === "fulfilled") {
@@ -51,19 +66,36 @@ const server = app.listen(env.port, async () => {
   } else {
     logger.warn({ err: redisResult.reason }, "redis connection failed")
   }
-})
 
-function shutdown(signal: string) {
-  logger.info({ signal }, "shutting down")
-  server.close(() => {
-    logger.info("http server closed")
-    process.exit(0)
+  const server = app.listen(env.port, () => {
+    logger.info({ port: env.port }, "api listening")
   })
-  setTimeout(() => {
-    logger.warn("forced shutdown after timeout")
-    process.exit(1)
-  }, 10_000).unref()
+
+  // track sockets so shutdown can drain keep-alive connections
+  const openSockets = new Set<Socket>()
+  server.on("connection", (socket) => {
+    openSockets.add(socket)
+    socket.on("close", () => openSockets.delete(socket))
+  })
+
+  function shutdown(signal: string) {
+    logger.info({ signal }, "shutting down")
+    for (const socket of openSockets) socket.destroy()
+    server.close(() => {
+      logger.info("http server closed")
+      process.exit(0)
+    })
+    setTimeout(() => {
+      logger.warn("forced shutdown after timeout")
+      process.exit(1)
+    }, 10_000).unref()
+  }
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"))
+  process.on("SIGINT", () => shutdown("SIGINT"))
 }
 
-process.on("SIGTERM", () => shutdown("SIGTERM"))
-process.on("SIGINT", () => shutdown("SIGINT"))
+start().catch((err) => {
+  logger.fatal({ err }, "startup failed")
+  process.exit(1)
+})
