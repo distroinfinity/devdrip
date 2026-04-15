@@ -23,26 +23,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
-          fetch-depth: 0
-
-      - name: check dashboard/shared changed
-        uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          # compare against merge base to catch all commits in the push
-          base: ${{ github.event.workflow_run.head_sha }}^
-          ref: ${{ github.event.workflow_run.head_sha }}
-          filters: |
-            dashboard:
-              - 'packages/dashboard/**'
-              - 'packages/shared/**'
 
       - name: install vercel cli
-        if: steps.filter.outputs.dashboard == 'true'
         run: npm install -g vercel
 
+      # vercel handles its own build caching — no need for path filtering
+      # (which was buggy on multi-commit pushes with head_sha~1 diffing)
       - name: deploy to vercel
-        if: steps.filter.outputs.dashboard == 'true'
         working-directory: packages/dashboard
         run: vercel deploy --prod --yes
         env:

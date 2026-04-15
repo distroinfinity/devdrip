@@ -2,6 +2,8 @@ import { Ratelimit } from "@upstash/ratelimit"
 import type { Request, Response, NextFunction } from "express"
 import { redis } from "../lib/redis.js"
 
+const isTest = process.env.NODE_ENV === "test"
+
 // cache ratelimit instances per tier
 const limiterCache = new Map<string, Ratelimit>()
 
@@ -39,6 +41,8 @@ function userIdKey(_req: Request, res: Response): string | null {
 
 function createLimiter(name: string, config: LimiterConfig, extractKey: KeyExtractor) {
   return async (req: Request, res: Response, next: NextFunction) => {
+    if (isTest) return next()
+
     const key = extractKey(req, res)
     if (!key) return next()
 
