@@ -1,32 +1,39 @@
 import { Router } from "express"
-import type { ImpressionResult } from "@devdrip/shared"
-import { MIN_COMPLETED_DURATION_MS, IMPRESSION_CLOCK_TOLERANCE_MS } from "@devdrip/shared"
+import { ImpressionResult, MAX_AD_DURATION_MS, MIN_COMPLETED_DURATION_MS } from "@devdrip/shared"
 import { validateRecordImpression } from "../validators/ad.validators.js"
 import * as impressionService from "../services/impression.service.js"
 import { consumeDeliveryToken } from "../lib/ad-delivery.js"
-import { ValidationError } from "../errors/index.js"
 
 export const impressionsRouter: ReturnType<typeof Router> = Router()
 
-// ── duration bounds ────────────────────────────────────────────────────────
-// server-verifiable check: client cannot claim a display time exceeding
-// the wall-clock elapsed since the delivery token was issued.
+interface ImpressionOutcome {
+  durationMs: number
+  result: ImpressionResult
+}
 
-export function assertDurationBounds(
-  durationMs: number,
-  result: ImpressionResult,
-  issuedAt: number
-): void {
-  const elapsedMs = Date.now() - issuedAt * 1000
+// The client only acknowledges a served ad; the server derives the billable
+// outcome from the token issue time so the request body cannot choose it.
+export function deriveImpressionOutcome(issuedAt: number, nowMs = Date.now()): ImpressionOutcome {
+  const elapsedMs = Math.max(0, nowMs - issuedAt * 1000)
+  const durationMs = Math.min(elapsedMs, MAX_AD_DURATION_MS)
 
-  // ceiling: claimed duration cannot exceed elapsed time + clock tolerance
-  if (durationMs > elapsedMs + IMPRESSION_CLOCK_TOLERANCE_MS) {
-    throw new ValidationError("invalid_duration_ms")
+  if (elapsedMs > MAX_AD_DURATION_MS) {
+    return {
+      durationMs,
+      result: ImpressionResult.Expired,
+    }
   }
 
-  // floor: completed impressions must meet minimum display threshold
-  if (result === "completed" && durationMs < MIN_COMPLETED_DURATION_MS) {
-    throw new ValidationError("invalid_duration_ms")
+  if (durationMs >= MIN_COMPLETED_DURATION_MS) {
+    return {
+      durationMs,
+      result: ImpressionResult.Completed,
+    }
+  }
+
+  return {
+    durationMs,
+    result: ImpressionResult.Skipped,
   }
 }
 
@@ -37,16 +44,15 @@ impressionsRouter.post("/", async (req, res, next) => {
     const userId = res.locals["userId"] as string
     const input = validateRecordImpression(req.body)
     const delivery = await consumeDeliveryToken(input.deliveryToken, userId)
-
-    assertDurationBounds(input.durationMs, input.result, delivery.issuedAt)
+    const outcome = deriveImpressionOutcome(delivery.issuedAt)
 
     const impression = await impressionService.recordImpression({
       creativeId: delivery.creativeId,
       deviceId: delivery.deviceId,
       userId: delivery.userId,
       surface: delivery.surface,
-      durationMs: input.durationMs,
-      result: input.result,
+      durationMs: outcome.durationMs,
+      result: outcome.result,
     })
 
     await res.status(201).json({ impression })

@@ -120,12 +120,7 @@ describe("POST /impressions", () => {
     const res = await request(app)
       .post("/impressions")
       .set("Authorization", "Bearer invalid-token")
-      .send({
-        creativeId: "00000000-0000-0000-0000-000000000000",
-        deviceId: "00000000-0000-0000-0000-000000000000",
-        durationMs: 5000,
-        result: "completed",
-      })
+      .send({ deliveryToken: "jwt" })
     expect(res.status).toBe(401)
   })
 })

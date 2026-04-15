@@ -22,6 +22,7 @@ These are the main current-state gaps that matter when working in this repo.
 - campaign status transitions are atomic (transaction + SELECT FOR UPDATE)
 - budget pacing engine is built (Redis-backed daily/hourly tracking, pacing strategies, creative rotation) and integrated with the impression ingestion pipeline
 - ad serving pipeline is implemented: `POST /ads/next` (ManualAdProvider), `POST /impressions`, `POST /clicks` with frequency caps, budget tracking, earnings calculation, and one-time delivery tokens
+- impression outcomes are derived from delivery-token age on the server, but there is still no daemon-side viewability attestation or anti-fraud layer beyond auth, rate limits, and one-time tokens
 - admin surface uses X-Admin-Secret (shared secret, no caller identity or audit trail) — should converge on authenticated admin principals for production
 - Carbon Ads / EthicalAds provider integration not yet built (AdProvider interface is ready for it)
 - earnings confirmation, payouts, preferences CRUD, referrals, and invite flows are not yet exposed as API routes

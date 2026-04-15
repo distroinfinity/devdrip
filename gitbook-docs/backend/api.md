@@ -681,9 +681,7 @@ Request body:
 
 ```json
 {
-  "deliveryToken": "jwt",
-  "durationMs": 6000,
-  "result": "completed"
+  "deliveryToken": "jwt"
 }
 ```
 
@@ -691,6 +689,7 @@ Behavior:
 
 - validates and consumes the one-time `deliveryToken`
 - rejects replayed, expired, or forged delivery tokens
+- derives `durationMs` and `result` from the server-set token issue time instead of trusting the request body
 - resolves creative + campaign data via join and requires the creative/campaign to still be servable
 - calculates `earnedAmount = (cpmRate / 1000) * 0.70` for completed impressions (70% developer share)
 - calls `recordSpend()` in Redis for budget tracking
@@ -699,19 +698,21 @@ Behavior:
 - fire-and-forget: increments frequency counters in Redis
 - fire-and-forget: auto-completes campaign if budget exhausted
 
-Result enum: `completed | skipped | expired | interrupted`
+Result enum: `completed | skipped | expired`
 
-Duration bounds (server-verified):
+Server-derived outcome:
 
-- `durationMs` cannot exceed `(now - delivery_token.iat) + 1s tolerance` — prevents impossible claims
-- `completed` impressions require `durationMs >= 1000ms` (MIN_COMPLETED_DURATION_MS) — forces at least 1s wait
-- The delivery token `iat` is a server-set timestamp, so the bound is unforgeable
+- `durationMs` is computed as `min(now - delivery_token.iat, MAX_AD_DURATION_MS)`
+- `completed` requires at least `1000ms` elapsed (MIN_COMPLETED_DURATION_MS)
+- `< 1000ms` is recorded as `skipped`
+- `> MAX_AD_DURATION_MS` is recorded as `expired`
+- the delivery token `iat` is server-set, so the client cannot directly choose the billable result or claimed duration
 
 Success: `201` with `{ impression }`
 
 Errors:
 
-- `400 missing_delivery_token`, `400 invalid_duration_ms`, `400 invalid_result`
+- `400 missing_delivery_token`
 - `403 delivery_not_owned`, `403 invalid_or_expired_delivery_token`
 - `422 creative_not_servable`, `422 campaign_budget_exhausted`
 
