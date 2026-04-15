@@ -16,7 +16,7 @@ Dev Drip monetizes AI coding tool idle time with opt-in ads. Developers earn USD
 - **everything TypeScript** — monorepo via Turborepo + pnpm workspaces
 - packages: `cli`, `api`, `dashboard`, `shared`
 - Express, Drizzle, Neon, Upstash, wagmi, viem, @x402/evm, better-sqlite3, commander, tsup
-- deploy: Railway (API), Vercel (dashboard), npm (CLI)
+- deploy: Railway GitHub autodeploy (API), Vercel via GitHub Actions (frontend), npm (CLI)
 
 ## Sprint Reference
 
