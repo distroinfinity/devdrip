@@ -18,9 +18,12 @@ These are the main current-state gaps that matter when working in this repo.
 
 ## Backend Coverage
 
-- health, auth, device registration, and campaign management (advertisers/campaigns/creatives CRUD) are implemented
+- health, auth, device registration, and campaign management (advertisers/campaigns/creatives CRUD) are implemented with layered architecture (validators, services, error handling)
+- campaign status transitions are atomic (transaction + SELECT FOR UPDATE)
 - budget pacing engine is built (Redis-backed daily/hourly tracking, pacing strategies, creative rotation) but not yet called from an impression ingestion endpoint
+- admin surface uses X-Admin-Secret (shared secret, no caller identity or audit trail) — should converge on authenticated admin principals for production
 - ad serving waterfall, impression ingestion, earnings confirmation, payouts, preferences, referrals, and invite flows are not yet exposed as API routes
+- auth and devices routes still use the older inline pattern (not yet refactored to layered architecture)
 
 ## Waitlist Storage
 

@@ -12,6 +12,22 @@
 - logs: Pino + `pino-http`
 - rate limit: Upstash Redis, fail-open on Redis errors
 
+## Layered Architecture
+
+Admin routes (advertisers, campaigns, creatives) follow a clean layered pattern:
+
+| Layer      | Location          | Responsibility                                                                                                                                    |
+| ---------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Routes     | `routes/*.ts`     | HTTP wiring only — parse params, call validator, call service, pass errors to `next()`                                                            |
+| Validators | `validators/*.ts` | Pure input validation — type coercion, format checks, field constraints. Throws `ValidationError`.                                                |
+| Services   | `services/*.ts`   | Business logic — state machines, budget validation, FK checks, transactions. Throws typed errors.                                                 |
+| Errors     | `errors/*.ts`     | `ApiError` hierarchy (`ValidationError`, `NotFoundError`, `ConflictError`, `StateError`, `ForbiddenError`) + centralized error handler middleware |
+| Lib        | `lib/*.ts`        | Low-level utilities — Redis pacing algorithms, JWT, logging                                                                                       |
+
+The centralized error handler (`errors/error-handler.ts`) catches all typed errors and PostgreSQL constraint violations (`23505` unique, `23503` FK, `23514` CHECK) and serializes them to the standard `{ error: "snake_case" }` format. Route handlers never format error responses directly.
+
+State transitions use `db.transaction()` with `SELECT ... FOR UPDATE` for atomicity. Budget updates also use transactions to prevent stale reads.
+
 ## Startup Behavior
 
 On process start:

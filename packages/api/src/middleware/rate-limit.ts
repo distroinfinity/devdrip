@@ -115,12 +115,3 @@ export const adminLimiter = createLimiter(
   { requests: 30, window: "60 s" },
   (req) => `ip:${ipKey(req)}`
 )
-
-export const advertiserLimiter = createLimiter(
-  "advertiser",
-  { requests: 30, window: "60 s" },
-  (_req, res) => {
-    const id = userIdKey(_req, res)
-    return id ? `uid:${id}` : null
-  }
-)

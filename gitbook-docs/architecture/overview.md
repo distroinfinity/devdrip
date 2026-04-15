@@ -28,7 +28,7 @@ flowchart LR
 - `frontend`
   Public landing page, metadata assets, and `/api/waitlist`.
 - `packages/api`
-  Express app with auth, device registration, campaign management (advertisers/campaigns/creatives CRUD, budget pacing, status machine), health checks, env handling, logging, rate limiting, and Drizzle schema.
+  Express app with layered architecture: thin routes → validators → services → Drizzle ORM. Covers auth, device registration, campaign management (advertisers/campaigns/creatives CRUD, budget pacing, atomic status machine), health checks, env handling, logging, rate limiting. Centralized error handling via typed error classes.
 - `packages/shared`
   Shared enums, domain types, and product constants.
 - `packages/cli`

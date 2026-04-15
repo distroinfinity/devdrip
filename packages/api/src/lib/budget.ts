@@ -10,6 +10,9 @@ export type SpendResult =
 
 type CampaignBudget = {
   budgetTotal: number
+  // budgetSpent: cumulative historical spend EXCLUDING today.
+  // today's spend is tracked only in Redis (budget:daily:* key).
+  // reconciliation writes today's Redis total into budgetSpent at midnight.
   budgetSpent: number
   budgetDaily: number
   pacingStrategy: "even" | "front_loaded" | "asap"
@@ -19,6 +22,7 @@ type CampaignBudget = {
 
 const DAILY_TTL = 90_000 // 25 hours
 const HOURLY_TTL = 7_200 // 2 hours
+const ROTATION_TTL = 2_592_000 // 30 days
 
 // front-loaded weight curve: hours 0-7 = 1.5x, 8-15 = 1.0x, 16-23 = 0.5x
 // normalized so sum of 24 weights = 24 (making average weight = 1.0)
@@ -72,7 +76,9 @@ export async function recordSpend(
   campaign: CampaignBudget
 ): Promise<SpendResult> {
   // pre-check: total budget guard (avoids Redis I/O for exhausted campaigns)
-  if (campaign.budgetSpent + cost > campaign.budgetTotal) {
+  // remaining = total - historical spend (excluding today)
+  const remaining = campaign.budgetTotal - campaign.budgetSpent
+  if (remaining <= 0 || cost > remaining) {
     return { allowed: false, reason: "total_budget" }
   }
 
@@ -96,27 +102,36 @@ export async function recordSpend(
 
     // check hourly cap (only for even/front_loaded)
     if (campaign.pacingStrategy !== "asap" && newHourlySpend > hourlyCap) {
-      // rollback
-      const rb = redis.pipeline()
-      rb.incrbyfloat(dk, -cost)
-      rb.incrbyfloat(hk, -cost)
-      await rb.exec()
+      try {
+        const rb = redis.pipeline()
+        rb.incrbyfloat(dk, -cost)
+        rb.incrbyfloat(hk, -cost)
+        await rb.exec()
+      } catch (rbErr) {
+        logger.warn(
+          { err: rbErr, campaignId },
+          "hourly cap rollback failed, spend counter inflated"
+        )
+      }
       return { allowed: false, reason: "hourly_cap" }
     }
 
     // check daily cap
     if (newDailySpend > campaign.budgetDaily) {
-      // rollback
-      const rb = redis.pipeline()
-      rb.incrbyfloat(dk, -cost)
-      rb.incrbyfloat(hk, -cost)
-      await rb.exec()
+      try {
+        const rb = redis.pipeline()
+        rb.incrbyfloat(dk, -cost)
+        rb.incrbyfloat(hk, -cost)
+        await rb.exec()
+      } catch (rbErr) {
+        logger.warn({ err: rbErr, campaignId }, "daily cap rollback failed, spend counter inflated")
+      }
       return { allowed: false, reason: "daily_cap" }
     }
 
-    // check if budget is now exhausted (total spend approaching limit)
-    const newTotalSpent = campaign.budgetSpent + newDailySpend
-    const exhausted = newTotalSpent >= campaign.budgetTotal || newDailySpend >= campaign.budgetDaily
+    // check if budget is now exhausted
+    // remaining budget (excluding today) minus today's Redis accumulator
+    const exhausted = newDailySpend >= remaining || newDailySpend >= campaign.budgetDaily
 
     return { allowed: true, exhausted }
   } catch (err) {
@@ -159,10 +174,25 @@ export async function getHourlySpend(
 export async function nextCreativeIndex(campaignId: string): Promise<number> {
   try {
     const redis = getRedis()
-    const val = await redis.incr(rotationKey(campaignId))
+    const pipeline = redis.pipeline()
+    pipeline.incr(rotationKey(campaignId))
+    pipeline.expire(rotationKey(campaignId), ROTATION_TTL)
+    const results = await pipeline.exec()
+    const val = Number(results[0])
     return val - 1 // incr returns value after increment, we want the pre-increment index
   } catch (err) {
     logger.warn({ err, campaignId }, "nextCreativeIndex redis error, returning 0")
     return 0
+  }
+}
+
+// ── rotation cleanup ────────────────────────────────────────────────────────
+
+export async function deleteRotationKey(campaignId: string): Promise<void> {
+  try {
+    const redis = getRedis()
+    await redis.del(rotationKey(campaignId))
+  } catch (err) {
+    logger.warn({ err, campaignId }, "deleteRotationKey redis error")
   }
 }

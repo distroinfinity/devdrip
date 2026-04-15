@@ -1,11 +1,11 @@
-import express, { type Express } from "express"
-import type { Request, Response, NextFunction } from "express"
+import express, { type Express, type Request } from "express"
 import cookieParser from "cookie-parser"
 import cors from "cors"
 import helmet from "helmet"
 import { pinoHttp } from "pino-http"
 import { env } from "./config/env.js"
 import { logger } from "./lib/logger.js"
+import { errorHandler } from "./errors/error-handler.js"
 import { healthRouter } from "./routes/health.js"
 import { authRouter } from "./routes/auth.js"
 import { devicesRouter } from "./routes/devices.js"
@@ -51,7 +51,4 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
   await res.json({ userId: res.locals["userId"], githubLogin: res.locals["githubLogin"] })
 })
 
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  logger.error({ err }, "unhandled error")
-  res.status(500).json({ error: err.message })
-})
+app.use(errorHandler)
