@@ -54,8 +54,8 @@ export async function recordImpression(input: RecordImpressionInput) {
         eq(creatives.isActive, true),
         eq(creatives.surface, input.surface),
         eq(campaigns.status, "active"),
-        sql`(${campaigns.startsAt} IS NULL OR ${campaigns.startsAt} <= ${now})`,
-        sql`(${campaigns.endsAt} IS NULL OR ${campaigns.endsAt} > ${now})`
+        sql`(${campaigns.startsAt} IS NULL OR ${campaigns.startsAt} <= ${now.toISOString()})`,
+        sql`(${campaigns.endsAt} IS NULL OR ${campaigns.endsAt} > ${now.toISOString()})`
       )
     )
 

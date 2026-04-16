@@ -77,6 +77,7 @@ async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
     })
     .onConflictDoUpdate({
       target: [creatives.source, creatives.externalCreativeId],
+      targetWhere: sql`${creatives.externalCreativeId} IS NOT NULL`,
       set: {
         headline,
         body,
