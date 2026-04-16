@@ -62,6 +62,8 @@ function mockCandidate(overrides: Record<string, unknown> = {}) {
     category: "developer-tools",
     source: "direct",
     cpmRate: 5.0,
+    impressionBeaconUrl: null,
+    clickTrackingUrl: null,
     campBudgetTotal: 1000,
     campBudgetSpent: 100,
     campBudgetDaily: 50,
@@ -189,5 +191,24 @@ describe("ManualAdProvider", () => {
     mockDbSelect([mockCandidate({ ctaUrl: null })])
     const result = await manualAdProvider.fetchAds(baseRequest())
     expect(result[0]?.url).toBe("")
+  })
+
+  it("includes beacon URLs when creative has them", async () => {
+    mockDbSelect([
+      mockCandidate({
+        impressionBeaconUrl: "https://track.example.com/impression",
+        clickTrackingUrl: "https://track.example.com/click",
+      }),
+    ])
+    const result = await manualAdProvider.fetchAds(baseRequest())
+    expect(result[0]?.impressionBeaconUrl).toBe("https://track.example.com/impression")
+    expect(result[0]?.clickTrackingUrl).toBe("https://track.example.com/click")
+  })
+
+  it("omits beacon URLs when creative has none", async () => {
+    mockDbSelect([mockCandidate()])
+    const result = await manualAdProvider.fetchAds(baseRequest())
+    expect(result[0]?.impressionBeaconUrl).toBeUndefined()
+    expect(result[0]?.clickTrackingUrl).toBeUndefined()
   })
 })
