@@ -728,7 +728,13 @@ Request body:
 }
 ```
 
-Response shape matches `GET /ads/batch` (array under `ads` key). Returns `204 No Content` when no ads available.
+Preserves the original response contract for backward compatibility:
+
+- Returns `200` with `{ "ads": [] }` when no ads (not 204)
+- Uses camelCase field names (`campaignId`, `displayTimeMs`, `deliveryToken`) — raw `ServedAdPayload` objects, not the snake_case mapper used by GET endpoints
+- Beacon URLs included as camelCase: `impressionBeaconUrl`, `clickTrackingUrl`
+
+New clients should use `GET /ads/next` or `GET /ads/batch` instead.
 
 Errors:
 
