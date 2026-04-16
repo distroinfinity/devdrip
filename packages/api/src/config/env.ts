@@ -43,6 +43,17 @@ export const env = {
   get adminSecret() {
     return requireEnv("ADMIN_SECRET")
   },
+  // carbon ads — empty zone key means carbon is disabled
+  get carbonZoneKey() {
+    return optionalEnv("CARBON_ZONE_KEY", "")
+  },
+  get carbonPlacement() {
+    return optionalEnv("CARBON_PLACEMENT", "devdrip")
+  },
+  get carbonCpmRate() {
+    return Number(optionalEnv("CARBON_CPM_RATE", "0.80"))
+  },
+
   get allowedOrigins(): string[] {
     const origins = requireEnv("ALLOWED_ORIGINS")
       .split(",")

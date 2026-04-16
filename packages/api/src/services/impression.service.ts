@@ -10,6 +10,7 @@ import { earningsLedger } from "../db/schema/earnings.js"
 import { NotFoundError, ConflictError, StateError, pgErrorCode } from "../errors/index.js"
 import { recordSpend, rollbackSpend } from "../lib/budget.js"
 import { incrementFrequency } from "../lib/frequency.js"
+import { fireBeacon } from "../lib/beacon.js"
 import { transitionStatus } from "./campaign.service.js"
 import { logger } from "../lib/logger.js"
 
@@ -39,6 +40,7 @@ export async function recordImpression(input: RecordImpressionInput) {
       surface: creatives.surface,
       category: creatives.category,
       cpmRate: creatives.cpmRate,
+      viewabilityBeaconUrl: creatives.viewabilityBeaconUrl,
       budgetTotal: campaigns.budgetTotal,
       budgetSpent: campaigns.budgetSpent,
       budgetDaily: campaigns.budgetDaily,
@@ -120,10 +122,21 @@ export async function recordImpression(input: RecordImpressionInput) {
   })
 
   // fire-and-forget: transition campaign to completed if budget exhausted
-  if (spendResult.exhausted) {
+  // skip for external ad network campaigns (carbon etc.) — they manage their own budget
+  if (spendResult.exhausted && row.source !== "carbon") {
     transitionStatus(row.campaignId, "completed").catch((err) => {
       logger.warn({ err, campaignId: row.campaignId }, "auto-complete campaign failed")
     })
+  }
+
+  // fire external ad network beacons
+  if (row.source === "carbon") {
+    // viewability beacon fires only on completed impressions
+    if (input.result === "completed" && row.viewabilityBeaconUrl) {
+      fireBeacon(row.viewabilityBeaconUrl).catch((err) => {
+        logger.warn({ err, creativeId: input.creativeId }, "carbon statview beacon failed")
+      })
+    }
   }
 
   return impression

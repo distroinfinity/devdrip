@@ -10,6 +10,7 @@ export interface FetchAdsInput {
   deviceId: string
   surface: AdSurface
   count: number
+  isCI?: boolean
 }
 
 export interface RecordImpressionInput {
@@ -36,7 +37,9 @@ export function validateFetchAds(body: unknown): FetchAdsInput {
     count = Math.min(b["count"], 5)
   }
 
-  return { deviceId, surface, count }
+  const isCI = b["isCI"] === true ? true : undefined
+
+  return { deviceId, surface, count, isCI }
 }
 
 // ── record impression ───────────────────────────────────────────────────────
