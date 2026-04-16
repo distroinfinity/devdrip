@@ -89,7 +89,10 @@ sequenceDiagram
 - API runtime uses Postgres plus Redis
 - campaign management routes are admin-only (X-Admin-Secret header), separate from user JWT auth
 - budget pacing uses Redis with TTL-based daily/hourly keys (no cron for reset)
-- the budget pacing library is built but not yet wired into an impression ingestion endpoint
+- ad delivery uses a waterfall: Carbon Ads (primary, external network) → Manual campaigns (fallback, internal). Shared gates (surface, quiet hours, frequency caps) are checked once at the orchestrator level, not duplicated per provider
+- Carbon Ads are modeled as ephemeral creatives under a deterministic system campaign so the impression/earnings pipeline works unchanged
+- delivery tokens are the source of truth for impression surface and creative identity — the creative DB row's surface is not used for impression validation
+- CI suppression is a client-side concern (CLI checks `process.env.CI` and skips calling the API)
 - CLI and dashboard do not yet implement their intended product flows
 
 ## Runtime Notes
@@ -97,4 +100,7 @@ sequenceDiagram
 - `packages/api` checks DB and Redis on startup
 - DB failure is fatal on startup
 - Redis failure is tolerated on startup and in rate limiting paths
+- in-memory Redis fallback is only available in `test` and `development` environments — production requires real Upstash Redis
 - `/health` returns `200` when DB is healthy, even if Redis is degraded
+- Carbon system campaign is bootstrapped at startup (after DB probe)
+- stale Carbon creatives are cleaned up every 12 hours via `setInterval`

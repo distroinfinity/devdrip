@@ -60,6 +60,7 @@ export const creatives = pgTable(
     externalCreativeId: varchar("external_creative_id", { length: 255 }),
     impressionBeaconUrl: varchar("impression_beacon_url", { length: 2048 }),
     clickTrackingUrl: varchar("click_tracking_url", { length: 2048 }),
+    viewabilityBeaconUrl: varchar("viewability_beacon_url", { length: 2048 }),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
