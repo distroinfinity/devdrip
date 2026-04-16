@@ -21,10 +21,12 @@ These are the main current-state gaps that matter when working in this repo.
 - health, auth, device registration, and campaign management (advertisers/campaigns/creatives CRUD) are implemented with layered architecture (validators, services, error handling)
 - campaign status transitions are atomic (transaction + SELECT FOR UPDATE)
 - budget pacing engine is built (Redis-backed daily/hourly tracking, pacing strategies, creative rotation) and integrated with the impression ingestion pipeline
-- ad serving pipeline is implemented: `POST /ads/next` (ManualAdProvider), `POST /impressions`, `POST /clicks` with frequency caps, budget tracking, earnings calculation, and one-time delivery tokens
+- ad serving pipeline is implemented: `POST /ads/next` with Carbon Ads (primary) → Manual (fallback) waterfall, `POST /impressions`, `POST /clicks` with frequency caps, budget tracking, earnings calculation, delivery tokens, and viewability beacons
 - impression outcomes are derived from delivery-token age on the server, but there is still no daemon-side viewability attestation or anti-fraud layer beyond auth, rate limits, and one-time tokens
 - admin surface uses X-Admin-Secret (shared secret, no caller identity or audit trail) — should converge on authenticated admin principals for production
-- Carbon Ads / EthicalAds provider integration not yet built (AdProvider interface is ready for it)
+- Carbon click tracking URL (`statlink`) is stored but not fired server-side on click — needs investigation into whether Carbon expects server-side click beacons or relies on the client opening the tracking redirect URL
+- Carbon response caching not implemented — every `/ads/next` hits Carbon's API. At scale, a short Redis/in-process cache (30-60s TTL) would reduce external calls
+- EthicalAds provider integration not yet built (AdProvider interface is ready for it)
 - earnings confirmation, payouts, preferences CRUD, referrals, and invite flows are not yet exposed as API routes
 - auth and devices routes still use the older inline pattern (not yet refactored to layered architecture)
 

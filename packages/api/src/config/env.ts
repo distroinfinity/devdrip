@@ -51,7 +51,12 @@ export const env = {
     return optionalEnv("CARBON_PLACEMENT", "devdrip")
   },
   get carbonCpmRate() {
-    return Number(optionalEnv("CARBON_CPM_RATE", "0.80"))
+    const raw = optionalEnv("CARBON_CPM_RATE", "0.80")
+    const val = Number(raw)
+    if (!Number.isFinite(val) || val <= 0) {
+      throw new Error(`CARBON_CPM_RATE must be a positive number, got "${raw}"`)
+    }
+    return val
   },
 
   get allowedOrigins(): string[] {

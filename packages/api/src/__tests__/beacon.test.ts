@@ -38,9 +38,13 @@ describe("fireBeacon", () => {
     expect(vi.mocked(logger.warn)).toHaveBeenCalled()
   })
 
-  it("does not throw on non-OK response", async () => {
+  it("logs warning on non-OK response", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 })
 
     await expect(fireBeacon("https://example.com/beacon")).resolves.toBeUndefined()
+    expect(vi.mocked(logger.warn)).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 500 }),
+      "beacon returned non-OK status"
+    )
   })
 })

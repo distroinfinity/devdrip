@@ -25,7 +25,6 @@ vi.mock("../db/index.js", () => ({
 // mock system campaign
 vi.mock("../lib/carbon-system-campaign.js", () => ({
   CARBON_CAMPAIGN_ID: "carbon-campaign-uuid",
-  ensureCarbonSystemCampaign: vi.fn().mockResolvedValue(undefined),
 }))
 
 // mock logger
@@ -180,6 +179,18 @@ describe("CarbonAdProvider", () => {
 
     const result = await carbonAdProvider.fetchAds(baseRequest({ count: 3 }))
     expect(result).toHaveLength(1)
+  })
+
+  it("returns empty array when DB upsert throws", async () => {
+    mockFetchAd.mockResolvedValue(mockCarbonAd())
+    const returningFn = vi.fn().mockRejectedValue(new Error("db connection lost"))
+    const onConflictDoUpdateFn = vi.fn(() => ({ returning: returningFn }))
+    const valuesFn = vi.fn(() => ({ onConflictDoUpdate: onConflictDoUpdateFn }))
+    const insertFn = vi.fn(() => ({ values: valuesFn }))
+    vi.mocked(getDb).mockReturnValue({ insert: insertFn } as unknown as ReturnType<typeof getDb>)
+
+    const result = await carbonAdProvider.fetchAds(baseRequest())
+    expect(result).toEqual([])
   })
 
   it("uses companyTagline as headline when company is empty", async () => {

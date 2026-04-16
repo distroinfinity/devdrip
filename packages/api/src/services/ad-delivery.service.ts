@@ -11,12 +11,6 @@ import { logger } from "../lib/logger.js"
 // providers don't need to duplicate them.
 
 async function fetchFromWaterfall(request: AdRequest): Promise<AdPayload[]> {
-  // CI environments get no ads
-  if (request.isCI) {
-    logger.debug("CI environment detected, skipping ads")
-    return []
-  }
-
   // surface gate
   if (!request.enabledSurfaces.includes(request.surface)) {
     logger.debug({ surface: request.surface }, "surface disabled by user preferences")

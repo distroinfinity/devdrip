@@ -37,7 +37,6 @@ export async function recordImpression(input: RecordImpressionInput) {
       creativeId: creatives.id,
       campaignId: creatives.campaignId,
       source: creatives.source,
-      surface: creatives.surface,
       category: creatives.category,
       cpmRate: creatives.cpmRate,
       viewabilityBeaconUrl: creatives.viewabilityBeaconUrl,
@@ -52,7 +51,6 @@ export async function recordImpression(input: RecordImpressionInput) {
       and(
         eq(creatives.id, input.creativeId),
         eq(creatives.isActive, true),
-        eq(creatives.surface, input.surface),
         eq(campaigns.status, "active"),
         sql`(${campaigns.startsAt} IS NULL OR ${campaigns.startsAt} <= ${now.toISOString()})`,
         sql`(${campaigns.endsAt} IS NULL OR ${campaigns.endsAt} > ${now.toISOString()})`
@@ -88,7 +86,7 @@ export async function recordImpression(input: RecordImpressionInput) {
           creativeId: input.creativeId,
           deviceId: input.deviceId,
           source: row.source as AdSource,
-          surface: row.surface as AdSurface,
+          surface: input.surface,
           durationMs: input.durationMs,
           result: input.result,
           cpmRate: row.cpmRate,
@@ -104,7 +102,7 @@ export async function recordImpression(input: RecordImpressionInput) {
           userId: input.userId,
           impressionId: imp.id,
           amountUsdc: earnedAmount,
-          surface: row.surface as AdSurface,
+          surface: input.surface,
           adCategory: row.category as (typeof earningsLedger)["$inferInsert"]["adCategory"],
         })
       }
@@ -117,7 +115,7 @@ export async function recordImpression(input: RecordImpressionInput) {
   }
 
   // fire-and-forget: increment frequency counters
-  incrementFrequency(input.deviceId, row.campaignId, row.surface as AdSurface).catch((err) => {
+  incrementFrequency(input.deviceId, row.campaignId, input.surface).catch((err) => {
     logger.warn({ err, deviceId: input.deviceId }, "incrementFrequency failed")
   })
 

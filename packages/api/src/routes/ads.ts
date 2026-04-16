@@ -56,7 +56,6 @@ adsRouter.post("/next", async (req, res, next) => {
       quietHoursStart: pref?.quietHoursStart ?? undefined,
       quietHoursEnd: pref?.quietHoursEnd ?? undefined,
       tzOffsetMinutes: pref?.tzOffsetMinutes ?? 0,
-      isCI: input.isCI,
     })
 
     await res.json({ ads })

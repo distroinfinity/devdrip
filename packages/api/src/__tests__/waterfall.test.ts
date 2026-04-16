@@ -155,15 +155,6 @@ describe("waterfall orchestration", () => {
     expect(mockCarbonFetchAds).not.toHaveBeenCalled()
   })
 
-  // ── CI suppression ───────────────────────────────────────────────────────
-
-  it("returns empty when isCI is true", async () => {
-    const result = await fetchServedAds(baseRequest({ isCI: true }))
-    expect(result).toEqual([])
-    expect(mockCarbonFetchAds).not.toHaveBeenCalled()
-    expect(mockManualFetchAds).not.toHaveBeenCalled()
-  })
-
   // ── delivery tokens ──────────────────────────────────────────────────────
 
   it("attaches delivery tokens to served ads", async () => {

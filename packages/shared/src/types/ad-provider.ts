@@ -18,7 +18,6 @@ export interface AdRequest {
   quietHoursStart?: number
   quietHoursEnd?: number
   tzOffsetMinutes: number
-  isCI?: boolean
 }
 
 // ── ad provider ────────────────────────────────────────────────────────────

@@ -33,10 +33,11 @@ State transitions use `db.transaction()` with `SELECT ... FOR UPDATE` for atomic
 On process start:
 
 - load env from `dotenv/config`
-- probe DB
-- probe Redis
+- probe DB and Redis in parallel
 - exit if DB probe fails
-- continue if Redis probe fails
+- continue if Redis probe fails (warn only)
+- bootstrap Carbon system campaign (deterministic UUID advertiser + campaign, idempotent)
+- schedule stale Carbon creative cleanup (every 12 hours)
 - listen on `PORT`
 - track open sockets for graceful shutdown
 
@@ -637,11 +638,15 @@ Behavior:
 
 - validates device ownership (device must belong to the authenticated user)
 - loads user preferences (blocked categories, enabled surfaces, quiet hours, frequency caps)
-- runs the ManualAdProvider 4-stage selection pipeline:
-  1. user-level gates (surface enabled, quiet hours, frequency caps via Redis)
-  2. DB query joining active campaigns + active creatives filtered by surface/category
-  3. app-level targeting filter (campaign surface restriction, OS/IDE targeting, budget pre-screen, per-campaign frequency cap)
-  4. creative rotation via `nextCreativeIndex()` round-robin, one per campaign
+- runs the ad delivery waterfall with shared gates checked once before any provider:
+  1. surface gate (is this surface enabled in user prefs?)
+  2. quiet hours check (user-local time via `tzOffsetMinutes`)
+  3. frequency caps (Redis counters — per-surface hourly, total hourly, total daily)
+- waterfall provider order:
+  1. **Carbon Ads** (primary) — fetches from `@carbonads/sdk` with 3s timeout, upserts ephemeral creative row, fail-open (returns `[]` on any error)
+  2. **Manual campaigns** (fallback) — 4-stage selection pipeline: DB query → targeting filter → budget pre-screen → creative rotation
+- if Carbon fills all requested slots, manual provider is not called
+- if Carbon returns fewer than requested, manual fills the remaining slots
 - issues a short-lived, one-time `deliveryToken` per returned ad; `/impressions` must consume it exactly once
 - returns `{ ads: [] }` when no matching ads (never errors for empty results)
 
@@ -696,7 +701,8 @@ Behavior:
 - rejects the write if the budget guard denies the impression
 - transactional insert: impression row + earnings_ledger row (for completed only)
 - fire-and-forget: increments frequency counters in Redis
-- fire-and-forget: auto-completes campaign if budget exhausted
+- fire-and-forget: auto-completes campaign if budget exhausted (skipped for Carbon campaigns)
+- fire-and-forget: fires Carbon viewability beacon (`statviewUrl`) on completed Carbon impressions
 
 Result enum: `completed | skipped | expired`
 
@@ -756,7 +762,40 @@ interface AdProvider {
 }
 ```
 
-Currently one implementation exists: `ManualAdProvider` (queries internal campaigns from Neon + Redis). The interface is designed for future providers (Carbon Ads, EthicalAds) to be added as a waterfall — the route handler will iterate providers in order until one returns non-empty results.
+Two implementations exist:
+
+- **`CarbonAdProvider`** (primary) — fetches from `@carbonads/sdk`, translates to our schema, upserts ephemeral creative rows with dedup on `(source, externalCreativeId)`. Fail-open: any error (SDK timeout, DB failure) returns `[]` and falls through to the next provider. Carbon ads use a deterministic system campaign with near-infinite budget so they pass through the standard impression/earnings pipeline unchanged.
+- **`ManualAdProvider`** (fallback) — queries internal campaigns from Neon + Redis. 4-stage pipeline: DB query → targeting filter → budget pre-screen → creative rotation. Excludes Carbon-source creatives to prevent double-serving.
+
+The `ad-delivery.service.ts` waterfall orchestrator calls providers in order (Carbon → Manual), checks shared gates (surface, quiet hours, frequency caps) once at the top, and merges results up to the requested count.
+
+## Carbon Ads Integration
+
+### System Campaign
+
+A deterministic system advertiser and campaign are bootstrapped at process startup using SHA-256-derived UUIDs (`devdrip:carbon-ads-advertiser`, `devdrip:carbon-ads-campaign`). This avoids DB lookups for the campaign ID and is idempotent across restarts and multi-instance deploys.
+
+The system campaign has near-infinite budget (`999,999`) and `asap` pacing so Carbon ads are never rejected by internal budget checks. The CPM rate is synced from the `CARBON_CPM_RATE` env var on each restart.
+
+### Ephemeral Creatives
+
+Each Carbon ad response is upserted as a creative row with `source: "carbon"`. The upsert key is `(source, externalCreativeId)` where the external ID is a SHA-256 hash of `company:description:statlink`. On conflict, metadata fields (headline, body, URLs, CPM rate) are refreshed but `surface` is preserved from the original insert.
+
+### Beacon Firing
+
+On completed impressions for Carbon-source creatives, the server fires a viewability beacon (HTTP GET to `statviewUrl`) as fire-and-forget. Non-OK HTTP responses are logged as warnings. Network failures are caught and logged.
+
+### Stale Creative Cleanup
+
+`carbon-cleanup.service.ts` deactivates Carbon creatives whose `updatedAt` is older than 24 hours. This runs on a 12-hour `setInterval` registered at startup. Deactivation (not deletion) preserves FK integrity with historical impressions.
+
+### Environment Variables
+
+| Variable           | Default         | Purpose                                                                       |
+| ------------------ | --------------- | ----------------------------------------------------------------------------- |
+| `CARBON_ZONE_KEY`  | `""` (disabled) | Carbon publisher zone ID. Empty string disables Carbon provider.              |
+| `CARBON_PLACEMENT` | `devdrip`       | Placement slug sent to Carbon SDK                                             |
+| `CARBON_CPM_RATE`  | `0.80`          | CPM rate in USDC for Carbon impressions. Validated as positive finite number. |
 
 ## Frequency Cap Engine
 
@@ -828,5 +867,8 @@ Current API tests cover:
 
 Unit test suites:
 
-- `ad-selection.test.ts` — 15 tests covering ManualAdProvider selection pipeline (surface gates, quiet hours, frequency caps, targeting filters, budget pre-screen, rotation, count limits)
+- `ad-selection.test.ts` — 15 tests covering ManualAdProvider selection pipeline (targeting filters, budget pre-screen, rotation, count limits)
 - `impression.test.ts` — 8 tests covering impression recording (earnings calculation, spend tracking, frequency increment, campaign auto-completion, click recording)
+- `carbon-ad-provider.test.ts` — 11 tests covering CarbonAdProvider (empty zone key, null response, SDK timeout, SDK error, DB upsert error, response translation, truncation, placement config, count cap, tagline fallback)
+- `waterfall.test.ts` — 10 tests covering waterfall orchestration (Carbon-first order, manual fallback, partial fill, empty from both, frequency caps, quiet hours, surface gate, delivery tokens)
+- `beacon.test.ts` — 3 tests covering beacon firing (success, network error, non-OK response logging)
