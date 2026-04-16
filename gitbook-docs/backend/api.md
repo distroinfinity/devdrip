@@ -617,10 +617,104 @@ Errors:
 
 These routes power the CLI ad pipeline. All require bearer token auth and use the user-keyed rate limiter.
 
+All ad serving endpoints share the same waterfall behavior:
+
+- validates device ownership (device must belong to the authenticated user)
+- loads user preferences (blocked categories, enabled surfaces, quiet hours, frequency caps)
+- runs the ad delivery waterfall with shared gates checked once before any provider:
+  1. surface gate (is this surface enabled in user prefs?)
+  2. quiet hours check (user-local time via `tzOffsetMinutes`)
+  3. frequency caps (Redis counters — per-surface hourly, total hourly, total daily)
+- waterfall provider order:
+  1. **Carbon Ads** (primary) — fetches from `@carbonads/sdk` with 3s timeout, upserts ephemeral creative row, fail-open (returns `[]` on any error)
+  2. **Manual campaigns** (fallback) — 4-stage selection pipeline: DB query → targeting filter → budget pre-screen → creative rotation
+- if Carbon fills all requested slots, manual provider is not called
+- if Carbon returns fewer than requested, manual fills the remaining slots
+- issues a short-lived, one-time `delivery_token` per returned ad; `/impressions` must consume it exactly once
+- returns `204 No Content` when no ads are available from any source
+
+### `GET /ads/next`
+
+Purpose:
+fetch a single ad for a device. Primary endpoint for the daemon's ad-fetch loop.
+
+Auth: bearer token
+
+Query params: `deviceId` (UUID), `surface` (AdSurface enum)
+
+Example: `GET /ads/next?deviceId=uuid&surface=terminal-tv`
+
+Response (`200`):
+
+```json
+{
+  "ad": {
+    "id": "creative-uuid",
+    "campaign_id": "campaign-uuid",
+    "format": "text",
+    "headline": "Ship faster with Turbo CI",
+    "body": "Cut build times by 70%.",
+    "url": "https://example.com/turbo",
+    "display_time_ms": 8000,
+    "delivery_token": "jwt",
+    "impression_beacon_url": "https://srv.carbonads.net/ads/viewable/x/abc",
+    "click_tracking_url": "https://srv.carbonads.net/ads/click/x/abc"
+  }
+}
+```
+
+Returns `204 No Content` when no ads from any provider.
+
+Errors:
+
+- `400 invalid_device_id`, `400 invalid_surface`
+- `403 device_not_owned`
+- `404 device`
+
+### `GET /ads/batch`
+
+Purpose:
+fetch up to 10 ads for pre-caching. Used by the daemon to fill the local ad cache.
+
+Auth: bearer token
+
+Query params: `deviceId` (UUID), `surface` (AdSurface enum), `count` (1-10, default 5)
+
+Example: `GET /ads/batch?deviceId=uuid&surface=terminal-tv&count=5`
+
+Response (`200`):
+
+```json
+{
+  "ads": [
+    {
+      "id": "creative-uuid",
+      "campaign_id": "campaign-uuid",
+      "format": "text",
+      "headline": "Ship faster with Turbo CI",
+      "body": "Cut build times by 70%.",
+      "url": "https://example.com/turbo",
+      "display_time_ms": 8000,
+      "delivery_token": "jwt",
+      "impression_beacon_url": "https://srv.carbonads.net/ads/viewable/x/abc",
+      "click_tracking_url": "https://srv.carbonads.net/ads/click/x/abc"
+    }
+  ]
+}
+```
+
+Returns `204 No Content` when no ads from any provider.
+
+Errors:
+
+- `400 invalid_device_id`, `400 invalid_surface`, `400 invalid_count`
+- `403 device_not_owned`
+- `404 device`
+
 ### `POST /ads/next`
 
 Purpose:
-fetch the next batch of ads for a device.
+backward-compatible ad fetch endpoint. Supports count up to 10.
 
 Auth: bearer token
 
@@ -634,46 +728,13 @@ Request body:
 }
 ```
 
-Behavior:
-
-- validates device ownership (device must belong to the authenticated user)
-- loads user preferences (blocked categories, enabled surfaces, quiet hours, frequency caps)
-- runs the ad delivery waterfall with shared gates checked once before any provider:
-  1. surface gate (is this surface enabled in user prefs?)
-  2. quiet hours check (user-local time via `tzOffsetMinutes`)
-  3. frequency caps (Redis counters — per-surface hourly, total hourly, total daily)
-- waterfall provider order:
-  1. **Carbon Ads** (primary) — fetches from `@carbonads/sdk` with 3s timeout, upserts ephemeral creative row, fail-open (returns `[]` on any error)
-  2. **Manual campaigns** (fallback) — 4-stage selection pipeline: DB query → targeting filter → budget pre-screen → creative rotation
-- if Carbon fills all requested slots, manual provider is not called
-- if Carbon returns fewer than requested, manual fills the remaining slots
-- issues a short-lived, one-time `deliveryToken` per returned ad; `/impressions` must consume it exactly once
-- returns `{ ads: [] }` when no matching ads (never errors for empty results)
-
-Response:
-
-```json
-{
-  "ads": [
-    {
-      "id": "creative-uuid",
-      "campaignId": "campaign-uuid",
-      "format": "text",
-      "headline": "Ship faster with Turbo CI",
-      "body": "Cut build times by 70%.",
-      "url": "https://example.com/turbo",
-      "displayTimeMs": 8000,
-      "deliveryToken": "jwt"
-    }
-  ]
-}
-```
+Response shape matches `GET /ads/batch` (array under `ads` key). Returns `204 No Content` when no ads available.
 
 Errors:
 
 - `400 invalid_device_id`, `400 invalid_surface`, `400 invalid_count`
 - `403 device_not_owned`
-- `404 device_not_found`
+- `404 device`
 
 ### `POST /impressions`
 
@@ -863,12 +924,12 @@ Current API tests cover:
 - auth guard behavior for `/me`
 - basic error cases for `/auth/exchange`
 - basic error case for `/auth/refresh`
-- auth guard behavior for `/ads/next`, `/impressions`, `/clicks`
+- auth guard behavior for `GET /ads/next`, `GET /ads/batch`, `POST /ads/next`, `/impressions`, `/clicks`
 
 Unit test suites:
 
-- `ad-selection.test.ts` — 15 tests covering ManualAdProvider selection pipeline (targeting filters, budget pre-screen, rotation, count limits)
+- `ad-selection.test.ts` — 17 tests covering ManualAdProvider selection pipeline (targeting filters, budget pre-screen, rotation, count limits, beacon URL propagation)
 - `impression.test.ts` — 8 tests covering impression recording (earnings calculation, spend tracking, frequency increment, campaign auto-completion, click recording)
-- `carbon-ad-provider.test.ts` — 11 tests covering CarbonAdProvider (empty zone key, null response, SDK timeout, SDK error, DB upsert error, response translation, truncation, placement config, count cap, tagline fallback)
-- `waterfall.test.ts` — 10 tests covering waterfall orchestration (Carbon-first order, manual fallback, partial fill, empty from both, frequency caps, quiet hours, surface gate, delivery tokens)
+- `carbon-ad-provider.test.ts` — 11 tests covering CarbonAdProvider (empty zone key, null response, SDK timeout, SDK error, DB upsert error, response translation with beacon URLs, truncation, placement config, count cap, tagline fallback)
+- `waterfall.test.ts` — 12 tests covering waterfall orchestration (Carbon-first order, manual fallback, partial fill, empty from both, frequency caps, quiet hours, surface gate, delivery tokens, beacon URL propagation)
 - `beacon.test.ts` — 3 tests covering beacon firing (success, network error, non-OK response logging)

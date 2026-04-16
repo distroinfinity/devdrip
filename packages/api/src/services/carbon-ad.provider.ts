@@ -94,6 +94,8 @@ async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
         body,
         url: ctaUrl ?? "",
         displayTimeMs: MAX_AD_DURATION_MS,
+        impressionBeaconUrl: viewabilityBeaconUrl ?? undefined,
+        clickTrackingUrl: clickTrackingUrl ?? undefined,
       },
     ]
   } catch (err) {
