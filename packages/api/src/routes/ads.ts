@@ -56,6 +56,7 @@ async function buildAdRequest(
   }
 }
 
+// snake_case response mapper for new GET endpoints
 function toAdResponse(ad: ServedAdPayload) {
   return {
     id: ad.id,
@@ -71,6 +72,11 @@ function toAdResponse(ad: ServedAdPayload) {
   }
 }
 
+// delivery tokens are one-time use — prevent proxy/client caching
+function setNoCacheHeaders(res: Parameters<Parameters<typeof adsRouter.get>[1]>[1]) {
+  res.set("Cache-Control", "private, no-store")
+}
+
 // ── GET /ads/next — single ad, 204 when exhausted ────────────────────────────
 
 adsRouter.get("/next", async (req, res, next) => {
@@ -80,13 +86,14 @@ adsRouter.get("/next", async (req, res, next) => {
     const request = await buildAdRequest(userId, input.deviceId, input.surface, 1)
     const ads = await fetchServedAds(request)
 
-    if (ads.length === 0) {
-      res.status(204).end()
-      return
-    }
+    setNoCacheHeaders(res)
 
     const first = ads[0]
-    if (first) await res.json({ ad: toAdResponse(first) })
+    if (!first) {
+      return res.status(204).end()
+    }
+
+    return res.json({ ad: toAdResponse(first) })
   } catch (err) {
     next(err)
   }
@@ -101,18 +108,22 @@ adsRouter.get("/batch", async (req, res, next) => {
     const request = await buildAdRequest(userId, input.deviceId, input.surface, input.count)
     const ads = await fetchServedAds(request)
 
+    setNoCacheHeaders(res)
+
     if (ads.length === 0) {
-      res.status(204).end()
-      return
+      return res.status(204).end()
     }
 
-    await res.json({ ads: ads.map(toAdResponse) })
+    return res.json({ ads: ads.map(toAdResponse) })
   } catch (err) {
     next(err)
   }
 })
 
-// ── POST /ads/next — backward-compatible, supports count up to 10 ─────────
+// ── POST /ads/next — backward-compatible, camelCase response ──────────────────
+// preserves the original response contract: 200 with { ads: [] } on empty,
+// camelCase field names (campaignId, displayTimeMs, deliveryToken).
+// new clients should use GET /ads/next or GET /ads/batch instead.
 
 adsRouter.post("/next", async (req, res, next) => {
   try {
@@ -121,12 +132,7 @@ adsRouter.post("/next", async (req, res, next) => {
     const request = await buildAdRequest(userId, input.deviceId, input.surface, input.count)
     const ads = await fetchServedAds(request)
 
-    if (ads.length === 0) {
-      res.status(204).end()
-      return
-    }
-
-    await res.json({ ads: ads.map(toAdResponse) })
+    return res.json({ ads })
   } catch (err) {
     next(err)
   }
