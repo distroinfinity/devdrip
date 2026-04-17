@@ -52,7 +52,27 @@ That includes:
 - `hook stop`
 - `hook prompt-submit`
 
-`admin` currently defines the command namespace and description only.
+## `admin` Subcommands
+
+Fully implemented. Reads `DEVDRIP_ADMIN_SECRET` (falls back to `ADMIN_SECRET`) from the environment and `DEVDRIP_API_URL` (default `http://localhost:3000`). Every list/stats command supports `--json` for scripting with `jq`. Missing secret or non-2xx responses exit with code 1 and a readable error.
+
+| Command                            | Backend call                      | Notes                                                                              |
+| ---------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------- | ---------- | --------- | ------- |
+| `advertiser create`                | `POST /advertisers`               | flags: `--name --email [--company]`                                                |
+| `advertiser list`                  | `GET /advertisers`                | `--limit --json`                                                                   |
+| `campaign create`                  | `POST /campaigns`                 | flags: `--advertiser-id --name --budget-total --budget-daily --cpm ...`            |
+| `campaign list`                    | `GET /campaigns`                  | filters: `--advertiser-id --status`                                                |
+| `campaign pause <id>`              | `PATCH /campaigns/:id/status`     | sends `{ status: "paused" }`                                                       |
+| `campaign resume <id>`             | `PATCH /campaigns/:id/status`     | sends `{ status: "active" }`                                                       |
+| `creative create`                  | `POST /campaigns/:id/creatives`   | flags: `--campaign-id --headline --format --surface --category --source --cpm ...` |
+| `creative list --campaign-id <id>` | `GET /campaigns/:id/creatives`    |                                                                                    |
+| `stats`                            | `GET /admin/stats`                | today + lifetime table                                                             |
+| `invite generate --count <N>`      | `POST /invites`                   | prints 10-char codes one per line                                                  |
+| `user list`                        | `GET /admin/users`                | lifetime earnings, wallet y/n                                                      |
+| `payouts list [--status <s>]`      | `GET /admin/payouts`              | filter: `pending                                                                   | processing | confirmed | failed` |
+| `payouts set-status <id> --status` | `PATCH /admin/payouts/:id/status` | operator override: `confirmed` (needs `--tx-hash`) or `failed`                     |
+
+Shared helpers live in `src/lib/admin-client.ts` (auth + fetch) and `src/lib/table.ts` (cli-table3 wrapper + formatters). New CLI commands that call admin endpoints should reuse these instead of rolling their own fetch.
 
 ## The One Implemented Operational Piece
 

@@ -200,8 +200,9 @@ Stores:
 
 Runtime usage today:
 
-- schema only
-- invite codes are present in DB seed data
+- written by `POST /invites` (admin-only batch generation, called by `devdrip admin invite generate`)
+- read by `GET /invites` (admin-only unused list)
+- redemption flow (marking `usedBy` + `usedAt` on signup) is still pending — see S5-08
 
 ## Enum Model
 
@@ -231,14 +232,14 @@ Tables directly touched by implemented API flows:
 - `creatives`
 - `impressions` (write via impression recording, read via campaign stats aggregation)
 - `clicks` (write via click recording, read via campaign stats aggregation)
-- `earnings_ledger` (write via impression recording for completed impressions)
+- `earnings_ledger` (write via impression recording for completed impressions, read via `GET /admin/stats` and `GET /admin/users` aggregates)
+- `invite_codes` (write via `POST /invites`, read via `GET /invites`)
+- `payouts` (read via `GET /admin/payouts`, status override via `PATCH /admin/payouts/:id/status` — create path still pending via the claim flow)
 
 Tables modeled and seeded but not yet exposed through dedicated API routes:
 
 - `preferences` (read by ad serving for user gates)
-- `payouts`
 - `referrals`
-- `invite_codes`
 
 ## Seed Data
 
