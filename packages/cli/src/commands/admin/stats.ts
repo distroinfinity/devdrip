@@ -21,8 +21,8 @@ export const statsCmd: Command = new Command("stats")
         { header: "impressions", get: (r) => r.impressionsCount },
         { header: "spend", get: (r) => formatUsdc(r.spendUsdc) },
         { header: "earnings", get: (r) => formatUsdc(r.earningsUsdc) },
-        { header: "active campaigns", get: (r) => r.activeCampaignsCount },
       ])
+      console.log(`\nactive campaigns: ${data.activeCampaignsCount}`)
     } catch (err) {
       reportError(err)
     }

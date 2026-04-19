@@ -17,7 +17,7 @@ async function aggregate(sinceInclusive: Date | null): Promise<AdminStatsBlock> 
   const impressionsWhere = sinceInclusive ? gte(impressions.createdAt, sinceInclusive) : undefined
   const earningsWhere = sinceInclusive ? gte(earningsLedger.createdAt, sinceInclusive) : undefined
 
-  const [impressionsAgg, earningsAgg, activeCampaigns] = await Promise.all([
+  const [impressionsAgg, earningsAgg] = await Promise.all([
     db
       .select({
         count: count(),
@@ -31,18 +31,25 @@ async function aggregate(sinceInclusive: Date | null): Promise<AdminStatsBlock> 
       })
       .from(earningsLedger)
       .where(earningsWhere),
-    db.select({ count: count() }).from(campaigns).where(eq(campaigns.status, "active")),
   ])
 
   return {
     impressionsCount: impressionsAgg[0]?.count ?? 0,
     spendUsdc: impressionsAgg[0]?.spend ?? 0,
     earningsUsdc: earningsAgg[0]?.earnings ?? 0,
-    activeCampaignsCount: activeCampaigns[0]?.count ?? 0,
   }
 }
 
 export async function getStats(): Promise<AdminStats> {
-  const [today, lifetime] = await Promise.all([aggregate(startOfUtcDay()), aggregate(null)])
-  return { today, lifetime }
+  const db = getDb()
+  const [today, lifetime, [activeCampaignsRow]] = await Promise.all([
+    aggregate(startOfUtcDay()),
+    aggregate(null),
+    db.select({ count: count() }).from(campaigns).where(eq(campaigns.status, "active")),
+  ])
+  return {
+    today,
+    lifetime,
+    activeCampaignsCount: activeCampaignsRow?.count ?? 0,
+  }
 }

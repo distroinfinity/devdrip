@@ -221,12 +221,13 @@ export interface AdminStatsBlock {
   impressionsCount: number
   spendUsdc: number
   earningsUsdc: number
-  activeCampaignsCount: number
 }
 
 export interface AdminStats {
   today: AdminStatsBlock
   lifetime: AdminStatsBlock
+  // live snapshot — not date-filtered, so lives outside the today/lifetime blocks
+  activeCampaignsCount: number
 }
 
 export interface InviteCode {

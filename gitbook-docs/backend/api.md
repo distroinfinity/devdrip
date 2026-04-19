@@ -627,19 +627,18 @@ Response:
   "today": {
     "impressionsCount": 12,
     "spendUsdc": 0.0084,
-    "earningsUsdc": 0.0059,
-    "activeCampaignsCount": 3
+    "earningsUsdc": 0.0059
   },
   "lifetime": {
     "impressionsCount": 4210,
     "spendUsdc": 2.9456,
-    "earningsUsdc": 2.0619,
-    "activeCampaignsCount": 3
-  }
+    "earningsUsdc": 2.0619
+  },
+  "activeCampaignsCount": 3
 }
 ```
 
-`today` is aggregated from the start of the current UTC day. `spendUsdc` sums `impressions.earned_amount`; `earningsUsdc` sums `earnings_ledger.amount_usdc`. `activeCampaignsCount` is a simple `status = 'active'` count and is identical in both blocks.
+`today` is aggregated from the start of the current UTC day. `spendUsdc` sums `impressions.earned_amount`; `earningsUsdc` sums `earnings_ledger.amount_usdc`. `activeCampaignsCount` is a live `status = 'active'` count and lives outside the today/lifetime blocks because it is not date-filtered.
 
 ## `GET /admin/users`
 

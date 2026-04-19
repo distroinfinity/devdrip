@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto"
-import { desc, isNull } from "drizzle-orm"
+import { count, desc, isNull } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import { inviteCodes } from "../db/schema/invite_codes.js"
+import { pgErrorCode } from "../errors/index.js"
 
 // 10-char base32 code — ~50 bits of entropy, fits varchar(20), readable enough
 // for operators to paste around. Excludes lookalike chars (0/O, 1/I/L).
@@ -19,28 +20,35 @@ function generateCode(): string {
 
 export async function generateBatch(count: number) {
   const db = getDb()
-  // retry loop on rare collision (unique index on code)
+  // retry only on unique-violation (23505). any other pg error throws immediately
+  // so real DB failures aren't masked as "exhausted retries".
+  let lastCollisionErr: unknown
   for (let attempt = 0; attempt < 3; attempt++) {
     const values = Array.from({ length: count }, () => ({ code: generateCode() }))
     try {
       return await db.insert(inviteCodes).values(values).returning()
     } catch (err) {
-      // 23505 = unique violation
-      const code = (err as { code?: string; cause?: { code?: string } }).code
-      if (code !== "23505" && attempt === 2) throw err
+      if (pgErrorCode(err) !== "23505") throw err
+      lastCollisionErr = err
     }
   }
-  throw new Error("invite_generation_exhausted_retries")
+  // preserve the original pg error so callers can see it was a collision storm,
+  // not some other opaque failure
+  throw lastCollisionErr ?? new Error("invite_generation_exhausted_retries")
 }
 
 export async function listUnused(limit: number, offset: number) {
   const db = getDb()
-  const rows = await db
-    .select()
-    .from(inviteCodes)
-    .where(isNull(inviteCodes.usedAt))
-    .orderBy(desc(inviteCodes.createdAt))
-    .limit(limit)
-    .offset(offset)
-  return { invites: rows }
+  const where = isNull(inviteCodes.usedAt)
+  const [rows, [totalRow]] = await Promise.all([
+    db
+      .select()
+      .from(inviteCodes)
+      .where(where)
+      .orderBy(desc(inviteCodes.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ count: count() }).from(inviteCodes).where(where),
+  ])
+  return { invites: rows, total: totalRow?.count ?? 0 }
 }

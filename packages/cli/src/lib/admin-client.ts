@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = "http://localhost:3000"
+const DEFAULT_BASE_URL = "http://localhost:3001"
 
 function readSecret(): string {
   const secret = process.env["DEVDRIP_ADMIN_SECRET"] ?? process.env["ADMIN_SECRET"]
@@ -55,7 +55,20 @@ export async function adminFetch<T>(path: string, init: FetchInit = {}): Promise
   })
 
   const text = await res.text()
-  const parsed = text ? (JSON.parse(text) as Record<string, unknown>) : {}
+  // upstream may return HTML/plain text on proxy errors (502/503 etc). fall back
+  // to a synthetic error object so reportError prints a useful message instead
+  // of an uncaught SyntaxError from JSON.parse.
+  let parsed: Record<string, unknown> = {}
+  if (text) {
+    try {
+      parsed = JSON.parse(text) as Record<string, unknown>
+    } catch {
+      parsed = {
+        error: res.statusText || "non_json_response",
+        body: text.slice(0, 500),
+      }
+    }
+  }
 
   if (!res.ok) {
     const code = typeof parsed["error"] === "string" ? (parsed["error"] as string) : res.statusText
