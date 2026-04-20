@@ -613,6 +613,140 @@ Errors:
 - `404 creative_not_found`
 - `409 creative_has_impressions` (with `hint: "deactivate_instead"`)
 
+## `GET /admin/stats`
+
+Purpose:
+platform-wide aggregates for the admin CLI `stats` command.
+
+Auth: admin secret
+
+Response:
+
+```json
+{
+  "today": {
+    "impressionsCount": 12,
+    "spendUsdc": 0.0084,
+    "earningsUsdc": 0.0059
+  },
+  "lifetime": {
+    "impressionsCount": 4210,
+    "spendUsdc": 2.9456,
+    "earningsUsdc": 2.0619
+  },
+  "activeCampaignsCount": 3
+}
+```
+
+`today` is aggregated from the start of the current UTC day. `spendUsdc` sums `impressions.earned_amount`; `earningsUsdc` sums `earnings_ledger.amount_usdc`. `activeCampaignsCount` is a live `status = 'active'` count and lives outside the today/lifetime blocks because it is not date-filtered.
+
+## `GET /admin/users`
+
+Purpose:
+list signed-up users with lifetime earnings for the admin CLI `user list` command.
+
+Auth: admin secret
+
+Query params: `limit` (default 20, max 100), `offset` (default 0)
+
+Response:
+
+```json
+{
+  "users": [
+    {
+      "id": "uuid",
+      "githubLogin": "octocat",
+      "email": "octo@example.com",
+      "hasWallet": true,
+      "lifetimeEarningsUsdc": 1.2041,
+      "createdAt": "2026-04-01T10:00:00.000Z"
+    }
+  ],
+  "total": 37,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+`lifetimeEarningsUsdc` is the sum of `earnings_ledger.amount_usdc` via `LEFT JOIN` (never null). The route is read-only; there is intentionally no create/update/delete for users here — GitHub OAuth owns that lifecycle.
+
+## `GET /admin/payouts`
+
+Purpose:
+list payouts for operator visibility.
+
+Auth: admin secret
+
+Query params: `status` (`pending | processing | confirmed | failed`), `limit`, `offset`
+
+Response: `{ payouts, total, limit, offset }` where each row has `id`, `userId`, `amountUsdc`, `walletAddress`, `status`, `txHash`, `failureReason`, `createdAt`, `confirmedAt`.
+
+## `PATCH /admin/payouts/:id/status`
+
+Purpose:
+operator override for a stuck payout.
+
+Auth: admin secret
+
+Request body:
+
+```json
+{
+  "status": "confirmed",
+  "txHash": "0x...",
+  "failureReason": null
+}
+```
+
+Rules:
+
+- target `status` must be `confirmed` or `failed` — the payment worker owns forward progress (`pending → processing`).
+- `confirmed` requires `txHash`.
+- `failed` accepts an optional `failureReason` (max 500 chars).
+- transitions from terminal states (`confirmed`, `failed`) are rejected.
+- row is locked with `SELECT ... FOR UPDATE` to avoid racing the worker.
+
+Errors:
+
+- `400 invalid_status` (target not in `confirmed | failed`)
+- `400 invalid_tx_hash` (when target is `confirmed` and `txHash` missing)
+- `404 payout_not_found`
+- `409 tx_hash_already_used`
+- `422 invalid_status_transition` (with `from` and `to` fields)
+
+## `POST /invites`
+
+Purpose:
+generate a batch of single-use invite codes.
+
+Auth: admin secret
+
+Request body:
+
+```json
+{ "count": 10 }
+```
+
+`count` must be an integer in `[1, 100]`. Codes are 10-character strings drawn from an unambiguous alphabet (`ABCDEFGHJKMNPQRSTUVWXYZ23456789`), stored in `invite_codes.code` (`varchar(20)`, unique). Collisions are retried up to 3 times before failing.
+
+Success: `201` with `{ invites: [{ id, code, usedBy, usedAt, createdAt }] }`
+
+Errors:
+
+- `400 invalid_count`
+
+## `GET /invites`
+
+Purpose:
+list unused invite codes.
+
+Auth: admin secret
+
+Query params: `limit`, `offset`
+
+Response: `{ invites, limit, offset }` (unused rows only, newest first).
+
 ## Ad Serving Endpoints
 
 These routes power the CLI ad pipeline. All require bearer token auth and use the user-keyed rate limiter.

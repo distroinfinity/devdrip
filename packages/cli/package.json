@@ -6,7 +6,9 @@
   "bin": {
     "devdrip": "./dist/index.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -22,13 +24,14 @@
   },
   "dependencies": {
     "@devdrip/shared": "workspace:*",
+    "cli-table3": "^0.6.5",
     "commander": "^13.0.0"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "eslint": "^9.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.8.0",
-    "typescript-eslint": "^8.0.0",
-    "eslint": "^9.0.0"
+    "typescript-eslint": "^8.0.0"
   }
 }
