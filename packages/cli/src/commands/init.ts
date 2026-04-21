@@ -17,6 +17,7 @@ import { putPreferences } from "../lib/preferences-client.js"
 import { runInitHealthCheck } from "../lib/health.js"
 import { runDemo } from "./demo.js"
 import { registerDevice } from "../lib/device.js"
+import { runLogin } from "./auth.js"
 
 const CATEGORY_LABELS: Record<AdCategory, string> = {
   [AdCategory.CloudInfrastructure]: "Cloud & infrastructure",
@@ -60,7 +61,6 @@ async function ensureAuth(): Promise<void> {
     return
   }
   console.log("no local session — starting GitHub sign-in…")
-  const { runLogin } = await import("./auth.js")
   await runLogin(false)
   const after = await readConfig()
   if (!after) throw new NotAuthenticatedError("sign-in did not complete")
@@ -100,6 +100,8 @@ async function ensureDevice(): Promise<{ deviceId: string }> {
 }
 
 async function pickCategories(current: AdCategory[]): Promise<AdCategory[]> {
+  // multiselect pre-checks the categories the user WANTS to see (i.e., not blocked).
+  // selection returns allowed; we invert back to blocked for the backend.
   const preCheckedAllowed = ALL_CATEGORIES.filter((c) => !current.includes(c))
 
   const selected = await multiselect<AdCategory>({
@@ -137,12 +139,8 @@ async function installHooks(): Promise<void> {
 
   const existing = await readSettings(settingsPath)
   const { next, changed } = mergeDevdripHooks(existing, binPath)
-  if (!changed) {
-    console.log(`✓ hooks already installed`)
-    return
-  }
-  await writeSettingsAtomic(settingsPath, next)
 
+  // always keep cfg.cli.binPath current — even if settings.json is already correct
   const cfg = await readConfig()
   if (cfg && cfg.cli?.binPath !== binPath) {
     await writeConfig({
@@ -153,6 +151,12 @@ async function installHooks(): Promise<void> {
       cli: { binPath },
     })
   }
+
+  if (!changed) {
+    console.log(`✓ hooks already installed`)
+    return
+  }
+  await writeSettingsAtomic(settingsPath, next)
   console.log(`✓ hooks installed in ${settingsPath}`)
 }
 
