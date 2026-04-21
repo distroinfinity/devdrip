@@ -27,7 +27,13 @@ export function validateUpdatePreferences(body: unknown): UpdatePreferencesInput
 
   if (b["tzOffsetMinutes"] !== undefined) {
     const v = b["tzOffsetMinutes"]
-    if (typeof v !== "number" || !Number.isInteger(v) || v < -720 || v > 840) {
+    if (
+      typeof v !== "number" ||
+      !Number.isFinite(v) ||
+      !Number.isInteger(v) ||
+      v < -720 ||
+      v > 840
+    ) {
       throw new ValidationError("invalid_tz_offset_minutes")
     }
     out.tzOffsetMinutes = v
