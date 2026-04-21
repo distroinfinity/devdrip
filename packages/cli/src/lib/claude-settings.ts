@@ -22,7 +22,10 @@ export interface Settings {
   [k: string]: unknown
 }
 
-const DEVDRIP_SUB_RE = /\shook\s+(pre-tool|stop|prompt-submit)(\s|$)/
+// command must reference a binary whose basename is `devdrip` (optionally with
+// a JS extension on some install paths) followed by our hook subcommand.
+const DEVDRIP_SUB_RE =
+  /(?:^|\/|\\)devdrip(?:\.js|\.mjs|\.cjs|\.exe)?\s+hook\s+(pre-tool|stop|prompt-submit)(\s|$)/
 
 type Event = "PreToolUse" | "Stop" | "UserPromptSubmit"
 type Sub = "pre-tool" | "stop" | "prompt-submit"
@@ -91,7 +94,7 @@ export async function readSettings(path: string): Promise<Settings> {
   try {
     const raw = await readFile(path, "utf8")
     const parsed = JSON.parse(raw) as Settings
-    return parsed ?? {}
+    return parsed
   } catch (err) {
     if (isNotFound(err)) return {}
     throw err

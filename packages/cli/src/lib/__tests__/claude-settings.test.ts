@@ -49,6 +49,8 @@ describe("mergeDevdripHooks", () => {
     const { next, changed } = mergeDevdripHooks(existing, BIN)
     expect(changed).toBe(false)
     expect(next.hooks?.PreToolUse).toHaveLength(1)
+    expect(next.hooks?.Stop).toHaveLength(1)
+    expect(next.hooks?.UserPromptSubmit).toHaveLength(1)
   })
 
   it("updates in place when bin path changed (nvm switch / version bump)", () => {
@@ -68,6 +70,7 @@ describe("mergeDevdripHooks", () => {
     expect(changed).toBe(true)
     expect(next.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command).toBe(`${BIN} hook pre-tool`)
     expect(next.hooks?.Stop?.[0]?.hooks?.[0]?.command).toBe(`${BIN} hook stop`)
+    expect(next.hooks?.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe(`${BIN} hook prompt-submit`)
     expect(next.hooks?.PreToolUse).toHaveLength(1)
   })
 
@@ -75,6 +78,51 @@ describe("mergeDevdripHooks", () => {
     expect(() =>
       mergeDevdripHooks({ hooks: "nope" as unknown as Settings["hooks"] }, BIN)
     ).toThrow()
+  })
+
+  it("does NOT claim other tools' hooks that happen to use matching subcommand names", () => {
+    const existing: Settings = {
+      hooks: {
+        PreToolUse: [
+          {
+            hooks: [{ type: "command", command: "/other/tool hook pre-tool --verbose" }],
+          },
+        ],
+        Stop: [
+          {
+            hooks: [{ type: "command", command: "/some/other-binary hook stop" }],
+          },
+        ],
+      },
+    }
+    const { next, changed } = mergeDevdripHooks(existing, BIN)
+    expect(changed).toBe(true) // because our groups get added
+    // the other tools' groups remain, unmodified, in the first slot
+    expect(next.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command).toBe(
+      "/other/tool hook pre-tool --verbose"
+    )
+    expect(next.hooks?.Stop?.[0]?.hooks?.[0]?.command).toBe("/some/other-binary hook stop")
+    // our group is appended after
+    expect(next.hooks?.PreToolUse).toHaveLength(2)
+    expect(next.hooks?.PreToolUse?.[1]?.hooks?.[0]?.command).toBe(`${BIN} hook pre-tool`)
+    expect(next.hooks?.Stop).toHaveLength(2)
+    expect(next.hooks?.Stop?.[1]?.hooks?.[0]?.command).toBe(`${BIN} hook stop`)
+  })
+
+  it("recognizes a basename-only `devdrip` command as ours for stale detection", () => {
+    const existing: Settings = {
+      hooks: {
+        PreToolUse: [
+          { matcher: "*", hooks: [{ type: "command", command: "devdrip hook pre-tool" }] },
+        ],
+        Stop: [{ hooks: [{ type: "command", command: "devdrip hook stop" }] }],
+        UserPromptSubmit: [{ hooks: [{ type: "command", command: "devdrip hook prompt-submit" }] }],
+      },
+    }
+    const { next, changed } = mergeDevdripHooks(existing, BIN)
+    expect(changed).toBe(true)
+    expect(next.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command).toBe(`${BIN} hook pre-tool`)
+    expect(next.hooks?.PreToolUse).toHaveLength(1)
   })
 })
 
