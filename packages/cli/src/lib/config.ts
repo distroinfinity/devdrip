@@ -6,7 +6,7 @@ import { join } from "node:path"
 export const CONFIG_VERSION = 2
 
 export interface DevdripConfig {
-  version: number
+  version: 2
   apiUrl: string
   auth: {
     accessToken: string
@@ -40,7 +40,14 @@ interface RawConfigV1 {
 
 function migrate(parsed: Record<string, unknown>): DevdripConfig | null {
   const version = parsed["version"]
-  if (version === CONFIG_VERSION) return parsed as unknown as DevdripConfig
+  if (version === CONFIG_VERSION) {
+    const v2 = parsed as unknown as DevdripConfig
+    return {
+      ...v2,
+      device: v2.device ?? { id: null },
+      cli: v2.cli ?? { binPath: "" },
+    }
+  }
   if (version === 1) {
     const v1 = parsed as unknown as RawConfigV1
     return {
@@ -66,17 +73,17 @@ export async function readConfig(): Promise<DevdripConfig | null> {
   }
 }
 
-export async function writeConfig(cfg: DevdripConfig): Promise<void> {
+export async function writeConfig(cfg: Omit<DevdripConfig, "version">): Promise<void> {
   const dir = configDir()
   const target = configPath()
   const tmp = join(dir, `.config.${randomBytes(6).toString("hex")}.tmp`)
 
   await mkdir(dir, { recursive: true, mode: 0o700 })
-  await writeFile(tmp, JSON.stringify({ ...cfg, version: CONFIG_VERSION }, null, 2), {
-    mode: 0o600,
-  })
+  const toWrite: DevdripConfig = { ...cfg, version: CONFIG_VERSION }
+  await writeFile(tmp, JSON.stringify(toWrite, null, 2), { mode: 0o600 })
   await chmod(tmp, 0o600)
   await rename(tmp, target)
+  // some filesystems preserve source mode on rename; re-chmod to be safe
   await chmod(target, 0o600)
 }
 
@@ -109,6 +116,7 @@ function isNotFound(err: unknown): boolean {
   )
 }
 
+// effective expiry timestamp from an access-token TTL (default 1h, matches backend)
 export function accessTokenExpiresAt(ttlSeconds = 3600, now = Date.now()): string {
   return new Date(now + ttlSeconds * 1000).toISOString()
 }

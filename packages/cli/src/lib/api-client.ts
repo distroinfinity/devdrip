@@ -1,5 +1,6 @@
 import {
   accessTokenExpiresAt,
+  CONFIG_VERSION,
   configPath,
   deleteConfig,
   readConfig,
@@ -145,16 +146,19 @@ async function tryRefresh(cfg: DevdripConfig, baseUrl: string): Promise<DevdripC
       "/auth/refresh",
       { method: "POST", body: { refresh_token: cfg.auth.refreshToken } }
     )
-    const next: DevdripConfig = {
-      ...cfg,
+    const next: Omit<DevdripConfig, "version"> = {
+      apiUrl: cfg.apiUrl,
       auth: {
         accessToken: tokens.token,
         refreshToken: tokens.refresh_token,
         accessTokenExpiresAt: accessTokenExpiresAt(),
       },
+      user: cfg.user,
+      device: cfg.device,
+      cli: cfg.cli,
     }
     await writeConfig(next)
-    return next
+    return { ...next, version: CONFIG_VERSION }
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       await deleteConfig().catch(() => {})

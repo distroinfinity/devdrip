@@ -98,7 +98,6 @@ async function runLogin(force: boolean): Promise<void> {
   )
 
   await writeConfig({
-    version: 2,
     apiUrl: baseUrl,
     auth: {
       accessToken: tokens.token,
