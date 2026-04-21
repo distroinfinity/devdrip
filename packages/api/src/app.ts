@@ -85,6 +85,6 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
   await res.json(row)
 })
 
-app.use("/me", requireAuth, mePreferencesRouter)
+app.use("/me", requireAuth, userLimiter, mePreferencesRouter)
 
 app.use(errorHandler)

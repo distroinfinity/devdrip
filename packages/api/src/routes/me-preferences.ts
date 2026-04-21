@@ -1,13 +1,12 @@
 import { Router } from "express"
-import { eq, sql } from "drizzle-orm"
+import { sql } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import { preferences } from "../db/schema/preferences.js"
 import { validateUpdatePreferences } from "../validators/preferences.validators.js"
-import { userLimiter } from "../middleware/rate-limit.js"
 
 export const mePreferencesRouter: ReturnType<typeof Router> = Router()
 
-mePreferencesRouter.put("/preferences", userLimiter, async (req, res, next) => {
+mePreferencesRouter.put("/preferences", async (req, res, next) => {
   try {
     const userId = res.locals["userId"] as string
     const input = validateUpdatePreferences(req.body)
@@ -25,12 +24,12 @@ mePreferencesRouter.put("/preferences", userLimiter, async (req, res, next) => {
       updateSet["tzOffsetMinutes"] = input.tzOffsetMinutes
     }
 
-    await db
+    const [row] = await db
       .insert(preferences)
       .values(insertValues as typeof preferences.$inferInsert)
       .onConflictDoUpdate({ target: preferences.userId, set: updateSet })
+      .returning()
 
-    const [row] = await db.select().from(preferences).where(eq(preferences.userId, userId))
     if (!row) {
       res.status(500).json({ error: "internal_error" })
       return

@@ -234,17 +234,9 @@ const mockInsert = vi.fn().mockReturnValue({
   }),
 })
 
-const mockSelectWhere = vi.fn().mockResolvedValue([])
-const mockSelect = vi.fn().mockReturnValue({
-  from: vi.fn().mockReturnValue({
-    where: mockSelectWhere,
-  }),
-})
-
 vi.mock("../db/index.js", () => ({
   getDb: vi.fn(() => ({
     insert: mockInsert,
-    select: mockSelect,
   })),
 }))
 
@@ -283,7 +275,6 @@ beforeAll(async () => {
 
 beforeEach(() => {
   mockInsertReturning.mockReset().mockResolvedValue([])
-  mockSelectWhere.mockReset().mockResolvedValue([])
 })
 
 describe("PUT /me/preferences", () => {
@@ -293,7 +284,7 @@ describe("PUT /me/preferences", () => {
   })
 
   it("upserts blockedCategories and returns the full row", async () => {
-    mockSelectWhere.mockResolvedValueOnce([
+    mockInsertReturning.mockResolvedValueOnce([
       {
         blockedCategories: ["developer-recruiting"],
         enabledSurfaces: ["terminal-tv"],
@@ -336,7 +327,7 @@ describe("PUT /me/preferences", () => {
   })
 
   it("accepts valid tzOffsetMinutes", async () => {
-    mockSelectWhere.mockResolvedValueOnce([
+    mockInsertReturning.mockResolvedValueOnce([
       {
         blockedCategories: [],
         enabledSurfaces: [],
