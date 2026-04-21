@@ -44,4 +44,24 @@ describe("renderBox", () => {
     expect(out).toContain(sampleAd.headline)
     expect(out).toContain("press enter to dismiss")
   })
+
+  it("truncates single long words that exceed inner width", () => {
+    const longWord = "A".repeat(200)
+    const out = renderBox({ ...sampleAd, body: longWord }, { source: "Carbon" })
+    const lines = out.split("\n")
+    for (const l of lines) {
+      expect([...l].length).toBeLessThanOrEqual(72)
+    }
+    expect(out).toContain("…")
+  })
+
+  it("truncates very long URLs on the Learn more line", () => {
+    const longUrl = "https://" + "x".repeat(200) + ".example.com"
+    const out = renderBox({ ...sampleAd, url: longUrl }, { source: "Carbon" })
+    const lines = out.split("\n")
+    for (const l of lines) {
+      expect([...l].length).toBeLessThanOrEqual(72)
+    }
+    expect(out).toContain("…")
+  })
 })

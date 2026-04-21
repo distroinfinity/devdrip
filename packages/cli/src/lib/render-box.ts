@@ -26,11 +26,20 @@ function wrap(text: string, max: number): string[] {
   const lines: string[] = []
   let cur = ""
   for (const w of words) {
+    // long tokens (URLs, etc.) — truncate to keep box width
+    if ([...w].length > max) {
+      if (cur) {
+        lines.push(cur)
+        cur = ""
+      }
+      lines.push([...w].slice(0, max - 1).join("") + "…")
+      continue
+    }
     if (cur.length === 0) {
       cur = w
       continue
     }
-    if (cur.length + 1 + w.length <= max) {
+    if ([...cur].length + 1 + [...w].length <= max) {
       cur += ` ${w}`
     } else {
       lines.push(cur)
@@ -53,8 +62,13 @@ function line(c: Chars, inner: string): string {
 
 export interface RenderBoxOpts {
   source?: string
-  earningsUsdc?: number
   ascii?: boolean
+}
+
+function truncateToInner(s: string): string {
+  const chars = [...s]
+  if (chars.length <= INNER) return s
+  return chars.slice(0, INNER - 1).join("") + "…"
 }
 
 export function renderBox(
@@ -80,7 +94,7 @@ export function renderBox(
     line(c, ad.headline),
     ...(ad.body ? wrap(ad.body, INNER).map((l) => line(c, l)) : []),
     line(c, ""),
-    ...(ad.url ? [line(c, `Learn more → ${ad.url}`)] : []),
+    ...(ad.url ? [line(c, truncateToInner(`Learn more → ${ad.url}`))] : []),
     line(c, ""),
     line(c, padRight("", Math.max(0, Math.floor(INNER / 2) - 12)) + "press enter to dismiss"),
   ]
