@@ -91,19 +91,21 @@ Reads `~/.devdrip/config.json` and calls `GET /me`. If the access token is expir
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "apiUrl": "https://api.devdrip.sh",
   "auth": {
     "accessToken": "jwt",
     "refreshToken": "hex",
-    "accessTokenExpiresAt": "2026-04-20T15:24:00.000Z"
+    "accessTokenExpiresAt": "2026-04-21T12:00:00Z"
   },
   "user": {
     "id": "uuid",
-    "githubLogin": "manu",
-    "email": "manu@example.com",
-    "avatarUrl": "https://avatars.githubusercontent.com/u/123"
-  }
+    "githubLogin": "handle",
+    "email": "user@example.com",
+    "avatarUrl": null
+  },
+  "device": { "id": "uuid" },
+  "cli": { "binPath": "/abs/path/to/devdrip" }
 }
 ```
 

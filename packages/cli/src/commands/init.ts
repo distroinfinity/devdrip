@@ -162,7 +162,11 @@ async function installHooks(): Promise<void> {
 
 async function previewAd(): Promise<void> {
   console.log("\nhere's a preview ad from the real pipeline:\n")
-  await runDemo()
+  try {
+    await runDemo()
+  } catch {
+    console.log("(preview unavailable — run `devdrip demo` after your next Claude session)")
+  }
   console.log()
 }
 

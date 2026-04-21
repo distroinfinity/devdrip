@@ -36,9 +36,7 @@ export async function runDemo(): Promise<void> {
   }
 
   const ad = (body as AdNextResponse).ad
-  console.log(
-    renderBox({ headline: ad.headline, body: ad.body, url: ad.url }, { source: "Carbon" })
-  )
+  console.log(renderBox({ headline: ad.headline, body: ad.body, url: ad.url }))
 
   if (process.stdin.isTTY) {
     const rl = createInterface({ input: process.stdin, output: process.stdout })
