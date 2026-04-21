@@ -98,7 +98,7 @@ async function runLogin(force: boolean): Promise<void> {
   )
 
   await writeConfig({
-    version: 1,
+    version: 2,
     apiUrl: baseUrl,
     auth: {
       accessToken: tokens.token,
@@ -111,6 +111,8 @@ async function runLogin(force: boolean): Promise<void> {
       email: me.email,
       avatarUrl: me.avatarUrl,
     },
+    device: { id: null },
+    cli: { binPath: "" },
   })
 
   const handle = me.githubLogin || me.email
