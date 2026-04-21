@@ -4,13 +4,12 @@ process.env["JWT_SECRET"] = "test-secret-that-is-long-enough-for-hs256-signing-p
 process.env["ALLOWED_ORIGINS"] = "http://localhost:3000"
 
 const mockInsertReturning = vi.fn().mockResolvedValue([])
-const mockInsert = vi.fn().mockReturnValue({
-  values: vi.fn().mockReturnValue({
-    onConflictDoUpdate: vi.fn().mockReturnValue({
-      returning: mockInsertReturning,
-    }),
+const mockValues = vi.fn().mockReturnValue({
+  onConflictDoUpdate: vi.fn().mockReturnValue({
+    returning: mockInsertReturning,
   }),
 })
+const mockInsert = vi.fn().mockReturnValue({ values: mockValues })
 
 vi.mock("../db/index.js", () => ({
   getDb: vi.fn(() => ({
@@ -55,7 +54,8 @@ beforeAll(async () => {
 })
 
 beforeEach(() => {
-  mockInsertReturning.mockReset().mockResolvedValue([])
+  vi.clearAllMocks()
+  mockInsertReturning.mockResolvedValue([])
 })
 
 describe("PUT /me/preferences", () => {
@@ -86,7 +86,9 @@ describe("PUT /me/preferences", () => {
     expect(res.status).toBe(200)
     expect(res.body.preferences.blockedCategories).toEqual(["developer-recruiting"])
     expect(res.body.preferences.maxPerHour).toBe(8)
-    expect(mockInsert).toHaveBeenCalled()
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({ blockedCategories: ["developer-recruiting"] })
+    )
   })
 
   it("rejects an unknown category value", async () => {
@@ -128,6 +130,7 @@ describe("PUT /me/preferences", () => {
 
     expect(res.status).toBe(200)
     expect(res.body.preferences.tzOffsetMinutes).toBe(-330)
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({ tzOffsetMinutes: -330 }))
   })
 
   it("rejects out-of-range tzOffsetMinutes", async () => {
