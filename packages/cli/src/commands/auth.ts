@@ -58,7 +58,7 @@ async function runLogout(): Promise<void> {
   console.log("✓ signed out")
 }
 
-async function runLogin(force: boolean): Promise<void> {
+export async function runLogin(force: boolean): Promise<void> {
   const existing = await readConfig()
   if (existing && !force) {
     const login = existing.user.githubLogin ?? existing.user.id
