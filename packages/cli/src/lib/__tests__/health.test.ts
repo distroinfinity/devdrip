@@ -35,14 +35,16 @@ vi.mock("../claude-settings.js", () => ({
 
 import { runInitHealthCheck } from "../health.js"
 import type { DevdripConfig } from "../config.js"
+import { defaultDevdripPreferences } from "@devdrip/shared"
 
 const cfg: DevdripConfig = {
-  version: 2,
+  version: 3,
   apiUrl: "http://localhost:3000",
   auth: { accessToken: "a", refreshToken: "b", accessTokenExpiresAt: "2099-01-01T00:00:00Z" },
   user: { id: "u", githubLogin: "gh", email: "e@x.com", avatarUrl: null },
   device: { id: "dev-1" },
   cli: { binPath: "/abs/devdrip" },
+  preferences: defaultDevdripPreferences(),
 }
 
 beforeEach(() => {

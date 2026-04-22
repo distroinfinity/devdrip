@@ -12,6 +12,7 @@ export interface StartDaemonServerOpts {
   socketPath: string
   dispatch: (event: Event) => void
   onKill: () => void
+  onReloadConfig?: () => void
   log: LoggerApi
 }
 
@@ -83,6 +84,11 @@ function handleLine(line: string, opts: StartDaemonServerOpts): void {
     opts.onKill()
     return
   }
+  if (parsed.type === "reload-config") {
+    opts.log.info("reload-config received")
+    opts.onReloadConfig?.()
+    return
+  }
   opts.dispatch(toStateEvent(parsed))
 }
 
@@ -96,7 +102,8 @@ function toStateEvent(w: WireEvent): Event {
     case "dismiss":
       return { kind: "dismiss", now }
     case "kill":
+    case "reload-config":
       // handled upstream; still need an exhaustive switch
-      throw new Error("kill should not reach toStateEvent")
+      throw new Error(`${w.type} should not reach toStateEvent`)
   }
 }

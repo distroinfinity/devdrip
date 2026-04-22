@@ -1,5 +1,6 @@
 import { homedir } from "node:os"
 import { join } from "node:path"
+import type { DevdripPreferences } from "../types/index.js"
 
 // ── timing ──────────────────────────────────────────────────────────────────
 
@@ -60,3 +61,22 @@ export const IMPRESSION_CLOCK_TOLERANCE_MS = 1_000
 export const MUTE_DURATION_MS = 1_800_000
 export const AD_ROTATION_INTERVAL_MS = 15_000
 export const MAX_AUDIO_AD_DURATION_MS = 15_000
+
+// ── night-mode preset (active when DevdripPreferences.nightMode is true
+// and no custom quiet hours are set) ───────────────────────────────────────
+export const NIGHT_MODE_DEFAULT_START_HOUR = 22
+export const NIGHT_MODE_DEFAULT_END_HOUR = 7
+
+// ── default DevdripPreferences for fresh v2→v3 migration / --reset ─────────
+export function defaultDevdripPreferences(): DevdripPreferences {
+  return {
+    blockedCategories: [],
+    maxPerHour: MAX_ADS_PER_HOUR_TOTAL,
+    maxPerDay: MAX_ADS_PER_DAY,
+    sessionWarmupMs: SESSION_WARMUP_MS,
+    quietHoursStart: null,
+    quietHoursEnd: null,
+    nightMode: false,
+    tzOffsetMinutes: -new Date().getTimezoneOffset(),
+  }
+}

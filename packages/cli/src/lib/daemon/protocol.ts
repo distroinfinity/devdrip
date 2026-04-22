@@ -5,10 +5,11 @@ export type IdleStartEvent = {
 export type IdleEndEvent = { type: "idle-end" }
 export type DismissEvent = { type: "dismiss" }
 export type KillEvent = { type: "kill" }
+export type ReloadConfigEvent = { type: "reload-config" }
 
-// Events carried by the hook socket. `kill` is an admin control event handled
-// at the server layer, not by the state machine.
-export type WireEvent = IdleStartEvent | IdleEndEvent | DismissEvent | KillEvent
+// Events carried by the hook socket. `kill` and `reload-config` are admin
+// control events handled at the server layer, not by the state machine.
+export type WireEvent = IdleStartEvent | IdleEndEvent | DismissEvent | KillEvent | ReloadConfigEvent
 
 export function parseWireEvent(line: string): WireEvent | null {
   let v: unknown
@@ -31,6 +32,8 @@ export function parseWireEvent(line: string): WireEvent | null {
       return { type: "dismiss" }
     case "kill":
       return { type: "kill" }
+    case "reload-config":
+      return { type: "reload-config" }
     default:
       return null
   }

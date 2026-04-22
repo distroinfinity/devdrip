@@ -1,3 +1,8 @@
+import {
+  NIGHT_MODE_DEFAULT_START_HOUR,
+  NIGHT_MODE_DEFAULT_END_HOUR,
+  type DevdripPreferences,
+} from "@devdrip/shared"
 import type { AdCache, CachedAd } from "../ad-cache.js"
 import type { Ledger, LocalImpression } from "../ledger.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
@@ -19,6 +24,8 @@ export interface OrchestratorDeps {
   display: DisplayApi
   log: LoggerApi
   deviceId: string
+  preferences: DevdripPreferences
+  now?: () => number
 }
 
 export interface Orchestrator {
@@ -26,7 +33,34 @@ export interface Orchestrator {
   currentState(): State
   adsShown(): number
   hooksReceived(): number
+  updatePreferences(next: DevdripPreferences): void
   shutdown(): Promise<void>
+}
+
+// Returns the local-hour (0-23) at the given timestamp for a user with
+// `tzOffsetMinutes` offset from UTC (positive east of UTC, e.g. IST=+330).
+function localHour(nowMs: number, tzOffsetMinutes: number): number {
+  const offsetMs = tzOffsetMinutes * 60_000
+  const shifted = new Date(nowMs + offsetMs)
+  // getUTCHours on a shifted UTC Date gives the local hour.
+  return shifted.getUTCHours()
+}
+
+// Supports a wraparound window (start=22, end=7 → hours 22,23,0..6).
+function isInQuietWindow(hour: number, start: number, end: number): boolean {
+  if (start === end) return false
+  if (start < end) return hour >= start && hour < end
+  return hour >= start || hour < end
+}
+
+function resolveQuietWindow(prefs: DevdripPreferences): { start: number; end: number } | null {
+  if (prefs.quietHoursStart !== null && prefs.quietHoursEnd !== null) {
+    return { start: prefs.quietHoursStart, end: prefs.quietHoursEnd }
+  }
+  if (prefs.nightMode) {
+    return { start: NIGHT_MODE_DEFAULT_START_HOUR, end: NIGHT_MODE_DEFAULT_END_HOUR }
+  }
+  return null
 }
 
 export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
@@ -36,6 +70,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   let currentDisplay: { vanish: () => void } | null = null
   let adsShownCount = 0
   let hooksReceivedCount = 0
+  let preferences: DevdripPreferences = deps.preferences
+  const now = deps.now ?? (() => Date.now())
+  const sessionStartAt = now()
 
   function dispatch(event: Event): void {
     // count only socket-originated events (hooks), not internal timer callbacks.
@@ -54,9 +91,16 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         if (graceTimer) clearTimeout(graceTimer)
         graceTimer = setTimeout(() => {
           graceTimer = null
+          const firedAt = now()
+          const reason = suppressionReason(firedAt)
+          if (reason) {
+            deps.log.debug("ad suppressed by preferences", { reason })
+            dispatch({ kind: "grace-elapsed", ad: null, now: firedAt })
+            return
+          }
           const ad = deps.adCache.next()
           if (!ad) deps.log.debug("grace elapsed with empty cache")
-          dispatch({ kind: "grace-elapsed", ad, now: Date.now() })
+          dispatch({ kind: "grace-elapsed", ad, now: firedAt })
         }, effect.ms)
         return
       case "cancelGraceTimer":
@@ -139,6 +183,29 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     }
   }
 
+  function suppressionReason(nowMs: number): "warmup" | "quiet-hours" | null {
+    if (nowMs - sessionStartAt < preferences.sessionWarmupMs) return "warmup"
+    const window = resolveQuietWindow(preferences)
+    if (window) {
+      const hour = localHour(nowMs, preferences.tzOffsetMinutes)
+      if (isInQuietWindow(hour, window.start, window.end)) return "quiet-hours"
+    }
+    return null
+  }
+
+  function updatePreferences(next: DevdripPreferences): void {
+    preferences = next
+    deps.log.info("preferences reloaded", {
+      blockedCategories: next.blockedCategories.length,
+      maxPerHour: next.maxPerHour,
+      maxPerDay: next.maxPerDay,
+      sessionWarmupMs: next.sessionWarmupMs,
+      quietHoursStart: next.quietHoursStart,
+      quietHoursEnd: next.quietHoursEnd,
+      nightMode: next.nightMode,
+    })
+  }
+
   async function shutdown(): Promise<void> {
     if (graceTimer) clearTimeout(graceTimer)
     if (vanishTimer) clearTimeout(vanishTimer)
@@ -152,6 +219,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     currentState: () => state,
     adsShown: () => adsShownCount,
     hooksReceived: () => hooksReceivedCount,
+    updatePreferences,
     shutdown,
   }
 }
