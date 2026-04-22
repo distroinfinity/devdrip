@@ -115,13 +115,17 @@ export function renderBox(
   const width = clampWidth(opts.width)
   const inner = width - 4 // space for "║ " and " ║"
   const c = (opts.ascii ?? false) ? ASCII : UNI
-  const sourceBadge = opts.source ? `via ${opts.source}` : ""
   const title = "DEV DRIP TV"
+  const earningsSegment =
+    opts.earningsUsdc !== undefined ? `$${opts.earningsUsdc.toFixed(4)} earned` : ""
+  const sourceSegment = opts.source ? `via ${opts.source}` : ""
 
-  // header: c.tl + "═ DEV DRIP TV ═...═ via Carbon ═" + c.tr
+  // build header segments separated by " · " when multiple exist
+  const leftSegments = [title, earningsSegment].filter(Boolean)
+  const leftLabel = ` ${leftSegments.join(" · ")} `
+  const rightLabel = sourceSegment ? ` ${sourceSegment} ` : ""
+
   const headerInnerLen = width - 2
-  const leftLabel = ` ${title} `
-  const rightLabel = sourceBadge ? ` ${sourceBadge} ` : ""
   const fillLen = headerInnerLen - leftLabel.length - rightLabel.length
   const left = c.h + leftLabel
   const right = rightLabel + c.h

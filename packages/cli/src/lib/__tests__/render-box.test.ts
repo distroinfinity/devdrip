@@ -157,3 +157,28 @@ describe("renderBox — progress bar", () => {
     expect(out).not.toMatch(/#+-+/)
   })
 })
+
+describe("renderBox — earnings header", () => {
+  it("includes formatted earnings in header when provided", () => {
+    const out = renderBox(
+      { headline: "H", url: "https://x.test" },
+      { width: 80, earningsUsdc: 0.0423, ascii: true }
+    )
+    expect(out).toContain("$0.0423")
+    expect(out).toContain("earned")
+  })
+
+  it("omits earnings segment when undefined", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 80, ascii: true })
+    expect(out).not.toContain("$")
+    expect(out).not.toContain("earned")
+  })
+
+  it("includes source badge when provided", () => {
+    const out = renderBox(
+      { headline: "H", url: "https://x.test" },
+      { width: 80, source: "Carbon", ascii: true }
+    )
+    expect(out).toContain("via Carbon")
+  })
+})
