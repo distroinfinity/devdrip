@@ -199,4 +199,4 @@ Landed. See [daemon-and-hooks.md](./daemon-and-hooks.md) for the runtime shape.
 
 ## Engineering Takeaway
 
-`packages/cli` now has working identity, onboarding (`devdrip init`), ad preview (`devdrip demo`), the local ledger + ad cache modules, and the config/api-client/auth-flow helpers that every future command will lean on. New commands that hit the backend should use `apiFetch` from `src/lib/api-client.ts` so they inherit transparent token refresh. The remaining gaps are the daemon process, the hook → daemon IPC, and the sync pipeline.
+`packages/cli` now has working identity, onboarding (`devdrip init`), ad preview (`devdrip demo`), the local ledger + ad cache modules, and the config/api-client/auth-flow helpers that every future command will lean on. New commands that hit the backend should use `apiFetch` from `src/lib/api-client.ts` so they inherit transparent token refresh. The remaining gaps are the sync pipeline (S3-07), payouts, and doctor checks.
