@@ -65,12 +65,6 @@ export interface RenderBoxOpts {
   ascii?: boolean
 }
 
-function truncateToInner(s: string): string {
-  const chars = [...s]
-  if (chars.length <= INNER) return s
-  return chars.slice(0, INNER - 1).join("") + "…"
-}
-
 export function renderBox(
   ad: Pick<AdPayload, "headline" | "body" | "url">,
   opts: RenderBoxOpts = {}
@@ -94,12 +88,13 @@ export function renderBox(
     line(c, ad.headline),
     ...(ad.body ? wrap(ad.body, INNER).map((l) => line(c, l)) : []),
     line(c, ""),
-    ...(ad.url ? [line(c, truncateToInner(`Learn more → ${ad.url}`))] : []),
-    line(c, ""),
     line(c, padRight("", Math.max(0, Math.floor(INNER / 2) - 12)) + "press enter to dismiss"),
   ]
 
   const footer = `${c.bl}${c.h.repeat(WIDTH - 2)}${c.br}`
 
-  return [header, ...body, footer].join("\n")
+  const parts = [header, ...body, footer]
+  if (ad.url) parts.push(`→ ${ad.url}`)
+
+  return parts.join("\n")
 }

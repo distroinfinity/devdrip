@@ -55,13 +55,19 @@ describe("renderBox", () => {
     expect(out).toContain("…")
   })
 
-  it("truncates very long URLs on the Learn more line", () => {
+  it("emits long URLs on their own line, unwrapped, outside the box", () => {
     const longUrl = "https://" + "x".repeat(200) + ".example.com"
     const out = renderBox({ ...sampleAd, url: longUrl }, { source: "Carbon" })
     const lines = out.split("\n")
-    for (const l of lines) {
+    // box lines must still be bounded
+    const boxLines = lines.filter((l) => l.includes("║") || l.startsWith("|") || /^[╔╗╚╝+]/.test(l))
+    for (const l of boxLines) {
       expect([...l].length).toBeLessThanOrEqual(72)
     }
-    expect(out).toContain("…")
+    // url line exists below the box, full URL intact
+    const urlLine = lines.find((l) => l.startsWith("→ "))
+    expect(urlLine).toBeDefined()
+    expect(urlLine).toContain(longUrl)
+    expect(urlLine).not.toContain("…")
   })
 })
