@@ -34,9 +34,6 @@ Most commands only print a `TODO` message.
 That includes:
 
 - `config`
-- `daemon start`
-- `daemon stop`
-- `daemon status`
 - `sync`
 - `claim`
 - `doctor`
@@ -44,9 +41,6 @@ That includes:
 - `upgrade`
 - `verify`
 - `referral`
-- `hook pre-tool`
-- `hook stop`
-- `hook prompt-submit`
 
 ## `auth` + `status` (S2-06)
 
@@ -195,11 +189,13 @@ Two `src/lib` modules that give the future daemon local state without touching t
 
 ## What Is Missing For A Real CLI
 
-- daemon process lifecycle
-- sync pipeline (`devdrip sync` still stubbed; ledger exposes `listUnsynced` / `markSynced` for it)
-- hook → daemon IPC
+- sync pipeline (`devdrip sync` still stubbed; S3-07)
 - payout flow
 - doctor checks
+
+## Daemon + Hook IPC (S2-10, S2-11)
+
+Landed. See [daemon-and-hooks.md](./daemon-and-hooks.md) for the runtime shape.
 
 ## Engineering Takeaway
 
