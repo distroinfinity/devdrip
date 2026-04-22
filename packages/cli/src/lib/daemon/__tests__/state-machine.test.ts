@@ -2,6 +2,18 @@ import { describe, it, expect } from "vitest"
 import { step, type State } from "../state-machine.js"
 import type { CachedAd } from "../../ad-cache.js"
 
+const fixtureAd: CachedAd = {
+  id: "ad-test",
+  campaignId: "camp-test",
+  format: "text",
+  headline: "H",
+  body: "B",
+  url: "https://x.test",
+  displayTimeMs: 8000,
+  deliveryToken: "tok",
+  cacheSource: "api",
+}
+
 const ad: CachedAd = {
   id: "ad-1",
   campaignId: "camp-1",
@@ -154,9 +166,9 @@ describe("state-machine: SHOWING transitions", () => {
     expect(imp).toMatchObject({ impression: expect.objectContaining({ result: "completed" }) })
   })
 
-  it("SHOWING + vanish-elapsed → IDLE + recordImpression(completed)", () => {
+  it("SHOWING + vanish-elapsed → INTER_AD + recordImpression(completed)", () => {
     const r = step(showingAt(1000), { kind: "vanish-elapsed", now: 9000 }, CTX)
-    expect(r.state).toEqual(idle)
+    expect(r.state.kind).toBe("INTER_AD")
     expect(r.effects).toContainEqual({ kind: "vanishDisplay" })
     const imp = r.effects.find((e) => e.kind === "recordImpression")
     expect(imp).toMatchObject({
@@ -197,5 +209,87 @@ describe("state-machine: impression id", () => {
     const id2 = (imp2 as { impression: { id: string } }).impression.id
     expect(id1).not.toBe(id2)
     expect(id1).toMatch(/^[0-9a-f-]{36}$/)
+  })
+})
+
+describe("state-machine — rotation", () => {
+  it("vanish-elapsed from SHOWING goes to INTER_AD with startInterAdTimer", () => {
+    const state: State = {
+      kind: "SHOWING",
+      tty: "/dev/ttys003",
+      ad: fixtureAd,
+      shownAt: 0,
+    }
+    const result = step(state, { kind: "vanish-elapsed", now: 8000 }, { deviceId: "d1" })
+    expect(result.state.kind).toBe("INTER_AD")
+    expect(result.effects.some((e) => e.kind === "startInterAdTimer")).toBe(true)
+    expect(result.effects.some((e) => e.kind === "vanishDisplay")).toBe(true)
+    expect(result.effects.some((e) => e.kind === "recordImpression")).toBe(true)
+  })
+
+  it("inter-ad-elapsed with an ad returns to SHOWING", () => {
+    const nextAd: CachedAd = { ...fixtureAd, id: "ad-next" }
+    const state: State = { kind: "INTER_AD", tty: "/dev/ttys003", enteredAt: 0 }
+    const result = step(
+      state,
+      { kind: "inter-ad-elapsed", ad: nextAd, now: 500 },
+      { deviceId: "d1" }
+    )
+    expect(result.state.kind).toBe("SHOWING")
+    expect(result.effects.some((e) => e.kind === "displayAd")).toBe(true)
+  })
+
+  it("inter-ad-elapsed with null ad returns to IDLE", () => {
+    const state: State = { kind: "INTER_AD", tty: "/dev/ttys003", enteredAt: 0 }
+    const result = step(state, { kind: "inter-ad-elapsed", ad: null, now: 500 }, { deviceId: "d1" })
+    expect(result.state.kind).toBe("IDLE")
+    expect(result.effects).toEqual([])
+  })
+
+  it("kill-key from SHOWING emits setSessionKilled", () => {
+    const state: State = {
+      kind: "SHOWING",
+      tty: "/dev/ttys003",
+      ad: fixtureAd,
+      shownAt: 0,
+    }
+    const result = step(state, { kind: "kill-key", now: 4000 }, { deviceId: "d1" })
+    expect(result.effects.some((e) => e.kind === "setSessionKilled")).toBe(true)
+    expect(result.state.kind).toBe("IDLE")
+  })
+
+  it("mute-key emits writeMuteUntil", () => {
+    const state: State = {
+      kind: "SHOWING",
+      tty: "/dev/ttys003",
+      ad: fixtureAd,
+      shownAt: 0,
+    }
+    const result = step(state, { kind: "mute-key", now: 4000 }, { deviceId: "d1" })
+    const effect = result.effects.find((e) => e.kind === "writeMuteUntil") as
+      | { kind: "writeMuteUntil"; muteUntil: number }
+      | undefined
+    expect(effect?.muteUntil).toBe(4000 + 1_800_000)
+  })
+
+  it("discover-key emits openDiscover with the ad", () => {
+    const adX: CachedAd = { ...fixtureAd, id: "ad-x" }
+    const state: State = { kind: "SHOWING", tty: "/dev/ttys003", ad: adX, shownAt: 0 }
+    const result = step(state, { kind: "discover-key", now: 4000 }, { deviceId: "d1" })
+    const effect = result.effects.find((e) => e.kind === "openDiscover")
+    expect(effect).toBeDefined()
+    expect((effect as { ad: CachedAd }).ad.id).toBe("ad-x")
+  })
+
+  it("session-start from any state clears session state and returns IDLE", () => {
+    const state: State = {
+      kind: "SHOWING",
+      tty: "/dev/ttys003",
+      ad: fixtureAd,
+      shownAt: 0,
+    }
+    const result = step(state, { kind: "session-start", now: 5000 }, { deviceId: "d1" })
+    expect(result.state.kind).toBe("IDLE")
+    expect(result.effects.some((e) => e.kind === "clearSessionState")).toBe(true)
   })
 })
