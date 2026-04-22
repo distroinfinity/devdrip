@@ -92,6 +92,10 @@ function tryUnlink(path: string): void {
   }
 }
 
+export function removeLockFile(): void {
+  tryUnlink(lockPath())
+}
+
 // ── heartbeat ───────────────────────────────────────────────────────────
 
 export interface Heartbeat {

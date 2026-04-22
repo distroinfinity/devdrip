@@ -24,8 +24,10 @@ describe("hook timing (no daemon running)", () => {
       samples.push(Date.now() - start)
     }
     const max = Math.max(...samples)
-    // Generous envelope — we're mostly checking the hook doesn't hang on
-    // connect timeouts. 250ms accounts for cold node start on CI hardware.
+    // The AC is <100ms per hook (measured ~79ms avg locally). This 250ms
+    // envelope is a regression-guard, NOT the AC — it accounts for cold
+    // node startup on slow CI hardware. Tighten only if you've validated
+    // the baseline on the CI runner these tests actually run on.
     expect(max).toBeLessThan(250)
   })
 })

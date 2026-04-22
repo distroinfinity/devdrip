@@ -8,11 +8,22 @@ export interface DisplayHandle {
 
 export function showAd(ttyPath: string, ad: CachedAd): DisplayHandle {
   const fd = openSync(ttyPath, "w")
-  // S5-04 owns the [DEMO] badge; daemon renders the box without a source tag.
-  const text = renderBox(ad)
-  // split on "\n" then +1 for the trailing newline we add after the box
-  const lineCount = text.split("\n").length
-  writeSync(fd, text + "\n")
+  let lineCount: number
+  try {
+    // S5-04 owns the [DEMO] badge; daemon renders the box without a source tag.
+    const text = renderBox(ad)
+    // one cursor-up per \n-separated chunk; the trailing \n we add below moves
+    // the cursor to a blank line we don't need to erase.
+    lineCount = text.split("\n").length
+    writeSync(fd, text + "\n")
+  } catch (err) {
+    try {
+      closeSync(fd)
+    } catch {
+      /* ignore */
+    }
+    throw err
+  }
 
   let closed = false
   return {

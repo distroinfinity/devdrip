@@ -225,4 +225,25 @@ describe("orchestrator", () => {
 
     expect(orch.adsShown()).toBe(1)
   })
+
+  it("adsShown stays at 0 when tty is null (no ad actually rendered)", async () => {
+    const d = makeDeps()
+    const { createOrchestrator } = await import("../orchestrator.js")
+    const orch = createOrchestrator({
+      adCache: d.adCache as never,
+      ledger: d.ledger as never,
+      display: d.display as never,
+      log: d.log,
+      deviceId: "dev-1",
+    })
+
+    orch.dispatch({ kind: "idle-start", tty: null, now: 0 })
+    await vi.advanceTimersByTimeAsync(3000)
+    // synthesized dismiss runs on the next microtask
+    await Promise.resolve()
+
+    expect(d.displayCalls).toHaveLength(0)
+    expect(orch.adsShown()).toBe(0)
+    expect(orch.currentState().kind).toBe("IDLE")
+  })
 })

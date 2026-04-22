@@ -90,4 +90,36 @@ describe("startDaemonServer", () => {
     expect(received.map((e) => e.kind)).toEqual(["idle-end"])
     await srv.close()
   })
+
+  it("disconnects clients that blow past the buffer cap without a newline", async () => {
+    const received: Event[] = []
+    const warns: { msg: string; fields?: Record<string, unknown> }[] = []
+    const { startDaemonServer } = await import("../server.js")
+    const srv = await startDaemonServer({
+      socketPath,
+      dispatch: (ev) => received.push(ev),
+      onKill: () => {},
+      log: {
+        debug: () => {},
+        info: () => {},
+        warn: (msg, fields) => warns.push({ msg, fields }),
+        error: () => {},
+      },
+    })
+
+    // 8KB of payload without any newline
+    const payload = "x".repeat(8192)
+    await new Promise<void>((resolve) => {
+      const sock = createConnection(socketPath, () => {
+        sock.write(payload)
+      })
+      sock.on("close", () => resolve())
+      sock.on("error", () => resolve())
+    })
+    await new Promise((r) => setTimeout(r, 30))
+
+    expect(received).toHaveLength(0)
+    expect(warns.some((w) => w.msg.includes("buffer cap"))).toBe(true)
+    await srv.close()
+  })
 })

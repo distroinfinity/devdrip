@@ -101,8 +101,10 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             deps.log.warn("vanish failed", { error: (err as Error).message })
           }
           currentDisplay = null
+          // only count ads that were actually rendered; null-tty paths
+          // synthesize a dismiss → vanishDisplay but nothing hit the screen.
+          adsShownCount += 1
         }
-        adsShownCount += 1
         return
       case "recordImpression":
         handleRecord(effect.impression)

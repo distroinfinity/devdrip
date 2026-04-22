@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import type fs from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { CachedAd } from "../../ad-cache.js"
@@ -65,5 +66,33 @@ describe("showAd", () => {
   it("tolerates a missing tty path by throwing in showAd (caller handles)", () => {
     const missing = join(tempDir, "does-not-exist", "tty")
     expect(() => showAd(missing, sampleAd)).toThrow()
+  })
+
+  it("closes the fd if writeSync throws after a successful openSync", async () => {
+    // isolate module registry so the mocked fs doesn't leak to other tests
+    vi.resetModules()
+    const target = join(tempDir, "tty")
+    const closeCalls: number[] = []
+    vi.doMock("node:fs", async () => {
+      const actual = await vi.importActual<typeof fs>("node:fs")
+      return {
+        ...actual,
+        openSync: vi.fn(() => 4242),
+        writeSync: vi.fn(() => {
+          throw new Error("EPIPE: simulated")
+        }),
+        closeSync: vi.fn((fd: number) => {
+          closeCalls.push(fd)
+        }),
+      }
+    })
+    try {
+      const { showAd: showAdMocked } = await import("../display.js")
+      expect(() => showAdMocked(target, sampleAd)).toThrow("EPIPE")
+      expect(closeCalls).toEqual([4242])
+    } finally {
+      vi.doUnmock("node:fs")
+      vi.resetModules()
+    }
   })
 })

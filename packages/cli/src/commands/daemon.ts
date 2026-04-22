@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process"
-import { openSync } from "node:fs"
+import { closeSync, openSync } from "node:fs"
 import { createConnection } from "node:net"
 import { Command } from "commander"
 import { readConfig } from "../lib/config.js"
@@ -13,6 +13,7 @@ import {
   logPath,
   readHeartbeat,
   removeHeartbeat,
+  removeLockFile,
   resolveSocketPath,
   unlinkSocketIfExists,
   writeHeartbeat,
@@ -23,6 +24,7 @@ import { startDaemonServer } from "../lib/daemon/server.js"
 
 const HEARTBEAT_INTERVAL_MS = 10_000
 const STALE_AFTER_MS = 30_000
+const START_POLL_DEADLINE_MS = 2_000
 
 export async function runStart(): Promise<number> {
   const cfg = await readConfig()
@@ -43,6 +45,9 @@ export async function runStart(): Promise<number> {
   }
   unlinkSocketIfExists(socketPath)
 
+  // drop any stale heartbeat so the poll below can't accidentally trust it.
+  removeHeartbeat()
+
   const logFd = openSync(logPath(), "a", 0o600)
   const child = spawn(cfg.cli.binPath, ["daemon", "run"], {
     detached: true,
@@ -50,18 +55,29 @@ export async function runStart(): Promise<number> {
     env: process.env,
   })
   child.unref()
+  // the child inherited its own fd copy; the parent's can be closed.
+  try {
+    closeSync(logFd)
+  } catch {
+    /* ignore */
+  }
 
-  // wait up to 1s for the first heartbeat
-  const deadline = Date.now() + 1000
+  const deadline = Date.now() + START_POLL_DEADLINE_MS
   while (Date.now() < deadline) {
     const hb = readHeartbeat()
-    if (hb && Date.now() - hb.lastHeartbeat < STALE_AFTER_MS) {
+    if (hb && hb.pid === child.pid && Date.now() - hb.lastHeartbeat < STALE_AFTER_MS) {
       console.log(`daemon started (pid ${hb.pid}, socket ${hb.socketPath})`)
       return 0
     }
+    if (child.exitCode !== null) {
+      console.error(
+        `daemon crashed on startup (exit code ${child.exitCode}) — check ~/.devdrip/daemon.log`
+      )
+      return 1
+    }
     await sleep(50)
   }
-  console.error("daemon did not start within 1s — check ~/.devdrip/daemon.log")
+  console.error("daemon did not write heartbeat within 2s — check ~/.devdrip/daemon.log")
   return 1
 }
 
@@ -100,6 +116,12 @@ export async function runStop(): Promise<number> {
   } catch {
     /* ignore */
   }
+  // SIGKILL skips the daemon's shutdown handler, so clean up the state files
+  // ourselves. Brief sleep lets the kernel reap the process before we unlink.
+  await sleep(100)
+  removeHeartbeat()
+  unlinkSocketIfExists(hb.socketPath)
+  removeLockFile()
   console.warn("daemon force-killed")
   return 0
 }

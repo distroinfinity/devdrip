@@ -15,11 +15,22 @@ export interface StartDaemonServerOpts {
   log: LoggerApi
 }
 
+// A well-behaved hook payload is ~150 bytes. Cap buffers at 4KB so a rogue
+// client that never sends a newline can't grow memory without bound.
+const MAX_LINE_BYTES = 4096
+
 export async function startDaemonServer(opts: StartDaemonServerOpts): Promise<DaemonServer> {
   const server = createServer((sock) => {
     let buffer = ""
     sock.on("data", (chunk) => {
       buffer += chunk.toString("utf8")
+      if (buffer.length > MAX_LINE_BYTES) {
+        opts.log.warn("hook line exceeded buffer cap; disconnecting", {
+          bytes: buffer.length,
+        })
+        sock.destroy()
+        return
+      }
       let nl: number
       while ((nl = buffer.indexOf("\n")) !== -1) {
         const line = buffer.slice(0, nl)
@@ -39,6 +50,12 @@ export async function startDaemonServer(opts: StartDaemonServerOpts): Promise<Da
       server.off("error", reject)
       resolve()
     })
+  })
+
+  // Post-startup errors (e.g., the socket file gets unlinked out from under us)
+  // would otherwise crash the daemon. Log and keep running.
+  server.on("error", (err) => {
+    opts.log.warn("server socket error (post-startup)", { message: err.message })
   })
 
   try {
