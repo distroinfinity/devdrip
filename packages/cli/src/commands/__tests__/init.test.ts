@@ -7,6 +7,9 @@ import {
   writeFileSync,
   readFileSync,
   existsSync,
+  lstatSync,
+  readlinkSync,
+  realpathSync,
   symlinkSync,
 } from "node:fs"
 import { tmpdir } from "node:os"
@@ -135,16 +138,16 @@ describe("devdrip init", () => {
 
     expect(existsSync(join(tempHome, ".claude"))).toBe(true)
 
+    const linkPath = join(tempHome, ".devdrip", "bin", "devdrip")
+
     // settings.json contains all three events with our bin path
     const settings = JSON.parse(
       readFileSync(join(tempHome, ".claude", "settings.json"), "utf8")
     ) as { hooks: { [k: string]: Array<{ hooks: Array<{ command: string }> }> } }
-    expect(settings.hooks.PreToolUse?.[0]?.hooks[0]?.command).toBe(
-      `${process.argv[1]} hook pre-tool`
-    )
-    expect(settings.hooks.Stop?.[0]?.hooks[0]?.command).toBe(`${process.argv[1]} hook stop`)
+    expect(settings.hooks.PreToolUse?.[0]?.hooks[0]?.command).toBe(`${linkPath} hook pre-tool`)
+    expect(settings.hooks.Stop?.[0]?.hooks[0]?.command).toBe(`${linkPath} hook stop`)
     expect(settings.hooks.UserPromptSubmit?.[0]?.hooks[0]?.command).toBe(
-      `${process.argv[1]} hook prompt-submit`
+      `${linkPath} hook prompt-submit`
     )
 
     // backup written
@@ -157,7 +160,7 @@ describe("devdrip init", () => {
       cli: { binPath: string }
     }
     expect(cfg.device.id).toBe("00000000-1111-2222-3333-444444444444")
-    expect(cfg.cli.binPath).toBe(process.argv[1])
+    expect(cfg.cli.binPath).toBe(linkPath)
 
     // preferences PUT body
     const putCall = apiFetchMock.mock.calls.find(
@@ -199,6 +202,33 @@ describe("devdrip init", () => {
     writeFileSync(settingsPath, '{"hooks":{}}')
     await runInit()
     expect(readFileSync(backupPath, "utf8")).toContain("/other/tool foo")
+  })
+
+  it("installs a stable ~/.devdrip/bin/devdrip symlink pointing at the realpath of argv[1]", async () => {
+    const { runInit } = await import("../init.js")
+    await runInit()
+
+    const linkPath = join(tempHome, ".devdrip", "bin", "devdrip")
+    expect(lstatSync(linkPath).isSymbolicLink()).toBe(true)
+    // argv[1] is tempBinDir/devdrip (symlink) → tempBinDir/index.js (real file).
+    // the canonical symlink must point at the realpath, not the invocation path,
+    // so dangling intermediate symlinks can't break the hook later. on macOS
+    // realpath also resolves /var/folders → /private/var/folders, so compare
+    // against realpathSync of the expected target.
+    expect(readlinkSync(linkPath)).toBe(realpathSync(join(tempBinDir, "index.js")))
+  })
+
+  it("retargets a stale ~/.devdrip/bin/devdrip symlink on init", async () => {
+    const linkPath = join(tempHome, ".devdrip", "bin", "devdrip")
+    mkdirSync(join(tempHome, ".devdrip", "bin"), { recursive: true, mode: 0o700 })
+    const staleTarget = join(tempBinDir, "stale-target.js")
+    writeFileSync(staleTarget, "")
+    symlinkSync(staleTarget, linkPath)
+
+    const { runInit } = await import("../init.js")
+    await runInit()
+
+    expect(readlinkSync(linkPath)).toBe(realpathSync(join(tempBinDir, "index.js")))
   })
 
   it("fails fast when the devdrip binary path cannot be resolved", async () => {
