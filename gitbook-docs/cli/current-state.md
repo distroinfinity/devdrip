@@ -253,3 +253,30 @@ Landed. See [daemon-and-hooks.md](./daemon-and-hooks.md) for the runtime shape.
 ## Engineering Takeaway
 
 `packages/cli` now has working identity, onboarding (`devdrip init`), ad preview (`devdrip demo`), the local ledger + ad cache modules, and the config/api-client/auth-flow helpers that every future command will lean on. New commands that hit the backend should use `apiFetch` from `src/lib/api-client.ts` so they inherit transparent token refresh. The remaining gaps are the sync pipeline (S3-07), payouts, and doctor checks.
+
+## Ad rotation & key capture (S3-01/02/03)
+
+While Claude Code is busy running tools, the daemon rotates ads in the terminal. The user can press:
+
+- `[D]` discover — opens the ad URL in their browser, fires click beacon, returns to idle.
+- `[S]` skip — advances to the next cached ad (~500ms gap).
+- `[K]` kill — stops all ads for the current Claude session. Cleared when the SessionStart hook fires (user restarts `claude`).
+- `[M]` mute 30m — persists `muteUntil` to `~/.devdrip/config.json`, ads resume after that timestamp.
+
+### Gating order (suppression)
+
+1. `sessionWarmupMs` (default 1 min)
+2. Quiet hours / night mode
+3. `muteUntil` in preferences
+4. In-memory `sessionKilled` flag (reset on SessionStart)
+5. Per-busy-window cap (`MAX_ADS_PER_CONTINUOUS_SESSION`, default 8)
+6. Hourly cap (`maxPerHour`, default 20)
+7. Daily cap (`maxPerDay`, default 120)
+
+### Viewable-impression rule
+
+Beacon (`impressionBeaconUrl`) fires only when an ad was on screen for ≥1 second AND vanish reason was not a `skipped` result. This follows the IAB/MRC desktop-display viewability standard. `[D]` discover always fires `clickTrackingUrl`.
+
+### Vanish latency
+
+Every vanish logs `vanish latency ms=<n>` to `~/.devdrip/daemon.log`. p95 under load should remain under 200ms.
