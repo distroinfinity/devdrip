@@ -20,7 +20,6 @@ describe("renderBox", () => {
     expect(out).toContain(sampleAd.headline)
     expect(out).toContain(sampleAd.body)
     expect(out).toContain("vercel.com")
-    expect(out).toContain("press enter to dismiss")
     expect(out).toMatch(/╔|╗|╚|╝|║|═/)
   })
 
@@ -42,7 +41,6 @@ describe("renderBox", () => {
   it("handles missing body gracefully", () => {
     const out = renderBox({ ...sampleAd, body: undefined }, { source: "Carbon" })
     expect(out).toContain(sampleAd.headline)
-    expect(out).toContain("press enter to dismiss")
   })
 
   it("truncates single long words that exceed inner width", () => {
@@ -117,5 +115,22 @@ describe("renderBox — extended options", () => {
         expect([...line].length).toBeLessThanOrEqual(120)
       }
     }
+  })
+})
+
+describe("renderBox — action footer", () => {
+  it("includes [D] [S] [K] [M] action keys", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 80, ascii: true })
+    expect(out).toContain("[D]")
+    expect(out).toContain("[S]")
+    expect(out).toContain("[K]")
+    expect(out).toContain("[M]")
+    expect(out).toContain("discover")
+    expect(out).toContain("skip")
+  })
+
+  it("drops 'press enter to dismiss' — superseded by action footer", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 80, ascii: true })
+    expect(out).not.toContain("press enter to dismiss")
   })
 })

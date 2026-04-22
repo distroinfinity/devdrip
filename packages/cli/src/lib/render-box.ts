@@ -23,6 +23,16 @@ export function shouldUseAscii(): boolean {
   return false
 }
 
+function actionFooter(inner: number): string {
+  // full label works at inner >= 55; shorter at narrow widths.
+  const full = "[D] discover   [S] skip   [K] kill session   [M] mute 30m"
+  const short = "[D]iscover  [S]kip  [K]ill  [M]ute"
+  const tiny = "[D] [S] [K] [M]"
+  if (inner >= 55) return full
+  if (inner >= 34) return short
+  return tiny
+}
+
 function wrap(text: string, max: number): string[] {
   const words = text.split(/\s+/)
   const lines: string[] = []
@@ -77,6 +87,7 @@ export interface RenderBoxOpts {
 
 function clampWidth(w: number | undefined): number {
   const v = w ?? DEFAULT_WIDTH
+  if (!Number.isFinite(v)) return DEFAULT_WIDTH
   if (v < MIN_WIDTH) return MIN_WIDTH
   if (v > MAX_WIDTH) return MAX_WIDTH
   return v
@@ -106,16 +117,14 @@ export function renderBox(
   const bodyText = ad.body ? sanitize(ad.body) : ""
   const url = ad.url ? sanitize(ad.url) : ""
 
+  const footerLine = actionFooter(inner)
+
   const body = [
     line(c, "", inner),
     line(c, headline, inner),
     ...(bodyText ? wrap(bodyText, inner).map((l) => line(c, l, inner)) : []),
     line(c, "", inner),
-    line(
-      c,
-      padRight("", Math.max(0, Math.floor(inner / 2) - 12)) + "press enter to dismiss",
-      inner
-    ),
+    line(c, footerLine, inner),
   ]
 
   const footer = `${c.bl}${c.h.repeat(width - 2)}${c.br}`
