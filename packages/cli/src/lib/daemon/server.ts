@@ -89,11 +89,6 @@ function handleLine(line: string, opts: StartDaemonServerOpts): void {
     opts.onReloadConfig?.()
     return
   }
-  if (parsed.type === "session-start") {
-    // session-start wiring lands in a later task; ack at protocol layer for now.
-    opts.log.info("session-start received")
-    return
-  }
   opts.dispatch(toStateEvent(parsed))
 }
 
@@ -106,10 +101,10 @@ function toStateEvent(w: WireEvent): Event {
       return { kind: "idle-end", now }
     case "dismiss":
       return { kind: "dismiss", now }
+    case "session-start":
+      return { kind: "session-start", now }
     case "kill":
     case "reload-config":
-    case "session-start":
-      // handled upstream; still need an exhaustive switch
       throw new Error(`${w.type} should not reach toStateEvent`)
   }
 }
