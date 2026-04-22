@@ -184,15 +184,23 @@ Fallback behavior:
 
 - if a stable machine ID cannot be read, the code hashes hostname plus platform
 
+## Local Ledger + Ad Cache (S2-08, S2-09)
+
+Two `src/lib` modules that give the future daemon local state without touching the network on the hook path. Both are pure modules with unit tests; neither depends on the daemon existing.
+
+- `src/lib/ledger.ts` — SQLite ledger at `~/.devdrip/ledger.db`. See [local-ledger.md](./local-ledger.md).
+- `src/lib/ad-cache.ts` — JSON cache at `~/.devdrip/ad-cache.json`. See [ad-cache.md](./ad-cache.md).
+- `src/lib/ad-cache-fixtures.ts` — demo ads for offline fallback.
+- `devdrip status --local` prints unsynced impression count without requiring a valid backend session.
+
 ## What Is Missing For A Real CLI
 
 - daemon process lifecycle
-- local ledger
-- ad cache
-- sync pipeline
+- sync pipeline (`devdrip sync` still stubbed; ledger exposes `listUnsynced` / `markSynced` for it)
+- hook → daemon IPC
 - payout flow
 - doctor checks
 
 ## Engineering Takeaway
 
-`packages/cli` now has working identity, onboarding (`devdrip init`), ad preview (`devdrip demo`), and the config/api-client/auth-flow helpers that every future command will lean on. New commands that hit the backend should use `apiFetch` from `src/lib/api-client.ts` so they inherit transparent token refresh. The remaining gaps are local runtime pieces — daemon, ledger, renderer, sync.
+`packages/cli` now has working identity, onboarding (`devdrip init`), ad preview (`devdrip demo`), the local ledger + ad cache modules, and the config/api-client/auth-flow helpers that every future command will lean on. New commands that hit the backend should use `apiFetch` from `src/lib/api-client.ts` so they inherit transparent token refresh. The remaining gaps are the daemon process, the hook → daemon IPC, and the sync pipeline.
