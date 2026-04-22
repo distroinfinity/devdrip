@@ -44,18 +44,34 @@ function makeDeps() {
     close: vi.fn(),
   }
   const display = {
-    show: vi.fn((tty: string | null, a: CachedAd) => {
+    show: vi.fn((tty: string | null, a: CachedAd, _ctx: unknown) => {
       displayCalls.push({ tty, adId: a.id })
-      return { vanish: () => {} }
+      return { vanish: () => ({ latencyMs: 0 }) }
     }),
   }
+  const keyCapture = {
+    start: vi.fn(),
+    stop: vi.fn(),
+  }
+  const openUrl = vi.fn()
+  const fireBeacon = vi.fn()
   const log = {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
     debug: vi.fn(),
   }
-  return { adCache, ledger, display, log, ledgerWrites, displayCalls }
+  return {
+    adCache,
+    ledger,
+    display,
+    keyCapture,
+    openUrl,
+    fireBeacon,
+    log,
+    ledgerWrites,
+    displayCalls,
+  }
 }
 
 beforeEach(() => {
@@ -82,6 +98,9 @@ describe("orchestrator preferences gating", () => {
       adCache: d.adCache as never,
       ledger: d.ledger as never,
       display: d.display as never,
+      keyCapture: d.keyCapture as never,
+      openUrl: d.openUrl,
+      fireBeacon: d.fireBeacon,
       log: d.log,
       deviceId: "dev-1",
       preferences: prefs,
@@ -107,6 +126,9 @@ describe("orchestrator preferences gating", () => {
       adCache: d.adCache as never,
       ledger: d.ledger as never,
       display: d.display as never,
+      keyCapture: d.keyCapture as never,
+      openUrl: d.openUrl,
+      fireBeacon: d.fireBeacon,
       log: d.log,
       deviceId: "dev-1",
       preferences: prefs,
@@ -132,6 +154,9 @@ describe("orchestrator preferences gating", () => {
       adCache: d.adCache as never,
       ledger: d.ledger as never,
       display: d.display as never,
+      keyCapture: d.keyCapture as never,
+      openUrl: d.openUrl,
+      fireBeacon: d.fireBeacon,
       log: d.log,
       deviceId: "dev-1",
       preferences: prefs,

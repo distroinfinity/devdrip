@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { defaultDevdripPreferences, type DevdripPreferences } from "@devdrip/shared"
 import type { CachedAd } from "../../ad-cache.js"
 import type { LocalImpression } from "../../ledger.js"
+import type { Orchestrator } from "../orchestrator.js"
 
 // tests exercise pure state-machine behavior — disable warmup / quiet hours
 // so they don't interfere. suppression is covered by a dedicated test file.
@@ -55,7 +56,7 @@ function makeDeps() {
     close: vi.fn(),
   }
   const display = {
-    show: vi.fn((tty: string | null, a: CachedAd) => {
+    show: vi.fn((tty: string | null, a: CachedAd, _ctx: unknown) => {
       displayCalls.push({ tty, adId: a.id })
       return {
         vanish: () => {
@@ -65,6 +66,23 @@ function makeDeps() {
       }
     }),
   }
+  const keyCaptureCalls: Array<{ method: "start" | "stop"; tty?: string }> = []
+  const keyCapture = {
+    start: vi.fn((tty: string) => {
+      keyCaptureCalls.push({ method: "start", tty })
+    }),
+    stop: vi.fn(() => {
+      keyCaptureCalls.push({ method: "stop" })
+    }),
+  }
+  const openedUrls: string[] = []
+  const openUrl = vi.fn((u: string) => {
+    openedUrls.push(u)
+  })
+  const firedBeacons: string[] = []
+  const fireBeacon = vi.fn((u: string) => {
+    firedBeacons.push(u)
+  })
   const log = {
     info: (msg: string) => logs.push({ level: "info", msg }),
     warn: (msg: string) => logs.push({ level: "warn", msg }),
@@ -72,7 +90,40 @@ function makeDeps() {
     debug: (msg: string) => logs.push({ level: "debug", msg }),
   }
 
-  return { adCache, ledger, display, log, ledgerWrites, displayCalls, vanishCalls, logs }
+  return {
+    adCache,
+    ledger,
+    display,
+    keyCapture,
+    openUrl,
+    fireBeacon,
+    log,
+    ledgerWrites,
+    displayCalls,
+    vanishCalls,
+    keyCaptureCalls,
+    openedUrls,
+    firedBeacons,
+    logs,
+  }
+}
+
+async function createOrch(
+  d: ReturnType<typeof makeDeps>,
+  prefs: DevdripPreferences = testPreferences()
+): Promise<Orchestrator> {
+  const { createOrchestrator } = await import("../orchestrator.js")
+  return createOrchestrator({
+    adCache: d.adCache as never,
+    ledger: d.ledger as never,
+    display: d.display as never,
+    keyCapture: d.keyCapture as never,
+    openUrl: d.openUrl,
+    fireBeacon: d.fireBeacon,
+    log: d.log,
+    deviceId: "dev-1",
+    preferences: prefs,
+  })
 }
 
 beforeEach(() => {
@@ -87,15 +138,7 @@ afterEach(() => {
 describe("orchestrator", () => {
   it("enters SHOWING 3s after idle-start and writes completed impression on vanish", async () => {
     const d = makeDeps()
-    const { createOrchestrator } = await import("../orchestrator.js")
-    const orch = createOrchestrator({
-      adCache: d.adCache as never,
-      ledger: d.ledger as never,
-      display: d.display as never,
-      log: d.log,
-      deviceId: "dev-1",
-      preferences: testPreferences(),
-    })
+    const orch = await createOrch(d)
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
     expect(d.displayCalls).toHaveLength(0)
@@ -114,15 +157,7 @@ describe("orchestrator", () => {
 
   it("cancels the grace timer when idle-end arrives during GRACE", async () => {
     const d = makeDeps()
-    const { createOrchestrator } = await import("../orchestrator.js")
-    const orch = createOrchestrator({
-      adCache: d.adCache as never,
-      ledger: d.ledger as never,
-      display: d.display as never,
-      log: d.log,
-      deviceId: "dev-1",
-      preferences: testPreferences(),
-    })
+    const orch = await createOrch(d)
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
     await vi.advanceTimersByTimeAsync(1500)
@@ -135,15 +170,7 @@ describe("orchestrator", () => {
 
   it("records interrupted when Stop hook fires mid-ad", async () => {
     const d = makeDeps()
-    const { createOrchestrator } = await import("../orchestrator.js")
-    const orch = createOrchestrator({
-      adCache: d.adCache as never,
-      ledger: d.ledger as never,
-      display: d.display as never,
-      log: d.log,
-      deviceId: "dev-1",
-      preferences: testPreferences(),
-    })
+    const orch = await createOrch(d)
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
     await vi.advanceTimersByTimeAsync(3000)
@@ -158,15 +185,7 @@ describe("orchestrator", () => {
   it("skips ledger write for demo ads", async () => {
     const d = makeDeps()
     d.adCache.queue(demo)
-    const { createOrchestrator } = await import("../orchestrator.js")
-    const orch = createOrchestrator({
-      adCache: d.adCache as never,
-      ledger: d.ledger as never,
-      display: d.display as never,
-      log: d.log,
-      deviceId: "dev-1",
-      preferences: testPreferences(),
-    })
+    const orch = await createOrch(d)
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
     await vi.advanceTimersByTimeAsync(3000)
@@ -180,15 +199,7 @@ describe("orchestrator", () => {
   it("returns to IDLE when the cache is empty at grace-elapsed", async () => {
     const d = makeDeps()
     d.adCache.queue(null)
-    const { createOrchestrator } = await import("../orchestrator.js")
-    const orch = createOrchestrator({
-      adCache: d.adCache as never,
-      ledger: d.ledger as never,
-      display: d.display as never,
-      log: d.log,
-      deviceId: "dev-1",
-      preferences: testPreferences(),
-    })
+    const orch = await createOrch(d)
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
     await vi.advanceTimersByTimeAsync(3000)
@@ -203,15 +214,7 @@ describe("orchestrator", () => {
       throw new Error("tty gone")
     }) as never
 
-    const { createOrchestrator } = await import("../orchestrator.js")
-    const orch = createOrchestrator({
-      adCache: d.adCache as never,
-      ledger: d.ledger as never,
-      display: d.display as never,
-      log: d.log,
-      deviceId: "dev-1",
-      preferences: testPreferences(),
-    })
+    const orch = await createOrch(d)
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
     await vi.advanceTimersByTimeAsync(3000)
@@ -224,15 +227,7 @@ describe("orchestrator", () => {
   it("adsShown counter increments on each vanish", async () => {
     const d = makeDeps()
     d.adCache.queue(ad)
-    const { createOrchestrator } = await import("../orchestrator.js")
-    const orch = createOrchestrator({
-      adCache: d.adCache as never,
-      ledger: d.ledger as never,
-      display: d.display as never,
-      log: d.log,
-      deviceId: "dev-1",
-      preferences: testPreferences(),
-    })
+    const orch = await createOrch(d)
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
     await vi.advanceTimersByTimeAsync(3000)
@@ -243,15 +238,7 @@ describe("orchestrator", () => {
 
   it("hooksReceived counts only socket-originated events (not internal timers)", async () => {
     const d = makeDeps()
-    const { createOrchestrator } = await import("../orchestrator.js")
-    const orch = createOrchestrator({
-      adCache: d.adCache as never,
-      ledger: d.ledger as never,
-      display: d.display as never,
-      log: d.log,
-      deviceId: "dev-1",
-      preferences: testPreferences(),
-    })
+    const orch = await createOrch(d)
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
     orch.dispatch({ kind: "idle-end", now: 100 })
@@ -265,15 +252,7 @@ describe("orchestrator", () => {
 
   it("adsShown stays at 0 when tty is null (no ad actually rendered)", async () => {
     const d = makeDeps()
-    const { createOrchestrator } = await import("../orchestrator.js")
-    const orch = createOrchestrator({
-      adCache: d.adCache as never,
-      ledger: d.ledger as never,
-      display: d.display as never,
-      log: d.log,
-      deviceId: "dev-1",
-      preferences: testPreferences(),
-    })
+    const orch = await createOrch(d)
 
     orch.dispatch({ kind: "idle-start", tty: null, now: 0 })
     await vi.advanceTimersByTimeAsync(3000)

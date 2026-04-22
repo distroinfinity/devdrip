@@ -186,10 +186,15 @@ export async function runDaemon(): Promise<number> {
     error: (msg: string, fields?: Record<string, unknown>) => appendLog("error", msg, fields),
   }
 
+  // keyCapture / openUrl / fireBeacon are wired in Task 17 (daemon runtime).
+  // for now, no-op stubs keep typecheck green without changing behavior.
   const orchestrator = createOrchestrator({
     adCache,
     ledger,
     display: { show: showAd },
+    keyCapture: { start: () => {}, stop: () => {} },
+    openUrl: () => {},
+    fireBeacon: () => {},
     log,
     deviceId: cfg.device.id,
     preferences: cfg.preferences,

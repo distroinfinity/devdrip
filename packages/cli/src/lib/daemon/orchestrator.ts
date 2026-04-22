@@ -1,15 +1,22 @@
 import {
+  MAX_ADS_PER_CONTINUOUS_SESSION,
   NIGHT_MODE_DEFAULT_START_HOUR,
   NIGHT_MODE_DEFAULT_END_HOUR,
   type DevdripPreferences,
 } from "@devdrip/shared"
 import type { AdCache, CachedAd } from "../ad-cache.js"
 import type { Ledger, LocalImpression } from "../ledger.js"
-import type { RenderCtx } from "./display.js"
+import type { KeyCapture } from "./input.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
 
 export interface DisplayApi {
-  show(ttyPath: string, ad: CachedAd, ctx: RenderCtx): { vanish: () => { latencyMs: number } }
+  show(
+    ttyPath: string,
+    ad: CachedAd,
+    ctx: { earningsUsdc?: number; source?: string; width?: number }
+  ): {
+    vanish: () => { latencyMs: number }
+  }
 }
 
 export interface LoggerApi {
@@ -19,13 +26,20 @@ export interface LoggerApi {
   error(msg: string, fields?: Record<string, unknown>): void
 }
 
+export type OpenUrl = (url: string) => void
+export type FireBeacon = (url: string) => void
+
 export interface OrchestratorDeps {
   adCache: AdCache
   ledger: Ledger
   display: DisplayApi
+  keyCapture: KeyCapture
+  openUrl: OpenUrl
+  fireBeacon: FireBeacon
   log: LoggerApi
   deviceId: string
   preferences: DevdripPreferences
+  writePreferences?: (next: DevdripPreferences) => Promise<void>
   now?: () => number
 }
 
@@ -45,6 +59,12 @@ function localHour(nowMs: number, tzOffsetMinutes: number): number {
   const shifted = new Date(nowMs + offsetMs)
   // getUTCHours on a shifted UTC Date gives the local hour.
   return shifted.getUTCHours()
+}
+
+function localDayKey(nowMs: number, tzOffsetMinutes: number): string {
+  const offsetMs = tzOffsetMinutes * 60_000
+  const shifted = new Date(nowMs + offsetMs)
+  return `${shifted.getUTCFullYear()}-${shifted.getUTCMonth()}-${shifted.getUTCDate()}`
 }
 
 // Supports a wraparound window (start=22, end=7 → hours 22,23,0..6).
@@ -68,18 +88,26 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   let state: State = { kind: "IDLE" }
   let graceTimer: NodeJS.Timeout | null = null
   let vanishTimer: NodeJS.Timeout | null = null
+  let interAdTimer: NodeJS.Timeout | null = null
   let currentDisplay: { vanish: () => { latencyMs: number } } | null = null
   let adsShownCount = 0
   let hooksReceivedCount = 0
   let preferences: DevdripPreferences = deps.preferences
   const now = deps.now ?? (() => Date.now())
   const sessionStartAt = now()
+  let sessionKilled = false
+  let adsInCurrentBusyWindow = 0
+  const hourlyTimestamps: number[] = []
+  const dailyTimestamps: number[] = []
 
   function dispatch(event: Event): void {
     // count only socket-originated events (hooks), not internal timer callbacks.
     // this lets `devdrip daemon status` answer "are hooks reaching the daemon?".
     if (event.kind === "idle-start" || event.kind === "idle-end" || event.kind === "dismiss") {
       hooksReceivedCount += 1
+    }
+    if (event.kind === "idle-end" || event.kind === "dismiss") {
+      adsInCurrentBusyWindow = 0
     }
     const result = step(state, event, { deviceId: deps.deviceId })
     state = result.state
@@ -110,6 +138,27 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           graceTimer = null
         }
         return
+      case "startInterAdTimer":
+        if (interAdTimer) clearTimeout(interAdTimer)
+        interAdTimer = setTimeout(() => {
+          interAdTimer = null
+          const firedAt = now()
+          const reason = suppressionReason(firedAt)
+          if (reason) {
+            deps.log.debug("inter-ad suppressed", { reason })
+            dispatch({ kind: "inter-ad-elapsed", ad: null, now: firedAt })
+            return
+          }
+          const ad = deps.adCache.next()
+          dispatch({ kind: "inter-ad-elapsed", ad, now: firedAt })
+        }, effect.ms)
+        return
+      case "cancelInterAdTimer":
+        if (interAdTimer) {
+          clearTimeout(interAdTimer)
+          interAdTimer = null
+        }
+        return
       case "displayAd":
         if (!effect.tty) {
           deps.log.warn("display skipped: no tty path", { adId: effect.ad.id })
@@ -117,7 +166,13 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           return
         }
         try {
-          currentDisplay = deps.display.show(effect.tty, effect.ad, {})
+          const source = effect.ad.cacheSource === "demo" ? "DEMO" : undefined
+          currentDisplay = deps.display.show(effect.tty, effect.ad, { source })
+          deps.keyCapture.start(effect.tty)
+          adsInCurrentBusyWindow += 1
+          const nowMs = now()
+          hourlyTimestamps.push(nowMs)
+          dailyTimestamps.push(nowMs)
           deps.log.info("showing ad", {
             adId: effect.ad.id,
             source: effect.ad.cacheSource,
@@ -129,6 +184,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             error: (err as Error).message,
           })
           currentDisplay = null
+          deps.keyCapture.stop()
           queueMicrotask(() => dispatch({ kind: "dismiss", now: Date.now() }))
         }
         return
@@ -146,9 +202,11 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         }
         return
       case "vanishDisplay":
+        deps.keyCapture.stop()
         if (currentDisplay) {
           try {
-            currentDisplay.vanish()
+            const { latencyMs } = currentDisplay.vanish()
+            deps.log.info("vanish latency", { latencyMs })
           } catch (err) {
             deps.log.warn("vanish failed", { error: (err as Error).message })
           }
@@ -159,12 +217,36 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         }
         return
       case "recordImpression":
-        handleRecord(effect.impression)
+        handleRecord(effect.impression, effect.ad)
+        return
+      case "setSessionKilled":
+        sessionKilled = true
+        deps.log.info("session ads killed by user")
+        return
+      case "clearSessionState":
+        sessionKilled = false
+        adsInCurrentBusyWindow = 0
+        deps.log.info("session state cleared")
+        return
+      case "writeMuteUntil":
+        preferences = { ...preferences, muteUntil: effect.muteUntil }
+        deps.writePreferences?.(preferences).catch((err: Error) => {
+          deps.log.warn("mute persistence failed", { error: err.message })
+        })
+        deps.log.info("ads muted", { muteUntilMs: effect.muteUntil })
+        return
+      case "openDiscover":
+        if (effect.ad.clickTrackingUrl) deps.fireBeacon(effect.ad.clickTrackingUrl)
+        try {
+          deps.openUrl(effect.ad.url)
+        } catch (err) {
+          deps.log.warn("openUrl failed", { error: (err as Error).message })
+        }
         return
     }
   }
 
-  function handleRecord(imp: LocalImpression): void {
+  function handleRecord(imp: LocalImpression, ad: CachedAd): void {
     if (imp.source === "demo") {
       deps.log.debug("skipping ledger write for demo ad", { adId: imp.adId })
       return
@@ -182,15 +264,53 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         error: (err as Error).message,
       })
     }
+    // Viewable-impression beacon: MRC desktop-display rule (≥1s on screen).
+    if (imp.result !== "skipped" && imp.durationMs >= 1_000 && ad.impressionBeaconUrl) {
+      deps.fireBeacon(ad.impressionBeaconUrl)
+    }
   }
 
-  function suppressionReason(nowMs: number): "warmup" | "quiet-hours" | null {
+  type Reason =
+    | "warmup"
+    | "quiet-hours"
+    | "muted"
+    | "killed"
+    | "session-cap"
+    | "hourly-cap"
+    | "daily-cap"
+
+  function pruneCounters(nowMs: number): void {
+    const hourAgo = nowMs - 3_600_000
+    while (hourlyTimestamps.length > 0) {
+      const head = hourlyTimestamps[0]
+      if (head === undefined || head >= hourAgo) break
+      hourlyTimestamps.shift()
+    }
+    // daily: bucket by local day
+    const today = localDayKey(nowMs, preferences.tzOffsetMinutes)
+    let i = 0
+    while (i < dailyTimestamps.length) {
+      const ts = dailyTimestamps[i]
+      if (ts === undefined) break
+      if (localDayKey(ts, preferences.tzOffsetMinutes) === today) break
+      i++
+    }
+    if (i > 0) dailyTimestamps.splice(0, i)
+  }
+
+  function suppressionReason(nowMs: number): Reason | null {
     if (nowMs - sessionStartAt < preferences.sessionWarmupMs) return "warmup"
     const window = resolveQuietWindow(preferences)
     if (window) {
       const hour = localHour(nowMs, preferences.tzOffsetMinutes)
       if (isInQuietWindow(hour, window.start, window.end)) return "quiet-hours"
     }
+    if (preferences.muteUntil && nowMs < preferences.muteUntil) return "muted"
+    if (sessionKilled) return "killed"
+    pruneCounters(nowMs)
+    if (adsInCurrentBusyWindow >= MAX_ADS_PER_CONTINUOUS_SESSION) return "session-cap"
+    if (hourlyTimestamps.length >= preferences.maxPerHour) return "hourly-cap"
+    if (dailyTimestamps.length >= preferences.maxPerDay) return "daily-cap"
     return null
   }
 
@@ -210,7 +330,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   async function shutdown(): Promise<void> {
     if (graceTimer) clearTimeout(graceTimer)
     if (vanishTimer) clearTimeout(vanishTimer)
-    if (state.kind === "SHOWING") {
+    if (interAdTimer) clearTimeout(interAdTimer)
+    deps.keyCapture.stop()
+    if (state.kind === "SHOWING" || state.kind === "INTER_AD") {
       dispatch({ kind: "dismiss", now: Date.now() })
     }
   }
