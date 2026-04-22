@@ -49,6 +49,13 @@ vi.mock("@clack/prompts", () => ({
   cancel: vi.fn(),
   isCancel: () => false,
   multiselect: (...args: unknown[]) => multiselectMock(...args),
+  log: {
+    step: vi.fn(),
+    success: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
 }))
 
 // runLogin is only reached when no config exists — for these tests we pre-seed a config
