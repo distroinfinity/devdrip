@@ -1,7 +1,8 @@
 import type { AdPayload } from "@devdrip/shared"
 
-const WIDTH = 72
-const INNER = WIDTH - 4 // space for "║ " and " ║"
+const DEFAULT_WIDTH = 72
+const MIN_WIDTH = 40
+const MAX_WIDTH = 120
 
 interface Chars {
   tl: string
@@ -57,8 +58,8 @@ function padRight(s: string, n: number): string {
   return s + " ".repeat(n - len)
 }
 
-function line(c: Chars, inner: string): string {
-  return `${c.v} ${padRight(inner, INNER)} ${c.v}`
+function line(c: Chars, text: string, inner: number): string {
+  return `${c.v} ${padRight(text, inner)} ${c.v}`
 }
 
 function sanitize(text: string): string {
@@ -68,19 +69,31 @@ function sanitize(text: string): string {
 
 export interface RenderBoxOpts {
   source?: string
+  earningsUsdc?: number
+  progress?: number // 0..1
+  width?: number
   ascii?: boolean
+}
+
+function clampWidth(w: number | undefined): number {
+  const v = w ?? DEFAULT_WIDTH
+  if (v < MIN_WIDTH) return MIN_WIDTH
+  if (v > MAX_WIDTH) return MAX_WIDTH
+  return v
 }
 
 export function renderBox(
   ad: Pick<AdPayload, "headline" | "body" | "url">,
   opts: RenderBoxOpts = {}
 ): string {
+  const width = clampWidth(opts.width)
+  const inner = width - 4 // space for "║ " and " ║"
   const c = (opts.ascii ?? false) ? ASCII : UNI
   const sourceBadge = opts.source ? `via ${opts.source}` : ""
   const title = "DEV DRIP TV"
 
   // header: c.tl + "═ DEV DRIP TV ═...═ via Carbon ═" + c.tr
-  const headerInnerLen = WIDTH - 2
+  const headerInnerLen = width - 2
   const leftLabel = ` ${title} `
   const rightLabel = sourceBadge ? ` ${sourceBadge} ` : ""
   const fillLen = headerInnerLen - leftLabel.length - rightLabel.length
@@ -94,14 +107,18 @@ export function renderBox(
   const url = ad.url ? sanitize(ad.url) : ""
 
   const body = [
-    line(c, ""),
-    line(c, headline),
-    ...(bodyText ? wrap(bodyText, INNER).map((l) => line(c, l)) : []),
-    line(c, ""),
-    line(c, padRight("", Math.max(0, Math.floor(INNER / 2) - 12)) + "press enter to dismiss"),
+    line(c, "", inner),
+    line(c, headline, inner),
+    ...(bodyText ? wrap(bodyText, inner).map((l) => line(c, l, inner)) : []),
+    line(c, "", inner),
+    line(
+      c,
+      padRight("", Math.max(0, Math.floor(inner / 2) - 12)) + "press enter to dismiss",
+      inner
+    ),
   ]
 
-  const footer = `${c.bl}${c.h.repeat(WIDTH - 2)}${c.br}`
+  const footer = `${c.bl}${c.h.repeat(width - 2)}${c.br}`
 
   const parts = [header, ...body, footer]
   if (url) parts.push(`→ ${url}`)

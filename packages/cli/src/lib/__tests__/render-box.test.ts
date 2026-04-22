@@ -88,3 +88,34 @@ describe("renderBox", () => {
     expect(out).not.toContain("\u0007")
   })
 })
+
+describe("renderBox — extended options", () => {
+  it("accepts width, earningsUsdc, progress without crashing", () => {
+    const out = renderBox(
+      { headline: "H", body: "B", url: "https://x.test" },
+      { width: 80, earningsUsdc: 0.0423, progress: 0.5, ascii: true }
+    )
+    expect(typeof out).toBe("string")
+    expect(out.length).toBeGreaterThan(0)
+  })
+
+  it("clamps width below 40 to 40", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 20, ascii: true })
+    const lines = out.split("\n")
+    for (const line of lines) {
+      if (line.startsWith("+") || line.startsWith("|")) {
+        expect([...line].length).toBeLessThanOrEqual(40)
+      }
+    }
+  })
+
+  it("clamps width above 120 to 120", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 500, ascii: true })
+    const lines = out.split("\n")
+    for (const line of lines) {
+      if (line.startsWith("+") || line.startsWith("|")) {
+        expect([...line].length).toBeLessThanOrEqual(120)
+      }
+    }
+  })
+})
