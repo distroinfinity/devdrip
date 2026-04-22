@@ -1,5 +1,5 @@
 import { createConnection } from "node:net"
-import { DAEMON_SOCKET_PATH } from "@devdrip/shared"
+import { daemonSocketPath } from "@devdrip/shared"
 import type { WireEvent } from "./protocol.js"
 
 export const CONNECT_TIMEOUT_MS = 50
@@ -10,7 +10,7 @@ export const CONNECT_TIMEOUT_MS = 50
  */
 export function sendHookEvent(
   event: WireEvent,
-  socketPath: string = DAEMON_SOCKET_PATH
+  socketPath: string = daemonSocketPath()
 ): Promise<void> {
   return new Promise((resolve) => {
     let done = false

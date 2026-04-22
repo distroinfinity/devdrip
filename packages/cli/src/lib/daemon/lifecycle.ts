@@ -12,8 +12,8 @@ import {
   writeFileSync,
 } from "node:fs"
 import { createConnection } from "node:net"
-import { homedir } from "node:os"
 import { join } from "node:path"
+import { daemonSocketPath } from "@devdrip/shared"
 import { configDir } from "../config.js"
 
 // ── paths ───────────────────────────────────────────────────────────────
@@ -31,11 +31,7 @@ export function logPath(): string {
 }
 
 export function resolveSocketPath(): string {
-  const defaultPath = join(configDir(), "daemon.sock")
-  const SUN_PATH_MAX = 104
-  if (defaultPath.length < SUN_PATH_MAX) return defaultPath
-  const uid = typeof process.getuid === "function" ? (process.getuid() as number) : 0
-  return `/tmp/devdrip-${uid}.sock`
+  return daemonSocketPath()
 }
 
 function ensureConfigDir(): void {
@@ -195,7 +191,3 @@ export function isSocketAlive(path: string, timeoutMs = 100): Promise<boolean> {
 export function unlinkSocketIfExists(path: string): void {
   tryUnlink(path)
 }
-
-// ── paths re-export (for daemon commands) ───────────────────────────────
-
-export { homedir }

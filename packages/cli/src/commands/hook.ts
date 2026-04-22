@@ -1,9 +1,9 @@
 import { Command } from "commander"
-import { DAEMON_SOCKET_PATH } from "@devdrip/shared"
+import { daemonSocketPath } from "@devdrip/shared"
 import { sendHookEvent } from "../lib/daemon/hook-client.js"
 import { resolveTty } from "../lib/daemon/tty.js"
 
-export async function handlePreTool(socketPath: string = DAEMON_SOCKET_PATH): Promise<void> {
+export async function handlePreTool(socketPath: string = daemonSocketPath()): Promise<void> {
   try {
     await sendHookEvent(
       { type: "idle-start", tty: resolveTty(), pid: process.pid, ts: Date.now() },
@@ -14,7 +14,7 @@ export async function handlePreTool(socketPath: string = DAEMON_SOCKET_PATH): Pr
   }
 }
 
-export async function handleStop(socketPath: string = DAEMON_SOCKET_PATH): Promise<void> {
+export async function handleStop(socketPath: string = daemonSocketPath()): Promise<void> {
   try {
     await sendHookEvent({ type: "idle-end", ts: Date.now() }, socketPath)
   } catch {
@@ -22,7 +22,7 @@ export async function handleStop(socketPath: string = DAEMON_SOCKET_PATH): Promi
   }
 }
 
-export async function handlePromptSubmit(socketPath: string = DAEMON_SOCKET_PATH): Promise<void> {
+export async function handlePromptSubmit(socketPath: string = daemonSocketPath()): Promise<void> {
   try {
     await sendHookEvent({ type: "dismiss", ts: Date.now() }, socketPath)
   } catch {
