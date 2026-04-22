@@ -110,7 +110,8 @@ function makeDeps() {
 
 async function createOrch(
   d: ReturnType<typeof makeDeps>,
-  prefs: DevdripPreferences = testPreferences()
+  prefs: DevdripPreferences = testPreferences(),
+  extra?: { writePreferences?: (next: DevdripPreferences) => Promise<void> }
 ): Promise<Orchestrator> {
   const { createOrchestrator } = await import("../orchestrator.js")
   return createOrchestrator({
@@ -120,6 +121,7 @@ async function createOrch(
     keyCapture: d.keyCapture as never,
     openUrl: d.openUrl,
     fireBeacon: d.fireBeacon,
+    writePreferences: extra?.writePreferences,
     log: d.log,
     deviceId: "dev-1",
     preferences: prefs,
@@ -262,5 +264,152 @@ describe("orchestrator", () => {
     expect(d.displayCalls).toHaveLength(0)
     expect(orch.adsShown()).toBe(0)
     expect(orch.currentState().kind).toBe("IDLE")
+  })
+})
+
+describe("orchestrator — rotation", () => {
+  it("auto-advances to next ad after vanish-elapsed when cache has more", async () => {
+    const d = makeDeps()
+    const ad2: CachedAd = { ...ad, id: "ad-2" }
+    let calls = 0
+    d.adCache.next = vi.fn(() => {
+      calls += 1
+      if (calls === 1) return ad
+      if (calls === 2) return ad2
+      return null
+    }) as never
+    const orch = await createOrch(d)
+
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
+    await vi.advanceTimersByTimeAsync(3000) // grace → SHOWING ad 1
+    await vi.advanceTimersByTimeAsync(8000) // vanish → INTER_AD
+    await vi.advanceTimersByTimeAsync(500) // inter-ad → SHOWING ad 2
+
+    expect(d.displayCalls).toHaveLength(2)
+    expect(d.displayCalls[0]?.adId).toBe("ad-1")
+    expect(d.displayCalls[1]?.adId).toBe("ad-2")
+  })
+
+  it("stops rotation after MAX_ADS_PER_CONTINUOUS_SESSION", async () => {
+    const d = makeDeps()
+    let n = 0
+    d.adCache.next = vi.fn(() => {
+      n += 1
+      if (n > 10) return null
+      return { ...ad, id: `ad-${n}` }
+    }) as never
+    const orch = await createOrch(d)
+
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
+    // grace for the first ad
+    await vi.advanceTimersByTimeAsync(3000)
+    // each subsequent ad: 8s display + 500ms inter-ad gap
+    for (let i = 0; i < 7; i++) {
+      await vi.advanceTimersByTimeAsync(8000) // vanish → INTER_AD
+      await vi.advanceTimersByTimeAsync(500) // inter-ad-elapsed → SHOWING next
+    }
+    // 8th ad shown — vanish it and let the inter-ad timer fire
+    await vi.advanceTimersByTimeAsync(8000) // 8th ad vanishes → INTER_AD
+    await vi.advanceTimersByTimeAsync(500) // inter-ad-elapsed with suppression → IDLE
+
+    expect(d.displayCalls).toHaveLength(8)
+    expect(orch.currentState().kind).toBe("IDLE")
+  })
+})
+
+describe("orchestrator — gates", () => {
+  it("muted preference suppresses ads in grace-elapsed", async () => {
+    const d = makeDeps()
+    const prefs: DevdripPreferences = { ...testPreferences(), muteUntil: Date.now() + 60_000 }
+    const orch = await createOrch(d, prefs)
+
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
+    await vi.advanceTimersByTimeAsync(3000)
+
+    expect(d.displayCalls).toHaveLength(0)
+    expect(orch.currentState().kind).toBe("IDLE")
+  })
+
+  it("sessionKilled=true (after kill-key) suppresses inter-ad-elapsed", async () => {
+    const d = makeDeps()
+    let n = 0
+    d.adCache.next = vi.fn(() => {
+      n += 1
+      return { ...ad, id: `ad-${n}` }
+    }) as never
+    const orch = await createOrch(d)
+
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
+    await vi.advanceTimersByTimeAsync(3000) // ad 1 shown
+    expect(d.displayCalls).toHaveLength(1)
+    // kill-key while SHOWING → endShowing (no INTER_AD) + setSessionKilled
+    orch.dispatch({ kind: "kill-key", now: 4000 })
+    await vi.advanceTimersByTimeAsync(500)
+    // dispatch a fresh idle-start — grace timer should fire but be suppressed by sessionKilled
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 5000 })
+    await vi.advanceTimersByTimeAsync(3000)
+
+    expect(d.displayCalls).toHaveLength(1)
+    expect(orch.currentState().kind).toBe("IDLE")
+  })
+})
+
+describe("orchestrator — key actions", () => {
+  it("discover-key fires click beacon and opens URL", async () => {
+    const d = makeDeps()
+    const adWithClick: CachedAd = { ...ad, clickTrackingUrl: "https://beacon/click" }
+    d.adCache.queue(adWithClick)
+    const orch = await createOrch(d)
+
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
+    await vi.advanceTimersByTimeAsync(3000) // SHOWING
+    orch.dispatch({ kind: "discover-key", now: 4000 })
+
+    expect(d.firedBeacons).toContain("https://beacon/click")
+    expect(d.openedUrls).toContain(adWithClick.url)
+  })
+
+  it("mute-key sets muteUntil and persists via writePreferences", async () => {
+    const d = makeDeps()
+    const writePreferences = vi.fn(async () => {})
+    const orch = await createOrch(d, testPreferences(), { writePreferences })
+
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 1_000_000 })
+    await vi.advanceTimersByTimeAsync(3000)
+    orch.dispatch({ kind: "mute-key", now: 1_004_000 })
+    // writePreferences is invoked inside an async `.catch` chain — yield once
+    await Promise.resolve()
+
+    expect(writePreferences).toHaveBeenCalledWith(
+      expect.objectContaining({ muteUntil: 1_004_000 + 1_800_000 })
+    )
+  })
+})
+
+describe("orchestrator — impression beacon", () => {
+  it("fires impressionBeaconUrl when durationMs >= 1000 and result = completed", async () => {
+    const d = makeDeps()
+    const withBeacon: CachedAd = { ...ad, impressionBeaconUrl: "https://beacon/imp" }
+    d.adCache.queue(withBeacon)
+    const orch = await createOrch(d)
+
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
+    await vi.advanceTimersByTimeAsync(3000) // grace → SHOWING
+    await vi.advanceTimersByTimeAsync(8000) // vanish-elapsed → completed impression
+
+    expect(d.firedBeacons).toContain("https://beacon/imp")
+  })
+
+  it("does NOT fire impressionBeaconUrl when result = skipped (durationMs < 1000)", async () => {
+    const d = makeDeps()
+    const withBeacon: CachedAd = { ...ad, impressionBeaconUrl: "https://beacon/imp" }
+    d.adCache.queue(withBeacon)
+    const orch = await createOrch(d)
+
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
+    await vi.advanceTimersByTimeAsync(3000) // grace → SHOWING at t=3000
+    orch.dispatch({ kind: "dismiss", now: 3500 }) // <1s after show → skipped
+
+    expect(d.firedBeacons).not.toContain("https://beacon/imp")
   })
 })
