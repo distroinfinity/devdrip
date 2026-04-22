@@ -33,6 +33,21 @@ function actionFooter(inner: number): string {
   return tiny
 }
 
+function progressBar(progress: number, cells: number, ascii: boolean): string {
+  const clamped = progress < 0 ? 0 : progress > 1 ? 1 : progress
+  const filled = Math.round(clamped * cells)
+  const empty = cells - filled
+  const fillCh = ascii ? "#" : "▇"
+  const emptyCh = ascii ? "-" : "░"
+  return fillCh.repeat(filled) + emptyCh.repeat(empty)
+}
+
+function progressCellCount(inner: number): number {
+  // bar fills ~40% of inner width, min 8, max 40
+  const raw = Math.floor(inner * 0.4)
+  return Math.max(8, Math.min(40, raw))
+}
+
 function wrap(text: string, max: number): string[] {
   const words = text.split(/\s+/)
   const lines: string[] = []
@@ -125,6 +140,9 @@ export function renderBox(
     ...(bodyText ? wrap(bodyText, inner).map((l) => line(c, l, inner)) : []),
     line(c, "", inner),
     line(c, footerLine, inner),
+    ...(opts.progress !== undefined
+      ? [line(c, progressBar(opts.progress, progressCellCount(inner), opts.ascii ?? false), inner)]
+      : []),
   ]
 
   const footer = `${c.bl}${c.h.repeat(width - 2)}${c.br}`

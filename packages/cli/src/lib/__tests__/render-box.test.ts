@@ -134,3 +134,26 @@ describe("renderBox — action footer", () => {
     expect(out).not.toContain("press enter to dismiss")
   })
 })
+
+describe("renderBox — progress bar", () => {
+  it("renders filled cells proportional to progress (unicode)", () => {
+    const out = renderBox(
+      { headline: "H", url: "https://x.test" },
+      { width: 80, progress: 0.5, ascii: false }
+    )
+    expect(out).toMatch(/▇+░+/)
+  })
+
+  it("renders filled cells in ASCII mode", () => {
+    const out = renderBox(
+      { headline: "H", url: "https://x.test" },
+      { width: 80, progress: 0.5, ascii: true }
+    )
+    expect(out).toMatch(/#+-+/)
+  })
+
+  it("omits progress row when progress is undefined", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 80, ascii: true })
+    expect(out).not.toMatch(/#+-+/)
+  })
+})
