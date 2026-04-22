@@ -1,23 +1,52 @@
 import { Command } from "commander"
+import { DAEMON_SOCKET_PATH } from "@devdrip/shared"
+import { sendHookEvent } from "../lib/daemon/hook-client.js"
+import { resolveTty } from "../lib/daemon/tty.js"
 
-// placeholder hook handlers — they silently exit 0 to stay out of Claude Code's way
-// until S2-11 wires the real IPC to the daemon. CLAUDE.md rule: hooks always exit 0.
-const preTool = new Command("pre-tool").description("handle PreToolUse hook").action(() => {
-  // TODO(S2-11): send idle-start to daemon over socket
-})
+export async function handlePreTool(socketPath: string = DAEMON_SOCKET_PATH): Promise<void> {
+  try {
+    await sendHookEvent(
+      { type: "idle-start", tty: resolveTty(), pid: process.pid, ts: Date.now() },
+      socketPath
+    )
+  } catch {
+    /* never escapes */
+  }
+}
 
-const stop = new Command("stop").description("handle Stop hook").action(() => {
-  // TODO(S2-11): send idle-end to daemon over socket
-})
+export async function handleStop(socketPath: string = DAEMON_SOCKET_PATH): Promise<void> {
+  try {
+    await sendHookEvent({ type: "idle-end", ts: Date.now() }, socketPath)
+  } catch {
+    /* never escapes */
+  }
+}
 
-const promptSubmit = new Command("prompt-submit")
-  .description("handle UserPromptSubmit hook")
-  .action(() => {
-    // TODO(S2-11): send dismiss to daemon over socket
-  })
+export async function handlePromptSubmit(socketPath: string = DAEMON_SOCKET_PATH): Promise<void> {
+  try {
+    await sendHookEvent({ type: "dismiss", ts: Date.now() }, socketPath)
+  } catch {
+    /* never escapes */
+  }
+}
 
 export const hookCmd = new Command("hook")
-  .description("internal hook handlers for Claude Code")
-  .addCommand(preTool)
-  .addCommand(stop)
-  .addCommand(promptSubmit)
+  .description("internal hook handlers for Claude Code (always exits 0)")
+  .addCommand(
+    new Command("pre-tool").description("handle PreToolUse hook").action(async () => {
+      await handlePreTool()
+      process.exit(0)
+    })
+  )
+  .addCommand(
+    new Command("stop").description("handle Stop hook").action(async () => {
+      await handleStop()
+      process.exit(0)
+    })
+  )
+  .addCommand(
+    new Command("prompt-submit").description("handle UserPromptSubmit hook").action(async () => {
+      await handlePromptSubmit()
+      process.exit(0)
+    })
+  )
