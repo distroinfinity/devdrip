@@ -97,6 +97,16 @@ describe("hook subcommands", () => {
     expect(JSON.parse(msg ?? "").type).toBe("dismiss")
   })
 
+  it("session-start sends session-start", async () => {
+    await startEcho()
+    const { handleSessionStart } = await import("../hook.js")
+    await handleSessionStart(socketPath)
+    await new Promise((r) => setTimeout(r, 20))
+    const msg = received[0]
+    expect(msg).toBeDefined()
+    expect(JSON.parse(msg ?? "")).toEqual({ type: "session-start" })
+  })
+
   it("resolves silently with no server", async () => {
     const { handlePreTool } = await import("../hook.js")
     await expect(handlePreTool(socketPath)).resolves.toBeUndefined()

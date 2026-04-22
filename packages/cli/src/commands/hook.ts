@@ -27,6 +27,14 @@ export async function handlePromptSubmit(socketPath: string = daemonSocketPath()
   }
 }
 
+export async function handleSessionStart(socketPath: string = daemonSocketPath()): Promise<void> {
+  try {
+    await sendHookEvent({ type: "session-start" }, socketPath)
+  } catch {
+    /* never escapes */
+  }
+}
+
 export const hookCmd = new Command("hook")
   .description("internal hook handlers for Claude Code (always exits 0)")
   .addCommand(
@@ -44,6 +52,12 @@ export const hookCmd = new Command("hook")
   .addCommand(
     new Command("prompt-submit").description("handle UserPromptSubmit hook").action(async () => {
       await handlePromptSubmit()
+      process.exit(0)
+    })
+  )
+  .addCommand(
+    new Command("session-start").description("handle SessionStart hook").action(async () => {
+      await handleSessionStart()
       process.exit(0)
     })
   )
