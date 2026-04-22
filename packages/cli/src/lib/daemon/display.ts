@@ -8,9 +8,8 @@ export interface DisplayHandle {
 
 export function showAd(ttyPath: string, ad: CachedAd): DisplayHandle {
   const fd = openSync(ttyPath, "w")
-  const text = renderBox(ad, {
-    source: ad.cacheSource === "demo" ? "demo" : undefined,
-  })
+  // S5-04 owns the [DEMO] badge; daemon renders the box without a source tag.
+  const text = renderBox(ad)
   // split on "\n" then +1 for the trailing newline we add after the box
   const lineCount = text.split("\n").length
   writeSync(fd, text + "\n")
