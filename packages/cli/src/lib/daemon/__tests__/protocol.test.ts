@@ -50,4 +50,9 @@ describe("parseWireEvent", () => {
   it("rejects non-string tty", () => {
     expect(parseWireEvent(JSON.stringify({ type: "idle-start", tty: 123 }))).toBeNull()
   })
+
+  it("parses session-start", () => {
+    const ev = parseWireEvent(JSON.stringify({ type: "session-start" }))
+    expect(ev).toEqual({ type: "session-start" })
+  })
 })
