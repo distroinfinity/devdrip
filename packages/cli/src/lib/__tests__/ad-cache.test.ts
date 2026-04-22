@@ -40,7 +40,12 @@ describe("ad-cache", () => {
   it("populates from /ads/batch on refresh", async () => {
     const fetchMock = makeApiFetch([batchAd("a"), batchAd("b"), batchAd("c")])
     const { openAdCache, adCachePath } = await import("../ad-cache.js")
-    const c = openAdCache({ apiFetch: fetchMock as never, deviceId: "dev", surface: "terminal-tv" })
+    const c = openAdCache({
+      apiFetch: fetchMock as never,
+      userId: "user-1",
+      deviceId: "dev",
+      surface: "terminal-tv",
+    })
     await c.refreshNow()
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -62,7 +67,12 @@ describe("ad-cache", () => {
       throw new Error("network unreachable")
     })
     const { openAdCache } = await import("../ad-cache.js")
-    const c = openAdCache({ apiFetch: fetchMock as never, deviceId: "dev", surface: "terminal-tv" })
+    const c = openAdCache({
+      apiFetch: fetchMock as never,
+      userId: "user-1",
+      deviceId: "dev",
+      surface: "terminal-tv",
+    })
     await c.refreshNow()
 
     expect(c.count()).toBeGreaterThan(0)
@@ -74,20 +84,74 @@ describe("ad-cache", () => {
   it("keeps prior cache on 204-empty response", async () => {
     const fetchMock = vi.fn(async () => ({})) // no `ads` key = treated as empty
     const { openAdCache } = await import("../ad-cache.js")
-    const c = openAdCache({ apiFetch: fetchMock as never, deviceId: "dev", surface: "terminal-tv" })
+    const c = openAdCache({
+      apiFetch: fetchMock as never,
+      userId: "user-1",
+      deviceId: "dev",
+      surface: "terminal-tv",
+    })
     await c.refreshNow() // first call: fills with demos since prior was empty
     expect(c.count()).toBeGreaterThan(0)
     const firstCount = c.count()
 
     // second refresh (still empty) — shouldn't blow away the demo cache
     await c.refreshNow()
-    expect(c.count()).toBe(firstCount - 0) // no change, demos still served
+    expect(c.count()).toBe(firstCount) // no change, demos still served
+  })
+
+  it("rejects a cache file from a different identity", async () => {
+    // first open: populate cache as user-1
+    const fetchA = makeApiFetch([batchAd("a1"), batchAd("a2"), batchAd("a3"), batchAd("a4")])
+    const { openAdCache, adCachePath } = await import("../ad-cache.js")
+    const c1 = openAdCache({
+      apiFetch: fetchA as never,
+      userId: "user-1",
+      deviceId: "dev-1",
+      surface: "terminal-tv",
+    })
+    await c1.refreshNow()
+    expect(c1.count()).toBe(4)
+    c1.close()
+
+    // simulate re-auth: reopen as user-2. identity mismatch → prior cache
+    // must not be reused; refresh populates fresh content tagged user-2.
+    const fetchB = makeApiFetch([batchAd("b1"), batchAd("b2")])
+    const c2 = openAdCache({
+      apiFetch: fetchB as never,
+      userId: "user-2",
+      deviceId: "dev-1",
+      surface: "terminal-tv",
+    })
+    await c2.refreshNow()
+    const first = c2.next()
+    expect(first?.id).toBe("b1")
+    c2.close()
+
+    const file = JSON.parse(readFileSync(adCachePath(), "utf8"))
+    expect(file.userId).toBe("user-2")
+  })
+
+  it("throws early when deviceId is empty", async () => {
+    const { openAdCache } = await import("../ad-cache.js")
+    expect(() =>
+      openAdCache({
+        apiFetch: vi.fn() as never,
+        userId: "user-1",
+        deviceId: "",
+        surface: "terminal-tv",
+      })
+    ).toThrow(/device not registered/)
   })
 
   it("triggers background refresh when ads drop below REFRESH_THRESHOLD", async () => {
     const fetchMock = makeApiFetch([batchAd("a"), batchAd("b"), batchAd("c"), batchAd("d")])
     const { openAdCache } = await import("../ad-cache.js")
-    const c = openAdCache({ apiFetch: fetchMock as never, deviceId: "dev", surface: "terminal-tv" })
+    const c = openAdCache({
+      apiFetch: fetchMock as never,
+      userId: "user-1",
+      deviceId: "dev",
+      surface: "terminal-tv",
+    })
     await c.refreshNow()
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
@@ -107,7 +171,12 @@ describe("ad-cache", () => {
     const fetchMock = vi.fn(async () => gate)
 
     const { openAdCache } = await import("../ad-cache.js")
-    const c = openAdCache({ apiFetch: fetchMock as never, deviceId: "dev", surface: "terminal-tv" })
+    const c = openAdCache({
+      apiFetch: fetchMock as never,
+      userId: "user-1",
+      deviceId: "dev",
+      surface: "terminal-tv",
+    })
 
     // warm-up triggered one fetch already from constructor; ignore it by
     // waiting for it to settle via the same gate (it will share the promise).
@@ -125,6 +194,7 @@ describe("ad-cache", () => {
     const { openAdCache } = await import("../ad-cache.js")
     const c = openAdCache({
       apiFetch: fetchMock as never,
+      userId: "user-1",
       deviceId: "dev",
       surface: "terminal-tv",
       now: () => mockNow,
@@ -149,7 +219,12 @@ describe("ad-cache", () => {
 
     const fetchMock = makeApiFetch([batchAd("a")])
     const { openAdCache } = await import("../ad-cache.js")
-    const c = openAdCache({ apiFetch: fetchMock as never, deviceId: "dev", surface: "terminal-tv" })
+    const c = openAdCache({
+      apiFetch: fetchMock as never,
+      userId: "user-1",
+      deviceId: "dev",
+      surface: "terminal-tv",
+    })
     await c.refreshNow()
     expect(c.count()).toBe(1)
     expect(existsSync(adCachePath())).toBe(true)

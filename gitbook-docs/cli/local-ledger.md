@@ -12,9 +12,10 @@ Ground truth for earnings. The daemon records every impression locally before th
 ## Storage
 
 - Path: `~/.devdrip/ledger.db`
-- Dir mode: `0700`, file mode: `0600`
+- Dir mode: `0700`, file mode: `0600`. WAL sidecars (`ledger.db-wal`, `ledger.db-shm`) also chmod'd to `0600` after the first write, since they carry the same rows between checkpoints.
 - SQLite via `better-sqlite3`, WAL mode (`PRAGMA journal_mode=WAL; synchronous=NORMAL`)
 - Schema version tracked in `PRAGMA user_version`
+- `devdrip status --local` is strictly read-only: if `ledger.db` doesn't exist it prints `unsynced: 0` without creating it. The file is only ever created by the daemon on first impression write.
 
 ## Schema
 
@@ -55,6 +56,8 @@ interface Ledger {
 ```
 
 `record()` uses `INSERT OR IGNORE` on the primary key, so replay-safe retries are free.
+
+`markSynced()` chunks at 500 ids per UPDATE inside a single transaction, staying well under SQLite's default `SQLITE_LIMIT_VARIABLE_NUMBER` (999). Large post-offline sync batches won't throw.
 
 ## Corruption recovery
 

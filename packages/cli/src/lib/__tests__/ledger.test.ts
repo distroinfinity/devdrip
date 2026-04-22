@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
-import { mkdtempSync, rmSync, statSync, writeFileSync, readFileSync, readdirSync } from "node:fs"
+import {
+  existsSync,
+  mkdtempSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+} from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -65,6 +73,13 @@ describe("ledger", () => {
     if (process.platform !== "win32") {
       expect(statSync(join(tempHome, ".devdrip")).mode & 0o777).toBe(0o700)
       expect(statSync(path).mode & 0o777).toBe(0o600)
+      // WAL sidecars carry the same rows between checkpoints — must be 0600 too
+      for (const suffix of ["-wal", "-shm"]) {
+        const p = path + suffix
+        if (existsSync(p)) {
+          expect(statSync(p).mode & 0o777).toBe(0o600)
+        }
+      }
     }
   })
 
@@ -119,6 +134,23 @@ describe("ledger", () => {
     expect(l.listUnsynced(10)[0]?.id).toBe(b.id)
 
     l.markSynced([b.id], Date.now())
+    expect(l.unsyncedCount()).toBe(0)
+    l.close()
+  })
+
+  it("markSynced chunks large batches (over SQLite's 999-variable limit)", async () => {
+    const { openLedger } = await import("../ledger.js")
+    const l = openLedger()
+    const ids: string[] = []
+    const now = Date.now()
+    for (let i = 0; i < 1100; i++) {
+      const id = crypto.randomUUID()
+      ids.push(id)
+      l.record(sampleImpression({ id, startedAt: now + i }))
+    }
+    expect(l.unsyncedCount()).toBe(1100)
+    // without chunking this throws "too many SQL variables"
+    expect(() => l.markSynced(ids, Date.now())).not.toThrow()
     expect(l.unsyncedCount()).toBe(0)
     l.close()
   })

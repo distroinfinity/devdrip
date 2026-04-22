@@ -20,6 +20,12 @@ export interface CachedAd extends ServedAdPayload {
 
 interface CacheFile {
   version: 1
+  // identity scope — delivery tokens are bound to a (user, device, surface).
+  // if any of these drifts (re-auth, device re-register, surface change),
+  // the cache is dropped to avoid serving ads that can never be credited.
+  userId: string
+  deviceId: string
+  surface: string
   fetchedAt: number
   expiresAt: number
   ads: CachedAd[]
@@ -40,6 +46,7 @@ type ApiFetch = typeof defaultApiFetch
 
 export interface AdCacheDeps {
   apiFetch?: ApiFetch
+  userId: string
   deviceId: string
   surface: "terminal-tv"
   now?: () => number
@@ -74,11 +81,24 @@ function toCachedAd(a: BatchResponseAd): CachedAd {
   }
 }
 
-function readCacheFile(): CacheFile | null {
+function readCacheFile(identity: {
+  userId: string
+  deviceId: string
+  surface: string
+}): CacheFile | null {
   try {
     const raw = readFileSync(adCachePath(), "utf8")
     const parsed = JSON.parse(raw) as CacheFile
     if (parsed?.version !== CACHE_FILE_VERSION) return null
+    if (
+      parsed.userId !== identity.userId ||
+      parsed.deviceId !== identity.deviceId ||
+      parsed.surface !== identity.surface
+    ) {
+      // identity drift — the tokens inside belong to a different principal.
+      // drop the file so we don't serve uncreditable ads.
+      return null
+    }
     return parsed
   } catch {
     return null
@@ -99,13 +119,27 @@ function writeCacheFile(data: CacheFile): void {
   }
 }
 
-function emptyCache(): CacheFile {
-  return { version: CACHE_FILE_VERSION, fetchedAt: 0, expiresAt: 0, ads: [] }
-}
-
-function demoCache(nowMs: number): CacheFile {
+function emptyCache(identity: { userId: string; deviceId: string; surface: string }): CacheFile {
   return {
     version: CACHE_FILE_VERSION,
+    userId: identity.userId,
+    deviceId: identity.deviceId,
+    surface: identity.surface,
+    fetchedAt: 0,
+    expiresAt: 0,
+    ads: [],
+  }
+}
+
+function demoCache(
+  identity: { userId: string; deviceId: string; surface: string },
+  nowMs: number
+): CacheFile {
+  return {
+    version: CACHE_FILE_VERSION,
+    userId: identity.userId,
+    deviceId: identity.deviceId,
+    surface: identity.surface,
     fetchedAt: nowMs,
     expiresAt: nowMs + CACHE_TTL_MS,
     ads: DEMO_ADS.map((a) => ({ ...a })),
@@ -113,9 +147,17 @@ function demoCache(nowMs: number): CacheFile {
 }
 
 export function openAdCache(deps: AdCacheDeps): AdCache {
+  // loud, early failure is better than a silent fallback to demos — the
+  // daemon must not open a cache before the caller has real identity.
+  if (!deps.userId) throw new Error("ad-cache: userId is required")
+  if (!deps.deviceId) {
+    throw new Error("ad-cache: deviceId is required (device not registered)")
+  }
+
   const apiFetch = deps.apiFetch ?? defaultApiFetch
   const now = deps.now ?? (() => Date.now())
-  let current: CacheFile = readCacheFile() ?? emptyCache()
+  const identity = { userId: deps.userId, deviceId: deps.deviceId, surface: deps.surface }
+  let current: CacheFile = readCacheFile(identity) ?? emptyCache(identity)
   let refreshInFlight: Promise<void> | null = null
 
   const isExpired = (): boolean => current.expiresAt <= now()
@@ -132,6 +174,9 @@ export function openAdCache(deps: AdCacheDeps): AdCache {
       if (ads.length > 0) {
         current = {
           version: CACHE_FILE_VERSION,
+          userId: identity.userId,
+          deviceId: identity.deviceId,
+          surface: identity.surface,
           fetchedAt: now(),
           expiresAt: now() + CACHE_TTL_MS,
           ads,
@@ -142,13 +187,13 @@ export function openAdCache(deps: AdCacheDeps): AdCache {
 
       // 204 / empty: keep prior cache if non-empty, else fall back to demos
       if (current.ads.length === 0) {
-        current = demoCache(now())
+        current = demoCache(identity, now())
         writeCacheFile(current)
       }
     } catch (err) {
       console.warn(`warn: ad-cache refresh failed (${(err as Error).message})`)
       if (current.ads.length === 0) {
-        current = demoCache(now())
+        current = demoCache(identity, now())
         try {
           writeCacheFile(current)
         } catch {
@@ -190,9 +235,11 @@ export function openAdCache(deps: AdCacheDeps): AdCache {
       if (ad !== null) {
         try {
           writeCacheFile(current)
-        } catch {
+        } catch (err) {
           // non-fatal: worst case the consumed ad re-appears after restart and
           // the backend dedupes on client-generated impression ids at sync.
+          // still warn so disk-full / perm issues aren't silent.
+          console.warn(`warn: ad-cache persist failed (${(err as Error).message})`)
         }
       }
       if (current.ads.length < REFRESH_THRESHOLD) {

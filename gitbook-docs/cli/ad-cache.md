@@ -20,6 +20,9 @@ Pre-fetched ads stored on disk so hooks can serve in <200ms without a network ro
 ```json
 {
   "version": 1,
+  "userId": "...",
+  "deviceId": "...",
+  "surface": "terminal-tv",
   "fetchedAt": 1713788400000,
   "expiresAt": 1713788880000,
   "ads": [
@@ -42,6 +45,12 @@ Pre-fetched ads stored on disk so hooks can serve in <200ms without a network ro
 
 `cacheSource` is a CLI-side discriminator: `"api"` for backend-served ads, `"demo"` for offline-fallback fixtures. The daemon must check this before writing an impression to the ledger — demo ads don't earn.
 
+## Identity scoping
+
+Delivery tokens are issued for a specific `(userId, deviceId, surface)` triple and `POST /impressions` enforces that binding. The cache file stores the triple it was fetched with, and `openAdCache` drops the on-disk cache if any of the three has changed since the last session (re-auth as a different account, `devdrip init` re-registering the device, or a surface switch). Without this check, a re-auth could silently serve ads that can never be credited.
+
+`openAdCache` throws early if `userId` or `deviceId` is empty. Callers (the future daemon) must have both before opening the cache.
+
 ## Module API
 
 `packages/cli/src/lib/ad-cache.ts`:
@@ -49,6 +58,7 @@ Pre-fetched ads stored on disk so hooks can serve in <200ms without a network ro
 ```ts
 openAdCache(deps: {
   apiFetch?: typeof defaultApiFetch
+  userId: string
   deviceId: string
   surface: "terminal-tv"
   now?: () => number       // injectable for tests

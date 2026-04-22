@@ -129,7 +129,7 @@ async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
 
   if (candidates.length === 0) return []
 
-  // stage 3: app-level targeting filter
+  // stage 2: app-level targeting filter
   const filtered: CandidateRow[] = []
 
   for (const row of candidates) {
@@ -156,7 +156,7 @@ async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
 
   if (filtered.length === 0) return []
 
-  // stage 4: rotation + selection
+  // stage 3: rotation + selection
   // group by campaign, pick one creative per campaign via round-robin
   const byCampaign = new Map<string, CandidateRow[]>()
   for (const row of filtered) {

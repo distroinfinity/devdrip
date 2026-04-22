@@ -1,6 +1,6 @@
 import { chmodSync, mkdirSync, renameSync } from "node:fs"
 import { join } from "node:path"
-import Database from "better-sqlite3"
+import Database, { type Statement } from "better-sqlite3"
 import { configDir } from "./config.js"
 
 export type ImpressionResult = "completed" | "skipped" | "expired" | "interrupted"
@@ -121,15 +121,20 @@ export function openLedger(): Ledger {
     db = tryOpen(path)
   }
 
-  try {
-    chmodSync(path, 0o600)
-  } catch {
-    // non-fatal on filesystems that don't honor chmod (e.g. some CI runners)
-  }
-
   db.pragma("journal_mode = WAL")
   db.pragma("synchronous = NORMAL")
   runMigrations(db)
+
+  // chmod after WAL + the first write (migrations) so the sidecar files
+  // (.db-wal, .db-shm) exist and get 0600 too — they contain the same
+  // sensitive rows as the main DB between checkpoints.
+  for (const suffix of ["", "-wal", "-shm"]) {
+    try {
+      chmodSync(path + suffix, 0o600)
+    } catch {
+      // non-fatal: file may not exist yet, or filesystem doesn't honor chmod
+    }
+  }
 
   const insertStmt = db.prepare(`
     INSERT OR IGNORE INTO impressions
@@ -145,6 +150,21 @@ export function openLedger(): Ledger {
   const countUnsyncedStmt = db.prepare(`
     SELECT COUNT(*) AS n FROM impressions WHERE synced_at IS NULL
   `)
+
+  // SQLite's default SQLITE_LIMIT_VARIABLE_NUMBER is 999. Chunk mark-synced
+  // updates well under that ceiling so a large sync batch can't throw.
+  const MARK_SYNCED_CHUNK = 500
+  // statement cache keyed by placeholder count — reused across sync calls
+  const markStmts = new Map<number, Statement>()
+  function markSyncedStmt(count: number): Statement {
+    let stmt = markStmts.get(count)
+    if (!stmt) {
+      const placeholders = new Array<string>(count).fill("?").join(",")
+      stmt = db.prepare(`UPDATE impressions SET synced_at = ? WHERE id IN (${placeholders})`)
+      markStmts.set(count, stmt)
+    }
+    return stmt
+  }
 
   return {
     record(i) {
@@ -168,11 +188,13 @@ export function openLedger(): Ledger {
     },
     markSynced(ids, at) {
       if (ids.length === 0) return
-      const placeholders = ids.map(() => "?").join(",")
-      db.prepare(`UPDATE impressions SET synced_at = ? WHERE id IN (${placeholders})`).run(
-        at,
-        ...ids
-      )
+      const apply = db.transaction((batch: string[]) => {
+        for (let i = 0; i < batch.length; i += MARK_SYNCED_CHUNK) {
+          const chunk = batch.slice(i, i + MARK_SYNCED_CHUNK)
+          markSyncedStmt(chunk.length).run(at, ...chunk)
+        }
+      })
+      apply(ids)
     },
     unsyncedCount() {
       const row = countUnsyncedStmt.get() as { n: number }

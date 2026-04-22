@@ -79,8 +79,12 @@ describe.skipIf(!ENABLED)("ad-selection integration (real postgres)", () => {
     await sqlClient.end({ timeout: 5 })
   })
 
-  // must set DATABASE_URL_LOCAL for the env-module singleton to pick up before
-  // dynamic-importing the provider
+  // IMPORTANT: the `ad-selection.service.js` import must happen after these
+  // env assignments so the db client singleton (lazy in `src/db/index.ts`)
+  // picks up DATABASE_URL_LOCAL. If any earlier test in the same vitest worker
+  // has already imported the service, the singleton is already bound to
+  // whatever URL was in scope then — this test would flake with "works alone,
+  // fails in suite". Keep the dynamic import here.
   it("manualAdProvider.fetchAds with count>1 does not throw at Bind time", async () => {
     process.env["DB_TARGET"] = "local"
     process.env["DATABASE_URL_LOCAL"] = DATABASE_URL

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs"
 import { Command } from "commander"
 import {
   ApiError,
@@ -7,7 +8,7 @@ import {
   reportError,
 } from "../lib/api-client.js"
 import { readConfig } from "../lib/config.js"
-import { openLedger } from "../lib/ledger.js"
+import { ledgerPath, openLedger } from "../lib/ledger.js"
 
 export const statusCmd = new Command("status")
   .description("show daemon and session status")
@@ -39,11 +40,17 @@ export const statusCmd = new Command("status")
       }
 
       if (opts.local) {
-        const ledger = openLedger()
-        try {
-          console.log(`unsynced: ${ledger.unsyncedCount()}`)
-        } finally {
-          ledger.close()
+        // read-only inspection: don't create the ledger file just to print 0.
+        // the daemon creates it on first impression write.
+        if (!existsSync(ledgerPath())) {
+          console.log("unsynced: 0")
+        } else {
+          const ledger = openLedger()
+          try {
+            console.log(`unsynced: ${ledger.unsyncedCount()}`)
+          } finally {
+            ledger.close()
+          }
         }
       }
     } catch (err) {
