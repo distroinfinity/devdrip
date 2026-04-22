@@ -5,10 +5,7 @@ import { resolveTty } from "../lib/daemon/tty.js"
 
 export async function handlePreTool(socketPath: string = daemonSocketPath()): Promise<void> {
   try {
-    await sendHookEvent(
-      { type: "idle-start", tty: resolveTty(), pid: process.pid, ts: Date.now() },
-      socketPath
-    )
+    await sendHookEvent({ type: "idle-start", tty: resolveTty() }, socketPath)
   } catch {
     /* never escapes */
   }
@@ -16,7 +13,7 @@ export async function handlePreTool(socketPath: string = daemonSocketPath()): Pr
 
 export async function handleStop(socketPath: string = daemonSocketPath()): Promise<void> {
   try {
-    await sendHookEvent({ type: "idle-end", ts: Date.now() }, socketPath)
+    await sendHookEvent({ type: "idle-end" }, socketPath)
   } catch {
     /* never escapes */
   }
@@ -24,7 +21,7 @@ export async function handleStop(socketPath: string = daemonSocketPath()): Promi
 
 export async function handlePromptSubmit(socketPath: string = daemonSocketPath()): Promise<void> {
   try {
-    await sendHookEvent({ type: "dismiss", ts: Date.now() }, socketPath)
+    await sendHookEvent({ type: "dismiss" }, socketPath)
   } catch {
     /* never escapes */
   }

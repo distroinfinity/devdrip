@@ -105,6 +105,7 @@ export interface Heartbeat {
   lastHeartbeat: number
   socketPath: string
   adsShownThisSession: number
+  hooksReceivedThisSession: number
 }
 
 export function writeHeartbeat(hb: Heartbeat): void {

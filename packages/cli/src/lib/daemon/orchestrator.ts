@@ -25,6 +25,7 @@ export interface Orchestrator {
   dispatch(event: Event): void
   currentState(): State
   adsShown(): number
+  hooksReceived(): number
   shutdown(): Promise<void>
 }
 
@@ -34,8 +35,14 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   let vanishTimer: NodeJS.Timeout | null = null
   let currentDisplay: { vanish: () => void } | null = null
   let adsShownCount = 0
+  let hooksReceivedCount = 0
 
   function dispatch(event: Event): void {
+    // count only socket-originated events (hooks), not internal timer callbacks.
+    // this lets `devdrip daemon status` answer "are hooks reaching the daemon?".
+    if (event.kind === "idle-start" || event.kind === "idle-end" || event.kind === "dismiss") {
+      hooksReceivedCount += 1
+    }
     const result = step(state, event, { deviceId: deps.deviceId })
     state = result.state
     for (const effect of result.effects) runEffect(effect)
@@ -144,6 +151,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     dispatch,
     currentState: () => state,
     adsShown: () => adsShownCount,
+    hooksReceived: () => hooksReceivedCount,
     shutdown,
   }
 }

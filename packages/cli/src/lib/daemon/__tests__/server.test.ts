@@ -37,9 +37,9 @@ describe("startDaemonServer", () => {
       log: { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} },
     })
 
-    await send(JSON.stringify({ type: "idle-start", tty: "/dev/ttys003", pid: 1, ts: 1 }))
-    await send(JSON.stringify({ type: "idle-end", ts: 2 }))
-    await send(JSON.stringify({ type: "dismiss", ts: 3 }))
+    await send(JSON.stringify({ type: "idle-start", tty: "/dev/ttys003" }))
+    await send(JSON.stringify({ type: "idle-end" }))
+    await send(JSON.stringify({ type: "dismiss" }))
 
     // yield so the server's end handler flushes
     await new Promise((r) => setTimeout(r, 30))
@@ -60,7 +60,7 @@ describe("startDaemonServer", () => {
       log: { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} },
     })
 
-    await send(JSON.stringify({ type: "kill", ts: 1 }))
+    await send(JSON.stringify({ type: "kill" }))
     await new Promise((r) => setTimeout(r, 30))
 
     expect(received).toHaveLength(0)
@@ -81,7 +81,7 @@ describe("startDaemonServer", () => {
     await new Promise<void>((resolve) => {
       const sock = createConnection(socketPath, () => {
         sock.write("not json\n")
-        sock.end(JSON.stringify({ type: "idle-end", ts: 1 }) + "\n")
+        sock.end(JSON.stringify({ type: "idle-end" }) + "\n")
       })
       sock.on("close", () => resolve())
     })

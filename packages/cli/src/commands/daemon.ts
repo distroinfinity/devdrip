@@ -151,6 +151,7 @@ export async function runStatus(): Promise<string> {
   } catch {
     /* ignore */
   }
+  lines.push(`hooks:     ${hb.hooksReceivedThisSession ?? 0} received this session`)
   lines.push(`ads shown: ${hb.adsShownThisSession}`)
   return lines.join("\n")
 }
@@ -200,6 +201,7 @@ export async function runDaemon(): Promise<number> {
     lastHeartbeat: Date.now(),
     socketPath,
     adsShownThisSession: 0,
+    hooksReceivedThisSession: 0,
   }
 
   const server = await startDaemonServer({
@@ -219,6 +221,7 @@ export async function runDaemon(): Promise<number> {
       ...started,
       lastHeartbeat: Date.now(),
       adsShownThisSession: orchestrator.adsShown(),
+      hooksReceivedThisSession: orchestrator.hooksReceived(),
     })
   }, HEARTBEAT_INTERVAL_MS)
 

@@ -67,6 +67,7 @@ describe("heartbeat I/O", () => {
       lastHeartbeat: 200,
       socketPath: "/tmp/x.sock",
       adsShownThisSession: 0,
+      hooksReceivedThisSession: 0,
     })
     const got = readHeartbeat()
     expect(got).toMatchObject({ pid: 42, socketPath: "/tmp/x.sock" })
@@ -89,6 +90,7 @@ describe("heartbeat I/O", () => {
       lastHeartbeat: 1,
       socketPath: "/x",
       adsShownThisSession: 0,
+      hooksReceivedThisSession: 0,
     })
     const mode = statSync(join(devdripDir, "daemon.heartbeat")).mode & 0o777
     expect(mode).toBe(0o600)

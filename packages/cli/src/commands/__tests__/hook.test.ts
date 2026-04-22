@@ -101,4 +101,24 @@ describe("hook subcommands", () => {
     const { handlePreTool } = await import("../hook.js")
     await expect(handlePreTool(socketPath)).resolves.toBeUndefined()
   })
+
+  it("hook payloads carry only `type` (+ `tty` for idle-start)", async () => {
+    await startEcho()
+    vi.doMock("../../lib/daemon/tty.js", () => ({
+      resolveTty: () => "/dev/ttys001",
+      resetTtyCache: () => {
+        // noop
+      },
+    }))
+    const { handlePreTool, handleStop, handlePromptSubmit } = await import("../hook.js")
+    await handlePreTool(socketPath)
+    await handleStop(socketPath)
+    await handlePromptSubmit(socketPath)
+    await new Promise((r) => setTimeout(r, 30))
+    expect(received).toHaveLength(3)
+    const parsed = received.map((m) => JSON.parse(m))
+    expect(parsed[0]).toEqual({ type: "idle-start", tty: "/dev/ttys001" })
+    expect(parsed[1]).toEqual({ type: "idle-end" })
+    expect(parsed[2]).toEqual({ type: "dismiss" })
+  })
 })

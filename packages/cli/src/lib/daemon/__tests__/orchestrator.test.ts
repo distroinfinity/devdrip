@@ -226,6 +226,27 @@ describe("orchestrator", () => {
     expect(orch.adsShown()).toBe(1)
   })
 
+  it("hooksReceived counts only socket-originated events (not internal timers)", async () => {
+    const d = makeDeps()
+    const { createOrchestrator } = await import("../orchestrator.js")
+    const orch = createOrchestrator({
+      adCache: d.adCache as never,
+      ledger: d.ledger as never,
+      display: d.display as never,
+      log: d.log,
+      deviceId: "dev-1",
+    })
+
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
+    orch.dispatch({ kind: "idle-end", now: 100 })
+    orch.dispatch({ kind: "dismiss", now: 200 })
+    // timer-fed events should NOT bump the counter
+    orch.dispatch({ kind: "grace-elapsed", ad: null, now: 3000 })
+    orch.dispatch({ kind: "vanish-elapsed", now: 9000 })
+
+    expect(orch.hooksReceived()).toBe(3)
+  })
+
   it("adsShown stays at 0 when tty is null (no ad actually rendered)", async () => {
     const d = makeDeps()
     const { createOrchestrator } = await import("../orchestrator.js")

@@ -51,19 +51,19 @@ describe("sendHookEvent", () => {
   it("connects + sends JSON + closes", async () => {
     await startServer()
     const { sendHookEvent } = await import("../hook-client.js")
-    await sendHookEvent({ type: "idle-start", tty: "/dev/ttys003", pid: 1, ts: 2 }, socketPath)
+    await sendHookEvent({ type: "idle-start", tty: "/dev/ttys003" }, socketPath)
     // brief yield so the server's "end" handler runs
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(received).toHaveLength(1)
     const item = received[0]
     if (!item) throw new Error("expected received[0]")
     const parsed = JSON.parse(item)
-    expect(parsed).toEqual({ type: "idle-start", tty: "/dev/ttys003", pid: 1, ts: 2 })
+    expect(parsed).toEqual({ type: "idle-start", tty: "/dev/ttys003" })
   })
 
   it("resolves silently when the daemon isn't running (ENOENT)", async () => {
     const { sendHookEvent } = await import("../hook-client.js")
-    await expect(sendHookEvent({ type: "idle-end", ts: 1 }, socketPath)).resolves.toBeUndefined()
+    await expect(sendHookEvent({ type: "idle-end" }, socketPath)).resolves.toBeUndefined()
   })
 
   it(
@@ -80,7 +80,7 @@ describe("sendHookEvent", () => {
 
       const { sendHookEvent } = await import("../hook-client.js")
       const start = Date.now()
-      await sendHookEvent({ type: "idle-end", ts: 1 }, socketPath)
+      await sendHookEvent({ type: "idle-end" }, socketPath)
       const elapsed = Date.now() - start
       // wide envelope — just verify we didn't hang indefinitely
       expect(elapsed).toBeLessThan(500)
