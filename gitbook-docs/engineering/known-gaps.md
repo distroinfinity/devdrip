@@ -33,6 +33,8 @@ These are the main current-state gaps that matter when working in this repo.
 - Carbon response caching not implemented — every `/ads/next` hits Carbon's API. At scale, a short Redis/in-process cache (30-60s TTL) would reduce external calls
 - EthicalAds provider integration not yet built (AdProvider interface is ready for it)
 - earnings confirmation, payout creation (developer `claim`), preferences CRUD, referrals, and invite **redemption** flows are not yet exposed as API routes. Admin-side payout list + status override and invite generation are wired.
+- `GET /me/preferences` does not exist yet — `PUT /me/preferences` accepts `blockedCategories` + `tzOffsetMinutes` only. `devdrip config` (S2-12) writes all other preference fields (`maxPerHour`, `maxPerDay`, `sessionWarmupMs`, `quietHoursStart/End`, `nightMode`) to `~/.devdrip/config.json` locally and expects the dashboard sync API (S4-06) to bidirectionally reconcile them later.
+- rate-limit enforcement (`maxPerHour` / `maxPerDay`) inside the daemon orchestrator is not wired — values are persisted + reloaded, but the orchestrator does not query the local ledger yet. Quiet hours + session warmup ARE enforced.
 - auth and devices routes still use the older inline pattern (not yet refactored to layered architecture)
 
 ## Waitlist Storage

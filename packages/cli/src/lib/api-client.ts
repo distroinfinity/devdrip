@@ -156,6 +156,7 @@ async function tryRefresh(cfg: DevdripConfig, baseUrl: string): Promise<DevdripC
       user: cfg.user,
       device: cfg.device,
       cli: cfg.cli,
+      preferences: cfg.preferences,
     }
     await writeConfig(next)
     return { ...next, version: CONFIG_VERSION }
