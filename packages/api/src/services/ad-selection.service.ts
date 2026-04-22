@@ -77,7 +77,10 @@ async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
 
   // stage 1: DB query — candidate set
   const db = getDb()
-  const now = new Date()
+  // postgres-js can't serialize a raw Date inside a drizzle `sql` template
+  // (throws "argument must be of type string or Buffer, received Date" in
+  // Bind); send ISO strings instead, which are fine for timestamptz columns.
+  const nowIso = new Date().toISOString()
 
   const conditions = [
     eq(campaigns.status, "active"),
@@ -119,8 +122,8 @@ async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
       and(
         ...conditions,
         // date range: only include campaigns whose window covers now
-        sql`(${campaigns.startsAt} IS NULL OR ${campaigns.startsAt} <= ${now})`,
-        sql`(${campaigns.endsAt} IS NULL OR ${campaigns.endsAt} > ${now})`
+        sql`(${campaigns.startsAt} IS NULL OR ${campaigns.startsAt} <= ${nowIso})`,
+        sql`(${campaigns.endsAt} IS NULL OR ${campaigns.endsAt} > ${nowIso})`
       )
     )) as CandidateRow[]
 
