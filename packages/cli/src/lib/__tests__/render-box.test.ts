@@ -70,4 +70,21 @@ describe("renderBox", () => {
     expect(urlLine).toContain(longUrl)
     expect(urlLine).not.toContain("…")
   })
+
+  it("strips ANSI escapes and control characters from ad content", () => {
+    const out = renderBox(
+      {
+        ...sampleAd,
+        headline: "\u001b[31mAlert\u001b[0m",
+        body: "line one\u0007\nline two",
+        url: "https://example.com/\u001b[2Jdanger",
+      },
+      { source: "Carbon" }
+    )
+
+    expect(out).toContain("Alert")
+    expect(out).not.toContain("\u001b[31m")
+    expect(out).not.toContain("\u001b[2J")
+    expect(out).not.toContain("\u0007")
+  })
 })

@@ -141,4 +141,14 @@ describe("PUT /me/preferences", () => {
 
     expect(res.status).toBe(400)
   })
+
+  it("returns 500 when the upsert returns no row", async () => {
+    const res = await request(app)
+      .put("/me/preferences")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ blockedCategories: [] })
+
+    expect(res.status).toBe(500)
+    expect(res.body).toEqual({ error: "internal_error" })
+  })
 })

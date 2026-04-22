@@ -38,7 +38,16 @@ interface RawConfigV1 {
   user: DevdripConfig["user"]
 }
 
-function migrate(parsed: Record<string, unknown>): DevdripConfig | null {
+export class UnsupportedConfigVersionError extends Error {
+  constructor(version: unknown) {
+    super(
+      `unsupported config version ${String(version)} in ${configPath()} — run \`devdrip auth --force\` to recreate it`
+    )
+    this.name = "UnsupportedConfigVersionError"
+  }
+}
+
+function migrate(parsed: Record<string, unknown>): DevdripConfig {
   const version = parsed["version"]
   if (version === CONFIG_VERSION) {
     const v2 = parsed as unknown as DevdripConfig
@@ -59,7 +68,7 @@ function migrate(parsed: Record<string, unknown>): DevdripConfig | null {
       cli: { binPath: "" },
     }
   }
-  return null
+  throw new UnsupportedConfigVersionError(version)
 }
 
 export async function readConfig(): Promise<DevdripConfig | null> {

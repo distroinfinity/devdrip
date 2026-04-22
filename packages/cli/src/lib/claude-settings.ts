@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto"
 import { copyFile, readFile, rename, stat, writeFile } from "node:fs/promises"
-import { dirname, join } from "node:path"
+import { basename, dirname, join } from "node:path"
 
 export interface HookCommand {
   type: "command"
@@ -22,28 +22,72 @@ export interface Settings {
   [k: string]: unknown
 }
 
-// command must reference a binary whose basename is `devdrip` (optionally with
-// a JS extension on some install paths) followed by our hook subcommand.
-const DEVDRIP_SUB_RE =
-  /(?:^|\/|\\)devdrip(?:\.js|\.mjs|\.cjs|\.exe)?\s+hook\s+(pre-tool|stop|prompt-submit)(\s|$)/
+const DEVDRIP_BIN_RE = /^devdrip(?:\.js|\.mjs|\.cjs|\.exe)?$/i
+const DEVDRIP_COMMAND_RE =
+  /^\s*(?:"((?:\\.|[^"])*)"|'([^']*)'|(\S+))\s+hook\s+(pre-tool|stop|prompt-submit)(?:\s|$)/
 
-type Event = "PreToolUse" | "Stop" | "UserPromptSubmit"
+export type HookEvent = "PreToolUse" | "Stop" | "UserPromptSubmit"
 type Sub = "pre-tool" | "stop" | "prompt-submit"
 
-const EVENTS: Array<{ event: Event; sub: Sub; matcher?: string }> = [
+const EVENTS: Array<{ event: HookEvent; sub: Sub; matcher?: string }> = [
   { event: "PreToolUse", sub: "pre-tool", matcher: "*" },
   { event: "Stop", sub: "stop" },
   { event: "UserPromptSubmit", sub: "prompt-submit" },
 ]
 
-function isDevdripGroup(group: HookGroup, binPath: string): { match: boolean; stale: boolean } {
+function quoteShellArg(arg: string): string {
+  if (arg.length === 0) return '""'
+  if (!/[\s"'\\$`]/.test(arg)) return arg
+  return `"${arg.replace(/["\\$`]/g, "\\$&")}"`
+}
+
+function unescapeDoubleQuoted(value: string): string {
+  return value.replace(/\\(["\\$`])/g, "$1")
+}
+
+function parseDevdripCommand(command: string): { binPath: string; sub: Sub } | null {
+  const match = DEVDRIP_COMMAND_RE.exec(command)
+  if (!match) return null
+
+  const quotedDouble = match[1]
+  const quotedSingle = match[2]
+  const bare = match[3]
+  const sub = match[4] as Sub
+  const binPath =
+    quotedDouble !== undefined ? unescapeDoubleQuoted(quotedDouble) : (quotedSingle ?? bare ?? "")
+
+  if (!DEVDRIP_BIN_RE.test(basename(binPath))) return null
+  return { binPath, sub }
+}
+
+function buildDevdripCommand(binPath: string, sub: Sub): string {
+  return `${quoteShellArg(binPath)} hook ${sub}`
+}
+
+function isDevdripGroup(
+  group: HookGroup,
+  binPath: string,
+  sub: Sub
+): { match: boolean; stale: boolean } {
   for (const h of group.hooks ?? []) {
     if (typeof h.command !== "string") continue
-    if (!DEVDRIP_SUB_RE.test(h.command)) continue
-    if (h.command.startsWith(binPath + " ")) return { match: true, stale: false }
+    const parsed = parseDevdripCommand(h.command)
+    if (!parsed || parsed.sub !== sub) continue
+    if (parsed.binPath === binPath) return { match: true, stale: false }
     return { match: true, stale: true }
   }
   return { match: false, stale: false }
+}
+
+export function getMissingDevdripHookEvents(settings: Settings, binPath: string): HookEvent[] {
+  if (binPath.length === 0) {
+    return EVENTS.map(({ event }) => event)
+  }
+
+  return EVENTS.filter(({ event, sub }) => {
+    const groups = settings.hooks?.[event] ?? []
+    return !groups.some((group) => isDevdripGroup(group, binPath, sub).match)
+  }).map(({ event }) => event)
 }
 
 export function mergeDevdripHooks(
@@ -62,7 +106,7 @@ export function mergeDevdripHooks(
 
   for (const { event, sub, matcher } of EVENTS) {
     const groups = [...(next.hooks?.[event] ?? [])]
-    const desiredCmd = `${binPath} hook ${sub}`
+    const desiredCmd = buildDevdripCommand(binPath, sub)
     const ours: HookGroup = {
       ...(matcher !== undefined ? { matcher } : {}),
       hooks: [{ type: "command", command: desiredCmd }],
@@ -72,7 +116,7 @@ export function mergeDevdripHooks(
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i]
       if (g === undefined) continue
-      const id = isDevdripGroup(g, binPath)
+      const id = isDevdripGroup(g, binPath, sub)
       if (!id.match) continue
       found = true
       if (id.stale) {

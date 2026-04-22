@@ -1,5 +1,5 @@
 import { apiFetch, apiFetchPublic, resolveApiUrl } from "./api-client.js"
-import { readSettings } from "./claude-settings.js"
+import { getMissingDevdripHookEvents, readSettings } from "./claude-settings.js"
 import type { DevdripConfig } from "./config.js"
 
 export interface Probe {
@@ -30,23 +30,16 @@ async function probeDevice(cfg: DevdripConfig): Promise<Probe> {
 async function probeHooks(settingsPath: string, binPath: string): Promise<Probe> {
   try {
     const s = await readSettings(settingsPath)
-    const hasOurs = (Object.values(s.hooks ?? {}) as unknown[]).some(
-      (groups) =>
-        Array.isArray(groups) &&
-        groups.some(
-          (g) =>
-            g &&
-            typeof g === "object" &&
-            Array.isArray((g as { hooks?: unknown[] }).hooks) &&
-            (g as { hooks: Array<{ command?: string }> }).hooks.some(
-              (h) => typeof h.command === "string" && h.command.startsWith(binPath + " hook ")
-            )
-        )
-    )
+    const missing = getMissingDevdripHookEvents(s, binPath)
     return {
       name: "hooks installed in ~/.claude/settings.json",
-      ok: hasOurs,
-      detail: hasOurs ? "" : "no devdrip hook entries found",
+      ok: missing.length === 0,
+      detail:
+        missing.length === 0
+          ? ""
+          : binPath.length === 0
+            ? "no cli.binPath in config"
+            : `missing events: ${missing.join(", ")}`,
     }
   } catch (err) {
     return {

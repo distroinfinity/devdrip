@@ -1,11 +1,12 @@
-import { stat } from "node:fs/promises"
+import { mkdir } from "node:fs/promises"
 import { homedir, hostname, platform } from "node:os"
-import { realpathSync } from "node:fs"
+import { resolve } from "node:path"
+import { statSync } from "node:fs"
 import { join } from "node:path"
 import { Command } from "commander"
 import { multiselect, intro, outro, cancel, isCancel, log, note } from "@clack/prompts"
 import { AdCategory } from "@devdrip/shared"
-import { NotAuthenticatedError, reportError } from "../lib/api-client.js"
+import { ApiError, NotAuthenticatedError, reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import {
   readSettings,
@@ -47,7 +48,8 @@ function resolveBinPath(): string {
   const arg = process.argv[1]
   if (!arg) return ""
   try {
-    return realpathSync(arg)
+    if (!statSync(arg).isFile()) return arg
+    return resolve(arg)
   } catch {
     return arg
   }
@@ -67,13 +69,11 @@ async function ensureAuth(): Promise<void> {
 
 async function ensureClaudeDir(): Promise<void> {
   try {
-    await stat(claudeDir())
-    log.success(`Claude Code detected (${claudeDir()})`)
-  } catch {
-    log.error(
-      `Claude Code not found at ${claudeDir()}.\nInstall it first: https://claude.ai/download`
-    )
-    process.exit(1)
+    await mkdir(claudeDir(), { recursive: true, mode: 0o700 })
+    log.success(`Claude settings dir ready (${claudeDir()})`)
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    throw new Error(`failed to prepare ${claudeDir()}: ${detail}`)
   }
 }
 
@@ -81,12 +81,8 @@ async function ensureDevice(): Promise<{ deviceId: string }> {
   const cfg = await readConfig()
   if (!cfg) throw new NotAuthenticatedError()
 
-  if (cfg.device?.id) {
-    log.success(`device: ${hostname()} (${platform()})`)
-    return { deviceId: cfg.device.id }
-  }
-
-  const device = await registerDevice(cfg.auth.accessToken, cfg.apiUrl)
+  const previousId = cfg.device?.id
+  const device = await registerDevice()
   await writeConfig({
     apiUrl: cfg.apiUrl,
     auth: cfg.auth,
@@ -94,7 +90,8 @@ async function ensureDevice(): Promise<{ deviceId: string }> {
     device: { id: device.id },
     cli: cfg.cli,
   })
-  log.success(`device: ${hostname()} (${platform()}/${device.ideType})`)
+  const status = previousId && previousId === device.id ? "confirmed" : "registered"
+  log.success(`device ${status}: ${hostname()} (${platform()}/${device.ideType})`)
   return { deviceId: device.id }
 }
 
@@ -133,6 +130,9 @@ async function installHooks(): Promise<void> {
   const settingsPath = claudeSettingsPath()
   const backupPath = claudeBackupPath()
   const binPath = resolveBinPath()
+  if (!binPath.trim()) {
+    throw new Error("unable to resolve the devdrip binary path for Claude hooks")
+  }
 
   await writeBackupOnce(settingsPath, backupPath)
 
@@ -163,8 +163,20 @@ async function previewAd(): Promise<void> {
   log.step("preview ad from the real pipeline")
   try {
     await runDemo()
-  } catch {
-    log.warn("preview unavailable — run `devdrip demo` after your next Claude session")
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof NotAuthenticatedError) {
+      log.warn("preview unavailable — run `devdrip demo` after your next Claude session")
+      return
+    }
+    if (err instanceof Error && err.message === "device not registered — run `devdrip init`") {
+      log.warn("preview unavailable — run `devdrip demo` after your next Claude session")
+      return
+    }
+    if (err instanceof TypeError && /fetch/i.test(err.message)) {
+      log.warn("preview unavailable — run `devdrip demo` after your next Claude session")
+      return
+    }
+    throw err
   }
 }
 

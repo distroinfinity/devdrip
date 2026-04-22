@@ -59,13 +59,12 @@ describe("config migration", () => {
     expect(cfg?.cli?.binPath).toBe("/usr/local/bin/devdrip")
   })
 
-  it("returns null for unknown versions", async () => {
+  it("throws for unknown versions", async () => {
     const dir = join(tempHome, ".devdrip")
     mkdirSync(dir, { recursive: true })
     writeFileSync(join(dir, "config.json"), JSON.stringify({ version: 99, apiUrl: "x" }))
     const { readConfig } = await import("../config.js")
-    const cfg = await readConfig()
-    expect(cfg).toBeNull()
+    await expect(readConfig()).rejects.toThrow(/unsupported config version 99/)
   })
 
   it("writeConfig stamps version=2 regardless of the input shape", async () => {

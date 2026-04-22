@@ -10,6 +10,27 @@ vi.mock("../api-client.js", () => ({
 const readSettingsMock = vi.fn()
 vi.mock("../claude-settings.js", () => ({
   readSettings: (...args: unknown[]) => readSettingsMock(...args),
+  getMissingDevdripHookEvents: (
+    settings: {
+      hooks?: Record<string, Array<{ hooks?: Array<{ command?: string }> }>>
+    },
+    binPath: string
+  ) => {
+    const required = [
+      ["PreToolUse", "pre-tool"],
+      ["Stop", "stop"],
+      ["UserPromptSubmit", "prompt-submit"],
+    ] as const
+
+    return required
+      .filter(([event, sub]) => {
+        const groups = settings.hooks?.[event] ?? []
+        return !groups.some((group) =>
+          (group.hooks ?? []).some((hook) => hook.command === `${binPath} hook ${sub}`)
+        )
+      })
+      .map(([event]) => event)
+  },
 }))
 
 import { runInitHealthCheck } from "../health.js"
@@ -35,6 +56,10 @@ describe("runInitHealthCheck", () => {
     readSettingsMock.mockResolvedValue({
       hooks: {
         PreToolUse: [{ hooks: [{ type: "command", command: "/abs/devdrip hook pre-tool" }] }],
+        Stop: [{ hooks: [{ type: "command", command: "/abs/devdrip hook stop" }] }],
+        UserPromptSubmit: [
+          { hooks: [{ type: "command", command: "/abs/devdrip hook prompt-submit" }] },
+        ],
       },
     })
 
@@ -54,6 +79,10 @@ describe("runInitHealthCheck", () => {
     readSettingsMock.mockResolvedValue({
       hooks: {
         PreToolUse: [{ hooks: [{ type: "command", command: "/abs/devdrip hook pre-tool" }] }],
+        Stop: [{ hooks: [{ type: "command", command: "/abs/devdrip hook stop" }] }],
+        UserPromptSubmit: [
+          { hooks: [{ type: "command", command: "/abs/devdrip hook prompt-submit" }] },
+        ],
       },
     })
 
@@ -62,12 +91,18 @@ describe("runInitHealthCheck", () => {
     expect(device?.ok).toBe(false)
   })
 
-  it("marks hooks probe as failed when settings has no devdrip entries", async () => {
+  it("marks hooks probe as failed when one expected hook event is missing", async () => {
     apiFetchMock.mockResolvedValue({ ok: true })
-    readSettingsMock.mockResolvedValue({ hooks: {} })
+    readSettingsMock.mockResolvedValue({
+      hooks: {
+        PreToolUse: [{ hooks: [{ type: "command", command: "/abs/devdrip hook pre-tool" }] }],
+      },
+    })
     const probes = await runInitHealthCheck(cfg, "/fake/settings.json")
     const hooks = probes.find((p) => p.name.startsWith("hooks installed"))
     expect(hooks?.ok).toBe(false)
+    expect(hooks?.detail).toContain("Stop")
+    expect(hooks?.detail).toContain("UserPromptSubmit")
   })
 
   it("marks auth probe as failed when GET /me throws", async () => {
@@ -78,6 +113,10 @@ describe("runInitHealthCheck", () => {
     readSettingsMock.mockResolvedValue({
       hooks: {
         PreToolUse: [{ hooks: [{ type: "command", command: "/abs/devdrip hook pre-tool" }] }],
+        Stop: [{ hooks: [{ type: "command", command: "/abs/devdrip hook stop" }] }],
+        UserPromptSubmit: [
+          { hooks: [{ type: "command", command: "/abs/devdrip hook prompt-submit" }] },
+        ],
       },
     })
     const probes = await runInitHealthCheck(cfg, "/fake/settings.json")

@@ -1,12 +1,21 @@
 // packages/cli/src/commands/__tests__/init.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs"
+import {
+  mkdtempSync,
+  rmSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  existsSync,
+  symlinkSync,
+} from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AdCategory } from "@devdrip/shared"
 
 let tempHome: string
 let origArgv1: string | undefined
+let tempBinDir: string
 
 const apiFetchMock = vi.fn()
 vi.mock("../../lib/api-client.js", async () => {
@@ -72,10 +81,16 @@ vi.mock("../demo.js", () => ({
 
 beforeEach(() => {
   tempHome = mkdtempSync(join(tmpdir(), "devdrip-init-"))
+  tempBinDir = mkdtempSync(join(tmpdir(), "devdrip-bin-"))
   process.env["HOME"] = tempHome
-  // make resolveBinPath() produce a devdrip-named path so DEVDRIP_SUB_RE matches
+  // use a real symlink so init preserves the invoked `devdrip` path instead of
+  // resolving to its target file.
   origArgv1 = process.argv[1]
-  process.argv[1] = "/usr/local/bin/devdrip"
+  const realEntry = join(tempBinDir, "index.js")
+  const linkEntry = join(tempBinDir, "devdrip")
+  writeFileSync(realEntry, "")
+  symlinkSync(realEntry, linkEntry)
+  process.argv[1] = linkEntry
   // seed a v2 config so auth step is a no-op
   mkdirSync(join(tempHome, ".devdrip"), { recursive: true, mode: 0o700 })
   writeFileSync(
@@ -85,14 +100,11 @@ beforeEach(() => {
       apiUrl: "http://localhost:3000",
       auth: { accessToken: "a", refreshToken: "b", accessTokenExpiresAt: "2099-01-01T00:00:00Z" },
       user: { id: "u1", githubLogin: "gh", email: "e@x.com", avatarUrl: null },
-      device: { id: null },
+      device: { id: "stale-device-id" },
       cli: { binPath: "" },
     }),
     { mode: 0o600 }
   )
-  // create ~/.claude so the Claude Code check passes
-  mkdirSync(join(tempHome, ".claude"), { recursive: true })
-
   apiFetchMock.mockReset().mockImplementation(async (path: string) => {
     if (path === "/me") return { id: "u1", githubLogin: "gh", email: "e@x.com", avatarUrl: null }
     if (path === "/health") return { ok: true }
@@ -112,6 +124,7 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(tempHome, { recursive: true, force: true })
+  rmSync(tempBinDir, { recursive: true, force: true })
   if (origArgv1 !== undefined) process.argv[1] = origArgv1
 })
 
@@ -120,13 +133,19 @@ describe("devdrip init", () => {
     const { runInit } = await import("../init.js")
     await runInit()
 
+    expect(existsSync(join(tempHome, ".claude"))).toBe(true)
+
     // settings.json contains all three events with our bin path
     const settings = JSON.parse(
       readFileSync(join(tempHome, ".claude", "settings.json"), "utf8")
     ) as { hooks: { [k: string]: Array<{ hooks: Array<{ command: string }> }> } }
-    expect(settings.hooks.PreToolUse?.[0]?.hooks[0]?.command).toMatch(/hook pre-tool$/)
-    expect(settings.hooks.Stop?.[0]?.hooks[0]?.command).toMatch(/hook stop$/)
-    expect(settings.hooks.UserPromptSubmit?.[0]?.hooks[0]?.command).toMatch(/hook prompt-submit$/)
+    expect(settings.hooks.PreToolUse?.[0]?.hooks[0]?.command).toBe(
+      `${process.argv[1]} hook pre-tool`
+    )
+    expect(settings.hooks.Stop?.[0]?.hooks[0]?.command).toBe(`${process.argv[1]} hook stop`)
+    expect(settings.hooks.UserPromptSubmit?.[0]?.hooks[0]?.command).toBe(
+      `${process.argv[1]} hook prompt-submit`
+    )
 
     // backup written
     expect(existsSync(join(tempHome, ".claude", "settings.json.devdrip-backup"))).toBe(true)
@@ -138,7 +157,7 @@ describe("devdrip init", () => {
       cli: { binPath: string }
     }
     expect(cfg.device.id).toBe("00000000-1111-2222-3333-444444444444")
-    expect(cfg.cli.binPath.length).toBeGreaterThan(0)
+    expect(cfg.cli.binPath).toBe(process.argv[1])
 
     // preferences PUT body
     const putCall = apiFetchMock.mock.calls.find(
@@ -165,6 +184,7 @@ describe("devdrip init", () => {
   it("preserves a pre-existing backup untouched on re-run", async () => {
     const settingsPath = join(tempHome, ".claude", "settings.json")
     const backupPath = `${settingsPath}.devdrip-backup`
+    mkdirSync(join(tempHome, ".claude"), { recursive: true })
     writeFileSync(
       settingsPath,
       '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"/other/tool foo"}]}]}}'
@@ -179,5 +199,11 @@ describe("devdrip init", () => {
     writeFileSync(settingsPath, '{"hooks":{}}')
     await runInit()
     expect(readFileSync(backupPath, "utf8")).toContain("/other/tool foo")
+  })
+
+  it("fails fast when the devdrip binary path cannot be resolved", async () => {
+    delete process.argv[1]
+    const { runInit } = await import("../init.js")
+    await expect(runInit()).rejects.toThrow(/unable to resolve the devdrip binary path/)
   })
 })

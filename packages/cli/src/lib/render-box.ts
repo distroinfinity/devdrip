@@ -14,6 +14,7 @@ interface Chars {
 
 const UNI: Chars = { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║" }
 const ASCII: Chars = { tl: "+", tr: "+", bl: "+", br: "+", h: "-", v: "|" }
+const ANSI_ESCAPE_RE = /\u001b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g
 
 export function shouldUseAscii(): boolean {
   if (process.env["NO_COLOR"]) return true
@@ -60,6 +61,11 @@ function line(c: Chars, inner: string): string {
   return `${c.v} ${padRight(inner, INNER)} ${c.v}`
 }
 
+function sanitize(text: string): string {
+  // Strip terminal control sequences and remaining control bytes from ad copy.
+  return text.replace(ANSI_ESCAPE_RE, "").replace(/[\x00-\x1F\x7F]/g, "")
+}
+
 export interface RenderBoxOpts {
   source?: string
   ascii?: boolean
@@ -83,10 +89,14 @@ export function renderBox(
   const middle = c.h.repeat(Math.max(0, fillLen - 2))
   const header = `${c.tl}${left}${middle}${right}${c.tr}`
 
+  const headline = sanitize(ad.headline)
+  const bodyText = ad.body ? sanitize(ad.body) : ""
+  const url = ad.url ? sanitize(ad.url) : ""
+
   const body = [
     line(c, ""),
-    line(c, ad.headline),
-    ...(ad.body ? wrap(ad.body, INNER).map((l) => line(c, l)) : []),
+    line(c, headline),
+    ...(bodyText ? wrap(bodyText, INNER).map((l) => line(c, l)) : []),
     line(c, ""),
     line(c, padRight("", Math.max(0, Math.floor(INNER / 2) - 12)) + "press enter to dismiss"),
   ]
@@ -94,7 +104,7 @@ export function renderBox(
   const footer = `${c.bl}${c.h.repeat(WIDTH - 2)}${c.br}`
 
   const parts = [header, ...body, footer]
-  if (ad.url) parts.push(`→ ${ad.url}`)
+  if (url) parts.push(`→ ${url}`)
 
   return parts.join("\n")
 }

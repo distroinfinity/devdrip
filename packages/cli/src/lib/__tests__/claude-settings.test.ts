@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from "no
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
+  getMissingDevdripHookEvents,
   mergeDevdripHooks,
   readSettings,
   writeSettingsAtomic,
@@ -11,6 +12,7 @@ import {
 } from "../claude-settings.js"
 
 const BIN = "/abs/path/to/devdrip"
+const BIN_WITH_SPACES = "/abs/path with spaces/devdrip"
 
 describe("mergeDevdripHooks", () => {
   it("adds all three events when settings are empty", () => {
@@ -123,6 +125,38 @@ describe("mergeDevdripHooks", () => {
     expect(changed).toBe(true)
     expect(next.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command).toBe(`${BIN} hook pre-tool`)
     expect(next.hooks?.PreToolUse).toHaveLength(1)
+  })
+
+  it("quotes the executable path when it contains spaces", () => {
+    const { next } = mergeDevdripHooks({}, BIN_WITH_SPACES)
+    expect(next.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command).toBe(
+      `"${BIN_WITH_SPACES}" hook pre-tool`
+    )
+  })
+})
+
+describe("getMissingDevdripHookEvents", () => {
+  it("returns missing events until all three hooks are installed", () => {
+    expect(getMissingDevdripHookEvents({ hooks: {} }, BIN)).toEqual([
+      "PreToolUse",
+      "Stop",
+      "UserPromptSubmit",
+    ])
+
+    expect(
+      getMissingDevdripHookEvents(
+        {
+          hooks: {
+            PreToolUse: [{ hooks: [{ type: "command", command: `${BIN} hook pre-tool` }] }],
+            Stop: [{ hooks: [{ type: "command", command: `${BIN} hook stop` }] }],
+            UserPromptSubmit: [
+              { hooks: [{ type: "command", command: `${BIN} hook prompt-submit` }] },
+            ],
+          },
+        },
+        BIN
+      )
+    ).toEqual([])
   })
 })
 
