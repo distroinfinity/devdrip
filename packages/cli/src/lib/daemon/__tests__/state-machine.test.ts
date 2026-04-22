@@ -292,4 +292,105 @@ describe("state-machine — rotation", () => {
     expect(result.state.kind).toBe("IDLE")
     expect(result.effects.some((e) => e.kind === "clearSessionState")).toBe(true)
   })
+
+  it("INTER_AD + idle-end → IDLE with only cancelInterAdTimer", () => {
+    const state: State = { kind: "INTER_AD", tty: "/dev/ttys003", enteredAt: 0 }
+    const result = step(state, { kind: "idle-end", now: 200 }, { deviceId: "d1" })
+    expect(result.state).toEqual({ kind: "IDLE" })
+    expect(result.effects).toEqual([{ kind: "cancelInterAdTimer" }])
+  })
+
+  it("INTER_AD + dismiss → IDLE with only cancelInterAdTimer", () => {
+    const state: State = { kind: "INTER_AD", tty: "/dev/ttys003", enteredAt: 0 }
+    const result = step(state, { kind: "dismiss", now: 200 }, { deviceId: "d1" })
+    expect(result.state).toEqual({ kind: "IDLE" })
+    expect(result.effects).toEqual([{ kind: "cancelInterAdTimer" }])
+  })
+
+  it("INTER_AD + kill-key → IDLE with cancelInterAdTimer + setSessionKilled", () => {
+    const state: State = { kind: "INTER_AD", tty: "/dev/ttys003", enteredAt: 0 }
+    const result = step(state, { kind: "kill-key", now: 200 }, { deviceId: "d1" })
+    expect(result.state).toEqual({ kind: "IDLE" })
+    expect(result.effects).toEqual([{ kind: "cancelInterAdTimer" }, { kind: "setSessionKilled" }])
+  })
+
+  it("INTER_AD + mute-key → IDLE with cancelInterAdTimer + writeMuteUntil with correct timestamp", () => {
+    const state: State = { kind: "INTER_AD", tty: "/dev/ttys003", enteredAt: 0 }
+    const result = step(state, { kind: "mute-key", now: 4000 }, { deviceId: "d1" })
+    expect(result.state).toEqual({ kind: "IDLE" })
+    expect(result.effects.some((e) => e.kind === "cancelInterAdTimer")).toBe(true)
+    const mute = result.effects.find((e) => e.kind === "writeMuteUntil") as
+      | { kind: "writeMuteUntil"; muteUntil: number }
+      | undefined
+    expect(mute?.muteUntil).toBe(4000 + 1_800_000)
+    const cancelIdx = result.effects.findIndex((e) => e.kind === "cancelInterAdTimer")
+    const muteIdx = result.effects.findIndex((e) => e.kind === "writeMuteUntil")
+    expect(cancelIdx).toBeLessThan(muteIdx)
+  })
+
+  it("INTER_AD + session-start → IDLE with cancelInterAdTimer + clearSessionState", () => {
+    const state: State = { kind: "INTER_AD", tty: "/dev/ttys003", enteredAt: 0 }
+    const result = step(state, { kind: "session-start", now: 200 }, { deviceId: "d1" })
+    expect(result.state).toEqual({ kind: "IDLE" })
+    expect(result.effects).toEqual([{ kind: "cancelInterAdTimer" }, { kind: "clearSessionState" }])
+  })
+
+  it("INTER_AD + stale events leave state unchanged and emit no effects", () => {
+    const state: State = { kind: "INTER_AD", tty: "/dev/ttys003", enteredAt: 0 }
+    const staleEvents: Array<Parameters<typeof step>[1]> = [
+      { kind: "skip-key", now: 100 },
+      { kind: "discover-key", now: 100 },
+      { kind: "vanish-elapsed", now: 100 },
+      { kind: "idle-start", tty: "/dev/ttys003", now: 100 },
+      { kind: "grace-elapsed", ad: null, now: 100 },
+    ]
+    for (const event of staleEvents) {
+      const result = step(state, event, { deviceId: "d1" })
+      expect(result.state).toEqual(state)
+      expect(result.effects).toEqual([])
+    }
+  })
+
+  it("GRACE + session-start → IDLE with cancelGraceTimer + clearSessionState", () => {
+    const state: State = { kind: "GRACE", tty: "/dev/ttys003", enteredAt: 100 }
+    const result = step(state, { kind: "session-start", now: 200 }, { deviceId: "d1" })
+    expect(result.state).toEqual({ kind: "IDLE" })
+    expect(result.effects).toEqual([{ kind: "cancelGraceTimer" }, { kind: "clearSessionState" }])
+  })
+
+  it("IDLE + session-start → IDLE with clearSessionState", () => {
+    const state: State = { kind: "IDLE" }
+    const result = step(state, { kind: "session-start", now: 200 }, { deviceId: "d1" })
+    expect(result.state).toEqual({ kind: "IDLE" })
+    expect(result.effects).toEqual([{ kind: "clearSessionState" }])
+  })
+
+  it("SHOWING + discover-key emits openDiscover BEFORE vanishDisplay", () => {
+    const state: State = {
+      kind: "SHOWING",
+      tty: "/dev/ttys003",
+      ad: fixtureAd,
+      shownAt: 0,
+    }
+    const result = step(state, { kind: "discover-key", now: 4000 }, { deviceId: "d1" })
+    const discoverIdx = result.effects.findIndex((e) => e.kind === "openDiscover")
+    const vanishIdx = result.effects.findIndex((e) => e.kind === "vanishDisplay")
+    expect(discoverIdx).toBeGreaterThanOrEqual(0)
+    expect(vanishIdx).toBeGreaterThanOrEqual(0)
+    expect(discoverIdx).toBeLessThan(vanishIdx)
+  })
+
+  it("SHOWING + kill-key produces recordImpression with result=interrupted", () => {
+    const state: State = {
+      kind: "SHOWING",
+      tty: "/dev/ttys003",
+      ad: fixtureAd,
+      shownAt: 1000,
+    }
+    const result = step(state, { kind: "kill-key", now: 4000 }, { deviceId: "d1" })
+    const imp = result.effects.find((e) => e.kind === "recordImpression")
+    expect(imp).toMatchObject({
+      impression: expect.objectContaining({ result: "interrupted" }),
+    })
+  })
 })
