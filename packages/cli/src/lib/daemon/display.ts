@@ -1,4 +1,4 @@
-import fs, { closeSync, constants as fsConstants, openSync } from "node:fs"
+import fs, { constants as fsConstants } from "node:fs"
 import { renderBox, type RenderBoxOpts } from "../render-box.js"
 import type { CachedAd } from "../ad-cache.js"
 
@@ -31,7 +31,7 @@ export function writeWithRetry(fd: number, data: string): void {
 
 export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): DisplayHandle {
   const flags = fsConstants.O_WRONLY | fsConstants.O_NONBLOCK
-  const fd = openSync(ttyPath, flags)
+  const fd = fs.openSync(ttyPath, flags)
   try {
     const opts: RenderBoxOpts = {
       earningsUsdc: ctx.earningsUsdc,
@@ -44,7 +44,7 @@ export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): Disp
     writeWithRetry(fd, `\x1b7${text}\n`)
   } catch (err) {
     try {
-      closeSync(fd)
+      fs.closeSync(fd)
     } catch {
       /* ignore */
     }
@@ -63,7 +63,7 @@ export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): Disp
         /* tty may be gone; ignore */
       }
       try {
-        closeSync(fd)
+        fs.closeSync(fd)
       } catch {
         /* ignore */
       }
