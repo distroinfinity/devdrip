@@ -1,21 +1,47 @@
-import { closeSync, openSync, writeSync } from "node:fs"
-import { renderBox } from "../render-box.js"
+import fs, { closeSync, constants as fsConstants, openSync } from "node:fs"
+import { renderBox, type RenderBoxOpts } from "../render-box.js"
 import type { CachedAd } from "../ad-cache.js"
 
-export interface DisplayHandle {
-  vanish(): void
+const MAX_WRITE_ATTEMPTS = 3
+
+export interface RenderCtx {
+  earningsUsdc?: number
+  source?: string
+  width?: number
 }
 
-export function showAd(ttyPath: string, ad: CachedAd): DisplayHandle {
-  const fd = openSync(ttyPath, "w")
-  let lineCount: number
+export interface DisplayHandle {
+  vanish(): { latencyMs: number }
+}
+
+export function writeWithRetry(fd: number, data: string): void {
+  let lastErr: unknown = null
+  for (let i = 0; i < MAX_WRITE_ATTEMPTS; i++) {
+    try {
+      fs.writeSync(fd, data)
+      return
+    } catch (err) {
+      lastErr = err
+      if ((err as NodeJS.ErrnoException).code !== "EAGAIN") throw err
+      // tight retry — EAGAIN on a tty is transient (kernel buffer full)
+    }
+  }
+  throw lastErr as Error
+}
+
+export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): DisplayHandle {
+  const flags = fsConstants.O_WRONLY | fsConstants.O_NONBLOCK
+  const fd = openSync(ttyPath, flags)
   try {
-    // S5-04 owns the [DEMO] badge; daemon renders the box without a source tag.
-    const text = renderBox(ad)
-    // one cursor-up per \n-separated chunk; the trailing \n we add below moves
-    // the cursor to a blank line we don't need to erase.
-    lineCount = text.split("\n").length
-    writeSync(fd, text + "\n")
+    const opts: RenderBoxOpts = {
+      earningsUsdc: ctx.earningsUsdc,
+      source: ctx.source,
+      width: ctx.width,
+    }
+    const text = renderBox(ad, opts)
+    // \x1b7: save cursor.  \x1b8\x1b[0J on vanish: restore cursor + erase to end of screen.
+    // Scroll-safe; avoids fragile line-count + cursor-up arithmetic.
+    writeWithRetry(fd, `\x1b7${text}\n`)
   } catch (err) {
     try {
       closeSync(fd)
@@ -27,11 +53,12 @@ export function showAd(ttyPath: string, ad: CachedAd): DisplayHandle {
 
   let closed = false
   return {
-    vanish() {
-      if (closed) return
+    vanish(): { latencyMs: number } {
+      const t0 = Date.now()
+      if (closed) return { latencyMs: 0 }
       closed = true
       try {
-        writeSync(fd, `\x1b[${lineCount}A\x1b[0J`)
+        writeWithRetry(fd, `\x1b8\x1b[0J`)
       } catch {
         /* tty may be gone; ignore */
       }
@@ -40,6 +67,7 @@ export function showAd(ttyPath: string, ad: CachedAd): DisplayHandle {
       } catch {
         /* ignore */
       }
+      return { latencyMs: Date.now() - t0 }
     },
   }
 }

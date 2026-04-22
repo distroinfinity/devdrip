@@ -60,6 +60,7 @@ function makeDeps() {
       return {
         vanish: () => {
           vanishCalls.push(Date.now())
+          return { latencyMs: 0 }
         },
       }
     }),

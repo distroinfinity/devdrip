@@ -5,10 +5,11 @@ import {
 } from "@devdrip/shared"
 import type { AdCache, CachedAd } from "../ad-cache.js"
 import type { Ledger, LocalImpression } from "../ledger.js"
+import type { RenderCtx } from "./display.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
 
 export interface DisplayApi {
-  show(ttyPath: string, ad: CachedAd): { vanish: () => void }
+  show(ttyPath: string, ad: CachedAd, ctx: RenderCtx): { vanish: () => { latencyMs: number } }
 }
 
 export interface LoggerApi {
@@ -67,7 +68,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   let state: State = { kind: "IDLE" }
   let graceTimer: NodeJS.Timeout | null = null
   let vanishTimer: NodeJS.Timeout | null = null
-  let currentDisplay: { vanish: () => void } | null = null
+  let currentDisplay: { vanish: () => { latencyMs: number } } | null = null
   let adsShownCount = 0
   let hooksReceivedCount = 0
   let preferences: DevdripPreferences = deps.preferences
@@ -116,7 +117,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           return
         }
         try {
-          currentDisplay = deps.display.show(effect.tty, effect.ad)
+          currentDisplay = deps.display.show(effect.tty, effect.ad, {})
           deps.log.info("showing ad", {
             adId: effect.ad.id,
             source: effect.ad.cacheSource,
