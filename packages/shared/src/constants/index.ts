@@ -28,13 +28,13 @@ export function daemonSocketPath(
 export const MIN_IDLE_PREDICTION_MS = 10_000
 export const MIN_IDLE_DURATION_MS = 8_000
 export const RE_ENGAGEMENT_COOLDOWN_MS = 15_000
-export const SESSION_WARMUP_MS = 600_000
+export const SESSION_WARMUP_MS = 60_000
 
 // ── frequency caps ─────────────────────────────────────────────────────────
 
 export const MAX_ADS_PER_HOUR_PER_SURFACE = 4
-export const MAX_ADS_PER_HOUR_TOTAL = 8
-export const MAX_ADS_PER_DAY = 60
+export const MAX_ADS_PER_HOUR_TOTAL = 20
+export const MAX_ADS_PER_DAY = 120
 
 // ── late-night reduction ───────────────────────────────────────────────────
 
@@ -60,6 +60,8 @@ export const IMPRESSION_CLOCK_TOLERANCE_MS = 1_000
 
 export const MUTE_DURATION_MS = 1_800_000
 export const AD_ROTATION_INTERVAL_MS = 15_000
+export const MAX_ADS_PER_CONTINUOUS_SESSION = 8
+export const INTER_AD_GAP_MS = 500
 export const MAX_AUDIO_AD_DURATION_MS = 15_000
 
 // ── night-mode preset (active when DevdripPreferences.nightMode is true
@@ -78,5 +80,6 @@ export function defaultDevdripPreferences(): DevdripPreferences {
     quietHoursEnd: null,
     nightMode: false,
     tzOffsetMinutes: -new Date().getTimezoneOffset(),
+    muteUntil: null,
   }
 }
