@@ -309,3 +309,91 @@ Gating in `state-machine.ts#endShowing`:
 ### cpmRate plumbing
 
 `/ads/batch` now includes `cpm_rate` on each row. `AdPayload.cpmRate` is required in shared types; `ad-cache.ts` propagates it into `CachedAd` and bumps `CACHE_FILE_VERSION` to `2` so pre-upgrade caches drop safely. The ledger row stores it on `record()`, making the "today total" resilient to API downtime between ads.
+
+## devdrip status (S3-11)
+
+`devdrip status` replaces the old auth-only stub with a one-screen summary of earnings, payout state, sync backlog, and daemon health.
+
+Human output (5–6 lines, `<` 8 always):
+
+```
+user:     @octocat (dev@example.com)
+earnings: $1.24 today · $5.80 week · $23.40 month
+streak:   3 days
+balance:  $5.80 → needs $4.20 more to claim
+unsynced: 2 impressions, 0 clicks
+daemon:   running (uptime 1h 14m, pid 49017)
+```
+
+Flags:
+
+- `--json` — emit a single JSON object, stable shape, for scripting. Always valid JSON; nothing else on stdout.
+- `--local` — skip the backend call; show local ledger + daemon only. Kept for scripts that pre-date the backend earnings path.
+
+Data sources, in order:
+
+1. `readConfig()` for `{ user, auth }`.
+2. `readDaemonStatus()` (new shared helper in `lib/daemon/lifecycle.ts`) — also used by `devdrip daemon status` so both commands never drift on what "stale" / "running" means. `HEARTBEAT_STALE_AFTER_MS = 30_000`.
+3. `apiFetch<EarningsSummaryResponse>("/me/earnings/summary")` — backend returns today/week/month/all-time/streak/top-categories (see `packages/api/src/services/earnings.service.ts`).
+4. On success, the response is written to `~/.devdrip/status.cache.json` (atomic, mode `0600`, capped at 24h TTL via `lib/status-cache.ts`).
+5. On `ApiError` or network failure the command loads that cache and sets `offline: true` + `offlineReason: "api 500" | "network"`. Older than 24h → no cached numbers, shows `local today ≈ $X.XX` from `ledger.sumTodayOptimistic()` and `—` for week/month.
+6. Payout: `{ eligible, threshold: MIN_PAYOUT_USDC=1.0, shortfall }` derived from `balance`.
+
+JSON schema (stable, document before 1.0):
+
+```json
+{
+  "user": { "githubLogin": "...", "email": "..." } | null,
+  "earnings": { "balance": 5.8, "today": 1.24, "week": 5.8, "month": 23.4, "allTime": 23.4,
+                "streakDays": 3, "totalImpressions": 122, "totalClicks": 4,
+                "topCategories": [{ "category": "...", "amountUsdc": 1.8 }] } | null,
+  "earningsFromCache": false,
+  "earningsCacheAgeMs": null,
+  "payout": { "eligible": false, "threshold": 1.0, "shortfall": 0 } | null,
+  "unsynced": { "impressions": 2, "clicks": 0 },
+  "localTodayOptimistic": 1.24,
+  "daemon": { "health": "running" | "stale" | "not-running", "pid": 49017, "socketPath": "...",
+              "uptimeMs": 4428000, "lastHeartbeatAgeMs": 1400,
+              "adsShownThisSession": 12, "hooksReceivedThisSession": 67 },
+  "offline": false,
+  "offlineReason": null | "network" | "api 500" | "local-only" | "not-signed-in"
+}
+```
+
+## Frequency caps (S3-12)
+
+Three suppression layers apply before any ad reaches the screen, all in `orchestrator.suppressionReason` / `pickNextAd`:
+
+1. **User/global caps** (from `DevdripPreferences` via `devdrip config`): warmup, quiet-hours / night-mode, muteUntil, `sessionKilled`, `maxPerHour`, `maxPerDay`, `MAX_ADS_PER_CONTINUOUS_SESSION`. Any hit returns a `reason` string and the orchestrator emits a null-ad event — the state machine returns to IDLE / INTER_AD silently. No user-visible error. Defaults remain generous on purpose (see `shared/constants/index.ts` note); users tune down with `devdrip config --set maxPerHour=4`.
+2. **Per-campaign daily cap** (new, S3-12): `AdPayload.campaignMaxImpressionsPerDay` is populated from `targeting_rules.maxImpressions` in `ad-selection.service.ts#toAdPayload`. Before displaying, the daemon calls `ledger.countImpressionsByCampaignToday(campaignId, tzOffsetMinutes)` and compares against the cap. If hit, the orchestrator pulls the next cached ad from `adCache.next()` — up to `CAMPAIGN_CAP_RETRIES = 5` attempts — so one exhausted campaign doesn't starve the rotation. Day boundary is the user's local day (matches `sumTodayOptimistic`), aligned with the backend's UTC-day Redis counter as a client-side safety net rather than the authority.
+3. **Backend pre-check** continues to run server-side in `lib/frequency.ts#checkCampaignCap` at ad-fetch time. The client-side cap only matters when the same ad is re-picked from the local cache between sync windows, or when the backend is unreachable.
+
+Log lines to grep in `~/.devdrip/daemon.log` when debugging caps: `ad suppressed`, `campaign-cap hit`, `every candidate hit a campaign cap`, `cache empty`.
+
+## Multi-terminal safety (S3-14)
+
+The daemon now runs **one `Session` per tty path**, keyed in a `Map<string, Session>` inside the orchestrator. Sentinel key `"__no_tty__"` handles piped/CI contexts where no controlling tty is resolvable.
+
+**Per-session state** (each tty is independent):
+
+- `state` (IDLE / GRACE / SHOWING / INTER_AD) and the timers that drive it (`graceTimer`, `vanishTimer`, `interAdTimer`, `progressTimer`)
+- `currentDisplay` handle — each tty opens its own fd in `display.ts`; no shared rendering state
+- `sessionKilled` — `devdrip kill-session` on tty-A never stops ads on tty-B
+- `adsInCurrentBusyWindow`, `sessionStartAt` — warmup and session-cap both reset per Claude Code invocation
+
+**Shared globals** (per-user, not per-tty):
+
+- `preferences` — one config, applies to all sessions
+- `hourlyTimestamps`, `dailyTimestamps` — rate limits are per-user; two terminals do **not** double the dev's ad load
+- `muteUntil` — persisted to `config.json`; propagates to all sessions via the existing reload path
+- `adsShownCount`, `hooksReceivedCount` — daemon-wide heartbeat counters
+
+**Wire routing**: every per-session event type (`idle-end`, `dismiss`, `session-start`, `action`) now carries optional `tty` on the wire. Hook commands (`devdrip hook pre-tool|stop|prompt-submit|session-start`) and the `action` command resolve the invoking tty via `resolveTty()` and include it in the socket payload. The daemon routes on that; if `tty` is missing (old client), it falls back to the single active session — preserves single-terminal behavior for the entire existing test suite without breaking any test.
+
+**Key capture**: `createKeyCapture` became a `Map<ttyPath, ActiveCapture>`. `start(tty)` is idempotent per tty; `stop(tty)` only tears down that tty; `stop()` with no arg (shutdown path) drops them all. Keystrokes flow back to `dispatch` with their originating tty, so a `d` / `s` / `k` / `m` in tty-A affects only tty-A's session.
+
+**Shutdown** iterates every session, clears its timers, dispatches `dismiss` to the ones mid-ad so pending impressions land in the ledger, and stops every key capture before the server closes.
+
+### Known caveat
+
+The full multi-terminal path requires running two real Claude Code windows; the existing single-tty test suite (243 tests) passes unchanged, and `daemon-e2e.test.ts` continues to drive the real daemon end-to-end. Manual verification: open two Claude Code windows, confirm `grep "showing ad" ~/.devdrip/daemon.log` shows distinct `tty=` fields, dismissing one leaves the other running.
