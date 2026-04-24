@@ -58,7 +58,7 @@ describe("ad-cache", () => {
     expect(ad?.cacheSource).toBe("api")
 
     const persisted = JSON.parse(readFileSync(adCachePath(), "utf8"))
-    expect(persisted.version).toBe(1)
+    expect(persisted.version).toBe(2)
     expect(persisted.ads.length).toBe(2) // one consumed
   })
 

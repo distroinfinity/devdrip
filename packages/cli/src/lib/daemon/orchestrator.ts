@@ -2,6 +2,10 @@ import {
   MAX_ADS_PER_CONTINUOUS_SESSION,
   NIGHT_MODE_DEFAULT_START_HOUR,
   NIGHT_MODE_DEFAULT_END_HOUR,
+  PROGRESS_CAP,
+  PROGRESS_SNAP_HOLD_MS,
+  PROGRESS_TICK_MS,
+  TOAST_HOLD_MS,
   type DevdripPreferences,
 } from "@devdrip/shared"
 import type { AdCache, CachedAd } from "../ad-cache.js"
@@ -9,16 +13,22 @@ import type { Ledger, LocalImpression } from "../ledger.js"
 import type { KeyCapture } from "./input.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
 
+export interface DisplayHandleApi {
+  vanish: () => { latencyMs: number }
+  onResize: (cb: () => void) => void
+  flash: () => void
+  updateProgress: (progress: number, elapsedMs: number) => void
+}
+
 export interface DisplayApi {
   show(
     ttyPath: string,
     ad: CachedAd,
     ctx: { earningsUsdc?: number; source?: string; width?: number }
-  ): {
-    vanish: () => { latencyMs: number }
-    onResize: (cb: () => void) => void
-    flash: () => void
-  }
+  ): DisplayHandleApi
+  // S3-05: fire-and-forget toast renderer. called after vanishDisplay — opens
+  // its own fd so it doesn't depend on the ad handle's lifecycle.
+  showToast(ttyPath: string, deltaUsdc: number, todayUsdc: number, holdMs: number): void
 }
 
 export interface LoggerApi {
@@ -86,12 +96,28 @@ function resolveQuietWindow(prefs: DevdripPreferences): { start: number; end: nu
   return null
 }
 
+// Sigmoid curve: smoothly accelerates away from 0, then asymptotes toward the
+// cap. `k` controls steepness — k=8 gives ~5% at start, ~50% at midpoint,
+// ~85% near end, asymptotic to PROGRESS_CAP. Feels closer to how a dev
+// experiences Claude's tool-call latency (slow start, mid-task plateau).
+function sigmoidProgress(elapsedMs: number, displayTimeMs: number): number {
+  if (displayTimeMs <= 0) return PROGRESS_CAP
+  const x = elapsedMs / displayTimeMs
+  const k = 8
+  const s = 1 / (1 + Math.exp(-k * (x - 0.5)))
+  return Math.min(PROGRESS_CAP, s * PROGRESS_CAP)
+}
+
 export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   let state: State = { kind: "IDLE" }
   let graceTimer: NodeJS.Timeout | null = null
   let vanishTimer: NodeJS.Timeout | null = null
   let interAdTimer: NodeJS.Timeout | null = null
-  let currentDisplay: ReturnType<DisplayApi["show"]> | null = null
+  let progressTimer: NodeJS.Timeout | null = null
+  let currentDisplay: DisplayHandleApi | null = null
+  // remembered across vanish() → showToast() so the toast can open a fresh
+  // fd against the same controlling tty that the ad used.
+  let lastDisplayTty: string | null = null
   let adsShownCount = 0
   let hooksReceivedCount = 0
   let preferences: DevdripPreferences = deps.preferences
@@ -111,7 +137,32 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   function applyStep(event: Event): void {
     const result = step(state, event, { deviceId: deps.deviceId })
     state = result.state
-    for (const effect of result.effects) runEffect(effect)
+    runEffects(result.effects)
+  }
+
+  // effects normally run synchronously, but `snapProgressToComplete` is a
+  // "pause point": it forces the box to redraw at 100% and then defers every
+  // following effect by PROGRESS_SNAP_HOLD_MS so the user actually sees the
+  // full bar before vanish clears it.
+  function runEffects(effects: Effect[]): void {
+    for (let i = 0; i < effects.length; i++) {
+      const eff = effects[i]
+      if (!eff) continue
+      if (eff.kind === "snapProgressToComplete") {
+        if (currentDisplay) {
+          try {
+            // elapsedMs value doesn't matter here — progress=1 pins to 100%.
+            currentDisplay.updateProgress(1.0, 0)
+          } catch (err) {
+            deps.log.warn("progress snap failed", { error: (err as Error).message })
+          }
+        }
+        const tail = effects.slice(i + 1)
+        setTimeout(() => runEffects(tail), PROGRESS_SNAP_HOLD_MS)
+        return
+      }
+      runEffect(eff)
+    }
   }
 
   function dispatch(event: Event): void {
@@ -196,6 +247,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         try {
           const source = effect.ad.cacheSource === "demo" ? "DEMO" : undefined
           currentDisplay = deps.display.show(effect.tty, effect.ad, { source })
+          lastDisplayTty = effect.tty
           // on terminal resize, proactively dismiss the current ad — the
           // display has already reset its scroll region to prevent content
           // loss, and the next rotation tick will re-anchor with fresh rows.
@@ -225,6 +277,56 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           queueMicrotask(() => dispatch({ kind: "dismiss", now: now() }))
         }
         return
+      case "startProgressTimer": {
+        if (progressTimer) clearInterval(progressTimer)
+        const shownAt = effect.shownAt
+        const displayTimeMs = effect.displayTimeMs
+        progressTimer = setInterval(() => {
+          if (!currentDisplay) return
+          const elapsed = Math.max(0, now() - shownAt)
+          const p = sigmoidProgress(elapsed, displayTimeMs)
+          try {
+            currentDisplay.updateProgress(p, elapsed)
+          } catch (err) {
+            deps.log.warn("progress tick failed", { error: (err as Error).message })
+          }
+        }, PROGRESS_TICK_MS)
+        // unref so a lingering progress timer never holds the daemon open.
+        progressTimer.unref?.()
+        return
+      }
+      case "cancelProgressTimer":
+        if (progressTimer) {
+          clearInterval(progressTimer)
+          progressTimer = null
+        }
+        return
+      case "snapProgressToComplete":
+        // handled in runEffects — reaching here means no ad display was
+        // active (e.g. null-tty path) so there's nothing to snap.
+        return
+      case "showEarningsToast": {
+        const tty = lastDisplayTty
+        if (!tty) return
+        const todayUsdc = (() => {
+          try {
+            return deps.ledger.sumTodayOptimistic(preferences.tzOffsetMinutes, now())
+          } catch (err) {
+            deps.log.warn("today-sum read failed", { error: (err as Error).message })
+            return effect.deltaUsdc
+          }
+        })()
+        try {
+          deps.display.showToast(tty, effect.deltaUsdc, todayUsdc, TOAST_HOLD_MS)
+          deps.log.info("earnings toast", {
+            deltaUsdc: effect.deltaUsdc,
+            todayUsdc,
+          })
+        } catch (err) {
+          deps.log.warn("toast failed", { error: (err as Error).message })
+        }
+        return
+      }
       case "startVanishTimer":
         if (vanishTimer) clearTimeout(vanishTimer)
         vanishTimer = setTimeout(() => {
@@ -240,6 +342,13 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         return
       case "vanishDisplay":
         deps.keyCapture.stop()
+        // defensive cleanup — state machine always pairs vanish with an
+        // explicit cancelProgressTimer, but clearing here too avoids a runaway
+        // tick if a test dispatches vanishDisplay in isolation.
+        if (progressTimer) {
+          clearInterval(progressTimer)
+          progressTimer = null
+        }
         if (currentDisplay) {
           try {
             const { latencyMs } = currentDisplay.vanish()
@@ -369,6 +478,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     if (graceTimer) clearTimeout(graceTimer)
     if (vanishTimer) clearTimeout(vanishTimer)
     if (interAdTimer) clearTimeout(interAdTimer)
+    if (progressTimer) clearInterval(progressTimer)
     deps.keyCapture.stop()
     if (state.kind === "SHOWING" || state.kind === "INTER_AD") {
       dispatch({ kind: "dismiss", now: now() })

@@ -68,6 +68,20 @@ export const MAX_ADS_PER_CONTINUOUS_SESSION = 9_999
 export const INTER_AD_GAP_MS = 500
 export const MAX_AUDIO_AD_DURATION_MS = 15_000
 
+// ── progress bar (S3-04) ───────────────────────────────────────────────────
+// sigmoid updates every 500ms, capped at 90% until Stop; on Stop we snap to
+// 100% and hold briefly before the box vanishes so the jump reads as a
+// deliberate finish instead of a cold cut.
+export const PROGRESS_TICK_MS = 500
+export const PROGRESS_CAP = 0.9
+export const PROGRESS_SNAP_HOLD_MS = 120
+
+// ── earnings toast (S3-05) ─────────────────────────────────────────────────
+// only show the micro-confirmation if the ad was actually watched.
+// MRC-adjacent: 3s matches the ticket's "shown >3s" validity bar.
+export const VALID_IMPRESSION_FOR_TOAST_MS = 3_000
+export const TOAST_HOLD_MS = 2_000
+
 // ── night-mode preset (active when DevdripPreferences.nightMode is true
 // and no custom quiet hours are set) ───────────────────────────────────────
 export const NIGHT_MODE_DEFAULT_START_HOUR = 22

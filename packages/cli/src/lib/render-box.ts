@@ -1,8 +1,16 @@
 import type { AdPayload } from "@devdrip/shared"
+import { detectColor, dim, green, type ColorMode } from "./ansi.js"
 
 const DEFAULT_WIDTH = 72
 const MIN_WIDTH = 40
 const MAX_WIDTH = 120
+
+// ticker verbs cycle on the progress line while Claude is working. the swap
+// cadence is ~4s so the motion reads as deliberate rather than busy. intended
+// to blend with Claude Code's own "verb + ellipsis" idle feel without copying
+// specific words. ASCII fallback always uses "working" (no unicode ellipsis).
+const VERBS = ["working", "thinking", "shipping", "cooking"] as const
+const VERB_SWAP_MS = 4_000
 
 interface Chars {
   tl: string
@@ -33,19 +41,52 @@ function actionFooter(inner: number): string {
   return tiny
 }
 
-function progressBar(progress: number, cells: number, ascii: boolean): string {
+function progressBar(progress: number, cells: number, ascii: boolean, color: ColorMode): string {
   const clamped = progress < 0 ? 0 : progress > 1 ? 1 : progress
-  const filled = Math.round(clamped * cells)
-  const empty = cells - filled
-  const fillCh = ascii ? "#" : "▇"
-  const emptyCh = ascii ? "-" : "░"
-  return fillCh.repeat(filled) + emptyCh.repeat(empty)
+  // filled count is cells-1 so there's always room for the head cell; when
+  // progress crosses into the last cell we render a full track with no head.
+  const filledBody = Math.floor(clamped * (cells - 1))
+  const atEnd = filledBody >= cells - 1
+  // thin-track unicode reads as "polished CLI" (Vercel/Railway style) inside
+  // the existing heavy double border. ascii fallback stays equals-signs.
+  const fillCh = ascii ? "=" : "━"
+  const headCh = ascii ? ">" : "╸"
+  const emptyCh = ascii ? "-" : "─"
+  const filledStr = fillCh.repeat(atEnd ? cells : filledBody)
+  const head = atEnd ? "" : headCh
+  const rest = emptyCh.repeat(Math.max(0, cells - filledBody - 1))
+  // accent only the filled portion so the "done so far" reads at a glance.
+  // leave the track dim gray (or default) so it doesn't scream.
+  return `${green(filledStr, color)}${green(head, color)}${dim(rest, color)}`
 }
 
-function progressCellCount(inner: number): number {
-  // bar fills ~40% of inner width, min 8, max 40
-  const raw = Math.floor(inner * 0.4)
-  return Math.max(8, Math.min(40, raw))
+// 4-slot verb rotation keyed off elapsed ms. deterministic so repeated renders
+// for the same progress tick pick the same verb (no flicker when `updateProgress`
+// is called back-to-back within the same 4s window).
+function pickVerb(elapsedMs: number, ascii: boolean): string {
+  if (ascii) return "working"
+  const idx = Math.floor(elapsedMs / VERB_SWAP_MS) % VERBS.length
+  return VERBS[idx] ?? VERBS[0]
+}
+
+function progressLine(
+  progress: number,
+  elapsedMs: number,
+  inner: number,
+  ascii: boolean,
+  color: ColorMode
+): string {
+  const verb = pickVerb(elapsedMs, ascii)
+  const pct = `${Math.min(100, Math.round(progress * 100))}%`
+  // reserve space for verb, two spaces around bar, pct. cells = whatever is
+  // left, clamped 8..30 so narrow terminals don't get ugly. narrower than the
+  // old 40% heuristic — the bar is now visually lighter so it doesn't need
+  // the width to feel substantial.
+  const fixedCost = verb.length + 1 + 1 + pct.length + 1
+  const raw = inner - fixedCost
+  const cells = Math.max(8, Math.min(30, raw))
+  const bar = progressBar(progress, cells, ascii, color)
+  return `${dim(verb, color)} ${bar} ${dim(pct, color)}`
 }
 
 function wrap(text: string, max: number): string[] {
@@ -77,8 +118,14 @@ function wrap(text: string, max: number): string[] {
   return lines
 }
 
+function visibleLen(s: string): number {
+  // exclude ANSI SGR escapes from width calc so the right-hand box border
+  // aligns even when the line contains color codes (progress bar).
+  return [...s.replace(ANSI_ESCAPE_RE, "")].length
+}
+
 function padRight(s: string, n: number): string {
-  const len = [...s].length
+  const len = visibleLen(s)
   if (len >= n) return s
   return s + " ".repeat(n - len)
 }
@@ -96,8 +143,14 @@ export interface RenderBoxOpts {
   source?: string
   earningsUsdc?: number
   progress?: number // 0..1
+  // elapsed ms since the ad was first shown — drives the verb rotation on the
+  // progress line. optional: falls back to 0 (always shows the first verb) so
+  // static callers/tests don't need to thread timing through.
+  elapsedMs?: number
   width?: number
   ascii?: boolean
+  // color hint override for tests; detected from env by default.
+  color?: ColorMode
 }
 
 function clampWidth(w: number | undefined): number {
@@ -114,7 +167,10 @@ export function renderBox(
 ): string {
   const width = clampWidth(opts.width)
   const inner = width - 4 // space for "║ " and " ║"
-  const c = (opts.ascii ?? false) ? ASCII : UNI
+  const ascii = opts.ascii ?? false
+  const c = ascii ? ASCII : UNI
+  // no color when ASCII fallback is on — NO_COLOR/non-TTY imply monochrome.
+  const color: ColorMode = ascii ? "none" : (opts.color ?? detectColor())
   const title = "DEV DRIP TV"
   const earningsSegment =
     opts.earningsUsdc !== undefined ? `$${opts.earningsUsdc.toFixed(4)} earned` : ""
@@ -150,7 +206,7 @@ export function renderBox(
     line(c, "", inner),
     line(c, footerLine, inner),
     ...(opts.progress !== undefined
-      ? [line(c, progressBar(opts.progress, progressCellCount(inner), opts.ascii ?? false), inner)]
+      ? [line(c, progressLine(opts.progress, opts.elapsedMs ?? 0, inner, ascii, color), inner)]
       : []),
   ]
 

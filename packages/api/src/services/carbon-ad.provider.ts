@@ -99,6 +99,7 @@ async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
         body,
         url: ctaUrl ?? "",
         displayTimeMs: MAX_AD_DURATION_MS,
+        cpmRate: env.carbonCpmRate,
         // DB schema calls this viewabilityBeaconUrl; AdPayload calls it impressionBeaconUrl
         impressionBeaconUrl: viewabilityBeaconUrl ?? undefined,
         clickTrackingUrl: clickTrackingUrl ?? undefined,
