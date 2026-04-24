@@ -18,6 +18,10 @@
       "env": {
         "RAILWAY_API_TOKEN": "${RAILWAY_API_TOKEN}"
       }
+    },
+    "world-docs": {
+      "type": "http",
+      "url": "https://docs.world.org/mcp"
     }
   }
 }
