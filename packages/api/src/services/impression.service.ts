@@ -9,6 +9,7 @@ import { clicks } from "../db/schema/clicks.js"
 import { devices } from "../db/schema/devices.js"
 import { earningsLedger } from "../db/schema/earnings.js"
 import {
+  ApiError,
   NotFoundError,
   ConflictError,
   StateError,
@@ -189,7 +190,7 @@ export async function recordClickByJti(
       .select({ id: impressions.id, deviceId: impressions.deviceId })
       .from(impressions)
       .where(eq(impressions.deliveryJti, jti))
-    if (!imp) throw new NotFoundError("impression_not_synced")
+    if (!imp) throw new ApiError(404, "impression_not_synced")
 
     const [device] = await db
       .select({ userId: devices.userId })
@@ -205,7 +206,7 @@ export async function recordClickByJti(
     return { clickId: click.id, earningsDelta: 0 }
   } catch (err) {
     if (pgErrorCode(err) === "23505") throw new ConflictError("click_already_recorded")
-    if (pgErrorCode(err) === "23503") throw new NotFoundError("impression_not_synced")
+    if (pgErrorCode(err) === "23503") throw new ApiError(404, "impression_not_synced")
     throw err
   }
 }

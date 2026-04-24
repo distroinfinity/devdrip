@@ -122,6 +122,7 @@ describe("peekDeliveryToken", () => {
     const claims = await peekDeliveryToken(token)
     expect(claims.deviceId).toBe("d1")
     expect(claims.jti).toBe("jti-5")
+    expect((getRedis as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(0)
   })
 })
 
