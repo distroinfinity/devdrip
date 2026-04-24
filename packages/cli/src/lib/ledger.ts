@@ -20,20 +20,34 @@ export interface LocalImpression {
   cpmRate?: number | null
 }
 
+export interface LocalClick {
+  id: string
+  deliveryToken: string
+  createdAt: number
+}
+
 export interface Ledger {
   record(i: LocalImpression): void
   listUnsynced(limit: number): LocalImpression[]
   markSynced(ids: string[], at: number): void
+  markImpressionsTerminal(ids: string[]): void
   unsyncedCount(): number
   // Optimistic running total of developer-share USDC earned today (local day
   // per tzOffsetMinutes). Sums (cpm_rate / 1000) * REVENUE_SHARE_DEVELOPER over
   // completed impressions whose started_at falls in today's local window. Used
   // by the S3-05 earnings toast; backend remains authoritative at sync time.
   sumTodayOptimistic(tzOffsetMinutes: number, now?: number): number
+
+  recordClick(c: LocalClick): void
+  listUnsyncedClicks(limit: number): LocalClick[]
+  markClicksSynced(ids: string[], at: number): void
+  markClicksTerminal(ids: string[]): void
+  unsyncedClickCount(): number
+
   close(): void
 }
 
-const SCHEMA_VERSION = 1
+const SCHEMA_VERSION = 2
 
 export function ledgerPath(): string {
   return join(configDir(), "ledger.db")
@@ -101,24 +115,39 @@ function tryOpen(path: string): Database.Database {
 function runMigrations(db: Database.Database): void {
   const v = db.pragma("user_version", { simple: true }) as number
   if (v >= SCHEMA_VERSION) return
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS impressions (
-      id             TEXT PRIMARY KEY,
-      ad_id          TEXT NOT NULL,
-      campaign_id    TEXT NOT NULL,
-      surface        TEXT NOT NULL,
-      source         TEXT NOT NULL,
-      delivery_token TEXT NOT NULL,
-      started_at     INTEGER NOT NULL,
-      duration_ms    INTEGER NOT NULL,
-      result         TEXT NOT NULL,
-      device_id      TEXT NOT NULL,
-      cpm_rate       REAL,
-      synced_at      INTEGER
-    );
-    CREATE INDEX IF NOT EXISTS idx_impressions_unsynced
-      ON impressions (synced_at) WHERE synced_at IS NULL;
-  `)
+
+  if (v < 1) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS impressions (
+        id             TEXT PRIMARY KEY,
+        ad_id          TEXT NOT NULL,
+        campaign_id    TEXT NOT NULL,
+        surface        TEXT NOT NULL,
+        source         TEXT NOT NULL,
+        delivery_token TEXT NOT NULL,
+        started_at     INTEGER NOT NULL,
+        duration_ms    INTEGER NOT NULL,
+        result         TEXT NOT NULL,
+        device_id      TEXT NOT NULL,
+        cpm_rate       REAL,
+        synced_at      INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_impressions_unsynced
+        ON impressions (synced_at) WHERE synced_at IS NULL;
+    `)
+  }
+  if (v < 2) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS clicks (
+        id             TEXT PRIMARY KEY,
+        delivery_token TEXT NOT NULL,
+        created_at     INTEGER NOT NULL,
+        synced_at      INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_clicks_unsynced
+        ON clicks (synced_at) WHERE synced_at IS NULL;
+    `)
+  }
   db.pragma(`user_version = ${SCHEMA_VERSION}`)
 }
 
@@ -195,6 +224,28 @@ export function openLedger(): Ledger {
     return stmt
   }
 
+  const insertClickStmt = db.prepare(`
+    INSERT OR IGNORE INTO clicks (id, delivery_token, created_at, synced_at)
+    VALUES (@id, @delivery_token, @created_at, NULL)
+  `)
+  const selectUnsyncedClicksStmt = db.prepare(`
+    SELECT id, delivery_token, created_at FROM clicks
+    WHERE synced_at IS NULL ORDER BY created_at ASC LIMIT ?
+  `)
+  const countUnsyncedClicksStmt = db.prepare(`
+    SELECT COUNT(*) AS n FROM clicks WHERE synced_at IS NULL
+  `)
+  const markClickStmts = new Map<number, Statement>()
+  function markClickSyncedStmt(count: number): Statement {
+    let stmt = markClickStmts.get(count)
+    if (!stmt) {
+      const placeholders = new Array<string>(count).fill("?").join(",")
+      stmt = db.prepare(`UPDATE clicks SET synced_at = ? WHERE id IN (${placeholders})`)
+      markClickStmts.set(count, stmt)
+    }
+    return stmt
+  }
+
   return {
     record(i) {
       insertStmt.run({
@@ -225,6 +276,9 @@ export function openLedger(): Ledger {
       })
       apply(ids)
     },
+    markImpressionsTerminal(ids) {
+      this.markSynced(ids, -1)
+    },
     unsyncedCount() {
       const row = countUnsyncedStmt.get() as { n: number }
       return row.n
@@ -236,6 +290,43 @@ export function openLedger(): Ledger {
       // after multiplication is equivalent to summing cpm first and dividing
       // once, which keeps the SQL trivial and avoids per-row arithmetic.
       return (row.total_cpm / 1000) * REVENUE_SHARE_DEVELOPER
+    },
+    recordClick(c) {
+      insertClickStmt.run({
+        id: c.id,
+        delivery_token: c.deliveryToken,
+        created_at: c.createdAt,
+      })
+    },
+    listUnsyncedClicks(limit) {
+      const rows = selectUnsyncedClicksStmt.all(limit) as Array<{
+        id: string
+        delivery_token: string
+        created_at: number
+      }>
+      return rows.map((r) => ({
+        id: r.id,
+        deliveryToken: r.delivery_token,
+        createdAt: r.created_at,
+      }))
+    },
+    markClicksSynced(ids, at) {
+      if (ids.length === 0) return
+      const apply = db.transaction((batch: string[]) => {
+        for (let i = 0; i < batch.length; i += MARK_SYNCED_CHUNK) {
+          const chunk = batch.slice(i, i + MARK_SYNCED_CHUNK)
+          markClickSyncedStmt(chunk.length).run(at, ...chunk)
+        }
+      })
+      apply(ids)
+    },
+    markClicksTerminal(ids) {
+      // tombstone: synced_at = -1 means terminal error, stop retrying
+      this.markClicksSynced(ids, -1)
+    },
+    unsyncedClickCount() {
+      const row = countUnsyncedClicksStmt.get() as { n: number }
+      return row.n
     },
     close() {
       db.close()
