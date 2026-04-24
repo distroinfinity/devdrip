@@ -85,7 +85,7 @@ Reads `~/.devdrip/config.json` and calls `GET /me`. If the access token is expir
 ```json
 {
   "version": 3,
-  "apiUrl": "https://api.devdrip.sh",
+  "apiUrl": "https://devdrip-api-production.up.railway.app",
   "auth": {
     "accessToken": "jwt",
     "refreshToken": "hex",
@@ -112,7 +112,7 @@ Reads `~/.devdrip/config.json` and calls `GET /me`. If the access token is expir
 }
 ```
 
-`version` exists for future migrations (`1` and `2` auto-migrate on read to `3`, filling in defaults for any new fields). `apiUrl` is captured at sign-in so subsequent commands don't need `DEVDRIP_API_URL` set. `DEVDRIP_API_URL` still takes precedence when present. Before first sign-in, public CLI requests default to the production API origin (`https://api.devdrip.sh`), not localhost.
+`version` exists for future migrations (`1` and `2` auto-migrate on read to `3`, filling in defaults for any new fields). `apiUrl` is captured at sign-in so subsequent commands don't need `DEVDRIP_API_URL` set. `DEVDRIP_API_URL` still takes precedence when present. Before first sign-in, public CLI requests default to the Railway-hosted production API (`https://devdrip-api-production.up.railway.app`), not localhost. The eventual public hostname `api.devdrip.sh` is reserved but not yet DNS-wired.
 
 `preferences` is owned by the `devdrip config` command (S2-12); see [`config` section](#devdrip-config-s2-12) below. The daemon watches this file and reloads preferences live.
 
