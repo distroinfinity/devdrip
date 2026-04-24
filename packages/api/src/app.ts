@@ -19,6 +19,7 @@ import { adminUsersRouter } from "./routes/admin-users.js"
 import { adminPayoutsRouter } from "./routes/admin-payouts.js"
 import { invitesRouter } from "./routes/invites.js"
 import { mePreferencesRouter } from "./routes/me-preferences.js"
+import { meEarningsRouter } from "./routes/me-earnings.js"
 import { requireAuth } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
 import { globalLimiter, userLimiter, adminLimiter } from "./middleware/rate-limit.js"
@@ -84,5 +85,6 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
 })
 
 app.use("/me", requireAuth, userLimiter, mePreferencesRouter)
+app.use("/me/earnings", requireAuth, userLimiter, meEarningsRouter)
 
 app.use(errorHandler)
