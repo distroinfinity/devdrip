@@ -226,8 +226,9 @@ describe("devdrip config --reset", () => {
     })
     await runConfig(["--reset"])
     const prefs = readPersistedPrefs(tempHome)
-    expect(prefs["maxPerHour"]).toBe(20)
-    expect(prefs["maxPerDay"]).toBe(120)
+    // defaults are intentionally generous — see shared/constants/index.ts
+    expect(prefs["maxPerHour"]).toBe(9999)
+    expect(prefs["maxPerDay"]).toBe(99999)
     expect(prefs["nightMode"]).toBe(false)
     expect(prefs["blockedCategories"]).toEqual([])
     expect(sendHookEventMock).toHaveBeenCalled()

@@ -291,12 +291,16 @@ describe("orchestrator — rotation", () => {
     expect(d.displayCalls[1]?.adId).toBe("ad-2")
   })
 
-  it("stops rotation after MAX_ADS_PER_CONTINUOUS_SESSION", async () => {
+  it("rotates well past the old session cap (defaults now generous)", async () => {
+    // MAX_ADS_PER_CONTINUOUS_SESSION was bumped from 8 to 9999 so the default
+    // behavior is "show ads continuously while the developer is idle"; this
+    // test pins the new behavior — busy window can play 10+ ads in a row
+    // without hitting the session-cap suppression.
     const d = makeDeps()
     let n = 0
     d.adCache.next = vi.fn(() => {
       n += 1
-      if (n > 10) return null
+      if (n > 12) return null
       return { ...ad, id: `ad-${n}` }
     }) as never
     const orch = await createOrch(d)
@@ -304,17 +308,15 @@ describe("orchestrator — rotation", () => {
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
     // grace for the first ad
     await vi.advanceTimersByTimeAsync(3000)
-    // each subsequent ad: 8s display + 500ms inter-ad gap
-    for (let i = 0; i < 7; i++) {
+    // each subsequent ad: 8s display + 500ms inter-ad gap. Rotate through 9
+    // additional ads (10 total) to prove the old cap of 8 is gone.
+    for (let i = 0; i < 9; i++) {
       await vi.advanceTimersByTimeAsync(8000) // vanish → INTER_AD
       await vi.advanceTimersByTimeAsync(500) // inter-ad-elapsed → SHOWING next
     }
-    // 8th ad shown — vanish it and let the inter-ad timer fire
-    await vi.advanceTimersByTimeAsync(8000) // 8th ad vanishes → INTER_AD
-    await vi.advanceTimersByTimeAsync(500) // inter-ad-elapsed with suppression → IDLE
 
-    expect(d.displayCalls).toHaveLength(8)
-    expect(orch.currentState().kind).toBe("IDLE")
+    expect(d.displayCalls).toHaveLength(10)
+    expect(orch.currentState().kind).toBe("SHOWING")
   })
 })
 
