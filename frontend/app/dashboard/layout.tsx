@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { AppShell } from "@/components/app-shell"
+import { AppShell } from "@/components/dashboard/app-shell"
 import { getServerUser } from "@/lib/auth"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

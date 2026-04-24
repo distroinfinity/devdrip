@@ -38,6 +38,9 @@ importers:
       '@devdrip/design-system':
         specifier: workspace:*
         version: link:../packages/design-system
+      '@devdrip/shared':
+        specifier: workspace:*
+        version: link:../packages/shared
       '@neondatabase/serverless':
         specifier: ^1.0.2
         version: 1.0.2
@@ -86,6 +89,9 @@ importers:
       react-dom:
         specifier: ^18.3.0
         version: 18.3.1(react@18.3.1)
+      recharts:
+        specifier: ^2.15.0
+        version: 2.15.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       resend:
         specifier: ^6.9.3
         version: 6.10.0(@react-email/render@2.0.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
@@ -254,70 +260,6 @@ importers:
       vitest:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@20.19.39)(lightningcss@1.32.0)
-
-  packages/dashboard:
-    dependencies:
-      '@devdrip/design-system':
-        specifier: workspace:*
-        version: link:../design-system
-      '@devdrip/shared':
-        specifier: workspace:*
-        version: link:../shared
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      framer-motion:
-        specifier: ^12.34.3
-        version: 12.38.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      motion:
-        specifier: ^12.34.3
-        version: 12.38.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      next:
-        specifier: ^14.2.0
-        version: 14.2.35(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      react:
-        specifier: ^18.3.0
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.3.0
-        version: 18.3.1(react@18.3.1)
-      recharts:
-        specifier: ^2.15.0
-        version: 2.15.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      tailwind-merge:
-        specifier: ^3.5.0
-        version: 3.5.0
-    devDependencies:
-      '@types/node':
-        specifier: ^20
-        version: 20.19.39
-      '@types/react':
-        specifier: ^18
-        version: 18.3.28
-      '@types/react-dom':
-        specifier: ^18
-        version: 18.3.7(@types/react@18.3.28)
-      autoprefixer:
-        specifier: ^10.4.0
-        version: 10.4.27(postcss@8.5.9)
-      eslint:
-        specifier: ^8
-        version: 8.57.1
-      eslint-config-next:
-        specifier: ^14.2.0
-        version: 14.2.35(eslint@8.57.1)(typescript@5.9.3)
-      postcss:
-        specifier: ^8.4.0
-        version: 8.5.9
-      tailwindcss:
-        specifier: ^3.4.0
-        version: 3.4.19(tsx@4.21.0)(yaml@2.8.3)
-      tailwindcss-animate:
-        specifier: ^1.0.7
-        version: 1.0.7(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.3))
-      typescript:
-        specifier: ^5
-        version: 5.9.3
 
   packages/design-system:
     dependencies:

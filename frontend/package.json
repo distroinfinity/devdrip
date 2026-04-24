@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@devdrip/design-system": "workspace:*",
+    "@devdrip/shared": "workspace:*",
     "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-scroll-area": "^1.2.10",
@@ -27,6 +28,7 @@
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "recharts": "^2.15.0",
     "resend": "^6.9.3",
     "tailwind-merge": "^3.5.0"
   },

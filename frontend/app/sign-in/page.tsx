@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 import { DotGrid } from "@devdrip/design-system/components/dot-grid"
-import { AppHeader } from "@/components/app-header"
-import { AppFooter } from "@/components/app-footer"
-import { IconGitHub } from "@/components/icon-github"
+import { AppHeader } from "@/components/dashboard/app-header"
+import { AppFooter } from "@/components/dashboard/app-footer"
+import { IconGitHub } from "@/components/dashboard/icon-github"
 import { authErrorMessage } from "@/lib/auth-errors"
 import { PUBLIC_API_URL } from "@/lib/env"
 

@@ -2,10 +2,13 @@
 const nextConfig = {
   poweredByHeader: false,
 
-  transpilePackages: ["@devdrip/design-system"],
+  transpilePackages: ["@devdrip/design-system", "@devdrip/shared"],
 
   images: {
     formats: ["image/avif", "image/webp"],
+    remotePatterns: [
+      { protocol: "https", hostname: "avatars.githubusercontent.com" },
+    ],
   },
 
   async headers() {

@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "./lib/cookies"
 
+// gates /dashboard, /sign-in, /auth/*. landing at `/` is intentionally NOT in
+// the matcher — it must render without any auth work.
 const PUBLIC_PREFIXES = ["/sign-in", "/auth/callback", "/auth/refresh"]
 
 export function middleware(req: NextRequest) {
@@ -9,9 +11,9 @@ export function middleware(req: NextRequest) {
   const hasAccess = Boolean(req.cookies.get(ACCESS_COOKIE)?.value)
   const hasRefresh = Boolean(req.cookies.get(REFRESH_COOKIE)?.value)
 
-  if (pathname === "/") {
-    const dest = hasAccess || hasRefresh ? "/dashboard" : "/sign-in"
-    return NextResponse.redirect(new URL(dest, req.url))
+  // /sign-in should not trap signed-in users on it — bounce to /dashboard.
+  if (pathname === "/sign-in" && (hasAccess || hasRefresh)) {
+    return NextResponse.redirect(new URL("/dashboard", req.url))
   }
 
   const isPublic = PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))
@@ -29,8 +31,7 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    // skip static assets, _next internals, /api health probes, favicons, images
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css|js)).*)",
-  ],
+  // only dashboard-adjacent routes go through the middleware. landing, waitlist
+  // api, sitemap, robots, opengraph-image etc. pass straight through.
+  matcher: ["/dashboard/:path*", "/sign-in", "/auth/:path*"],
 }
