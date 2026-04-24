@@ -927,81 +927,242 @@ Errors:
 - `403 device_not_owned`
 - `404 device`
 
-### `POST /impressions`
+### `POST /ingest`
 
 Purpose:
-record that an ad was displayed to a user.
+batch-record impressions and clicks from the CLI sync loop.
 
-Auth: bearer token
+Auth: bearer token (`requireAuth`). Rate-limited: 300 requests / 60s keyed by `deviceId` peeked from the first item's `deliveryToken` (`machineLimiter`).
+
+Body-parser limit: 1mb scoped to this route only.
 
 Request body:
 
 ```json
 {
-  "deliveryToken": "jwt"
+  "impressions": [{ "deliveryToken": "eyJ..." }],
+  "clicks": [{ "deliveryToken": "eyJ..." }]
 }
 ```
 
-Behavior:
+- combined cap: 500 items. Either array may be empty (but not both).
 
-- validates and consumes the one-time `deliveryToken`
-- rejects replayed, expired, or forged delivery tokens
-- derives `durationMs` and `result` from the server-set token issue time instead of trusting the request body
-- resolves creative + campaign data via join and requires the creative/campaign to still be servable
-- calculates `earnedAmount = (cpmRate / 1000) * 0.70` for completed impressions (70% developer share)
-- calls `recordSpend()` in Redis for budget tracking
-- rejects the write if the budget guard denies the impression
-- transactional insert: impression row + earnings_ledger row (for completed only)
-- fire-and-forget: increments frequency counters in Redis
-- fire-and-forget: auto-completes campaign if budget exhausted (skipped for Carbon campaigns)
-- fire-and-forget: fires Carbon viewability beacon (`statviewUrl`) on completed Carbon impressions
+Rate-limit key extraction: a pre-handler `peekDeliveryToken(firstItem.deliveryToken)` verifies the JWT signature only (no nonce consume) to read `device_id` and stash it on `res.locals`. If neither array is populated, the request passes through and the validation layer returns 400.
 
-Result enum: `completed | skipped | expired`
+Processing order: impressions first. The server builds an in-memory `jti → impressionId` map for this batch, then processes clicks using the map or falling back to `SELECT id FROM impressions WHERE delivery_jti = ?` for clicks whose parent landed in an earlier request.
 
-Server-derived outcome:
+Grace-accept: tokens up to 24h past expiry are accepted but inserted with `result = 'expired'`, `earnedAmount = 0`. Preserves analytics signal for devices that slept overnight.
 
-- `durationMs` is computed as `min(now - delivery_token.iat, MAX_AD_DURATION_MS)`
-- `completed` requires at least `1000ms` elapsed (MIN_COMPLETED_DURATION_MS)
-- `< 1000ms` is recorded as `skipped`
-- `> MAX_AD_DURATION_MS` is recorded as `expired`
-- the delivery token `iat` is server-set, so the client cannot directly choose the billable result or claimed duration
+Anti-replay: `delivery_jti UNIQUE` constraint is the authoritative guard. The Redis nonce is the early-reject optimization.
 
-Success: `201` with `{ impression }`
-
-Errors:
-
-- `400 missing_delivery_token`
-- `403 delivery_not_owned`, `403 invalid_or_expired_delivery_token`
-- `422 creative_not_servable`, `422 campaign_budget_exhausted`
-
-### `POST /clicks`
-
-Purpose:
-record a click on an impression.
-
-Auth: bearer token
-
-Request body:
+Response (always 2xx unless catastrophic):
 
 ```json
 {
-  "impressionId": "uuid"
+  "impressions": [
+    {
+      "ok": true,
+      "deliveryToken": "...",
+      "impressionId": "uuid",
+      "earnedAmount": 0.00056,
+      "result": "completed"
+    },
+    { "ok": false, "deliveryToken": "...", "error": "campaign_budget_exhausted" }
+  ],
+  "clicks": [
+    { "ok": true, "deliveryToken": "...", "clickId": "uuid", "earningsDelta": 0 },
+    { "ok": false, "deliveryToken": "...", "error": "impression_not_synced" }
+  ]
 }
 ```
 
-Behavior:
+**Error codes:**
 
-- validates ownership chain: impression → device → user
-- inserts into clicks table (unique constraint on `impressionId` prevents double-clicks)
+| Code                                | Type               | Meaning                                                                                        |
+| ----------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------- |
+| `empty_ingest`                      | 400                | both arrays empty                                                                              |
+| `too_many_items`                    | 400                | combined count > 500                                                                           |
+| `invalid_or_expired_delivery_token` | per-item terminal  | signature bad or nonce already consumed; replay means a prior request already succeeded        |
+| `delivery_token_too_old`            | per-item terminal  | token issued > 24h ago (past grace window)                                                     |
+| `delivery_not_owned`                | per-item terminal  | token belongs to a different user's device                                                     |
+| `impression_already_recorded`       | per-item terminal  | `delivery_jti` UNIQUE constraint violation                                                     |
+| `click_already_recorded`            | per-item terminal  | replay; parent click already persisted                                                         |
+| `campaign_budget_exhausted`         | per-item transient | campaign may reactivate; CLI retries next cycle                                                |
+| `impression_not_synced`             | per-item transient | click's parent jti not found yet; transient until 24h from click creation, then CLI tombstones |
+| `rate_limit_exceeded`               | transient          | machine rate limit hit; CLI backs off                                                          |
+| `internal_error`                    | transient          | unexpected server error                                                                        |
 
-Success: `201` with `{ clickId }`
+Terminal per-item errors → CLI marks `synced_at = -1` (tombstone, stops retrying). Transient → CLI leaves `synced_at = NULL` for next cycle.
 
-Errors:
+### `GET /me/earnings/summary`
 
-- `400 invalid_impression_id`
-- `403 device_not_owned`
-- `404 impression_not_found`
-- `409 click_already_recorded`
+Purpose:
+return the authenticated user's earnings summary.
+
+Auth: bearer token
+
+Response cached in Redis for 60s at key `earnings:summary:{userId}`. Cache is best-effort invalidated on `/ingest` writes for that user and on payout.
+
+Response:
+
+```json
+{
+  "balance": 2.34,
+  "today": 0.034,
+  "week": 0.18,
+  "month": 0.98,
+  "allTime": 2.34,
+  "streakDays": 4,
+  "totalImpressions": 312,
+  "totalClicks": 8,
+  "topCategories": [
+    { "category": "developer-tools", "amountUsdc": 1.2 },
+    { "category": "cloud-infra", "amountUsdc": 0.78 },
+    { "category": "databases", "amountUsdc": 0.36 }
+  ]
+}
+```
+
+Field notes:
+
+- `balance` = sum of `earnings_ledger.amount_usdc` for user − sum of completed `payouts` for user. Both pending and confirmed earnings count toward balance; a payout subtracts.
+- `today` / `week` / `month` anchored in the user's local day via `preferences.tzOffsetMinutes` so the dashboard matches the terminal toast.
+- `streakDays`: consecutive local-days with ≥1 completed impression up to and including today.
+- `topCategories`: top 3 by all-time earned USDC.
+
+### `GET /me/analytics/impressions`
+
+Purpose:
+day-bucketed impression analytics for the authenticated user.
+
+Auth: bearer token
+
+Query params:
+
+| Param      | Default       | Notes                                  |
+| ---------- | ------------- | -------------------------------------- |
+| `from`     | 30d ago (ISO) | inclusive lower bound                  |
+| `to`       | today (ISO)   | inclusive upper bound                  |
+| `source`   | —             | optional filter                        |
+| `category` | —             | optional filter (see limitation below) |
+| `result`   | —             | optional filter                        |
+
+Response:
+
+```json
+{
+  "series": [
+    { "date": "2026-04-22", "impressions": 22, "completed": 18, "clicks": 1, "earned": 0.01008 }
+  ],
+  "totals": {
+    "impressions": 312,
+    "completed": 260,
+    "skipped": 40,
+    "expired": 10,
+    "interrupted": 2,
+    "clicks": 8,
+    "earned": 0.145,
+    "ctr": 0.0308
+  },
+  "breakdowns": {
+    "bySource": [{ "source": "carbon", "impressions": 250, "earned": 0.12 }],
+    "byCategory": [{ "category": "developer-tools", "impressions": 180, "earned": 0.09 }],
+    "byResult": [{ "result": "completed", "impressions": 260 }]
+  }
+}
+```
+
+- CTR denominator: completed impressions only (excludes skipped/expired/interrupted).
+- Day buckets use user's `tzOffsetMinutes`.
+- Scoped to `deviceId IN (user's devices)`.
+- Known limitation: the `category` filter narrows `series` and `totals` but not `bySource` or `byResult` breakdowns. Follow-up ticket needed if the dashboard requires fully-filtered breakdowns.
+
+### `GET /admin/reports/campaigns`
+
+Purpose:
+list campaigns with pacing and spend for admin reporting.
+
+Auth: admin secret
+
+Query params: `status?`, `source?`, `from?`, `to?`
+
+Response (array):
+
+```json
+[
+  {
+    "campaignId": "uuid",
+    "name": "Linear Q2",
+    "advertiserId": "uuid",
+    "advertiserName": "Linear",
+    "source": "direct",
+    "impressions": 1200,
+    "completed": 1050,
+    "clicks": 9,
+    "ctr": 0.0086,
+    "spend": 6.25,
+    "budgetTotal": 50.0,
+    "remaining": 43.75,
+    "pacing": { "status": "on_track", "ratio": 1.02 }
+  }
+]
+```
+
+**Pacing formula:**
+
+```
+expected_by_now = budgetTotal * (elapsed / duration)
+  where elapsed  = now - coalesce(startsAt, createdAt)
+        duration = coalesce(endsAt, startsAt + 30d) - startsAt
+ratio = actualSpend / expected_by_now
+status:
+  ratio < 0.85         → "underpacing"
+  0.85 ≤ ratio ≤ 1.15  → "on_track"
+  ratio > 1.15         → "overpacing"
+  budget = 0 or expected ≤ 0 → "unknown"
+```
+
+No `startsAt` → fallback to `createdAt`. No `endsAt` → 30-day synthetic duration.
+
+Note: `listCampaignReports` runs a per-campaign subquery loop (N+1). Acceptable at MVP scale (dozens of campaigns); revisit if the admin dashboard pages or shows slow queries.
+
+### `GET /admin/reports/campaigns/:id`
+
+Purpose:
+single campaign detail with day-bucketed series.
+
+Auth: admin secret
+
+Response: same shape as a single entry from `GET /admin/reports/campaigns` plus a `series` array (`{ date, impressions, clicks, spend }` per day).
+
+Note: internally re-runs `listCampaignReports()` and filters in memory — double-scan vs. a targeted query. Acceptable at MVP; refactor when admin traffic grows.
+
+### `GET /admin/reports/advertisers/:id`
+
+Purpose:
+per-advertiser rollup with all campaigns.
+
+Auth: admin secret
+
+Response:
+
+```json
+{
+  "advertiser": { "id": "uuid", "name": "Linear" },
+  "totals": {
+    "impressions": 3200,
+    "clicks": 22,
+    "ctr": 0.0069,
+    "spend": 18.2,
+    "budgetTotal": 150.0
+  },
+  "campaigns": []
+}
+```
+
+`campaigns` has the same shape as `GET /admin/reports/campaigns` entries.
+
+Note: internally re-runs `listCampaignReports()` with no filter then filters in memory. Same double-scan caveat as the single campaign report.
 
 ## AdProvider Interface
 
@@ -1115,7 +1276,7 @@ Current API tests cover:
 - auth guard behavior for `/me`
 - basic error cases for `/auth/exchange`
 - basic error case for `/auth/refresh`
-- auth guard behavior for `GET /ads/next`, `GET /ads/batch`, `POST /ads/next`, `/impressions`, `/clicks`
+- auth guard behavior for `GET /ads/next`, `GET /ads/batch`, `POST /ads/next`, `/ingest`
 
 Unit test suites:
 
@@ -1124,3 +1285,5 @@ Unit test suites:
 - `carbon-ad-provider.test.ts` — 11 tests covering CarbonAdProvider (empty zone key, null response, SDK timeout, SDK error, DB upsert error, response translation with beacon URLs, truncation, placement config, count cap, tagline fallback)
 - `waterfall.test.ts` — 12 tests covering waterfall orchestration (Carbon-first order, manual fallback, partial fill, empty from both, frequency caps, quiet hours, surface gate, delivery tokens, beacon URL propagation)
 - `beacon.test.ts` — 3 tests covering beacon firing (success, network error, non-OK response logging)
+- `ingest.test.ts` — covers `/ingest` batch happy path, grace-accept, replay rejection, click-by-jti, and machine rate-limit
+- `reports-pacing.test.ts` — table-driven pacing formula: missing-startsAt, missing-endsAt, threshold edges
