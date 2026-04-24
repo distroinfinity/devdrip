@@ -106,14 +106,22 @@ describe("hook subcommands", () => {
     expect(got.tty).toBe("/dev/ttys042")
   })
 
-  it("session-start sends session-start", async () => {
+  it("session-start sends session-start with the resolved tty", async () => {
     await startEcho()
+    vi.doMock("../../lib/daemon/tty.js", () => ({
+      resolveTty: () => "/dev/ttys042",
+      resetTtyCache: () => {
+        // noop
+      },
+    }))
     const { handleSessionStart } = await import("../hook.js")
     await handleSessionStart(socketPath)
     await new Promise((r) => setTimeout(r, 20))
     const msg = received[0]
     expect(msg).toBeDefined()
-    expect(JSON.parse(msg ?? "")).toEqual({ type: "session-start" })
+    const got = JSON.parse(msg ?? "")
+    expect(got.type).toBe("session-start")
+    expect(got.tty).toBe("/dev/ttys042")
   })
 
   it("resolves silently with no server", async () => {
@@ -121,7 +129,7 @@ describe("hook subcommands", () => {
     await expect(handlePreTool(socketPath)).resolves.toBeUndefined()
   })
 
-  it("hook payloads carry only `type` (+ `tty` for idle-start)", async () => {
+  it("every hook payload includes the resolved tty (S3-14 multi-terminal safety)", async () => {
     await startEcho()
     vi.doMock("../../lib/daemon/tty.js", () => ({
       resolveTty: () => "/dev/ttys001",
@@ -129,15 +137,18 @@ describe("hook subcommands", () => {
         // noop
       },
     }))
-    const { handlePreTool, handleStop, handlePromptSubmit } = await import("../hook.js")
+    const { handlePreTool, handleStop, handlePromptSubmit, handleSessionStart } =
+      await import("../hook.js")
     await handlePreTool(socketPath)
     await handleStop(socketPath)
     await handlePromptSubmit(socketPath)
+    await handleSessionStart(socketPath)
     await new Promise((r) => setTimeout(r, 30))
-    expect(received).toHaveLength(3)
+    expect(received).toHaveLength(4)
     const parsed = received.map((m) => JSON.parse(m))
     expect(parsed[0]).toEqual({ type: "idle-start", tty: "/dev/ttys001" })
-    expect(parsed[1]).toEqual({ type: "idle-end" })
+    expect(parsed[1]).toEqual({ type: "idle-end", tty: "/dev/ttys001" })
     expect(parsed[2]).toEqual({ type: "idle-start", tty: "/dev/ttys001" })
+    expect(parsed[3]).toEqual({ type: "session-start", tty: "/dev/ttys001" })
   })
 })
