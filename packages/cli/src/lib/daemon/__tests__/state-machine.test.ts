@@ -123,6 +123,23 @@ describe("state-machine: GRACE transitions", () => {
     const s = graceAt(100)
     expect(step(s, { kind: "vanish-elapsed", now: 1 }, CTX)).toEqual({ state: s, effects: [] })
   })
+
+  it("GRACE + kill-key → IDLE with cancelGraceTimer + setSessionKilled", () => {
+    const r = step(graceAt(100), { kind: "kill-key", now: 200 }, CTX)
+    expect(r.state).toEqual({ kind: "IDLE" })
+    expect(r.effects).toEqual([{ kind: "cancelGraceTimer" }, { kind: "setSessionKilled" }])
+  })
+
+  it("GRACE + mute-key → IDLE with cancelGraceTimer + writeMuteUntil", () => {
+    const r = step(graceAt(100), { kind: "mute-key", now: 200 }, CTX)
+    expect(r.state).toEqual({ kind: "IDLE" })
+    const muteEffect = r.effects.find((e) => e.kind === "writeMuteUntil")
+    expect(muteEffect).toBeDefined()
+    if (muteEffect && muteEffect.kind === "writeMuteUntil") {
+      expect(muteEffect.muteUntil).toBeGreaterThan(200)
+    }
+    expect(r.effects[0]).toEqual({ kind: "cancelGraceTimer" })
+  })
 })
 
 describe("state-machine: SHOWING transitions", () => {

@@ -89,6 +89,24 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
   if (event.kind === "idle-end" || event.kind === "dismiss") {
     return { state: { kind: "IDLE" }, effects: [{ kind: "cancelGraceTimer" }] }
   }
+  // mute/kill during GRACE: the previous ad's footer was visible until
+  // ~GRACE_PERIOD_MS ago, so a key press here is the user's intent. Cancel
+  // the pending ad and apply the action; no impression to record (no ad ran).
+  if (event.kind === "kill-key") {
+    return {
+      state: { kind: "IDLE" },
+      effects: [{ kind: "cancelGraceTimer" }, { kind: "setSessionKilled" }],
+    }
+  }
+  if (event.kind === "mute-key") {
+    return {
+      state: { kind: "IDLE" },
+      effects: [
+        { kind: "cancelGraceTimer" },
+        { kind: "writeMuteUntil", muteUntil: event.now + MUTE_DURATION_MS },
+      ],
+    }
+  }
   if (event.kind === "grace-elapsed") {
     if (!event.ad) return { state: { kind: "IDLE" }, effects: [] }
     const ms = Math.min(event.ad.displayTimeMs, MAX_AD_DURATION_MS)
@@ -100,7 +118,7 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
       ],
     }
   }
-  // vanish-elapsed, skip-key, kill-key, mute-key, discover-key, inter-ad-elapsed
+  // vanish-elapsed, skip-key, discover-key, inter-ad-elapsed
   // are stale in GRACE — orchestrator logs and drops
   return { state, effects: [] }
 }
