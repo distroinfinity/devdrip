@@ -340,8 +340,6 @@ describe("deriveImpressionOutcome", () => {
     expect(deriveImpressionOutcome(issuedAt)).toEqual({
       durationMs: MAX_AD_DURATION_MS,
       result: ImpressionResult.Expired,
-      deliveryJti: "test-jti",
-      graceAccept: false,
     })
   })
 
@@ -351,8 +349,6 @@ describe("deriveImpressionOutcome", () => {
     expect(deriveImpressionOutcome(issuedAt)).toEqual({
       durationMs: 4000,
       result: ImpressionResult.Completed,
-      deliveryJti: "test-jti",
-      graceAccept: false,
     })
   })
 
@@ -362,8 +358,6 @@ describe("deriveImpressionOutcome", () => {
     expect(deriveImpressionOutcome(issuedAt)).toEqual({
       durationMs: 500,
       result: ImpressionResult.Skipped,
-      deliveryJti: "test-jti",
-      graceAccept: false,
     })
   })
 })
