@@ -29,6 +29,7 @@ export interface LocalClick {
 export interface Ledger {
   record(i: LocalImpression): void
   listUnsynced(limit: number): LocalImpression[]
+  /** Marks successful sync. Pass epoch-ms `at`. Do NOT pass -1 — that's the tombstone sentinel; use markImpressionsTerminal instead. */
   markSynced(ids: string[], at: number): void
   markImpressionsTerminal(ids: string[]): void
   unsyncedCount(): number
@@ -40,6 +41,7 @@ export interface Ledger {
 
   recordClick(c: LocalClick): void
   listUnsyncedClicks(limit: number): LocalClick[]
+  /** Marks successful click sync. Pass epoch-ms `at`. Do NOT pass -1 — use markClicksTerminal. */
   markClicksSynced(ids: string[], at: number): void
   markClicksTerminal(ids: string[]): void
   unsyncedClickCount(): number
@@ -277,6 +279,7 @@ export function openLedger(): Ledger {
       apply(ids)
     },
     markImpressionsTerminal(ids) {
+      // tombstone: synced_at = -1 means terminal error, stop retrying
       this.markSynced(ids, -1)
     },
     unsyncedCount() {

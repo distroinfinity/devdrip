@@ -60,12 +60,14 @@ describe("ledger", () => {
         .all()
         .map((r: unknown) => (r as { name: string }).name)
       expect(tables).toContain("impressions")
+      expect(tables).toContain("clicks")
 
       const indices = db
         .prepare("SELECT name FROM sqlite_master WHERE type='index'")
         .all()
         .map((r: unknown) => (r as { name: string }).name)
       expect(indices).toContain("idx_impressions_unsynced")
+      expect(indices).toContain("idx_clicks_unsynced")
     } finally {
       db.close()
     }
