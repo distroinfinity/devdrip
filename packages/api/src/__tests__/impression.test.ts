@@ -1,10 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import {
-  AdSurface,
-  MAX_AD_DURATION_MS,
-  REVENUE_SHARE_DEVELOPER,
-  ImpressionResult,
-} from "@devdrip/shared"
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { AdSurface, REVENUE_SHARE_DEVELOPER, ImpressionResult } from "@devdrip/shared"
 
 // mock dependencies before imports
 vi.mock("../db/index.js", () => ({
@@ -120,6 +115,7 @@ describe("recordImpression", () => {
     expect(result.id).toBe("imp-1")
     // first insert call is the impression, second is earnings
     expect(insertValues).toHaveBeenCalledTimes(2)
+    expect(insertValues).toHaveBeenCalledWith(expect.objectContaining({ deliveryJti: "test-jti" }))
   })
 
   it("does not create earnings entry for skipped result", async () => {
@@ -310,57 +306,5 @@ describe("recordClick", () => {
     } as unknown as ReturnType<typeof getDb>)
 
     await expect(recordClick("nonexistent")).rejects.toThrow("impression_not_found")
-  })
-})
-
-// ── server-derived impression outcome ──────────────────────────────────────
-
-import { deriveImpressionOutcome } from "../routes/impressions.js"
-
-describe("deriveImpressionOutcome", () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it("marks a late acknowledgement as expired once it passes the display window", () => {
-    vi.setSystemTime(new Date("2026-04-15T00:00:10.000Z"))
-    const issuedAt = Math.floor(new Date("2026-04-15T00:00:00.000Z").getTime() / 1000)
-    expect(deriveImpressionOutcome(issuedAt)).toEqual({
-      durationMs: MAX_AD_DURATION_MS,
-      result: ImpressionResult.Expired,
-    })
-  })
-
-  it("marks an acknowledged ad as completed inside the display window", () => {
-    vi.setSystemTime(new Date("2026-04-15T00:00:04.000Z"))
-    const issuedAt = Math.floor(new Date("2026-04-15T00:00:00.000Z").getTime() / 1000)
-    expect(deriveImpressionOutcome(issuedAt)).toEqual({
-      durationMs: 4000,
-      result: ImpressionResult.Completed,
-    })
-  })
-
-  it("marks a short acknowledgement as skipped", () => {
-    vi.setSystemTime(new Date("2026-04-15T00:00:00.500Z"))
-    const issuedAt = Math.floor(new Date("2026-04-15T00:00:00.000Z").getTime() / 1000)
-    expect(deriveImpressionOutcome(issuedAt)).toEqual({
-      durationMs: 500,
-      result: ImpressionResult.Skipped,
-    })
-  })
-})
-
-// ── validator contract ─────────────────────────────────────────────────────
-
-import { validateRecordImpression } from "../validators/ad.validators.js"
-
-describe("validateRecordImpression", () => {
-  it("requires only a delivery token", () => {
-    const result = validateRecordImpression({ deliveryToken: "tok" })
-    expect(result).toEqual({ deliveryToken: "tok" })
   })
 })

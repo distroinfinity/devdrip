@@ -13,8 +13,7 @@ import { devicesRouter } from "./routes/devices.js"
 import { advertisersRouter } from "./routes/advertisers.js"
 import { campaignsRouter } from "./routes/campaigns.js"
 import { adsRouter } from "./routes/ads.js"
-import { impressionsRouter } from "./routes/impressions.js"
-import { clicksRouter } from "./routes/clicks.js"
+import { ingestRouter } from "./routes/ingest.js"
 import { adminStatsRouter } from "./routes/admin-stats.js"
 import { adminUsersRouter } from "./routes/admin-users.js"
 import { adminPayoutsRouter } from "./routes/admin-payouts.js"
@@ -62,8 +61,7 @@ app.use("/admin/users", requireAdmin, adminLimiter, adminUsersRouter)
 app.use("/admin/payouts", requireAdmin, adminLimiter, adminPayoutsRouter)
 app.use("/invites", requireAdmin, adminLimiter, invitesRouter)
 app.use("/ads", requireAuth, userLimiter, adsRouter)
-app.use("/impressions", requireAuth, userLimiter, impressionsRouter)
-app.use("/clicks", requireAuth, userLimiter, clicksRouter)
+app.use("/ingest", requireAuth, ingestRouter)
 
 app.get("/me", requireAuth, userLimiter, async (_req, res) => {
   const userId = res.locals["userId"] as string
