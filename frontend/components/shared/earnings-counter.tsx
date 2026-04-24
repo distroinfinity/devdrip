@@ -98,7 +98,7 @@ export function EarningsCounter({
 
       {/* usdc label */}
       <div className="font-data text-[11px] text-[var(--ink-tertiary)] mt-1 tracking-wide">
-        USDC
+        USD
       </div>
 
       {/* delta badge */}

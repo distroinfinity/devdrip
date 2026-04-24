@@ -61,9 +61,8 @@ export const EncryptedText: React.FC<EncryptedTextProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const lastFlipTimeRef = useRef<number>(0);
-  const scrambleCharsRef = useRef<string[]>(
-    text ? generateGibberishPreservingSpaces(text, charset).split("") : [],
-  );
+  // init with text itself (not random) to avoid SSR hydration mismatch
+  const scrambleCharsRef = useRef<string[]>(text ? text.split("") : []);
 
   useEffect(() => {
     if (!isInView) return;
