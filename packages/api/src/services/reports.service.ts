@@ -93,8 +93,9 @@ export async function listCampaignReports(
         select id from creatives where campaign_id = ${c.id}
       )`,
     ]
-    if (filters.from) metricConds.push(sql`${impressions.createdAt} >= ${filters.from}`)
-    if (filters.to) metricConds.push(sql`${impressions.createdAt} <= ${filters.to}`)
+    if (filters.from)
+      metricConds.push(sql`${impressions.createdAt} >= ${filters.from.toISOString()}`)
+    if (filters.to) metricConds.push(sql`${impressions.createdAt} <= ${filters.to.toISOString()}`)
     if (filters.source) metricConds.push(sql`${impressions.source} = ${filters.source}`)
     const where = sql.join(metricConds, sql` and `)
 

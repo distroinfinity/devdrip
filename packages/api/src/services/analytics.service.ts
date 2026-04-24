@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm"
+import { eq, inArray, sql } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import { devices } from "../db/schema/devices.js"
 import { impressions } from "../db/schema/impressions.js"
@@ -46,9 +46,9 @@ export async function getUserImpressionAnalytics(
   // build base conds fresh per call site to avoid drizzle SQL fragment re-use issues
   function baseConds() {
     const conds = [
-      sql`${impressions.deviceId} = any(${deviceIds})`,
-      sql`${impressions.createdAt} >= ${filters.from}`,
-      sql`${impressions.createdAt} <= ${filters.to}`,
+      inArray(impressions.deviceId, deviceIds),
+      sql`${impressions.createdAt} >= ${filters.from.toISOString()}`,
+      sql`${impressions.createdAt} <= ${filters.to.toISOString()}`,
     ]
     if (filters.source) conds.push(sql`${impressions.source} = ${filters.source}`)
     if (filters.result) conds.push(sql`${impressions.result} = ${filters.result}`)

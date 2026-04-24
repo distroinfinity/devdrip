@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm"
+import { desc, eq, inArray, sql } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import { devices } from "../db/schema/devices.js"
 import { impressions } from "../db/schema/impressions.js"
@@ -93,7 +93,7 @@ async function computeSummary(userId: string): Promise<EarningsSummary> {
 
   const [paid] = await db
     .select({
-      total: sql<number>`coalesce(sum(${payouts.amountUsdc}) filter (where ${payouts.status} = 'completed'), 0)`,
+      total: sql<number>`coalesce(sum(${payouts.amountUsdc}) filter (where ${payouts.status} = 'confirmed'), 0)`,
     })
     .from(payouts)
     .where(eq(payouts.userId, userId))
@@ -110,14 +110,14 @@ async function computeSummary(userId: string): Promise<EarningsSummary> {
     const [impAgg] = await db
       .select({ n: sql<number>`count(*)` })
       .from(impressions)
-      .where(sql`${impressions.deviceId} = ANY(${deviceIds})`)
+      .where(inArray(impressions.deviceId, deviceIds))
     totalImpressions = Number(impAgg?.n ?? 0)
 
     const [clkAgg] = await db
       .select({ n: sql<number>`count(${clicks.id})` })
       .from(clicks)
       .innerJoin(impressions, eq(clicks.impressionId, impressions.id))
-      .where(sql`${impressions.deviceId} = ANY(${deviceIds})`)
+      .where(inArray(impressions.deviceId, deviceIds))
     totalClicks = Number(clkAgg?.n ?? 0)
   }
 
@@ -138,7 +138,7 @@ async function computeSummary(userId: string): Promise<EarningsSummary> {
     const streakResult = await db.execute<{ day: string }>(sql`
       select distinct date_trunc('day', ${impressions.createdAt} + interval ${sql.raw(`'${tzOffsetMinutes} minutes'`)})::date as day
       from ${impressions}
-      where ${impressions.deviceId} = any(${deviceIds})
+      where ${inArray(impressions.deviceId, deviceIds)}
         and ${impressions.result} = 'completed'
       order by day desc
       limit 400
