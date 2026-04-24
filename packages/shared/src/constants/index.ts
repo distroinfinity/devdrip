@@ -87,6 +87,9 @@ export const TOAST_HOLD_MS = 2_000
 export const NIGHT_MODE_DEFAULT_START_HOUR = 22
 export const NIGHT_MODE_DEFAULT_END_HOUR = 7
 
+// matches server schema default; daemon's own idle detector reads this.
+export const IDLE_SENSITIVITY_MS = 10_000
+
 // ── default DevdripPreferences for fresh v2→v3 migration / --reset ─────────
 export function defaultDevdripPreferences(): DevdripPreferences {
   return {
@@ -98,6 +101,9 @@ export function defaultDevdripPreferences(): DevdripPreferences {
     quietHoursEnd: null,
     nightMode: false,
     tzOffsetMinutes: -new Date().getTimezoneOffset(),
+    idleSensitivityMs: IDLE_SENSITIVITY_MS,
+    // Sentinel "never synced" — first GET /me/preferences will replace it.
+    updatedAt: new Date(0).toISOString(),
     muteUntil: null,
   }
 }

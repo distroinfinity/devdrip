@@ -1,5 +1,6 @@
 import type { Ledger, LocalImpression, LocalClick } from "../ledger.js"
 import { ApiError, postIngest, type IngestResponse } from "../api-client.js"
+import { syncPreferencesOnce } from "./prefs-sync.js"
 
 export interface SyncLogger {
   debug(msg: string, fields?: Record<string, unknown>): void
@@ -25,11 +26,16 @@ export interface SyncLoopDeps {
   ledger: Ledger
   log: SyncLogger
   intervalMs?: number
+  prefsIntervalMs?: number
   post?: typeof postIngest
+  syncPreferences?: typeof syncPreferencesOnce
   now?: () => number
 }
 
 const DEFAULT_INTERVAL_MS = 5 * 60_000
+// Per ticket S4-06: prefs round-trip every 30 min. Piggybacks on the ingest
+// tick so we don't need a second timer; the loop checks `now - lastPrefsAt`.
+const DEFAULT_PREFS_INTERVAL_MS = 30 * 60_000
 const MAX_BACKOFF_MS = 20 * 60_000
 const IMPRESSION_BATCH_CAP = 250
 const CLICK_BATCH_CAP = 250
@@ -51,12 +57,15 @@ const TERMINAL_CLICK_ERRORS = new Set([
 
 export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
   const intervalMs = deps.intervalMs ?? DEFAULT_INTERVAL_MS
+  const prefsIntervalMs = deps.prefsIntervalMs ?? DEFAULT_PREFS_INTERVAL_MS
   const post = deps.post ?? postIngest
+  const syncPrefs = deps.syncPreferences ?? syncPreferencesOnce
   const now = deps.now ?? (() => Date.now())
 
   let timer: NodeJS.Timeout | null = null
   let inFlight: Promise<SyncResult> | null = null
   let backoffMs = 0
+  let lastPrefsAt = 0
 
   async function runOnce(): Promise<SyncResult> {
     if (inFlight) {
@@ -66,7 +75,23 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
     const current = doRunOnce()
     inFlight = current
     try {
-      return await current
+      let result: SyncResult
+      try {
+        result = await current
+      } finally {
+        // Prefs sync runs even when ingest fails so a flaky ingest path
+        // doesn't starve prefs reconciliation. Errors are swallowed; the
+        // helper logs and the next tick retries.
+        if (now() - lastPrefsAt >= prefsIntervalMs) {
+          lastPrefsAt = now()
+          try {
+            await syncPrefs(deps.log)
+          } catch (err) {
+            deps.log.warn("prefs sync threw", { error: (err as Error).message })
+          }
+        }
+      }
+      return result
     } finally {
       if (inFlight === current) inFlight = null
     }
