@@ -140,6 +140,45 @@ describe("orchestrator preferences gating", () => {
     expect(d.displayCalls).toHaveLength(0)
   })
 
+  it("session-start re-anchors sessionStartAt so warmup re-applies per-session", async () => {
+    // bug from PR review #5: sessionStartAt was set once at daemon startup and
+    // never reset, so sessionWarmupMs only fired once per daemon lifetime.
+    // After fix, clearSessionState (triggered by session-start) resets it.
+    const d = makeDeps()
+    const { createOrchestrator } = await import("../orchestrator.js")
+    const prefs: DevdripPreferences = {
+      ...defaultDevdripPreferences(),
+      sessionWarmupMs: 60_000,
+      nightMode: false,
+      quietHoursStart: null,
+      quietHoursEnd: null,
+    }
+    const orch = createOrchestrator({
+      adCache: d.adCache as never,
+      ledger: d.ledger as never,
+      display: d.display as never,
+      keyCapture: d.keyCapture as never,
+      openUrl: d.openUrl,
+      fireBeacon: d.fireBeacon,
+      log: d.log,
+      deviceId: "dev-1",
+      preferences: prefs,
+    })
+
+    // simulate the daemon being idle for 5 minutes — original warmup is over
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+
+    // a new Claude session begins → SessionStart hook fires → state cleared
+    orch.dispatch({ kind: "session-start", now: 5 * 60 * 1000 })
+
+    // the user submits a prompt immediately. Warmup window should now apply
+    // again from this moment, suppressing the first ad of the new session.
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 5 * 60 * 1000 })
+    await vi.advanceTimersByTimeAsync(3100)
+
+    expect(d.displayCalls).toHaveLength(0)
+  })
+
   it("updatePreferences swaps the gate in place (warmup disabled after reload)", async () => {
     const d = makeDeps()
     const { createOrchestrator } = await import("../orchestrator.js")

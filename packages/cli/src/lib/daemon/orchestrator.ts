@@ -96,7 +96,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   let hooksReceivedCount = 0
   let preferences: DevdripPreferences = deps.preferences
   const now = deps.now ?? (() => Date.now())
-  const sessionStartAt = now()
+  // re-anchored on every `clearSessionState` (i.e., each new Claude session)
+  // so `sessionWarmupMs` actually applies per-session, not per daemon lifetime.
+  let sessionStartAt = now()
   let sessionKilled = false
   let adsInCurrentBusyWindow = 0
   const hourlyTimestamps: number[] = []
@@ -188,7 +190,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       case "displayAd":
         if (!effect.tty) {
           deps.log.warn("display skipped: no tty path", { adId: effect.ad.id })
-          queueMicrotask(() => dispatch({ kind: "dismiss", now: Date.now() }))
+          queueMicrotask(() => dispatch({ kind: "dismiss", now: now() }))
           return
         }
         try {
@@ -201,7 +203,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             deps.log.info("resize detected — dismissing ad to re-anchor", {
               adId: effect.ad.id,
             })
-            dispatch({ kind: "dismiss", now: Date.now() })
+            dispatch({ kind: "dismiss", now: now() })
           })
           deps.keyCapture.start(effect.tty)
           adsInCurrentBusyWindow += 1
@@ -220,14 +222,14 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           })
           currentDisplay = null
           deps.keyCapture.stop()
-          queueMicrotask(() => dispatch({ kind: "dismiss", now: Date.now() }))
+          queueMicrotask(() => dispatch({ kind: "dismiss", now: now() }))
         }
         return
       case "startVanishTimer":
         if (vanishTimer) clearTimeout(vanishTimer)
         vanishTimer = setTimeout(() => {
           vanishTimer = null
-          dispatch({ kind: "vanish-elapsed", now: Date.now() })
+          dispatch({ kind: "vanish-elapsed", now: now() })
         }, effect.ms)
         return
       case "cancelVanishTimer":
@@ -261,6 +263,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       case "clearSessionState":
         sessionKilled = false
         adsInCurrentBusyWindow = 0
+        sessionStartAt = now()
         deps.log.info("session state cleared")
         return
       case "writeMuteUntil":
@@ -368,7 +371,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     if (interAdTimer) clearTimeout(interAdTimer)
     deps.keyCapture.stop()
     if (state.kind === "SHOWING" || state.kind === "INTER_AD") {
-      dispatch({ kind: "dismiss", now: Date.now() })
+      dispatch({ kind: "dismiss", now: now() })
     }
   }
 
