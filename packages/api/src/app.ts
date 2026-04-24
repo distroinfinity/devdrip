@@ -34,7 +34,7 @@ export const app: Express = express()
 app.set("trust proxy", 1)
 app.use(helmet())
 app.use(cors({ origin: env.allowedOrigins, credentials: true }))
-app.use(express.json())
+app.use(express.json({ limit: "1mb" }))
 app.use(cookieParser())
 app.use(
   pinoHttp({
@@ -64,7 +64,7 @@ app.use("/admin/users", requireAdmin, adminLimiter, adminUsersRouter)
 app.use("/admin/payouts", requireAdmin, adminLimiter, adminPayoutsRouter)
 app.use("/invites", requireAdmin, adminLimiter, invitesRouter)
 app.use("/ads", requireAuth, userLimiter, adsRouter)
-app.use("/ingest", requireAuth, express.json({ limit: "1mb" }), ingestRouter)
+app.use("/ingest", requireAuth, ingestRouter)
 
 app.get("/me", requireAuth, userLimiter, async (_req, res) => {
   const userId = res.locals["userId"] as string
