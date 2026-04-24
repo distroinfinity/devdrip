@@ -1,4 +1,5 @@
 import { Router } from "express"
+import { ValidationError } from "../errors/index.js"
 import { validateUUID } from "../validators/common.js"
 import {
   listCampaignReports,
@@ -43,7 +44,13 @@ function parseFilters(q: Record<string, unknown>): CampaignReportFilters {
   const out: CampaignReportFilters = {}
   if (typeof q["status"] === "string") out.status = q["status"]
   if (typeof q["source"] === "string") out.source = q["source"]
-  if (typeof q["from"] === "string") out.from = new Date(q["from"])
-  if (typeof q["to"] === "string") out.to = new Date(q["to"])
+  if (typeof q["from"] === "string") out.from = parseDate(q["from"], "from")
+  if (typeof q["to"] === "string") out.to = parseDate(q["to"], "to")
   return out
+}
+
+function parseDate(raw: string, field: string): Date {
+  const d = new Date(raw)
+  if (!Number.isFinite(d.getTime())) throw new ValidationError(`invalid_${field}`)
+  return d
 }
