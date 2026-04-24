@@ -11,8 +11,10 @@ import { createKeyCapture } from "../lib/daemon/input.js"
 import {
   acquireSingletonLock,
   appendLog,
+  HEARTBEAT_STALE_AFTER_MS,
   isSocketAlive,
   logPath,
+  readDaemonStatus,
   readHeartbeat,
   removeHeartbeat,
   removeLockFile,
@@ -26,7 +28,6 @@ import { startDaemonServer } from "../lib/daemon/server.js"
 import { createSyncLoop } from "../lib/daemon/sync.js"
 
 const HEARTBEAT_INTERVAL_MS = 10_000
-const STALE_AFTER_MS = 30_000
 const START_POLL_DEADLINE_MS = 2_000
 
 export async function runStart(): Promise<number> {
@@ -68,7 +69,7 @@ export async function runStart(): Promise<number> {
   const deadline = Date.now() + START_POLL_DEADLINE_MS
   while (Date.now() < deadline) {
     const hb = readHeartbeat()
-    if (hb && hb.pid === child.pid && Date.now() - hb.lastHeartbeat < STALE_AFTER_MS) {
+    if (hb && hb.pid === child.pid && Date.now() - hb.lastHeartbeat < HEARTBEAT_STALE_AFTER_MS) {
       console.log(`daemon started (pid ${hb.pid}, socket ${hb.socketPath})`)
       return 0
     }
@@ -130,18 +131,19 @@ export async function runStop(): Promise<number> {
 }
 
 export async function runStatus(): Promise<string> {
-  const hb = readHeartbeat()
+  const status = readDaemonStatus()
   const lines: string[] = []
-  if (!hb) {
-    lines.push("daemon:    not running")
-    return lines.join("\n")
+  if (status.health === "not-running") {
+    return "daemon:    not running"
   }
-  const age = Date.now() - hb.lastHeartbeat
-  if (age > STALE_AFTER_MS) {
-    lines.push(`daemon:    stale (last heartbeat ${Math.round(age / 1000)}s ago, pid=${hb.pid})`)
+  if (status.health === "stale") {
+    const ageSec = Math.round((status.lastHeartbeatAgeMs ?? 0) / 1000)
+    lines.push(`daemon:    stale (last heartbeat ${ageSec}s ago, pid=${status.pid})`)
   } else {
-    const uptime = Math.round((Date.now() - hb.startedAt) / 1000)
-    lines.push(`daemon:    running (pid=${hb.pid}, uptime=${uptime}s, socket=${hb.socketPath})`)
+    const uptimeSec = Math.round((status.uptimeMs ?? 0) / 1000)
+    lines.push(
+      `daemon:    running (pid=${status.pid}, uptime=${uptimeSec}s, socket=${status.socketPath})`
+    )
   }
   // unsynced count (best-effort; doesn't create the ledger if absent)
   try {
@@ -154,8 +156,8 @@ export async function runStatus(): Promise<string> {
   } catch {
     /* ignore */
   }
-  lines.push(`hooks:     ${hb.hooksReceivedThisSession ?? 0} received this session`)
-  lines.push(`ads shown: ${hb.adsShownThisSession}`)
+  lines.push(`hooks:     ${status.hooksReceivedThisSession} received this session`)
+  lines.push(`ads shown: ${status.adsShownThisSession}`)
   return lines.join("\n")
 }
 
