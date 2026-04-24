@@ -16,7 +16,9 @@ const SURFACES = [
   { key: "digest", label: "Digest" },
 ] as const;
 
-const SURFACE_DEFAULTS: Record<string, boolean> = {
+type SurfaceKey = (typeof SURFACES)[number]["key"];
+
+const SURFACE_DEFAULTS: Record<SurfaceKey, boolean> = {
   terminalTv: true,
   companionTab: true,
   challenges: true,
@@ -34,7 +36,9 @@ const CATEGORIES = [
   { key: "openSource", label: "Open source" },
 ] as const;
 
-const CATEGORY_DEFAULTS: Record<string, boolean> = {
+type CategoryKey = (typeof CATEGORIES)[number]["key"];
+
+const CATEGORY_DEFAULTS: Record<CategoryKey, boolean> = {
   devTools: true,
   infrastructure: true,
   databases: true,
@@ -82,12 +86,13 @@ function SurfaceToggle({
         onClick={onToggle}
         className={cn(
           "relative w-9 h-5 rounded-full transition-colors duration-200 cursor-pointer",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-primary)] focus-visible:ring-offset-2",
           enabled ? "bg-[var(--ink-primary)]" : "bg-[var(--rule-default)]",
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200",
+            "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200",
             enabled && "translate-x-4",
           )}
         />
@@ -186,6 +191,7 @@ function ScheduleRow({
       </span>
       <select
         value={value}
+        aria-label={label}
         onChange={(e) => onChange(e.target.value)}
         className={cn(
           "font-data text-data-s text-[var(--ink-primary)]",
@@ -223,7 +229,7 @@ function CategoryCheckbox({
       role="checkbox"
       aria-checked={checked}
       onClick={onToggle}
-      className="flex items-center gap-2.5 cursor-pointer py-1"
+      className="flex items-center gap-2.5 cursor-pointer py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-primary)] focus-visible:ring-offset-2 rounded-sm"
     >
       <span
         className={cn(
@@ -260,10 +266,10 @@ function ControlPanel() {
   const [scheduleEnd, setScheduleEnd] = useState("23:00");
   const [categories, setCategories] = useState(CATEGORY_DEFAULTS);
 
-  const toggleSurface = (key: string) =>
+  const toggleSurface = (key: SurfaceKey) =>
     setSurfaces((s) => ({ ...s, [key]: !s[key] }));
 
-  const toggleCategory = (key: string) =>
+  const toggleCategory = (key: CategoryKey) =>
     setCategories((c) => ({ ...c, [key]: !c[key] }));
 
   return (
