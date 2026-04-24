@@ -219,14 +219,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         graceTimer = setTimeout(() => {
           graceTimer = null
           const firedAt = now()
-          const reason = suppressionReason(firedAt)
-          if (reason) {
-            deps.log.debug("ad suppressed by preferences", { reason })
-            dispatch({ kind: "grace-elapsed", ad: null, now: firedAt })
-            return
-          }
-          const ad = deps.adCache.next()
-          if (!ad) deps.log.debug("grace elapsed with empty cache")
+          const ad = pickNextAd(firedAt, "grace")
           dispatch({ kind: "grace-elapsed", ad, now: firedAt })
         }, effect.ms)
         return
@@ -241,13 +234,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         interAdTimer = setTimeout(() => {
           interAdTimer = null
           const firedAt = now()
-          const reason = suppressionReason(firedAt)
-          if (reason) {
-            deps.log.debug("inter-ad suppressed", { reason })
-            dispatch({ kind: "inter-ad-elapsed", ad: null, now: firedAt })
-            return
-          }
-          const ad = deps.adCache.next()
+          const ad = pickNextAd(firedAt, "inter-ad")
           dispatch({ kind: "inter-ad-elapsed", ad, now: firedAt })
         }, effect.ms)
         return
@@ -469,6 +456,49 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     if (adsInCurrentBusyWindow >= MAX_ADS_PER_CONTINUOUS_SESSION) return "session-cap"
     if (hourlyTimestamps.length >= preferences.maxPerHour) return "hourly-cap"
     if (dailyTimestamps.length >= preferences.maxPerDay) return "daily-cap"
+    return null
+  }
+
+  // S3-12: silently picks the next ad to show, or returns null if:
+  //   - any user/global cap is hit (silent skip — caller emits a null-ad event
+  //     so the state machine goes back to IDLE/INTER_AD), or
+  //   - every candidate in the cache has already hit its per-campaign daily
+  //     cap. capped here at CAMPAIGN_CAP_RETRIES so one exhausted campaign can't
+  //     drain the entire cache in a hot loop.
+  // context: "grace" | "inter-ad" is used only for log correlation.
+  const CAMPAIGN_CAP_RETRIES = 5
+  function pickNextAd(firedAt: number, context: "grace" | "inter-ad"): CachedAd | null {
+    const reason = suppressionReason(firedAt)
+    if (reason) {
+      deps.log.debug("ad suppressed", { context, reason })
+      return null
+    }
+    for (let attempt = 0; attempt < CAMPAIGN_CAP_RETRIES; attempt++) {
+      const ad = deps.adCache.next()
+      if (!ad) {
+        if (attempt === 0) deps.log.debug("cache empty", { context })
+        return null
+      }
+      const cap = ad.campaignMaxImpressionsPerDay
+      if (typeof cap === "number" && cap > 0) {
+        const seen = deps.ledger.countImpressionsByCampaignToday(
+          ad.campaignId,
+          preferences.tzOffsetMinutes,
+          firedAt
+        )
+        if (seen >= cap) {
+          deps.log.debug("campaign-cap hit, trying next cached ad", {
+            campaignId: ad.campaignId,
+            cap,
+            seen,
+            attempt,
+          })
+          continue
+        }
+      }
+      return ad
+    }
+    deps.log.debug("every candidate hit a campaign cap", { context })
     return null
   }
 

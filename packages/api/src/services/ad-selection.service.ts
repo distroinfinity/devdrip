@@ -56,6 +56,8 @@ function hasBudgetRemaining(budgetTotal: number, budgetSpent: number, cpmRate: n
 }
 
 function toAdPayload(row: CandidateRow): AdPayload {
+  const rules = row.campTargetingRules as TargetingRules | null | undefined
+  const cap = typeof rules?.maxImpressions === "number" ? rules.maxImpressions : undefined
   return {
     id: row.id,
     campaignId: row.campaignId,
@@ -67,6 +69,7 @@ function toAdPayload(row: CandidateRow): AdPayload {
     cpmRate: row.cpmRate,
     impressionBeaconUrl: row.impressionBeaconUrl ?? undefined,
     clickTrackingUrl: row.clickTrackingUrl ?? undefined,
+    campaignMaxImpressionsPerDay: cap,
   }
 }
 

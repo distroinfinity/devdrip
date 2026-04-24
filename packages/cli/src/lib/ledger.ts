@@ -38,6 +38,12 @@ export interface Ledger {
   // completed impressions whose started_at falls in today's local window. Used
   // by the S3-05 earnings toast; backend remains authoritative at sync time.
   sumTodayOptimistic(tzOffsetMinutes: number, now?: number): number
+  // count of today's local-day impressions for a given campaignId (any
+  // `result`). used by the daemon to enforce per-campaign daily caps locally,
+  // as a client-side guard on top of the backend's authoritative Redis counter.
+  // "local day" semantics match sumTodayOptimistic — start at 00:00 of the
+  // user's timezone, not UTC.
+  countImpressionsByCampaignToday(campaignId: string, tzOffsetMinutes: number, now?: number): number
 
   recordClick(c: LocalClick): void
   listUnsyncedClicks(limit: number): LocalClick[]
@@ -212,6 +218,13 @@ export function openLedger(): Ledger {
       AND started_at >= ?
       AND started_at < ?
   `)
+  const countByCampaignTodayStmt = db.prepare(`
+    SELECT COUNT(*) AS n
+    FROM impressions
+    WHERE campaign_id = ?
+      AND started_at >= ?
+      AND started_at < ?
+  `)
 
   // SQLite's default SQLITE_LIMIT_VARIABLE_NUMBER is 999. Chunk mark-synced
   // updates well under that ceiling so a large sync batch can't throw.
@@ -295,6 +308,11 @@ export function openLedger(): Ledger {
       // after multiplication is equivalent to summing cpm first and dividing
       // once, which keeps the SQL trivial and avoids per-row arithmetic.
       return (row.total_cpm / 1000) * REVENUE_SHARE_DEVELOPER
+    },
+    countImpressionsByCampaignToday(campaignId, tzOffsetMinutes, now) {
+      const { start, end } = localDayBounds(now ?? Date.now(), tzOffsetMinutes)
+      const row = countByCampaignTodayStmt.get(campaignId, start, end) as { n: number }
+      return row.n
     },
     recordClick(c) {
       insertClickStmt.run({
