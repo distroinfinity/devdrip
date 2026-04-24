@@ -123,9 +123,14 @@ export function renderBox(
   // build header segments separated by " · " when multiple exist
   const leftSegments = [title, earningsSegment].filter(Boolean)
   const leftLabel = ` ${leftSegments.join(" · ")} `
-  const rightLabel = sourceSegment ? ` ${sourceSegment} ` : ""
-
+  // drop the right segment if it would push the header past `width`. need at
+  // least 4 fill chars (2 left corner pad + 2 right corner pad) for the box
+  // to render cleanly; below that, the right label is dropped entirely so
+  // the header still aligns at exactly `width`.
   const headerInnerLen = width - 2
+  const rightLabelRaw = sourceSegment ? ` ${sourceSegment} ` : ""
+  const tentativeFill = headerInnerLen - leftLabel.length - rightLabelRaw.length
+  const rightLabel = tentativeFill >= 4 ? rightLabelRaw : ""
   const fillLen = headerInnerLen - leftLabel.length - rightLabel.length
   const left = c.h + leftLabel
   const right = rightLabel + c.h

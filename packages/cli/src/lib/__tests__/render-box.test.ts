@@ -116,6 +116,25 @@ describe("renderBox — extended options", () => {
       }
     }
   })
+
+  it("drops the right header segment when source/earnings would overflow at narrow width", () => {
+    // PR review #3: long source segment + earnings + tight width caused the
+    // header to grow past `width`, breaking box alignment. Right segment is
+    // now dropped when fillLen<4.
+    const out = renderBox(
+      { headline: "H", url: "https://x.test" },
+      {
+        width: 40,
+        ascii: true,
+        earningsUsdc: 0.123456789,
+        source: "very-long-source-name-that-overflows",
+      }
+    )
+    const lines = out.split("\n")
+    // header is the first line. its visible length must not exceed the clamped
+    // width (40 — which is also the lower clamp).
+    expect([...(lines[0] ?? "")].length).toBe(40)
+  })
 })
 
 describe("renderBox — action footer", () => {
