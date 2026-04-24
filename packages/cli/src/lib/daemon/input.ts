@@ -65,18 +65,16 @@ export function createKeyCapture(deps: KeyCaptureDeps): KeyCapture {
 
   function stop(): void {
     if (!active) return
-    const { fd, stream } = active
+    const { stream } = active
     active = null
     // Deliberately DO NOT call setRawMode(false): Claude Code owns the tty's
     // raw-mode setting for its own REPL. Flipping it off here was corrupting
     // Claude's stdin after vanish (keystrokes went to the line buffer).
+    // tty.ReadStream owns the fd via its libuv handle, so destroy() closes it.
+    // A subsequent closeSync(fd) would close whatever resource the kernel
+    // reassigned that number to — silently, since it's wrapped in try/catch.
     try {
       stream.destroy()
-    } catch {
-      /* ignore */
-    }
-    try {
-      closeSync(fd)
     } catch {
       /* ignore */
     }
