@@ -49,9 +49,9 @@ describe("verifyDeliveryTokenForIngest", () => {
   })
 
   it("succeeds with fresh token + nonce present (graceAccept=false)", async () => {
-    ;(getRedis as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+    vi.mocked(getRedis).mockReturnValue({
       getdel: vi.fn().mockResolvedValue("1"),
-    })
+    } as unknown as ReturnType<typeof getRedis>)
     const token = await makeToken({
       userId: "u1",
       deviceId: "d1",
@@ -63,10 +63,10 @@ describe("verifyDeliveryTokenForIngest", () => {
     expect(res.claims.jti).toBe("jti-1")
   })
 
-  it("grace-accepts 1h-expired token with nonce missing", async () => {
-    ;(getRedis as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+  it("returns graceAccept=true when nonce has expired", async () => {
+    vi.mocked(getRedis).mockReturnValue({
       getdel: vi.fn().mockResolvedValue(null),
-    })
+    } as unknown as ReturnType<typeof getRedis>)
     const token = await makeToken({
       userId: "u1",
       deviceId: "d1",
@@ -80,9 +80,9 @@ describe("verifyDeliveryTokenForIngest", () => {
   })
 
   it("rejects tokens older than 24h", async () => {
-    ;(getRedis as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+    vi.mocked(getRedis).mockReturnValue({
       getdel: vi.fn().mockResolvedValue(null),
-    })
+    } as unknown as ReturnType<typeof getRedis>)
     const token = await makeToken({
       userId: "u1",
       deviceId: "d1",
@@ -97,9 +97,9 @@ describe("verifyDeliveryTokenForIngest", () => {
   })
 
   it("rejects when userId doesn't match", async () => {
-    ;(getRedis as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+    vi.mocked(getRedis).mockReturnValue({
       getdel: vi.fn().mockResolvedValue("1"),
-    })
+    } as unknown as ReturnType<typeof getRedis>)
     const token = await makeToken({
       userId: "u1",
       deviceId: "d1",
@@ -122,15 +122,15 @@ describe("peekDeliveryToken", () => {
     const claims = await peekDeliveryToken(token)
     expect(claims.deviceId).toBe("d1")
     expect(claims.jti).toBe("jti-5")
-    expect((getRedis as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(0)
+    expect(vi.mocked(getRedis).mock.calls.length).toBe(0)
   })
 })
 
 describe("verifyDeliveryTokenForClick", () => {
   it("accepts without consuming nonce", async () => {
-    ;(getRedis as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+    vi.mocked(getRedis).mockReturnValue({
       getdel: vi.fn(),
-    })
+    } as unknown as ReturnType<typeof getRedis>)
     const token = await makeToken({
       userId: "u1",
       deviceId: "d1",
@@ -139,6 +139,6 @@ describe("verifyDeliveryTokenForClick", () => {
     })
     const claims = await verifyDeliveryTokenForClick(token, "u1")
     expect(claims.jti).toBe("jti-6")
-    expect((getRedis as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(0)
+    expect(vi.mocked(getRedis).mock.calls.length).toBe(0)
   })
 })

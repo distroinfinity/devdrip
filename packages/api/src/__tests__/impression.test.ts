@@ -28,7 +28,7 @@ vi.mock("../lib/logger.js", () => ({
   },
 }))
 
-import { recordImpression, recordClick } from "../services/impression.service.js"
+import { recordImpression, recordClick, recordClickByJti } from "../services/impression.service.js"
 import { getDb } from "../db/index.js"
 import { recordSpend, rollbackSpend } from "../lib/budget.js"
 import { incrementFrequency } from "../lib/frequency.js"
@@ -306,5 +306,122 @@ describe("recordClick", () => {
     } as unknown as ReturnType<typeof getDb>)
 
     await expect(recordClick("nonexistent")).rejects.toThrow("impression_not_found")
+  })
+})
+
+describe("recordClickByJti", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  function mockDbForClickByJti(opts: {
+    impressionRow?: { id: string; deviceId: string } | null
+    deviceRow?: { userId: string } | null
+    insertResult?: "success" | "conflict" | "fk"
+    clickId?: string
+  }) {
+    const {
+      impressionRow = { id: "imp-1", deviceId: "dev-1" },
+      deviceRow = { userId: "user-1" },
+      insertResult = "success",
+      clickId = "click-1",
+    } = opts
+
+    // select calls: first for impressions, second for devices
+    let selectCallCount = 0
+    const selectFn = vi.fn(() => {
+      const callIndex = selectCallCount++
+      const row =
+        callIndex === 0 ? (impressionRow ? [impressionRow] : []) : deviceRow ? [deviceRow] : []
+      return {
+        from: vi.fn(() => ({
+          where: vi.fn().mockResolvedValue(row),
+        })),
+      }
+    })
+
+    let insertReturning: ReturnType<typeof vi.fn>
+    if (insertResult === "conflict") {
+      const err = new Error("unique violation") as Error & { code: string }
+      err.code = "23505"
+      insertReturning = vi.fn().mockRejectedValue(err)
+    } else if (insertResult === "fk") {
+      const err = new Error("fk violation") as Error & { code: string }
+      err.code = "23503"
+      insertReturning = vi.fn().mockRejectedValue(err)
+    } else {
+      insertReturning = vi.fn().mockResolvedValue([{ id: clickId }])
+    }
+    const insertValues = vi.fn(() => ({ returning: insertReturning }))
+    const insertFn = vi.fn(() => ({ values: insertValues }))
+
+    vi.mocked(getDb).mockReturnValue({
+      select: selectFn,
+      insert: insertFn,
+    } as unknown as ReturnType<typeof getDb>)
+
+    return { selectFn, insertFn, insertValues }
+  }
+
+  it("skips DB lookup when resolvedImpressionId provided, returns clickId + earningsDelta 0", async () => {
+    const insertReturning = vi.fn().mockResolvedValue([{ id: "click-42" }])
+    const insertValues = vi.fn(() => ({ returning: insertReturning }))
+    const insertFn = vi.fn(() => ({ values: insertValues }))
+    vi.mocked(getDb).mockReturnValue({
+      insert: insertFn,
+    } as unknown as ReturnType<typeof getDb>)
+
+    const result = await recordClickByJti("jti-x", "user-1", "imp-resolved")
+    expect(result).toEqual({ clickId: "click-42", earningsDelta: 0 })
+    // no select was called
+    expect(insertValues).toHaveBeenCalledWith({ impressionId: "imp-resolved" })
+  })
+
+  it("throws impression_not_synced when jti not found in DB", async () => {
+    mockDbForClickByJti({ impressionRow: null })
+
+    let err: unknown
+    try {
+      await recordClickByJti("jti-missing", "user-1")
+    } catch (e) {
+      err = e
+    }
+    expect((err as { errorCode: string }).errorCode).toBe("impression_not_synced")
+  })
+
+  it("throws delivery_not_owned when device belongs to different user", async () => {
+    mockDbForClickByJti({ deviceRow: { userId: "other-user" } })
+
+    let err: unknown
+    try {
+      await recordClickByJti("jti-y", "user-1")
+    } catch (e) {
+      err = e
+    }
+    expect((err as { errorCode: string }).errorCode).toBe("delivery_not_owned")
+  })
+
+  it("throws click_already_recorded on 23505 unique violation", async () => {
+    mockDbForClickByJti({ insertResult: "conflict" })
+
+    let err: unknown
+    try {
+      await recordClickByJti("jti-z", "user-1", "imp-1")
+    } catch (e) {
+      err = e
+    }
+    expect((err as { errorCode: string }).errorCode).toBe("click_already_recorded")
+  })
+
+  it("throws impression_not_synced on 23503 FK violation during insert", async () => {
+    mockDbForClickByJti({ insertResult: "fk" })
+
+    let err: unknown
+    try {
+      await recordClickByJti("jti-w", "user-1", "imp-1")
+    } catch (e) {
+      err = e
+    }
+    expect((err as { errorCode: string }).errorCode).toBe("impression_not_synced")
   })
 })

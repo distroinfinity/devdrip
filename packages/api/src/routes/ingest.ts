@@ -163,6 +163,5 @@ async function ingestOneClick(
 
 function errorCode(err: unknown): string {
   if (err instanceof ApiError) return err.errorCode
-  if (err instanceof Error) return err.message.slice(0, 120)
   return "internal_error"
 }
