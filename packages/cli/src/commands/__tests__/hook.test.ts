@@ -87,14 +87,23 @@ describe("hook subcommands", () => {
     expect(JSON.parse(msg ?? "").type).toBe("idle-end")
   })
 
-  it("prompt-submit sends dismiss", async () => {
+  it("prompt-submit sends idle-start with the resolved tty", async () => {
     await startEcho()
+    vi.doMock("../../lib/daemon/tty.js", () => ({
+      resolveTty: () => "/dev/ttys042",
+      resetTtyCache: () => {
+        // noop
+      },
+    }))
     const { handlePromptSubmit } = await import("../hook.js")
     await handlePromptSubmit(socketPath)
     await new Promise((r) => setTimeout(r, 20))
+    expect(received).toHaveLength(1)
     const msg = received[0]
     expect(msg).toBeDefined()
-    expect(JSON.parse(msg ?? "").type).toBe("dismiss")
+    const got = JSON.parse(msg ?? "")
+    expect(got.type).toBe("idle-start")
+    expect(got.tty).toBe("/dev/ttys042")
   })
 
   it("session-start sends session-start", async () => {
@@ -129,6 +138,6 @@ describe("hook subcommands", () => {
     const parsed = received.map((m) => JSON.parse(m))
     expect(parsed[0]).toEqual({ type: "idle-start", tty: "/dev/ttys001" })
     expect(parsed[1]).toEqual({ type: "idle-end" })
-    expect(parsed[2]).toEqual({ type: "dismiss" })
+    expect(parsed[2]).toEqual({ type: "idle-start", tty: "/dev/ttys001" })
   })
 })
