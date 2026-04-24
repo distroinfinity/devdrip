@@ -7,17 +7,18 @@ import type { SessionUser } from "@/lib/auth"
 
 interface AppShellProps {
   user: SessionUser
-  activeNav: "earnings" | "impressions" | "analytics" | "preferences" | "wallet"
   children: React.ReactNode
 }
 
-export function AppShell({ user, activeNav, children }: AppShellProps) {
+export function AppShell({ user, children }: AppShellProps) {
+  // NavPill reads the current pathname client-side so each page renders the
+  // right active state without the layout having to know which one it is.
   const pills = (
     <>
-      <NavPill href="/dashboard" label="Earnings" active={activeNav === "earnings"} />
-      <NavPill href="#" label="Impressions" disabled soonLabel="soon" />
-      <NavPill href="#" label="Analytics" disabled soonLabel="soon" />
-      <NavPill href="#" label="Preferences" disabled soonLabel="soon" />
+      <NavPill href="/dashboard" label="Earnings" exact />
+      <NavPill href="/dashboard/history" label="History" />
+      <NavPill href="/dashboard/analytics" label="Analytics" />
+      <NavPill href="/dashboard/preferences" label="Preferences" />
       <NavPill href="#" label="Wallet" disabled soonLabel="soon" />
     </>
   )

@@ -1,5 +1,18 @@
-// canonical category labels shown in the UI.
-// keep in sync with AdCategory in @devdrip/shared.
+// canonical category slugs + labels shown in the UI.
+// keep in sync with AdCategory in @devdrip/shared. Defined as plain strings so
+// client bundles don't pull the shared package's node-only imports.
+export const CATEGORY_SLUGS = [
+  "cloud-infrastructure",
+  "developer-tools",
+  "databases",
+  "monitoring-observability",
+  "developer-recruiting",
+  "developer-education",
+  "saas-products",
+] as const
+
+export type CategorySlug = (typeof CATEGORY_SLUGS)[number]
+
 const LABELS: Record<string, string> = {
   "cloud-infrastructure": "Cloud Infrastructure",
   "developer-tools": "Developer Tools",
