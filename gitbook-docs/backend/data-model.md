@@ -145,10 +145,18 @@ Stores:
 - result
 - CPM rate
 - earned amount
+- `delivery_jti varchar(36)` (nullable) — the `jti` claim from the delivery token. Unique index `impressions_delivery_jti_idx` enforces DB-level anti-replay for batch ingest. The Redis nonce is an early-reject optimization; this index is authoritative. Old rows (pre-S3-06) remain `NULL`.
+
+Additional indexes added for analytics and click→impression lookup:
+
+- `impressions_delivery_jti_idx` — unique index on `delivery_jti` (sparse; NULLs not indexed).
+- `impressions_source_created_idx` — composite index on `(source, created_at)` used by the analytics `bySource` breakdown and date-range scans.
 
 ### `clicks`
 
 Stores one click per impression.
+
+Index `clicks_created_idx` on `clicks(created_at)` used by analytics date-range queries.
 
 ### `earnings_ledger`
 
@@ -230,9 +238,9 @@ Tables directly touched by implemented API flows:
 - `advertisers`
 - `campaigns`
 - `creatives`
-- `impressions` (write via impression recording, read via campaign stats aggregation)
-- `clicks` (write via click recording, read via campaign stats aggregation)
-- `earnings_ledger` (write via impression recording for completed impressions, read via `GET /admin/stats` and `GET /admin/users` aggregates)
+- `impressions` (write via `POST /ingest`, read via campaign stats aggregation and analytics)
+- `clicks` (write via `POST /ingest`, read via campaign stats aggregation and analytics)
+- `earnings_ledger` (write via `POST /ingest` for completed impressions, read via `GET /admin/stats`, `GET /admin/users`, `GET /me/earnings/summary`)
 - `invite_codes` (write via `POST /invites`, read via `GET /invites`)
 - `payouts` (read via `GET /admin/payouts`, status override via `PATCH /admin/payouts/:id/status` — create path still pending via the claim flow)
 
