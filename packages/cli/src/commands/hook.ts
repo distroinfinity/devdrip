@@ -13,7 +13,9 @@ export async function handlePreTool(socketPath: string = daemonSocketPath()): Pr
 
 export async function handleStop(socketPath: string = daemonSocketPath()): Promise<void> {
   try {
-    await sendHookEvent({ type: "idle-end" }, socketPath)
+    // S3-14: include tty so the daemon can route idle-end to the right
+    // per-tty session when multiple Claude Code windows are open.
+    await sendHookEvent({ type: "idle-end", tty: resolveTty() }, socketPath)
   } catch {
     /* never escapes */
   }
@@ -29,7 +31,7 @@ export async function handlePromptSubmit(socketPath: string = daemonSocketPath()
 
 export async function handleSessionStart(socketPath: string = daemonSocketPath()): Promise<void> {
   try {
-    await sendHookEvent({ type: "session-start" }, socketPath)
+    await sendHookEvent({ type: "session-start", tty: resolveTty() }, socketPath)
   } catch {
     /* never escapes */
   }
