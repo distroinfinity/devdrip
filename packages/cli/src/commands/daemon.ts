@@ -201,23 +201,23 @@ export async function runDaemon(): Promise<number> {
   let orchestrator: ReturnType<typeof createOrchestrator>
 
   const keyCapture = createKeyCapture({
-    onKey: (action) => {
+    onKey: (action, tty) => {
       const now = Date.now()
       switch (action) {
         case "discover":
-          orchestrator.dispatch({ kind: "discover-key", now })
+          orchestrator.dispatch({ kind: "discover-key", now, tty })
           return
         case "skip":
-          orchestrator.dispatch({ kind: "skip-key", now })
+          orchestrator.dispatch({ kind: "skip-key", now, tty })
           return
         case "kill":
-          orchestrator.dispatch({ kind: "kill-key", now })
+          orchestrator.dispatch({ kind: "kill-key", now, tty })
           return
         case "mute":
-          orchestrator.dispatch({ kind: "mute-key", now })
+          orchestrator.dispatch({ kind: "mute-key", now, tty })
           return
         case "dismiss":
-          orchestrator.dispatch({ kind: "dismiss", now })
+          orchestrator.dispatch({ kind: "dismiss", now, tty })
           return
       }
     },
