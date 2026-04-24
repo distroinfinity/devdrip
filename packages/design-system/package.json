@@ -1,0 +1,41 @@
+{
+  "name": "@devdrip/design-system",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css",
+    "./tailwind-preset": "./tailwind.preset.ts",
+    "./fonts": "./src/fonts.ts",
+    "./theme": "./src/theme.ts",
+    "./design-tokens": "./src/design-tokens.ts",
+    "./utils": "./src/utils.ts",
+    "./components": "./src/components/index.ts",
+    "./components/*": "./src/components/*.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "clean": "echo 'nothing to clean'"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "tailwindcss": "^3.4.0",
+    "tailwindcss-animate": "^1.0.7",
+    "next": "^14.2.0",
+    "motion": "^12.0.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5.8.0"
+  }
+}

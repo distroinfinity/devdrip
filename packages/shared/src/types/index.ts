@@ -237,6 +237,32 @@ export interface Payout {
   confirmedAt?: string
 }
 
+// ── earnings api ────────────────────────────────────────────────────────────
+
+export interface EarningsSummary {
+  balance: number
+  today: number
+  week: number
+  month: number
+  allTime: number
+  streakDays: number
+  totalImpressions: number
+  totalClicks: number
+  topCategories: { category: AdCategory; amountUsdc: number }[]
+}
+
+export interface EarningsTimeseriesPoint {
+  // YYYY-MM-DD in the user's tz
+  date: string
+  amount: number
+}
+
+export interface EarningsTimeseries {
+  days: number
+  granularity: "day"
+  points: EarningsTimeseriesPoint[]
+}
+
 // ── admin ───────────────────────────────────────────────────────────────────
 
 export interface AdminStatsBlock {

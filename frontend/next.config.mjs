@@ -2,6 +2,8 @@
 const nextConfig = {
   poweredByHeader: false,
 
+  transpilePackages: ["@devdrip/design-system"],
+
   images: {
     formats: ["image/avif", "image/webp"],
   },
