@@ -16,6 +16,8 @@ export interface DisplayApi {
     ctx: { earningsUsdc?: number; source?: string; width?: number }
   ): {
     vanish: () => { latencyMs: number }
+    onResize: (cb: () => void) => void
+    flash: () => void
   }
 }
 
@@ -89,7 +91,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   let graceTimer: NodeJS.Timeout | null = null
   let vanishTimer: NodeJS.Timeout | null = null
   let interAdTimer: NodeJS.Timeout | null = null
-  let currentDisplay: { vanish: () => { latencyMs: number } } | null = null
+  let currentDisplay: ReturnType<DisplayApi["show"]> | null = null
   let adsShownCount = 0
   let hooksReceivedCount = 0
   let preferences: DevdripPreferences = deps.preferences
@@ -100,6 +102,16 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   const hourlyTimestamps: number[] = []
   const dailyTimestamps: number[] = []
 
+  // brief delay between a key/CLI action arriving and the state transition
+  // firing, so the user sees the flash before the ad vanishes.
+  const KEY_FLASH_DELAY_MS = 150
+
+  function applyStep(event: Event): void {
+    const result = step(state, event, { deviceId: deps.deviceId })
+    state = result.state
+    for (const effect of result.effects) runEffect(effect)
+  }
+
   function dispatch(event: Event): void {
     // count only socket-originated events (hooks), not internal timer callbacks.
     // this lets `devdrip daemon status` answer "are hooks reaching the daemon?".
@@ -109,9 +121,23 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     if (event.kind === "idle-end" || event.kind === "dismiss") {
       adsInCurrentBusyWindow = 0
     }
-    const result = step(state, event, { deviceId: deps.deviceId })
-    state = result.state
-    for (const effect of result.effects) runEffect(effect)
+    const isUserKey =
+      event.kind === "discover-key" ||
+      event.kind === "skip-key" ||
+      event.kind === "kill-key" ||
+      event.kind === "mute-key"
+    if (isUserKey && currentDisplay) {
+      // flash the ad box and wait briefly before transitioning, so the user
+      // sees a green glow confirming their keystroke/CLI action was captured.
+      try {
+        currentDisplay.flash()
+      } catch (err) {
+        deps.log.warn("flash failed", { error: (err as Error).message })
+      }
+      setTimeout(() => applyStep(event), KEY_FLASH_DELAY_MS)
+      return
+    }
+    applyStep(event)
   }
 
   function runEffect(effect: Effect): void {
@@ -168,6 +194,15 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         try {
           const source = effect.ad.cacheSource === "demo" ? "DEMO" : undefined
           currentDisplay = deps.display.show(effect.tty, effect.ad, { source })
+          // on terminal resize, proactively dismiss the current ad — the
+          // display has already reset its scroll region to prevent content
+          // loss, and the next rotation tick will re-anchor with fresh rows.
+          currentDisplay.onResize(() => {
+            deps.log.info("resize detected — dismissing ad to re-anchor", {
+              adId: effect.ad.id,
+            })
+            dispatch({ kind: "dismiss", now: Date.now() })
+          })
           deps.keyCapture.start(effect.tty)
           adsInCurrentBusyWindow += 1
           const nowMs = now()

@@ -46,7 +46,7 @@ function makeDeps() {
   const display = {
     show: vi.fn((tty: string | null, a: CachedAd, _ctx: unknown) => {
       displayCalls.push({ tty, adId: a.id })
-      return { vanish: () => ({ latencyMs: 0 }) }
+      return { vanish: () => ({ latencyMs: 0 }), onResize: vi.fn(), flash: vi.fn() }
     }),
   }
   const keyCapture = {

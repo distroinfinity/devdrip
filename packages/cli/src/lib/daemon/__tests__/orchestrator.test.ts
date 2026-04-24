@@ -63,6 +63,7 @@ function makeDeps() {
           vanishCalls.push(Date.now())
           return { latencyMs: 0 }
         },
+        onResize: vi.fn(),
       }
     }),
   }
@@ -162,8 +163,8 @@ describe("orchestrator", () => {
     const orch = await createOrch(d)
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
-    await vi.advanceTimersByTimeAsync(1500)
-    orch.dispatch({ kind: "idle-end", now: 1500 })
+    await vi.advanceTimersByTimeAsync(500) // mid-grace
+    orch.dispatch({ kind: "idle-end", now: 500 })
     await vi.advanceTimersByTimeAsync(5000)
 
     expect(d.displayCalls).toHaveLength(0)
@@ -344,6 +345,7 @@ describe("orchestrator — gates", () => {
     expect(d.displayCalls).toHaveLength(1)
     // kill-key while SHOWING → endShowing (no INTER_AD) + setSessionKilled
     orch.dispatch({ kind: "kill-key", now: 4000 })
+    await vi.advanceTimersByTimeAsync(150) // flash delay
     await vi.advanceTimersByTimeAsync(500)
     // dispatch a fresh idle-start — grace timer should fire but be suppressed by sessionKilled
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 5000 })
@@ -364,9 +366,34 @@ describe("orchestrator — key actions", () => {
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
     await vi.advanceTimersByTimeAsync(3000) // SHOWING
     orch.dispatch({ kind: "discover-key", now: 4000 })
+    await vi.advanceTimersByTimeAsync(150) // flash delay before state transition
 
     expect(d.firedBeacons).toContain("https://beacon/click")
     expect(d.openedUrls).toContain(adWithClick.url)
+  })
+
+  it("rotation continues after discover-key — next ad shows ~500ms later", async () => {
+    const d = makeDeps()
+    const ad2: CachedAd = { ...ad, id: "ad-after-discover" }
+    // queue: default first ad from makeDeps, then ad2 on the second next() call
+    let calls = 0
+    const originalNext = d.adCache.next
+    d.adCache.next = vi.fn(() => {
+      calls += 1
+      if (calls === 1) return originalNext()
+      if (calls === 2) return ad2
+      return null
+    }) as never
+
+    const orch = await createOrch(d)
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
+    await vi.advanceTimersByTimeAsync(3000) // SHOWING first ad
+    orch.dispatch({ kind: "discover-key", now: 4000 })
+    await vi.advanceTimersByTimeAsync(150) // flash delay
+    await vi.advanceTimersByTimeAsync(500) // INTER_AD → SHOWING ad2
+
+    expect(d.displayCalls).toHaveLength(2)
+    expect(d.displayCalls[1]?.adId).toBe("ad-after-discover")
   })
 
   it("mute-key sets muteUntil and persists via writePreferences", async () => {
@@ -377,6 +404,7 @@ describe("orchestrator — key actions", () => {
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 1_000_000 })
     await vi.advanceTimersByTimeAsync(3000)
     orch.dispatch({ kind: "mute-key", now: 1_004_000 })
+    await vi.advanceTimersByTimeAsync(150) // flash delay
     // writePreferences is invoked inside an async `.catch` chain — yield once
     await Promise.resolve()
 

@@ -23,18 +23,18 @@ describe("display — writeWithRetry", () => {
   })
 })
 
-describe("showAd — fd safety", () => {
-  const ad = {
-    id: "ad-1",
-    campaignId: "camp-1",
-    format: "text" as const,
-    headline: "H",
-    url: "https://x.test",
-    displayTimeMs: 8000,
-    deliveryToken: "tok",
-    cacheSource: "api" as const,
-  }
+const ad = {
+  id: "ad-1",
+  campaignId: "camp-1",
+  format: "text" as const,
+  headline: "H",
+  url: "https://x.test",
+  displayTimeMs: 8000,
+  deliveryToken: "tok",
+  cacheSource: "api" as const,
+}
 
+describe("showAd — fd safety", () => {
   it("vanish is idempotent — second call is a no-op and closeSync fires only once", async () => {
     const openSpy = vi.spyOn(fs, "openSync").mockReturnValue(42 as unknown as number)
     const writeSpy = vi.spyOn(fs, "writeSync").mockReturnValue(1)
@@ -77,6 +77,61 @@ describe("showAd — fd safety", () => {
     expect(() => showAd("/dev/null", ad)).toThrow(/EIO/)
     expect(closeSpy).toHaveBeenCalledTimes(1)
     expect(closeSpy).toHaveBeenCalledWith(77)
+
+    openSpy.mockRestore()
+    writeSpy.mockRestore()
+    closeSpy.mockRestore()
+  })
+})
+
+describe("showAd — scroll region anchoring", () => {
+  it("emits DECSTBM scroll-region + bottom placement on show", async () => {
+    const openSpy = vi.spyOn(fs, "openSync").mockReturnValue(42 as unknown as number)
+    const writes: string[] = []
+    const writeSpy = vi.spyOn(fs, "writeSync").mockImplementation((_fd, data) => {
+      writes.push(String(data))
+      return 1
+    })
+    const closeSpy = vi.spyOn(fs, "closeSync").mockReturnValue(undefined)
+
+    const { showAd } = await import("../display.js")
+    showAd("/dev/null", ad)
+
+    // WriteStream on fd=42 is not a real tty → readTtyDimensions falls back
+    // to 24 rows × 80 cols. adHeight is determined by renderBox output; with
+    // defaults the box is typically 10 lines so scrollBottom = 14.
+    const showWrite = writes.join("")
+    expect(showWrite).toContain("\x1b7") // save cursor
+    expect(showWrite).toMatch(/\x1b\[1;\d+r/) // set scroll region
+    expect(showWrite).toMatch(/\x1b\[\d+;1H/) // move to bottom pane
+    expect(showWrite).toContain("\x1b[0J") // erase to end of screen
+    expect(showWrite).toContain("\x1b8") // restore cursor
+
+    openSpy.mockRestore()
+    writeSpy.mockRestore()
+    closeSpy.mockRestore()
+  })
+
+  it("emits reset-scroll-region + clear on vanish", async () => {
+    const openSpy = vi.spyOn(fs, "openSync").mockReturnValue(42 as unknown as number)
+    const writes: string[] = []
+    const writeSpy = vi.spyOn(fs, "writeSync").mockImplementation((_fd, data) => {
+      writes.push(String(data))
+      return 1
+    })
+    const closeSpy = vi.spyOn(fs, "closeSync").mockReturnValue(undefined)
+
+    const { showAd } = await import("../display.js")
+    const handle = showAd("/dev/null", ad)
+    writes.length = 0 // drop the show bytes; assert only on vanish
+    handle.vanish()
+
+    const vanishWrite = writes.join("")
+    expect(vanishWrite).toContain("\x1b7") // save cursor
+    expect(vanishWrite).toContain("\x1b[r") // reset scroll region
+    expect(vanishWrite).toMatch(/\x1b\[\d+;1H/) // move to bottom pane
+    expect(vanishWrite).toContain("\x1b[0J") // clear ad pane
+    expect(vanishWrite).toContain("\x1b8") // restore cursor
 
     openSpy.mockRestore()
     writeSpy.mockRestore()

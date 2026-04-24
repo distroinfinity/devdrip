@@ -143,7 +143,9 @@ function stepShowing(
     }
   }
   if (event.kind === "discover-key") {
-    const base = endShowing(state, event.now, ctx, "completed", false)
+    // discover opens the advertiser URL in the browser AND keeps rotation
+    // going so the user doesn't lose the ad stream while Claude is still busy.
+    const base = endShowing(state, event.now, ctx, "completed", /*goToInterAd*/ true)
     return {
       state: base.state,
       effects: [{ kind: "openDiscover", ad: state.ad }, ...base.effects],

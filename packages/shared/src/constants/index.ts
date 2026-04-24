@@ -4,7 +4,7 @@ import type { DevdripPreferences } from "../types/index.js"
 
 // ── timing ──────────────────────────────────────────────────────────────────
 
-export const GRACE_PERIOD_MS = 3_000
+export const GRACE_PERIOD_MS = 1_500
 export const MAX_AD_DURATION_MS = 8_000
 
 // ── daemon socket path ─────────────────────────────────────────────────────

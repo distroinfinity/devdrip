@@ -44,7 +44,7 @@ describe("state-machine: IDLE transitions", () => {
   it("IDLE + idle-start → GRACE with startGraceTimer effect", () => {
     const r = step(idle, { kind: "idle-start", tty: "/dev/ttys003", now: 100 }, CTX)
     expect(r.state).toEqual({ kind: "GRACE", tty: "/dev/ttys003", enteredAt: 100 })
-    expect(r.effects).toEqual([{ kind: "startGraceTimer", ms: 3000 }])
+    expect(r.effects).toEqual([{ kind: "startGraceTimer", ms: 1500 }])
   })
 
   it("IDLE + idle-end → IDLE, no effects", () => {
@@ -272,13 +272,16 @@ describe("state-machine — rotation", () => {
     expect(effect?.muteUntil).toBe(4000 + 1_800_000)
   })
 
-  it("discover-key emits openDiscover with the ad", () => {
+  it("discover-key emits openDiscover with the ad AND rotates to INTER_AD", () => {
     const adX: CachedAd = { ...fixtureAd, id: "ad-x" }
     const state: State = { kind: "SHOWING", tty: "/dev/ttys003", ad: adX, shownAt: 0 }
     const result = step(state, { kind: "discover-key", now: 4000 }, { deviceId: "d1" })
     const effect = result.effects.find((e) => e.kind === "openDiscover")
     expect(effect).toBeDefined()
     expect((effect as { ad: CachedAd }).ad.id).toBe("ad-x")
+    // rotation continues after discover — state goes to INTER_AD with timer
+    expect(result.state.kind).toBe("INTER_AD")
+    expect(result.effects.some((e) => e.kind === "startInterAdTimer")).toBe(true)
   })
 
   it("session-start from any state clears session state and returns IDLE", () => {

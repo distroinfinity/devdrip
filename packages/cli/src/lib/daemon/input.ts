@@ -14,6 +14,22 @@ export interface KeyCaptureDeps {
   log: LoggerApi
 }
 
+// pure: classify a single raw-mode read chunk into at most one action.
+// - multi-byte chunks starting with ESC are terminal control sequences
+//   (focus-in/out, arrow keys, mouse events, function keys) — never ours.
+// - lone ESC (chunk.length === 1, byte = 0x1b) is the user pressing Escape.
+// - first mapped byte wins; remaining bytes in the chunk are discarded
+//   (paste protection / held-key deduplication).
+export function processByteChunk(chunk: Buffer): KeyAction | null {
+  if (chunk.length > 1 && chunk[0] === 0x1b) return null
+  const str = chunk.toString("utf8")
+  for (const ch of str) {
+    const action = byteToAction(ch)
+    if (action) return action
+  }
+  return null
+}
+
 export function byteToAction(byte: string): KeyAction | null {
   switch (byte) {
     case "d":
@@ -51,11 +67,9 @@ export function createKeyCapture(deps: KeyCaptureDeps): KeyCapture {
     if (!active) return
     const { fd, stream } = active
     active = null
-    try {
-      stream.setRawMode(false)
-    } catch (err) {
-      deps.log.warn("key-capture setRawMode(false) failed", { error: (err as Error).message })
-    }
+    // Deliberately DO NOT call setRawMode(false): Claude Code owns the tty's
+    // raw-mode setting for its own REPL. Flipping it off here was corrupting
+    // Claude's stdin after vanish (keystrokes went to the line buffer).
     try {
       stream.destroy()
     } catch {
@@ -95,16 +109,24 @@ export function createKeyCapture(deps: KeyCaptureDeps): KeyCapture {
     }
 
     active = { fd, stream }
+    deps.log.info("key-capture started", { ttyPath, fd })
 
     stream.on("data", (chunk: Buffer) => {
-      const str = chunk.toString("utf8")
-      for (const ch of str) {
-        const action = byteToAction(ch)
-        if (action) {
-          deps.onKey(action)
-          return
+      // diagnostic: log every chunk's hex bytes so we can tell whether a
+      // missing key action is (a) our daemon never saw the byte (Claude won
+      // the race) or (b) we saw the byte but the mapper / dispatch path
+      // is broken. stays at debug level; grep with `grep "key-capture byte"`.
+      const hex = chunk.toString("hex")
+      deps.log.debug("key-capture byte", { hex, len: chunk.length })
+      const action = processByteChunk(chunk)
+      if (!action) {
+        if (chunk.length > 1 && chunk[0] === 0x1b) {
+          deps.log.debug("key-capture dropped control sequence", { hex })
         }
+        return
       }
+      deps.log.info("key-capture action", { action })
+      deps.onKey(action)
     })
     stream.on("error", (err) => {
       deps.log.warn("key-capture stream error", { error: err.message })
