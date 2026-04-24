@@ -51,7 +51,11 @@ export const statusCmd = new Command("status")
   .action(async (opts: { json?: boolean; local?: boolean }) => {
     try {
       const cfg = await readConfig()
-      const ledger = readLocalLedger()
+      // use the persisted preference tz when signed in (matches the daemon +
+      // earnings toast + config layer). fall back to the host tz only for the
+      // not-signed-in path, where no preference exists yet.
+      const tzOffsetMinutes = cfg?.preferences.tzOffsetMinutes ?? -new Date().getTimezoneOffset()
+      const ledger = readLocalLedger(tzOffsetMinutes)
       const daemon = readDaemonStatus()
 
       const { earnings, earningsFromCache, earningsCacheAgeMs, offline, offlineReason } =
@@ -80,7 +84,7 @@ export const statusCmd = new Command("status")
     }
   })
 
-function readLocalLedger(): LocalLedgerState {
+function readLocalLedger(tzOffsetMinutes: number): LocalLedgerState {
   // ledger file is created lazily on first impression write. avoid creating it
   // just to read zeroes — that would leave an empty ledger.db for dev boxes
   // that have never seen an ad.
@@ -89,7 +93,6 @@ function readLocalLedger(): LocalLedgerState {
   }
   const ledger = openLedger()
   try {
-    const tzOffsetMinutes = -new Date().getTimezoneOffset()
     return {
       unsyncedImpressions: ledger.unsyncedCount(),
       unsyncedClicks: ledger.unsyncedClickCount(),

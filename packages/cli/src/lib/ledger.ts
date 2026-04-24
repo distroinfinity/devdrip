@@ -38,12 +38,14 @@ export interface Ledger {
   // completed impressions whose started_at falls in today's local window. Used
   // by the S3-05 earnings toast; backend remains authoritative at sync time.
   sumTodayOptimistic(tzOffsetMinutes: number, now?: number): number
-  // count of today's local-day impressions for a given campaignId (any
+  // count of today's UTC-day impressions for a given campaignId (any
   // `result`). used by the daemon to enforce per-campaign daily caps locally,
-  // as a client-side guard on top of the backend's authoritative Redis counter.
-  // "local day" semantics match sumTodayOptimistic — start at 00:00 of the
-  // user's timezone, not UTC.
-  countImpressionsByCampaignToday(campaignId: string, tzOffsetMinutes: number, now?: number): number
+  // as a client-side guard on top of the backend's authoritative Redis
+  // counter. deliberately UTC (not local): the backend keys Redis on
+  // `utcDate()` in packages/api/src/lib/frequency.ts, so both sides must share
+  // the same day boundary — otherwise users east or west of UTC disagree
+  // around midnight and either over-serve or over-suppress cached ads.
+  countImpressionsByCampaignOnUtcDay(campaignId: string, now?: number): number
 
   recordClick(c: LocalClick): void
   listUnsyncedClicks(limit: number): LocalClick[]
@@ -88,6 +90,17 @@ function localDayBounds(nowMs: number, tzOffsetMinutes: number): { start: number
     shifted.getUTCDate()
   )
   const start = startShifted - offsetMs
+  return { start, end: start + 86_400_000 }
+}
+
+// returns the [start, end) epoch-ms window for the UTC day containing `nowMs`.
+// kept separate from `localDayBounds` on purpose: per-campaign caps must line
+// up with the backend's UTC-day Redis key (packages/api/src/lib/frequency.ts),
+// while user-facing earnings totals want the user's local day. two semantics,
+// two helpers.
+function utcDayBounds(nowMs: number): { start: number; end: number } {
+  const d = new Date(nowMs)
+  const start = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
   return { start, end: start + 86_400_000 }
 }
 
@@ -218,7 +231,7 @@ export function openLedger(): Ledger {
       AND started_at >= ?
       AND started_at < ?
   `)
-  const countByCampaignTodayStmt = db.prepare(`
+  const countByCampaignOnUtcDayStmt = db.prepare(`
     SELECT COUNT(*) AS n
     FROM impressions
     WHERE campaign_id = ?
@@ -309,9 +322,9 @@ export function openLedger(): Ledger {
       // once, which keeps the SQL trivial and avoids per-row arithmetic.
       return (row.total_cpm / 1000) * REVENUE_SHARE_DEVELOPER
     },
-    countImpressionsByCampaignToday(campaignId, tzOffsetMinutes, now) {
-      const { start, end } = localDayBounds(now ?? Date.now(), tzOffsetMinutes)
-      const row = countByCampaignTodayStmt.get(campaignId, start, end) as { n: number }
+    countImpressionsByCampaignOnUtcDay(campaignId, now) {
+      const { start, end } = utcDayBounds(now ?? Date.now())
+      const row = countByCampaignOnUtcDayStmt.get(campaignId, start, end) as { n: number }
       return row.n
     },
     recordClick(c) {

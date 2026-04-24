@@ -210,7 +210,10 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       return getOrCreateSession(ttyKey(ttyVal), ttyVal)
     }
     // infer: single active (non-IDLE) session takes the event; otherwise the
-    // single session overall; otherwise no-op.
+    // single session overall; otherwise create/use the null-tty sentinel so
+    // pre-S3-14 single-terminal clients (session-start before any idle-start,
+    // hook clients that don't send tty) still hit a real session instead of
+    // silently dropping the event.
     const active: Session[] = []
     for (const s of sessions.values()) {
       if (s.state.kind !== "IDLE") active.push(s)
@@ -221,7 +224,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         const first = sessions.values().next().value as Session | undefined
         return first ?? null
       }
-      return null
+      // no sessions at all, or every session is IDLE with no clear owner —
+      // fall through to the null-tty sentinel.
+      return getOrCreateSession(NO_TTY_KEY, null)
     }
     // multi-active with no tty hint — e.g. old-client idle-end: pick the most
     // recently-entered session so at least one progresses. Logged so the
@@ -597,11 +602,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       }
       const cap = ad.campaignMaxImpressionsPerDay
       if (typeof cap === "number" && cap > 0) {
-        const seen = deps.ledger.countImpressionsByCampaignToday(
-          ad.campaignId,
-          preferences.tzOffsetMinutes,
-          firedAt
-        )
+        // UTC day, not local — mirrors the backend's utcDate() Redis key so
+        // both sides agree at midnight. see ledger.ts for the full rationale.
+        const seen = deps.ledger.countImpressionsByCampaignOnUtcDay(ad.campaignId, firedAt)
         if (seen >= cap) {
           deps.log.debug("campaign-cap hit, trying next cached ad", {
             campaignId: ad.campaignId,
