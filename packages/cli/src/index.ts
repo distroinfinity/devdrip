@@ -17,6 +17,7 @@ import { verifyCmd } from "./commands/verify.js"
 import { referralCmd } from "./commands/referral.js"
 import { adminCmd } from "./commands/admin.js"
 import { hookCmd } from "./commands/hook.js"
+import { discoverCmd, killSessionCmd, muteCmd, skipCmd } from "./commands/action.js"
 
 const require = createRequire(import.meta.url)
 const { version = "0.0.0" } = require("../package.json") as {
@@ -45,6 +46,10 @@ program
   .addCommand(referralCmd)
   .addCommand(adminCmd)
   .addCommand(hookCmd)
+  .addCommand(discoverCmd)
+  .addCommand(skipCmd)
+  .addCommand(killSessionCmd)
+  .addCommand(muteCmd)
 
 async function main() {
   await program.parseAsync()

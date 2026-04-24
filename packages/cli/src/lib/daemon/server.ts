@@ -103,8 +103,23 @@ function toStateEvent(w: WireEvent): Event {
       return { kind: "dismiss", now }
     case "session-start":
       return { kind: "session-start", now }
+    case "action":
+      switch (w.action) {
+        case "discover":
+          return { kind: "discover-key", now }
+        case "skip":
+          return { kind: "skip-key", now }
+        case "kill-session":
+          return { kind: "kill-key", now }
+        case "mute":
+          return { kind: "mute-key", now }
+        case "dismiss":
+          return { kind: "dismiss", now }
+      }
+      break
     case "kill":
     case "reload-config":
       throw new Error(`${w.type} should not reach toStateEvent`)
   }
+  throw new Error(`unhandled wire event: ${JSON.stringify(w)}`)
 }

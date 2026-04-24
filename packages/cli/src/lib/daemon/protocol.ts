@@ -8,6 +8,12 @@ export type KillEvent = { type: "kill" }
 export type ReloadConfigEvent = { type: "reload-config" }
 export type SessionStartEvent = { type: "session-start" }
 
+// User-initiated actions dispatched from CLI subcommands (`devdrip tv skip`,
+// etc.). Separate from the raw-mode key path in `input.ts` so users can
+// reliably interact even when their keystrokes lose the tty race with Claude.
+export type ActionKind = "discover" | "skip" | "kill-session" | "mute" | "dismiss"
+export type ActionEvent = { type: "action"; action: ActionKind }
+
 // Events carried by the hook socket. `kill` and `reload-config` are admin
 // control events handled at the server layer, not by the state machine.
 export type WireEvent =
@@ -17,6 +23,9 @@ export type WireEvent =
   | KillEvent
   | ReloadConfigEvent
   | SessionStartEvent
+  | ActionEvent
+
+const VALID_ACTIONS: readonly ActionKind[] = ["discover", "skip", "kill-session", "mute", "dismiss"]
 
 export function parseWireEvent(line: string): WireEvent | null {
   let v: unknown
@@ -43,6 +52,12 @@ export function parseWireEvent(line: string): WireEvent | null {
       return { type: "reload-config" }
     case "session-start":
       return { type: "session-start" }
+    case "action": {
+      const a = o["action"]
+      if (typeof a !== "string") return null
+      if (!(VALID_ACTIONS as readonly string[]).includes(a)) return null
+      return { type: "action", action: a as ActionKind }
+    }
     default:
       return null
   }
