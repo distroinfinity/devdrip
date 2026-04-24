@@ -329,7 +329,7 @@ export async function runDaemon(): Promise<number> {
     shuttingDown = true
     clearInterval(heartbeatInterval)
     unwatchFile(watchedConfig)
-    syncLoop.stop()
+    await syncLoop.stop()
     await orchestrator.shutdown()
     await server.close()
     unlinkSocketIfExists(socketPath)

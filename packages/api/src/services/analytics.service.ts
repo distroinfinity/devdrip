@@ -112,7 +112,12 @@ export async function getUserImpressionAnalytics(
       earned: sql<number>`coalesce(sum(${impressions.earnedAmount}), 0)`,
     })
     .from(impressions)
-    .where(sourceWhere)
+    .leftJoin(creatives, eq(creatives.id, impressions.creativeId))
+    .where(
+      filters.category
+        ? sql`${sourceWhere} and ${creatives.category} = ${filters.category}`
+        : sourceWhere
+    )
     .groupBy(impressions.source)
 
   const categoryConds = baseConds()
@@ -138,7 +143,12 @@ export async function getUserImpressionAnalytics(
       impressions: sql<number>`count(*)`,
     })
     .from(impressions)
-    .where(resultWhere)
+    .leftJoin(creatives, eq(creatives.id, impressions.creativeId))
+    .where(
+      filters.category
+        ? sql`${resultWhere} and ${creatives.category} = ${filters.category}`
+        : resultWhere
+    )
     .groupBy(impressions.result)
 
   const completed = Number(totalsRow?.completed ?? 0)

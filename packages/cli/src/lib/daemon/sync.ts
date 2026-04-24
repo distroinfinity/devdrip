@@ -17,7 +17,7 @@ export interface SyncResult {
 
 export interface SyncLoop {
   start(): void
-  stop(): void
+  stop(): Promise<void>
   forceSync(): Promise<SyncResult>
 }
 
@@ -55,7 +55,7 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
   const now = deps.now ?? (() => Date.now())
 
   let timer: NodeJS.Timeout | null = null
-  let inFlight = false
+  let inFlight: Promise<SyncResult> | null = null
   let backoffMs = 0
 
   async function runOnce(): Promise<SyncResult> {
@@ -63,36 +63,40 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
       deps.log.debug("sync skipped: already in flight")
       return { impressionsSynced: 0, clicksSynced: 0, errors: 0, terminal: 0 }
     }
-    inFlight = true
+    const current = doRunOnce()
+    inFlight = current
     try {
-      const impressions = deps.ledger.listUnsynced(IMPRESSION_BATCH_CAP)
-      const clicks = deps.ledger.listUnsyncedClicks(CLICK_BATCH_CAP)
-      if (impressions.length === 0 && clicks.length === 0) {
-        backoffMs = 0
-        return { impressionsSynced: 0, clicksSynced: 0, errors: 0, terminal: 0 }
-      }
-
-      let res: IngestResponse
-      try {
-        res = await post({
-          impressions: impressions.map((i) => ({ deliveryToken: i.deliveryToken })),
-          clicks: clicks.map((c) => ({ deliveryToken: c.deliveryToken })),
-        })
-      } catch (err) {
-        // top-level failure: back off, leave rows unsynced
-        backoffMs = nextBackoff(backoffMs)
-        deps.log.warn("sync post failed", {
-          error: (err as Error).message,
-          backoffMs,
-          status: err instanceof ApiError ? err.status : undefined,
-        })
-        throw err
-      }
-
-      return applyResults(impressions, clicks, res)
+      return await current
     } finally {
-      inFlight = false
+      if (inFlight === current) inFlight = null
     }
+  }
+
+  async function doRunOnce(): Promise<SyncResult> {
+    const impressions = deps.ledger.listUnsynced(IMPRESSION_BATCH_CAP)
+    const clicks = deps.ledger.listUnsyncedClicks(CLICK_BATCH_CAP)
+    if (impressions.length === 0 && clicks.length === 0) {
+      backoffMs = 0
+      return { impressionsSynced: 0, clicksSynced: 0, errors: 0, terminal: 0 }
+    }
+
+    let res: IngestResponse
+    try {
+      res = await post({
+        impressions: impressions.map((i) => ({ deliveryToken: i.deliveryToken })),
+        clicks: clicks.map((c) => ({ deliveryToken: c.deliveryToken })),
+      })
+    } catch (err) {
+      backoffMs = nextBackoff(backoffMs)
+      deps.log.warn("sync post failed", {
+        error: (err as Error).message,
+        backoffMs,
+        status: err instanceof ApiError ? err.status : undefined,
+      })
+      throw err
+    }
+
+    return applyResults(impressions, clicks, res)
   }
 
   function applyResults(
@@ -184,9 +188,17 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
         .catch(() => {})
         .finally(scheduleNext)
     },
-    stop(): void {
+    async stop(): Promise<void> {
       if (timer) clearTimeout(timer)
       timer = null
+      const pending = inFlight
+      if (pending) {
+        try {
+          await pending
+        } catch {
+          // swallow — sync failures already logged inside runOnce
+        }
+      }
     },
     forceSync(): Promise<SyncResult> {
       return runOnce()
