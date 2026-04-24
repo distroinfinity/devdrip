@@ -46,12 +46,11 @@ export interface DisplayHandle {
   // should treat this as a signal to dismiss the current ad so the next
   // rotation re-anchors with fresh dimensions.
   onResize(cb: () => void): void
-  // visually highlight the box border for ~300ms to confirm to the user that
-  // their keystroke was captured by DevDrip and not consumed by Claude.
+  // visually highlight the box border to confirm to the user that their
+  // keystroke was captured by DevDrip and not consumed by Claude. The
+  // highlight stays until the orchestrator vanishes the box (~150ms later).
   flash(): void
 }
-
-const FLASH_DURATION_MS = 300
 
 export function writeWithRetry(fd: number, data: string): void {
   let lastErr: unknown = null
@@ -187,9 +186,9 @@ export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): Disp
     },
     flash(): void {
       // bright green highlight to confirm the keystroke was captured by
-      // DevDrip TV, not Claude. revert after FLASH_DURATION_MS.
+      // DevDrip TV, not Claude. the orchestrator vanishes the box ~150ms
+      // later, so the green pulse stays on until vanish — no revert needed.
       rewriteBox("\x1b[1;92m")
-      setTimeout(() => rewriteBox(""), FLASH_DURATION_MS)
     },
   }
 }
