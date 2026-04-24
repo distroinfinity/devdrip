@@ -72,13 +72,17 @@ async function verifyAllowExpired(token: string): Promise<DeliveryClaims> {
     return extractClaims(payload)
   } catch (err) {
     if (err instanceof errors.JWTExpired) {
-      const { payload } = await jwtVerify(token, encodeSecret(env.jwtSecret), {
-        algorithms: ["HS256"],
-        issuer: DELIVERY_ISSUER,
-        audience: DELIVERY_AUDIENCE,
-        currentDate: new Date(0),
-      })
-      return extractClaims(payload)
+      try {
+        const { payload } = await jwtVerify(token, encodeSecret(env.jwtSecret), {
+          algorithms: ["HS256"],
+          issuer: DELIVERY_ISSUER,
+          audience: DELIVERY_AUDIENCE,
+          currentDate: new Date(0),
+        })
+        return extractClaims(payload)
+      } catch {
+        throw new ForbiddenError("invalid_or_expired_delivery_token")
+      }
     }
     throw new ForbiddenError("invalid_or_expired_delivery_token")
   }

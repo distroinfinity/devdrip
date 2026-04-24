@@ -115,7 +115,6 @@ describe("recordImpression", () => {
       durationMs: 6000,
       result: ImpressionResult.Completed,
       deliveryJti: "test-jti",
-      graceAccept: false,
     })
 
     expect(result.id).toBe("imp-1")
@@ -142,7 +141,6 @@ describe("recordImpression", () => {
       durationMs: 2000,
       result: ImpressionResult.Skipped,
       deliveryJti: "test-jti",
-      graceAccept: false,
     })
 
     // only one insert (impression), no earnings
@@ -164,7 +162,6 @@ describe("recordImpression", () => {
       durationMs: 6000,
       result: ImpressionResult.Completed,
       deliveryJti: "test-jti",
-      graceAccept: false,
     })
 
     expect(recordSpend).toHaveBeenCalledWith("campaign-1", 4.0 / 1000, {
@@ -187,7 +184,6 @@ describe("recordImpression", () => {
       durationMs: 6000,
       result: ImpressionResult.Completed,
       deliveryJti: "test-jti",
-      graceAccept: false,
     })
 
     // allow fire-and-forget to settle
@@ -208,7 +204,6 @@ describe("recordImpression", () => {
       durationMs: 6000,
       result: ImpressionResult.Completed,
       deliveryJti: "test-jti",
-      graceAccept: false,
     })
 
     await new Promise((r) => setTimeout(r, 10))
@@ -227,7 +222,6 @@ describe("recordImpression", () => {
         durationMs: 6000,
         result: ImpressionResult.Completed,
         deliveryJti: "test-jti",
-        graceAccept: false,
       })
     ).rejects.toThrow("creative_not_servable")
   })
@@ -246,7 +240,6 @@ describe("recordImpression", () => {
         durationMs: 6000,
         result: ImpressionResult.Completed,
         deliveryJti: "test-jti",
-        graceAccept: false,
       })
     ).rejects.toThrow("campaign_budget_exhausted")
 
@@ -280,7 +273,6 @@ describe("recordImpression", () => {
         durationMs: 6000,
         result: ImpressionResult.Completed,
         deliveryJti: "test-jti",
-        graceAccept: false,
       })
     ).rejects.toThrow("db_write_failed")
 

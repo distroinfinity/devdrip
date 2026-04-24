@@ -31,7 +31,6 @@ export interface RecordImpressionInput {
   durationMs: number
   result: ImpressionResult
   deliveryJti: string
-  graceAccept: boolean
 }
 
 // ── record impression ───────────────────────────────────────────────────────

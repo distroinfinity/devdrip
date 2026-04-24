@@ -244,7 +244,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "clicks_created_idx": {
+          "name": "clicks_created_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "clicks_impression_id_impressions_id_fk": {
           "name": "clicks_impression_id_impressions_id_fk",
