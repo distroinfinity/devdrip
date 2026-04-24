@@ -64,7 +64,7 @@ app.use("/admin/users", requireAdmin, adminLimiter, adminUsersRouter)
 app.use("/admin/payouts", requireAdmin, adminLimiter, adminPayoutsRouter)
 app.use("/invites", requireAdmin, adminLimiter, invitesRouter)
 app.use("/ads", requireAuth, userLimiter, adsRouter)
-app.use("/ingest", requireAuth, ingestRouter)
+app.use("/ingest", requireAuth, express.json({ limit: "1mb" }), ingestRouter)
 
 app.get("/me", requireAuth, userLimiter, async (_req, res) => {
   const userId = res.locals["userId"] as string
