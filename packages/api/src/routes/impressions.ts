@@ -53,6 +53,8 @@ impressionsRouter.post("/", async (req, res, next) => {
       surface: delivery.surface,
       durationMs: outcome.durationMs,
       result: outcome.result,
+      deliveryJti: delivery.jti,
+      graceAccept: false,
     })
 
     await res.status(201).json({ impression })

@@ -6,8 +6,15 @@ import { creatives } from "../db/schema/creatives.js"
 import { campaigns } from "../db/schema/campaigns.js"
 import { impressions } from "../db/schema/impressions.js"
 import { clicks } from "../db/schema/clicks.js"
+import { devices } from "../db/schema/devices.js"
 import { earningsLedger } from "../db/schema/earnings.js"
-import { NotFoundError, ConflictError, StateError, pgErrorCode } from "../errors/index.js"
+import {
+  NotFoundError,
+  ConflictError,
+  StateError,
+  ForbiddenError,
+  pgErrorCode,
+} from "../errors/index.js"
 import { recordSpend, rollbackSpend } from "../lib/budget.js"
 import { incrementFrequency } from "../lib/frequency.js"
 import { fireBeacon } from "../lib/beacon.js"
@@ -23,6 +30,8 @@ export interface RecordImpressionInput {
   surface: AdSurface
   durationMs: number
   result: ImpressionResult
+  deliveryJti: string
+  graceAccept: boolean
 }
 
 // ── record impression ───────────────────────────────────────────────────────
@@ -91,6 +100,7 @@ export async function recordImpression(input: RecordImpressionInput) {
           result: input.result,
           cpmRate: row.cpmRate,
           earnedAmount,
+          deliveryJti: input.deliveryJti,
         })
         .returning()
 
@@ -111,6 +121,9 @@ export async function recordImpression(input: RecordImpressionInput) {
     })
   } catch (err) {
     await rollbackSpend(row.campaignId, costPerImpression)
+    if (pgErrorCode(err) === "23505") {
+      throw new ConflictError("impression_already_recorded")
+    }
     throw err
   }
 
@@ -151,14 +164,49 @@ export async function recordClick(impressionId: string) {
     if (!click) throw new Error("click insert returned no rows")
     return { clickId: click.id }
   } catch (err) {
-    // unique constraint on impression_id prevents double-clicks
     if (pgErrorCode(err) === "23505") {
       throw new ConflictError("click_already_recorded")
     }
-    // FK constraint — impression doesn't exist (shouldn't happen if caller verified)
     if (pgErrorCode(err) === "23503") {
       throw new NotFoundError("impression")
     }
+    throw err
+  }
+}
+
+// S3-06: click ingest path. Looks up the parent impression by delivery_jti.
+// Extra in-memory map lets callers skip the DB hit when the parent was inserted
+// in the same request.
+export async function recordClickByJti(
+  jti: string,
+  userId: string,
+  resolvedImpressionId?: string
+): Promise<{ clickId: string; earningsDelta: number }> {
+  const db = getDb()
+
+  let impressionId = resolvedImpressionId
+  if (!impressionId) {
+    const [imp] = await db
+      .select({ id: impressions.id, deviceId: impressions.deviceId })
+      .from(impressions)
+      .where(eq(impressions.deliveryJti, jti))
+    if (!imp) throw new NotFoundError("impression_not_synced")
+
+    const [device] = await db
+      .select({ userId: devices.userId })
+      .from(devices)
+      .where(eq(devices.id, imp.deviceId))
+    if (!device || device.userId !== userId) throw new ForbiddenError("delivery_not_owned")
+    impressionId = imp.id
+  }
+
+  try {
+    const [click] = await db.insert(clicks).values({ impressionId }).returning()
+    if (!click) throw new Error("click insert returned no rows")
+    return { clickId: click.id, earningsDelta: 0 }
+  } catch (err) {
+    if (pgErrorCode(err) === "23505") throw new ConflictError("click_already_recorded")
+    if (pgErrorCode(err) === "23503") throw new NotFoundError("impression_not_synced")
     throw err
   }
 }
