@@ -25,28 +25,31 @@ macOS long-username fallback: if `sun_path` (104 bytes) would overflow, the daem
 Newline-delimited JSON, hook → daemon, fire-and-forget:
 
 ```
-{"type":"idle-start","tty":"/dev/ttys003","pid":12345,"ts":1713790000000}
-{"type":"idle-end","ts":1713790001234}
-{"type":"dismiss","ts":1713790002345}
+{"type":"session-start"}
+{"type":"idle-start","tty":"/dev/ttys003"}
+{"type":"idle-end"}
 ```
 
 Plus one control event from `devdrip daemon stop`:
 
 ```
-{"type":"kill","ts":1713790003456}
+{"type":"kill"}
 ```
 
-Unknown event types are logged and dropped. S3-03 will add `skip | kill | mute | discover` (the key-capture events) — old daemon + new hook coexist by design.
+Key-capture (S3-03) emits `skip | kill | mute | discover | dismiss` from the daemon's raw-tty stdin reader, not from a hook. Unknown event types are logged and dropped.
 
 ## Hook subcommand ↔ wire event mapping
 
 The ticket body uses `idle-start` as both the subcommand and the event. The code splits them:
 
-| Claude hook event | CLI subcommand               | Wire event   |
-| ----------------- | ---------------------------- | ------------ |
-| PreToolUse        | `devdrip hook pre-tool`      | `idle-start` |
-| Stop              | `devdrip hook stop`          | `idle-end`   |
-| UserPromptSubmit  | `devdrip hook prompt-submit` | `dismiss`    |
+| Claude hook event | CLI subcommand               | Wire event      |
+| ----------------- | ---------------------------- | --------------- |
+| SessionStart      | `devdrip hook session-start` | `session-start` |
+| UserPromptSubmit  | `devdrip hook prompt-submit` | `idle-start`    |
+| PreToolUse        | `devdrip hook pre-tool`      | `idle-start`    |
+| Stop              | `devdrip hook stop`          | `idle-end`      |
+
+`UserPromptSubmit` and `PreToolUse` both send `idle-start` so the rotation begins the moment the developer hands control to Claude — including pure thinking time before the first tool call. `idle-start` is idempotent in `GRACE` and `SHOWING`, so the duplicate from a later `PreToolUse` is a no-op.
 
 ## State machine
 
@@ -54,11 +57,11 @@ Three states: `IDLE → GRACE → SHOWING`. Pure reducer in `lib/daemon/state-ma
 
 Timer behavior worth remembering:
 
-- Grace timer is 3s; **first edge wins** — repeated PreToolUse events inside the window don't restart it.
+- Grace timer is `GRACE_PERIOD_MS` (1.5s after the rotation-hardening pass); **first edge wins** — repeated `idle-start` events inside the window don't restart it.
 - Vanish timer is `min(ad.displayTimeMs, MAX_AD_DURATION_MS)` (caps at 8s).
 - `Stop` during GRACE cancels the grace timer (no ad shows).
 - `Stop` during SHOWING records `result = interrupted`.
-- `UserPromptSubmit` during SHOWING → `completed` if the ad was visible ≥ 1s, else `skipped`.
+- `UserPromptSubmit` during SHOWING is a no-op — the ad continues to its natural end (vanish timer or `Stop`), since the developer is still idle while Claude works the queued prompt. Key-press `dismiss` is the only event that ends a SHOWING ad early; impression result is `completed` if visible ≥ 1s, else `skipped`.
 
 ## Hook fast path
 
