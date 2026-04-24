@@ -6,6 +6,7 @@ import {
   getMissingDevdripHookEvents,
   mergeDevdripHooks,
   readSettings,
+  removeDevdripHooks,
   writeSettingsAtomic,
   writeBackupOnce,
   type Settings,
@@ -217,5 +218,89 @@ describe("readSettings / writeSettingsAtomic / writeBackupOnce", () => {
     await writeBackupOnce(src, backup)
     expect(existsSync(backup)).toBe(true)
     expect(readFileSync(backup, "utf8")).toBe("{}\n")
+  })
+})
+
+describe("removeDevdripHooks", () => {
+  it("is a no-op on empty settings", () => {
+    const { next, changed } = removeDevdripHooks({})
+    expect(changed).toBe(false)
+    expect(next).toEqual({})
+  })
+
+  it("strips all four devdrip events and drops empty event keys", () => {
+    const { next: installed } = mergeDevdripHooks({}, BIN)
+    const { next, changed } = removeDevdripHooks(installed)
+    expect(changed).toBe(true)
+    expect(next.hooks).toBeUndefined()
+  })
+
+  it("preserves unrelated tools' entries in the same event", () => {
+    const existing: Settings = {
+      hooks: {
+        PreToolUse: [
+          { matcher: "Bash", hooks: [{ type: "command", command: "/other/tool pre" }] },
+          { matcher: "*", hooks: [{ type: "command", command: `${BIN} hook pre-tool` }] },
+        ],
+      },
+    }
+    const { next, changed } = removeDevdripHooks(existing)
+    expect(changed).toBe(true)
+    expect(next.hooks?.PreToolUse).toHaveLength(1)
+    expect(next.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command).toBe("/other/tool pre")
+  })
+
+  it("removes stale devdrip hooks with a different bin path", () => {
+    const existing: Settings = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "*",
+            hooks: [{ type: "command", command: "/old/path/devdrip hook pre-tool" }],
+          },
+        ],
+      },
+    }
+    const { next, changed } = removeDevdripHooks(existing)
+    expect(changed).toBe(true)
+    expect(next.hooks).toBeUndefined()
+  })
+
+  it("strips devdrip hooks but keeps neighbors inside the same group", () => {
+    const existing: Settings = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "*",
+            hooks: [
+              { type: "command", command: `${BIN} hook pre-tool` },
+              { type: "command", command: "/other/tool pre-tool" },
+            ],
+          },
+        ],
+      },
+    }
+    const { next, changed } = removeDevdripHooks(existing)
+    expect(changed).toBe(true)
+    expect(next.hooks?.PreToolUse).toHaveLength(1)
+    expect(next.hooks?.PreToolUse?.[0]?.hooks).toHaveLength(1)
+    expect(next.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command).toBe("/other/tool pre-tool")
+  })
+
+  it("is a no-op when no devdrip hooks are present", () => {
+    const existing: Settings = {
+      hooks: {
+        PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "/other/tool pre" }] }],
+      },
+    }
+    const { next, changed } = removeDevdripHooks(existing)
+    expect(changed).toBe(false)
+    expect(next).toEqual(existing)
+  })
+
+  it("preserves non-hook settings keys verbatim", () => {
+    const { next: installed } = mergeDevdripHooks({ editor: "vim" } as Settings, BIN)
+    const { next } = removeDevdripHooks(installed)
+    expect((next as Settings & { editor?: string }).editor).toBe("vim")
   })
 })
