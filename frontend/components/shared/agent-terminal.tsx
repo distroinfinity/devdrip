@@ -1,10 +1,10 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { cn } from "@/lib/utils";
-import { terminalColors as tc } from "@/lib/design-tokens";
+import { useState, useEffect, useRef, useCallback } from "react"
+import { cn } from "@/lib/utils"
+import { terminalColors as tc } from "@/lib/design-tokens"
 
-const BRAILLE_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const BRAILLE_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
 const TASKS = [
   {
@@ -18,11 +18,7 @@ const TASKS = [
   },
   {
     text: "Migrating database schema to v3",
-    files: [
-      "prisma/schema.prisma",
-      "src/db/migrations/003.ts",
-      "src/db/client.ts",
-    ],
+    files: ["prisma/schema.prisma", "src/db/migrations/003.ts", "src/db/client.ts"],
   },
   {
     text: "Adding error boundaries to 6 routes",
@@ -44,89 +40,79 @@ const TASKS = [
   },
   {
     text: "Implementing rate limiter middleware",
-    files: [
-      "src/middleware.ts",
-      "src/lib/rate-limit.ts",
-      "src/config/limits.ts",
-    ],
+    files: ["src/middleware.ts", "src/lib/rate-limit.ts", "src/config/limits.ts"],
   },
-];
+]
 
 interface AgentTerminalProps {
-  className?: string;
+  className?: string
 }
 
 export function AgentTerminal({ className }: AgentTerminalProps) {
-  const [spinnerFrame, setSpinnerFrame] = useState(0);
-  const [taskIndex, setTaskIndex] = useState(0);
-  const [typedChars, setTypedChars] = useState(0);
-  const [showFiles, setShowFiles] = useState(false);
-  const [idleSeconds, setIdleSeconds] = useState(30);
-  const typingDone = useRef(false);
+  const [spinnerFrame, setSpinnerFrame] = useState(0)
+  const [taskIndex, setTaskIndex] = useState(0)
+  const [typedChars, setTypedChars] = useState(0)
+  const [showFiles, setShowFiles] = useState(false)
+  const [idleSeconds, setIdleSeconds] = useState(30)
+  const typingDone = useRef(false)
 
-  const task = TASKS[taskIndex];
+  const task = TASKS[taskIndex]
 
   // braille spinner — 80ms cycle
   useEffect(() => {
-    const iv = setInterval(
-      () => setSpinnerFrame((f) => (f + 1) % BRAILLE_FRAMES.length),
-      80
-    );
-    return () => clearInterval(iv);
-  }, []);
+    const iv = setInterval(() => setSpinnerFrame((f) => (f + 1) % BRAILLE_FRAMES.length), 80)
+    return () => clearInterval(iv)
+  }, [])
 
   // typing effect — 45ms per char
   useEffect(() => {
-    typingDone.current = false;
-    setTypedChars(0);
-    setShowFiles(false);
+    typingDone.current = false
+    setTypedChars(0)
+    setShowFiles(false)
 
     const iv = setInterval(() => {
       setTypedChars((prev) => {
         if (prev >= task.text.length) {
-          clearInterval(iv);
-          typingDone.current = true;
-          return prev;
+          clearInterval(iv)
+          typingDone.current = true
+          return prev
         }
-        return prev + 1;
-      });
-    }, 45);
+        return prev + 1
+      })
+    }, 45)
 
-    return () => clearInterval(iv);
-  }, [taskIndex, task.text.length]);
+    return () => clearInterval(iv)
+  }, [taskIndex, task.text.length])
 
   // show files after typing completes
   useEffect(() => {
-    if (typedChars < task.text.length) return;
+    if (typedChars < task.text.length) return
 
-    const timeout = setTimeout(() => setShowFiles(true), 200);
-    return () => clearTimeout(timeout);
-  }, [typedChars, task.text.length]);
+    const timeout = setTimeout(() => setShowFiles(true), 200)
+    return () => clearTimeout(timeout)
+  }, [typedChars, task.text.length])
 
   // cycle tasks — hold 8s after typing completes
   const cycleTask = useCallback(() => {
-    setTaskIndex((i) => (i + 1) % TASKS.length);
-  }, []);
+    setTaskIndex((i) => (i + 1) % TASKS.length)
+  }, [])
 
   useEffect(() => {
-    if (typedChars < task.text.length) return;
+    if (typedChars < task.text.length) return
 
-    const timeout = setTimeout(cycleTask, 8000);
-    return () => clearTimeout(timeout);
-  }, [typedChars, task.text.length, cycleTask]);
+    const timeout = setTimeout(cycleTask, 8000)
+    return () => clearTimeout(timeout)
+  }, [typedChars, task.text.length, cycleTask])
 
   // idle timer
   useEffect(() => {
-    const iv = setInterval(
-      () => setIdleSeconds((s) => s + 1),
-      1000
-    );
-    return () => clearInterval(iv);
-  }, []);
+    const iv = setInterval(() => setIdleSeconds((s) => s + 1), 1000)
+    return () => clearInterval(iv)
+  }, [])
 
-  const minutes = Math.floor(idleSeconds / 60);
-  const seconds = idleSeconds % 60;
-  const idleDisplay = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  const minutes = Math.floor(idleSeconds / 60)
+  const seconds = idleSeconds % 60
+  const idleDisplay = `${minutes}:${seconds.toString().padStart(2, "0")}`
 
   return (
     <div
@@ -149,9 +135,7 @@ export function AgentTerminal({ className }: AgentTerminalProps) {
           letterSpacing: "0.04em",
         }}
       >
-        <span style={{ color: tc.textSecondary }}>
-          {BRAILLE_FRAMES[spinnerFrame]}
-        </span>
+        <span style={{ color: tc.textSecondary }}>{BRAILLE_FRAMES[spinnerFrame]}</span>
         <span>Claude Code</span>
       </div>
 
@@ -159,9 +143,7 @@ export function AgentTerminal({ className }: AgentTerminalProps) {
       <div className="px-3.5 pt-3 pb-3">
         {/* current task with typing */}
         <div className="flex items-start gap-2 mb-3">
-          <span style={{ color: tc.textSecondary }}>
-            {BRAILLE_FRAMES[spinnerFrame]}
-          </span>
+          <span style={{ color: tc.textSecondary }}>{BRAILLE_FRAMES[spinnerFrame]}</span>
           <span>
             {task.text.slice(0, typedChars)}
             {typedChars < task.text.length && (
@@ -195,13 +177,10 @@ export function AgentTerminal({ className }: AgentTerminalProps) {
         </div>
 
         {/* idle timer */}
-        <div
-          className="mt-4 text-right"
-          style={{ fontSize: 11, color: tc.textFaint }}
-        >
+        <div className="mt-4 text-right" style={{ fontSize: 11, color: tc.textFaint }}>
           idle time: {idleDisplay}
         </div>
       </div>
     </div>
-  );
+  )
 }

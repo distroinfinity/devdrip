@@ -100,15 +100,15 @@ Ads are full-screen videos indistinguishable from organic content except for a s
 
 ## 3. Seven Design Principles (Synthesized From Case Studies)
 
-| \# | Principle | Source Insight |
-| --- | --- | --- |
-| 1 | **Opt-In Is Non-Negotiable** | Every successful model (Brave, rewarded video, Hulu selector) starts with explicit user consent. Dev Drip is OFF by default. |
-| 2 | **Ads Live in Idle, Die on Activity** | Waze zero-speed, Hulu pause ads: content appears ONLY during agent work, vanishes within 200ms when the agent finishes or needs input. |
-| 3 | **User Has Agency at Every Moment** | YouTube skip button, TikTok scroll-past, Hulu ad selector: skip buttons, category preferences, frequency caps, mute for N minutes. The developer is never trapped. |
-| 4 | **The Value Exchange Must Be Transparent** | Rewarded video best practice: state what the user gives (attention) and gets ($0.03 USDC) BEFORE the ad starts. No bait-and-switch. |
-| 5 | **Ads Must Be Native to the Environment** | TikTok's content-first philosophy, native advertising research: a terminal ad looks like terminal content, a VS Code ad looks like a VS Code panel. Foreign-looking ads destroy trust. |
-| 6 | **Content Quality &gt; Ad Frequency** | Duolingo ML optimization, TikTok creative guidelines: fewer high-quality, relevant ads outperform many generic ones. Developer-tool discovery content &gt; generic banner. |
-| 7 | **Earnings Must Be Meaningful** | Brave's failure at $0.50/month teaches: target $10–$25/month minimum, or the trade-off isn't worth the psychological cost. |
+| \#  | Principle                                  | Source Insight                                                                                                                                                                         |
+| --- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Opt-In Is Non-Negotiable**               | Every successful model (Brave, rewarded video, Hulu selector) starts with explicit user consent. Dev Drip is OFF by default.                                                           |
+| 2   | **Ads Live in Idle, Die on Activity**      | Waze zero-speed, Hulu pause ads: content appears ONLY during agent work, vanishes within 200ms when the agent finishes or needs input.                                                 |
+| 3   | **User Has Agency at Every Moment**        | YouTube skip button, TikTok scroll-past, Hulu ad selector: skip buttons, category preferences, frequency caps, mute for N minutes. The developer is never trapped.                     |
+| 4   | **The Value Exchange Must Be Transparent** | Rewarded video best practice: state what the user gives (attention) and gets ($0.03 USDC) BEFORE the ad starts. No bait-and-switch.                                                    |
+| 5   | **Ads Must Be Native to the Environment**  | TikTok's content-first philosophy, native advertising research: a terminal ad looks like terminal content, a VS Code ad looks like a VS Code panel. Foreign-looking ads destroy trust. |
+| 6   | **Content Quality &gt; Ad Frequency**      | Duolingo ML optimization, TikTok creative guidelines: fewer high-quality, relevant ads outperform many generic ones. Developer-tool discovery content &gt; generic banner.             |
+| 7   | **Earnings Must Be Meaningful**            | Brave's failure at $0.50/month teaches: target $10–$25/month minimum, or the trade-off isn't worth the psychological cost.                                                             |
 
 ---
 
@@ -237,7 +237,7 @@ This is where product imagination matters most. Each surface is designed for a s
 
 **Design details:**
 
-- Rendered in pure ANSI/Unicode — feels like it *belongs* in the terminal
+- Rendered in pure ANSI/Unicode — feels like it _belongs_ in the terminal
 - Shows agent progress bar at the bottom so the developer can monitor agent status AND see ad content in the same visual space
 - Rotates content every 15 seconds during long agent tasks
 - Single-key interactions: `D` to open link in browser, `S` to skip to next ad, `M` to mute for 30 minutes
@@ -472,35 +472,35 @@ This section defines the precise behavioral rules governing every ad interaction
 
 ### 6.1 Appearance Rules
 
-| Rule | Detail |
-| --- | --- |
-| **Grace period** | No ad appears until 3 seconds after agent enters idle state. This prevents "flash" ads on quick operations. |
+| Rule                        | Detail                                                                                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Grace period**            | No ad appears until 3 seconds after agent enters idle state. This prevents "flash" ads on quick operations.                                      |
 | **Minimum idle prediction** | The system estimates remaining agent time. Ads only appear if predicted remaining time &gt; 10 seconds. No ad for a task that's about to finish. |
-| **Frequency cap** | Maximum 4 ads per hour per surface. Maximum 8 total ads per hour across all surfaces. Developer can lower these caps. |
-| **Daily cap** | Default 60 ads/day maximum. Developer-adjustable. |
-| **Session warmup** | First 10 minutes of a coding session are ad-free, even during idle. Let the developer get into flow first. |
-| **Time-of-day awareness** | Late-night coding sessions (after 11 PM local) reduce ad frequency by 50% — the developer is tired and tolerance is lower. |
+| **Frequency cap**           | Maximum 4 ads per hour per surface. Maximum 8 total ads per hour across all surfaces. Developer can lower these caps.                            |
+| **Daily cap**               | Default 60 ads/day maximum. Developer-adjustable.                                                                                                |
+| **Session warmup**          | First 10 minutes of a coding session are ad-free, even during idle. Let the developer get into flow first.                                       |
+| **Time-of-day awareness**   | Late-night coding sessions (after 11 PM local) reduce ad frequency by 50% — the developer is tired and tolerance is lower.                       |
 
 ### 6.2 Disappearance Rules
 
-| Rule | Detail |
-| --- | --- |
-| **Instant vanish** | ANY developer input (keypress, click, mouse movement in editor) triggers ad dismissal within 200ms. |
-| **Agent completion** | When agent output finishes and prompt returns, all ads vanish within 200ms. |
-| **Confirmation request** | If agent asks a question mid-task, ads vanish immediately to let developer read and respond. |
-| **Focus switch** | If developer switches to the IDE window from another app, ads have a 2-second grace period before appearing (they might be switching back to type). |
-| **Error state** | If agent hits an error, all ads vanish immediately — the developer needs to focus on debugging. |
+| Rule                     | Detail                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Instant vanish**       | ANY developer input (keypress, click, mouse movement in editor) triggers ad dismissal within 200ms.                                                 |
+| **Agent completion**     | When agent output finishes and prompt returns, all ads vanish within 200ms.                                                                         |
+| **Confirmation request** | If agent asks a question mid-task, ads vanish immediately to let developer read and respond.                                                        |
+| **Focus switch**         | If developer switches to the IDE window from another app, ads have a 2-second grace period before appearing (they might be switching back to type). |
+| **Error state**          | If agent hits an error, all ads vanish immediately — the developer needs to focus on debugging.                                                     |
 
 ### 6.3 Skip and Control Mechanics
 
-| Control | Behavior |
-| --- | --- |
-| **Skip (→)** | Single keypress advances to next ad. Current ad is marked "skipped" (affects targeting). |
-| **Mute 30min** | Pauses all ad delivery for 30 minutes. One-click. No penalty to earnings for already-earned amounts. |
-| **Mute rest of session** | No ads until IDE restart. |
-| **Category block** | "Don't show me \[crypto/recruiting/cloud\] ads" — permanent preference. |
-| **Thumbs down** | Flags a specific ad as unwanted. Affects ML targeting. |
-| **Thumbs up** | Saves ad for later viewing. Creates "bookmarked tools" list in dashboard. |
+| Control                  | Behavior                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| **Skip (→)**             | Single keypress advances to next ad. Current ad is marked "skipped" (affects targeting).             |
+| **Mute 30min**           | Pauses all ad delivery for 30 minutes. One-click. No penalty to earnings for already-earned amounts. |
+| **Mute rest of session** | No ads until IDE restart.                                                                            |
+| **Category block**       | "Don't show me \[crypto/recruiting/cloud\] ads" — permanent preference.                              |
+| **Thumbs down**          | Flags a specific ad as unwanted. Affects ML targeting.                                               |
+| **Thumbs up**            | Saves ad for later viewing. Creates "bookmarked tools" list in dashboard.                            |
 
 ### 6.4 Earning Confirmation
 
@@ -518,11 +518,11 @@ This is the "reward confirmation" from rewarded video best practices — making 
 
 ### 7.1 Revenue Share
 
-| Party | Share | Rationale |
-| --- | --- | --- |
-| Developer | **70%** | Matches Brave's industry-leading split. Must be highest to attract adoption. |
-| Dev Drip platform | **25%** | Covers ad exchange, payment processing, ML infrastructure, business operations. |
-| Open-source fund | **5%** | Automatically allocated to open-source maintainers based on developer's dependency tree. Unique differentiator and community goodwill driver. |
+| Party             | Share   | Rationale                                                                                                                                     |
+| ----------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Developer         | **70%** | Matches Brave's industry-leading split. Must be highest to attract adoption.                                                                  |
+| Dev Drip platform | **25%** | Covers ad exchange, payment processing, ML infrastructure, business operations.                                                               |
+| Open-source fund  | **5%**  | Automatically allocated to open-source maintainers based on developer's dependency tree. Unique differentiator and community goodwill driver. |
 
 ### 7.2 Payment Rail: USDC on Base
 
@@ -539,12 +539,12 @@ Based on our market research analysis:
 
 Based on market research CPM analysis with our 70% developer share:
 
-| Developer Profile | Daily Agent Idle Time | Daily Ad Views | Monthly Earnings (Est.) |
-| --- | --- | --- | --- |
-| Light user (autocomplete only) | 5 min | 5–10 | $1–$3 |
-| Moderate user (some agentic tasks) | 20 min | 30–50 | $8–$15 |
-| Heavy agentic user (Claude Code, Cursor Composer) | 45 min | 60–90 | $18–$30 |
-| Power user + challenges + audio | 60 min | 80–120 | $25–$40 |
+| Developer Profile                                 | Daily Agent Idle Time | Daily Ad Views | Monthly Earnings (Est.) |
+| ------------------------------------------------- | --------------------- | -------------- | ----------------------- |
+| Light user (autocomplete only)                    | 5 min                 | 5–10           | $1–$3                   |
+| Moderate user (some agentic tasks)                | 20 min                | 30–50          | $8–$15                  |
+| Heavy agentic user (Claude Code, Cursor Composer) | 45 min                | 60–90          | $18–$30                 |
+| Power user + challenges + audio                   | 60 min                | 80–120         | $25–$40                 |
 
 At mid-range CPMs ($10–$15), a developer generating 15 ad views per hour across 5 hours daily could earn roughly $16–$25/month — enough to fully cover a GitHub Copilot Pro subscription ($10/month) or most of a Cursor Pro subscription ($20/month).
 
@@ -556,15 +556,15 @@ Developer attention is among the most valuable ad inventory in digital advertisi
 
 ### 8.1 Target Advertiser Categories
 
-| Category | Example Advertisers | Expected CPM Range |
-| --- | --- | --- |
-| Cloud infrastructure | AWS, Azure, GCP, Vercel, Railway, Render | $15–$25 |
-| Developer tools | JetBrains, Docker, Postman, GitKraken | $10–$20 |
-| Databases | MongoDB, Supabase, PlanetScale, Neon, Turso | $12–$20 |
-| Monitoring/observability | Datadog, Sentry, Grafana, Axiom | $12–$18 |
-| Developer recruiting | FAANG, startups, recruiting platforms | $20–$35 |
-| Developer education | Udemy, Pluralsight, Frontend Masters | $8–$15 |
-| SaaS products | Atlassian, Notion, Linear, Figma | $10–$18 |
+| Category                 | Example Advertisers                         | Expected CPM Range |
+| ------------------------ | ------------------------------------------- | ------------------ |
+| Cloud infrastructure     | AWS, Azure, GCP, Vercel, Railway, Render    | $15–$25            |
+| Developer tools          | JetBrains, Docker, Postman, GitKraken       | $10–$20            |
+| Databases                | MongoDB, Supabase, PlanetScale, Neon, Turso | $12–$20            |
+| Monitoring/observability | Datadog, Sentry, Grafana, Axiom             | $12–$18            |
+| Developer recruiting     | FAANG, startups, recruiting platforms       | $20–$35            |
+| Developer education      | Udemy, Pluralsight, Frontend Masters        | $8–$15             |
+| SaaS products            | Atlassian, Notion, Linear, Figma            | $10–$18            |
 
 ### 8.2 Premium Ad Products
 
@@ -664,32 +664,32 @@ Start with the safest, most controllable surface:
 
 Our market research identified 7 critical risks. Here's how each product decision mitigates them:
 
-| Risk | Mitigation |
-| --- | --- |
-| **Developer backlash** | Triple opt-in: install, enable, choose surfaces. "Retro TV" framing creates psychological distance. Launch silently with invite-only beta. 5% open-source fund creates goodwill narrative. |
-| **Platform gatekeepers** | Terminal TV requires no marketplace approval (it's a CLI tool). VS Code extension follows marketplace policies. Long-term: partner with AI tool makers directly. |
-| **Insufficient revenue** | Focus on rewarded-video-tier CPMs ($10–$20) through interactive content and challenges, not banner ads. Supplement with recruiting revenue ($20–$35 CPM). |
-| **Ad blockers (72% of developers)** | Native application rendering bypasses browser blockers. Ads are served through the SDK, not HTTP requests that DNS blockers can intercept. Content is rendered locally. |
-| **Shrinking idle windows** | Bet on the agentic trend: multi-step autonomous agents (Claude Code, Devin, Cursor Agent) create LONGER wait times, not shorter. Between-sessions surface is immune to idle window changes. |
-| **Free tier competition** | We don't compete with free tiers — we subsidize paid tiers. A developer using free Copilot + Dev Drip earnings can afford Cursor Pro. Different value proposition. |
-| **Chicken-and-egg** | Seed with 10 direct advertiser deals (developer tool companies). Guarantee minimum earnings ($0.10/day) through platform subsidy during beta. Use initial earnings data to attract programmatic demand. |
+| Risk                                | Mitigation                                                                                                                                                                                              |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Developer backlash**              | Triple opt-in: install, enable, choose surfaces. "Retro TV" framing creates psychological distance. Launch silently with invite-only beta. 5% open-source fund creates goodwill narrative.              |
+| **Platform gatekeepers**            | Terminal TV requires no marketplace approval (it's a CLI tool). VS Code extension follows marketplace policies. Long-term: partner with AI tool makers directly.                                        |
+| **Insufficient revenue**            | Focus on rewarded-video-tier CPMs ($10–$20) through interactive content and challenges, not banner ads. Supplement with recruiting revenue ($20–$35 CPM).                                               |
+| **Ad blockers (72% of developers)** | Native application rendering bypasses browser blockers. Ads are served through the SDK, not HTTP requests that DNS blockers can intercept. Content is rendered locally.                                 |
+| **Shrinking idle windows**          | Bet on the agentic trend: multi-step autonomous agents (Claude Code, Devin, Cursor Agent) create LONGER wait times, not shorter. Between-sessions surface is immune to idle window changes.             |
+| **Free tier competition**           | We don't compete with free tiers — we subsidize paid tiers. A developer using free Copilot + Dev Drip earnings can afford Cursor Pro. Different value proposition.                                      |
+| **Chicken-and-egg**                 | Seed with 10 direct advertiser deals (developer tool companies). Guarantee minimum earnings ($0.10/day) through platform subsidy during beta. Use initial earnings data to attract programmatic demand. |
 
 ---
 
 ## 12. Success Metrics
 
-| Metric | Target (Month 6) | Target (Month 12) |
-| --- | --- | --- |
-| Active developers | 10,000 | 100,000 |
-| Monthly retention | &gt;60% | &gt;70% |
-| Avg monthly earnings per active dev | &gt;$10 | &gt;$15 |
-| Ad completion rate | &gt;85% | &gt;90% |
-| Developer NPS | &gt;30 | &gt;40 |
-| Advertiser fill rate | &gt;40% | &gt;70% |
-| Average eCPM (blended) | &gt;$8 | &gt;$12 |
-| Time-to-dismiss (p95) | &lt;200ms | &lt;150ms |
-| False-idle rate (ads shown during active coding) | &lt;1% | &lt;0.1% |
-| Open-source fund distributed | &gt;$5,000 | &gt;$50,000 |
+| Metric                                           | Target (Month 6) | Target (Month 12) |
+| ------------------------------------------------ | ---------------- | ----------------- |
+| Active developers                                | 10,000           | 100,000           |
+| Monthly retention                                | &gt;60%          | &gt;70%           |
+| Avg monthly earnings per active dev              | &gt;$10          | &gt;$15           |
+| Ad completion rate                               | &gt;85%          | &gt;90%           |
+| Developer NPS                                    | &gt;30           | &gt;40            |
+| Advertiser fill rate                             | &gt;40%          | &gt;70%           |
+| Average eCPM (blended)                           | &gt;$8           | &gt;$12           |
+| Time-to-dismiss (p95)                            | &lt;200ms        | &lt;150ms         |
+| False-idle rate (ads shown during active coding) | &lt;1%           | &lt;0.1%          |
+| Open-source fund distributed                     | &gt;$5,000       | &gt;$50,000       |
 
 ---
 
@@ -719,4 +719,4 @@ These are boundaries that protect the product from becoming the thing developers
 
 ---
 
-*This PRD is a living document. All specifications are subject to change based on beta testing feedback and advertiser demand signals.*
+_This PRD is a living document. All specifications are subject to change based on beta testing feedback and advertiser demand signals._

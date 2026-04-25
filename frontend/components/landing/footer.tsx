@@ -1,4 +1,4 @@
-import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { ThemeToggle } from "@/components/shared/theme-toggle"
 
 export function Footer() {
   return (
@@ -49,8 +49,8 @@ export function Footer() {
             <rect x="2" y="5" width="5" height="1" />
             <rect x="3" y="6" width="3" height="1" />
             <rect x="4" y="7" width="1" height="1" />
-          </svg>
-          {" "}by{" "}
+          </svg>{" "}
+          by{" "}
           <a
             href="https://www.linkedin.com/in/yugandhar-tripathi/"
             target="_blank"
@@ -58,8 +58,8 @@ export function Footer() {
             className="text-[var(--ink-tertiary)] hover:text-[var(--ink-primary)] transition-colors underline underline-offset-2"
           >
             yugandhar
-          </a>
-          {" "}&{" "}
+          </a>{" "}
+          &{" "}
           <a
             href="https://www.linkedin.com/in/manurajput2911"
             target="_blank"
@@ -71,5 +71,5 @@ export function Footer() {
         </span>
       </div>
     </footer>
-  );
+  )
 }

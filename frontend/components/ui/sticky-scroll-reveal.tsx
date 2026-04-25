@@ -1,42 +1,39 @@
-"use client";
-import React, { useRef, useState } from "react";
-import { useMotionValueEvent, useScroll } from "motion/react";
-import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
+"use client"
+import React, { useRef, useState } from "react"
+import { useMotionValueEvent, useScroll } from "motion/react"
+import { motion } from "motion/react"
+import { cn } from "@/lib/utils"
 
 export const StickyScroll = ({
   content,
   contentClassName,
 }: {
   content: {
-    title: string;
-    description: string;
-    content?: React.ReactNode | any;
-  }[];
-  contentClassName?: string;
+    title: string
+    description: string
+    content?: React.ReactNode | any
+  }[]
+  contentClassName?: string
 }) => {
-  const [activeCard, setActiveCard] = React.useState(0);
-  const ref = useRef<any>(null);
+  const [activeCard, setActiveCard] = React.useState(0)
+  const ref = useRef<any>(null)
   const { scrollYProgress } = useScroll({
     container: ref,
     offset: ["start start", "end start"],
-  });
-  const cardLength = content.length;
+  })
+  const cardLength = content.length
 
   useMotionValueEvent(scrollYProgress, "change", (latest) => {
-    const cardsBreakpoints = content.map((_, index) => index / cardLength);
-    const closestBreakpointIndex = cardsBreakpoints.reduce(
-      (acc, breakpoint, index) => {
-        const distance = Math.abs(latest - breakpoint);
-        if (distance < Math.abs(latest - cardsBreakpoints[acc])) {
-          return index;
-        }
-        return acc;
-      },
-      0,
-    );
-    setActiveCard(closestBreakpointIndex);
-  });
+    const cardsBreakpoints = content.map((_, index) => index / cardLength)
+    const closestBreakpointIndex = cardsBreakpoints.reduce((acc, breakpoint, index) => {
+      const distance = Math.abs(latest - breakpoint)
+      if (distance < Math.abs(latest - cardsBreakpoints[acc])) {
+        return index
+      }
+      return acc
+    }, 0)
+    setActiveCard(closestBreakpointIndex)
+  })
 
   return (
     <motion.div
@@ -77,11 +74,11 @@ export const StickyScroll = ({
       <div
         className={cn(
           "sticky top-10 hidden h-60 w-80 overflow-hidden rounded-md bg-[var(--bg-surface)] border border-[var(--rule-default)] lg:block",
-          contentClassName,
+          contentClassName
         )}
       >
         {content[activeCard].content ?? null}
       </div>
     </motion.div>
-  );
-};
+  )
+}

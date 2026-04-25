@@ -20,11 +20,12 @@ FINTECH TRUST          DEV TOOL COOL          CRYPTO UTILITY
   Tabular data          Dot-matrix texture       Transparent rails
 ```
 
-Most products pick one lane. We occupy all three — and the *tension* between them IS the brand. A developer glancing at Dev Drip should feel: **"This is a serious financial tool that was designed by someone who actually uses a terminal."**
+Most products pick one lane. We occupy all three — and the _tension_ between them IS the brand. A developer glancing at Dev Drip should feel: **"This is a serious financial tool that was designed by someone who actually uses a terminal."**
 
 ### 1.2 Brand Personality
 
 **We are:**
+
 - Precise, not flashy
 - Industrial, not decorative
 - Transparent about money (literally — every cent is visible)
@@ -32,6 +33,7 @@ Most products pick one lane. We occupy all three — and the *tension* between t
 - Cool the way a well-machined tool is cool — not the way a nightclub is cool
 
 **We are NOT:**
+
 - "Web3 bro" energy (no gradients-on-gradients, no token moonshot language)
 - Generic SaaS (no purple gradients, no stock photo humans, no "reimagine your workflow")
 - Scrappy startup (no hand-drawn illustrations, no playful bouncy animations)
@@ -39,7 +41,7 @@ Most products pick one lane. We occupy all three — and the *tension* between t
 
 ### 1.3 The Nothing Principle
 
-Nothing Tech's genius was using dot-matrix typography from IBM mainframes to create psychological distance from every other phone brand. They made the *machinery visible*. Their product looks like it was built by engineers who are proud of the engineering.
+Nothing Tech's genius was using dot-matrix typography from IBM mainframes to create psychological distance from every other phone brand. They made the _machinery visible_. Their product looks like it was built by engineers who are proud of the engineering.
 
 Dev Drip applies the same principle: **the financial machinery is visible.** You see the USDC flowing. You see the CPM math. You see the ad lifecycle states. We don't hide behind smooth abstractions — we expose the system, and that exposure IS the trust signal. Developers trust what they can inspect.
 
@@ -75,7 +77,7 @@ Our palette is intentionally monochrome with warm undertones. The entire product
 - Has opinions about fonts and color schemes
 - Subscribes to Hacker News, follows dev Twitter/X
 - Uses or admires: Linear, Raycast, Warp, Vercel, Nothing
-- Quietly interested in crypto when it's *useful* (stablecoins > memecoins)
+- Quietly interested in crypto when it's _useful_ (stablecoins > memecoins)
 - Allergic to scams, hype, and empty promises
 - Respects Stripe's design, Coinbase's engineering, Base's simplicity
 - Price-sensitive enough to care about $10-25/month in earnings
@@ -121,6 +123,7 @@ Layer 4: Emphasis (Active States)   — weight change, contrast shift, subtle gl
 ### 3.3 The Dot-Matrix Pattern
 
 Our signature texture. A subtle dot grid that appears across surfaces — in card backgrounds, page sections, and as a watermark-like element. It references:
+
 - IBM mainframe printouts (Nothing's inspiration)
 - Financial paper security patterns (like check paper or currency)
 - Terminal phosphor pixels
@@ -141,118 +144,119 @@ Color appears for functional states (error, warning) and at 8 accent touchpoints
 ### 4.2 Light Mode Palette
 
 **Backgrounds (Warm Paper)**
-| Token                | Hex       | Usage                                      |
+| Token | Hex | Usage |
 |----------------------|-----------|---------------------------------------------|
-| `--bg-primary`       | #F7F6F3   | Page background (warm paper)                |
-| `--bg-secondary`     | #EEEDEA   | Alternate sections, grouped areas           |
-| `--bg-surface`       | #FFFFFF   | Cards, elevated panels, inputs              |
-| `--bg-surface-hover` | #F2F1EE   | Card / row hover state                      |
-| `--bg-inset`         | #E8E7E3   | Code blocks, inset panels, recessed areas   |
-| `--bg-elevated`      | #FFFFFF   | Modals, dropdowns (same as surface)         |
+| `--bg-primary` | #F7F6F3 | Page background (warm paper) |
+| `--bg-secondary` | #EEEDEA | Alternate sections, grouped areas |
+| `--bg-surface` | #FFFFFF | Cards, elevated panels, inputs |
+| `--bg-surface-hover` | #F2F1EE | Card / row hover state |
+| `--bg-inset` | #E8E7E3 | Code blocks, inset panels, recessed areas |
+| `--bg-elevated` | #FFFFFF | Modals, dropdowns (same as surface) |
 
 **Ink (Text)**
-| Token                | Hex       | Usage                                      |
+| Token | Hex | Usage |
 |----------------------|-----------|---------------------------------------------|
-| `--ink-primary`      | #0E0E11   | Headlines, body text, primary data          |
-| `--ink-secondary`    | #5C5C66   | Descriptions, labels, secondary info        |
-| `--ink-tertiary`     | #9C9CA5   | Placeholders, disabled, captions            |
-| `--ink-faint`        | #C5C5BF   | Decorative text, watermarks                 |
-| `--ink-inverse`      | #F7F6F3   | Text on dark backgrounds                    |
+| `--ink-primary` | #0E0E11 | Headlines, body text, primary data |
+| `--ink-secondary` | #5C5C66 | Descriptions, labels, secondary info |
+| `--ink-tertiary` | #9C9CA5 | Placeholders, disabled, captions |
+| `--ink-faint` | #C5C5BF | Decorative text, watermarks |
+| `--ink-inverse` | #F7F6F3 | Text on dark backgrounds |
 
 **Structure (Borders & Grid)**
-| Token                | Hex       | Usage                                      |
+| Token | Hex | Usage |
 |----------------------|-----------|---------------------------------------------|
-| `--rule-default`     | #DDDDD8   | Card borders, dividers                      |
-| `--rule-subtle`      | #EEEEEA   | Faint separators, table rows                |
-| `--rule-strong`      | #C5C5BF   | Emphasized borders, active input            |
-| `--dot-grid`         | #D4D4CE   | Dot-matrix pattern fill                     |
+| `--rule-default` | #DDDDD8 | Card borders, dividers |
+| `--rule-subtle` | #EEEEEA | Faint separators, table rows |
+| `--rule-strong` | #C5C5BF | Emphasized borders, active input |
+| `--dot-grid` | #D4D4CE | Dot-matrix pattern fill |
 
 **Emphasis (Active / Earning States)**
-| Token                | Hex       | Usage                                      |
+| Token | Hex | Usage |
 |----------------------|-----------|---------------------------------------------|
-| `--em-primary`       | #0E0E11   | CTAs, active toggles, key actions           |
-| `--em-hover`         | #2A2A2F   | Button hover                                |
-| `--em-surface`       | #F0EFEB   | Subtle highlight behind active items        |
-| `--em-glow`          | rgba(14,14,17,0.06) | Subtle warm glow for earning states  |
+| `--em-primary` | #0E0E11 | CTAs, active toggles, key actions |
+| `--em-hover` | #2A2A2F | Button hover |
+| `--em-surface` | #F0EFEB | Subtle highlight behind active items |
+| `--em-glow` | rgba(14,14,17,0.06) | Subtle warm glow for earning states |
 
 **Functional Status (used like Nothing's red dot — tiny and rare)**
-| Token                | Hex       | Usage                                      |
+| Token | Hex | Usage |
 |----------------------|-----------|---------------------------------------------|
-| `--status-negative`  | #C13438   | Errors, destructive actions, loss           |
-| `--status-negative-surface` | #FCF0F0 | Error background tint               |
-| `--status-caution`   | #B8860B   | Warnings, approaching limits                |
-| `--status-caution-surface`  | #FBF5E6 | Warning background tint              |
-| `--status-active`    | #0E0E11   | Active/online indicator (just ink!)         |
+| `--status-negative` | #C13438 | Errors, destructive actions, loss |
+| `--status-negative-surface` | #FCF0F0 | Error background tint |
+| `--status-caution` | #B8860B | Warnings, approaching limits |
+| `--status-caution-surface` | #FBF5E6 | Warning background tint |
+| `--status-active` | #0E0E11 | Active/online indicator (just ink!) |
 
 ### 4.3 Dark Mode Palette
 
 **Backgrounds (Terminal)**
-| Token                | Hex       | Usage                                      |
+| Token | Hex | Usage |
 |----------------------|-----------|---------------------------------------------|
-| `--bg-primary`       | #0A0A0C   | Page background                             |
-| `--bg-secondary`     | #111113   | Sections                                    |
-| `--bg-surface`       | #18181B   | Cards, panels                               |
-| `--bg-surface-hover` | #1F1F23   | Hover state                                 |
-| `--bg-inset`         | #0F0F11   | Code blocks, recessed areas                 |
-| `--bg-elevated`      | #222226   | Modals, dropdowns                           |
+| `--bg-primary` | #0A0A0C | Page background |
+| `--bg-secondary` | #111113 | Sections |
+| `--bg-surface` | #18181B | Cards, panels |
+| `--bg-surface-hover` | #1F1F23 | Hover state |
+| `--bg-inset` | #0F0F11 | Code blocks, recessed areas |
+| `--bg-elevated` | #222226 | Modals, dropdowns |
 
 **Ink (Dark)**
-| Token                | Hex       | Usage                                      |
+| Token | Hex | Usage |
 |----------------------|-----------|---------------------------------------------|
-| `--ink-primary`      | #EDEDF0   | Headlines, body text                        |
-| `--ink-secondary`    | #8A8A94   | Descriptions, labels                        |
-| `--ink-tertiary`     | #5C5C66   | Placeholders, disabled                      |
-| `--ink-faint`        | #3A3A40   | Decorative, watermarks                      |
-| `--ink-inverse`      | #0A0A0C   | Text on light surfaces                      |
+| `--ink-primary` | #EDEDF0 | Headlines, body text |
+| `--ink-secondary` | #8A8A94 | Descriptions, labels |
+| `--ink-tertiary` | #5C5C66 | Placeholders, disabled |
+| `--ink-faint` | #3A3A40 | Decorative, watermarks |
+| `--ink-inverse` | #0A0A0C | Text on light surfaces |
 
 **Structure (Dark)**
-| Token                | Hex       | Usage                                      |
+| Token | Hex | Usage |
 |----------------------|-----------|---------------------------------------------|
-| `--rule-default`     | #27272B   | Card borders                                |
-| `--rule-subtle`      | #1E1E22   | Faint separators                            |
-| `--rule-strong`      | #3A3A40   | Emphasized borders                          |
-| `--dot-grid`         | #1E1E22   | Dot-matrix pattern fill                     |
+| `--rule-default` | #27272B | Card borders |
+| `--rule-subtle` | #1E1E22 | Faint separators |
+| `--rule-strong` | #3A3A40 | Emphasized borders |
+| `--dot-grid` | #1E1E22 | Dot-matrix pattern fill |
 
 **Emphasis (Dark)**
-| Token                | Hex       | Usage                                      |
+| Token | Hex | Usage |
 |----------------------|-----------|---------------------------------------------|
-| `--em-primary`       | #EDEDF0   | CTAs, key actions (white on dark)           |
-| `--em-hover`         | #D0D0D6   | Button hover                                |
-| `--em-surface`       | #1F1F23   | Active item highlight                       |
-| `--em-glow`          | rgba(237,237,240,0.06) | Subtle glow for earning states    |
+| `--em-primary` | #EDEDF0 | CTAs, key actions (white on dark) |
+| `--em-hover` | #D0D0D6 | Button hover |
+| `--em-surface` | #1F1F23 | Active item highlight |
+| `--em-glow` | rgba(237,237,240,0.06) | Subtle glow for earning states |
 
 **Functional Status (Dark)**
-| Token                | Hex       | Usage                                      |
+| Token | Hex | Usage |
 |----------------------|-----------|---------------------------------------------|
-| `--status-negative`  | #E8585C   | Errors                                      |
-| `--status-negative-surface` | #2A1214 | Error background                     |
-| `--status-caution`   | #E0A020   | Warnings                                    |
-| `--status-caution-surface`  | #2A2210 | Warning background                   |
-| `--status-active`    | #EDEDF0   | Active indicator (just ink!)                |
+| `--status-negative` | #E8585C | Errors |
+| `--status-negative-surface` | #2A1214 | Error background |
+| `--status-caution` | #E0A020 | Warnings |
+| `--status-caution-surface` | #2A2210 | Warning background |
+| `--status-active` | #EDEDF0 | Active indicator (just ink!) |
 
 ### 4.4 Accent — Electric Indigo
 
 One accent, 8 touchpoints. Inspired by Nothing's single-color approach.
 
 **Light Mode**
-| Token                | Value                       | Usage                               |
+| Token | Value | Usage |
 |----------------------|-----------------------------|--------------------------------------|
-| `--accent-color`     | #4F46E5                     | CTA buttons, delta text, link hover  |
-| `--accent-hover`     | #4338CA                     | Button hover state                   |
-| `--accent-surface`   | rgba(79, 70, 229, 0.06)     | Subtle tinted background             |
-| `--accent-glow`      | rgba(79, 70, 229, 0.15)     | Earnings glow pulse, focus rings     |
-| `--accent-muted`     | #C7D2FE                     | Subtle borders (version badge)       |
+| `--accent-color` | #4F46E5 | CTA buttons, delta text, link hover |
+| `--accent-hover` | #4338CA | Button hover state |
+| `--accent-surface` | rgba(79, 70, 229, 0.06) | Subtle tinted background |
+| `--accent-glow` | rgba(79, 70, 229, 0.15) | Earnings glow pulse, focus rings |
+| `--accent-muted` | #C7D2FE | Subtle borders (version badge) |
 
 **Dark Mode**
-| Token                | Value                       | Usage                               |
+| Token | Value | Usage |
 |----------------------|-----------------------------|--------------------------------------|
-| `--accent-color`     | #6366F1                     | CTA buttons, delta text, link hover  |
-| `--accent-hover`     | #818CF8                     | Button hover state                   |
-| `--accent-surface`   | rgba(99, 102, 241, 0.08)    | Subtle tinted background             |
-| `--accent-glow`      | rgba(99, 102, 241, 0.2)     | Earnings glow pulse, focus rings     |
-| `--accent-muted`     | #312E81                     | Subtle borders (version badge)       |
+| `--accent-color` | #6366F1 | CTA buttons, delta text, link hover |
+| `--accent-hover` | #818CF8 | Button hover state |
+| `--accent-surface` | rgba(99, 102, 241, 0.08) | Subtle tinted background |
+| `--accent-glow` | rgba(99, 102, 241, 0.2) | Earnings glow pulse, focus rings |
+| `--accent-muted` | #312E81 | Subtle borders (version badge) |
 
 **The 8 Accent Touchpoints (exhaustive)**
+
 1. Primary CTA buttons (bg `--accent-color`, white text)
 2. Earnings counter `+$0.03` delta text
 3. Earnings counter glow pulse (box-shadow)
@@ -267,28 +271,33 @@ One accent, 8 touchpoints. Inspired by Nothing's single-color approach.
 This is the most important section in the design system.
 
 **1. Typography IS the signal**
+
 - All dollar amounts use JetBrains Mono Bold
 - The bold weight alone creates visual hierarchy without color
 - Tabular figures align numbers in columns — this reads "financial" instantly
 - The "$" prefix is the universal money symbol
 
 **2. Weight creates hierarchy**
+
 - Earning amounts: JetBrains Mono 700 (bold) at `--ink-primary`
 - Secondary data: JetBrains Mono 400 (regular) at `--ink-secondary`
 - The weight difference is the visual signal, not color
 
 **3. Animation + accent creates moment**
+
 - The +$0.03 counter appears in `--accent-color` with a subtle translateY + opacity animation
 - A brief indigo glow (box-shadow with `--accent-glow`) pulses once
 - The running total ticks up digit-by-digit
 - The combination of motion + accent color IS the reward feedback
 
 **4. Density creates context**
+
 - Financial data is presented in tight, tabular Bloomberg-style layouts
 - Multiple data points (CPM, impressions, earned, balance) create a "trading desk" feel
 - The density of well-formatted numbers communicates "serious money" better than any green badge
 
 **5. The dot-grid pattern creates paper**
+
 - Our signature texture makes surfaces feel like financial paper
 - Combined with monospaced numbers, this creates an unmistakable "financial document" feel
 - The texture does the work that color would do in a lesser design system
@@ -309,11 +318,11 @@ This is the most important section in the design system.
 
 ### 5.1 Font Stack
 
-| Role          | Font             | Weight Range | Fallback              |
-|---------------|------------------|-------------|------------------------|
-| **Display**   | Space Mono       | 400, 700    | monospace              |
-| **Body**      | DM Sans          | 400–700     | system-ui, sans-serif  |
-| **Data**      | JetBrains Mono   | 400–700     | monospace              |
+| Role        | Font           | Weight Range | Fallback              |
+| ----------- | -------------- | ------------ | --------------------- |
+| **Display** | Space Mono     | 400, 700     | monospace             |
+| **Body**    | DM Sans        | 400–700      | system-ui, sans-serif |
+| **Data**    | JetBrains Mono | 400–700      | monospace             |
 
 ### 5.2 Why These Fonts
 
@@ -325,21 +334,21 @@ This is the most important section in the design system.
 
 ### 5.3 Type Scale
 
-| Token        | Size    | Line Height | Weight | Font         | Usage                          |
-|--------------|---------|-------------|--------|--------------|--------------------------------|
-| `--t-hero`   | 48px    | 1.1         | 700    | Space Mono   | Landing page hero only         |
-| `--t-h1`     | 36px    | 1.15        | 700    | Space Mono   | Page titles                    |
-| `--t-h2`     | 28px    | 1.2         | 700    | Space Mono   | Section headings               |
-| `--t-h3`     | 22px    | 1.3         | 700    | DM Sans      | Sub-section headings           |
-| `--t-h4`     | 18px    | 1.35        | 600    | DM Sans      | Card titles, labels            |
-| `--t-body`   | 16px    | 1.6         | 400    | DM Sans      | Body text                      |
-| `--t-body-s` | 14px    | 1.5         | 400    | DM Sans      | Secondary body                 |
-| `--t-caption`| 12px    | 1.4         | 500    | DM Sans      | Captions, badges               |
-| `--t-micro`  | 11px    | 1.3         | 500    | JetBrains Mono| Tiny data labels              |
-| `--t-data-l` | 32px    | 1.1         | 700    | JetBrains Mono| Large earnings display        |
-| `--t-data-m` | 20px    | 1.2         | 500    | JetBrains Mono| Medium data/numbers           |
-| `--t-data-s` | 14px    | 1.3         | 400    | JetBrains Mono| Inline data, table cells      |
-| `--t-data-xs`| 12px    | 1.3         | 400    | JetBrains Mono| Micro data                    |
+| Token         | Size | Line Height | Weight | Font           | Usage                    |
+| ------------- | ---- | ----------- | ------ | -------------- | ------------------------ |
+| `--t-hero`    | 48px | 1.1         | 700    | Space Mono     | Landing page hero only   |
+| `--t-h1`      | 36px | 1.15        | 700    | Space Mono     | Page titles              |
+| `--t-h2`      | 28px | 1.2         | 700    | Space Mono     | Section headings         |
+| `--t-h3`      | 22px | 1.3         | 700    | DM Sans        | Sub-section headings     |
+| `--t-h4`      | 18px | 1.35        | 600    | DM Sans        | Card titles, labels      |
+| `--t-body`    | 16px | 1.6         | 400    | DM Sans        | Body text                |
+| `--t-body-s`  | 14px | 1.5         | 400    | DM Sans        | Secondary body           |
+| `--t-caption` | 12px | 1.4         | 500    | DM Sans        | Captions, badges         |
+| `--t-micro`   | 11px | 1.3         | 500    | JetBrains Mono | Tiny data labels         |
+| `--t-data-l`  | 32px | 1.1         | 700    | JetBrains Mono | Large earnings display   |
+| `--t-data-m`  | 20px | 1.2         | 500    | JetBrains Mono | Medium data/numbers      |
+| `--t-data-s`  | 14px | 1.3         | 400    | JetBrains Mono | Inline data, table cells |
+| `--t-data-xs` | 12px | 1.3         | 400    | JetBrains Mono | Micro data               |
 
 ### 5.4 Typography Rules
 
@@ -356,29 +365,29 @@ This is the most important section in the design system.
 
 ### 6.1 Spacing (4px base)
 
-| Token  | Value  | Usage                               |
-|--------|--------|-------------------------------------|
-| `--sp-1`   | 4px    | Tight internal                  |
-| `--sp-2`   | 8px    | Icon gaps, compact              |
-| `--sp-3`   | 12px   | Default internal padding        |
-| `--sp-4`   | 16px   | Standard gap                    |
-| `--sp-5`   | 20px   | Comfortable spacing             |
-| `--sp-6`   | 24px   | Section padding                 |
-| `--sp-8`   | 32px   | Large gaps                      |
-| `--sp-10`  | 40px   | Page section spacing            |
-| `--sp-12`  | 48px   | Major section breaks            |
-| `--sp-16`  | 64px   | Hero spacing                    |
-| `--sp-20`  | 80px   | Maximum section spacing         |
+| Token     | Value | Usage                    |
+| --------- | ----- | ------------------------ |
+| `--sp-1`  | 4px   | Tight internal           |
+| `--sp-2`  | 8px   | Icon gaps, compact       |
+| `--sp-3`  | 12px  | Default internal padding |
+| `--sp-4`  | 16px  | Standard gap             |
+| `--sp-5`  | 20px  | Comfortable spacing      |
+| `--sp-6`  | 24px  | Section padding          |
+| `--sp-8`  | 32px  | Large gaps               |
+| `--sp-10` | 40px  | Page section spacing     |
+| `--sp-12` | 48px  | Major section breaks     |
+| `--sp-16` | 64px  | Hero spacing             |
+| `--sp-20` | 80px  | Maximum section spacing  |
 
 ### 6.2 Border Radius
 
-| Token         | Value  | Usage                                |
-|---------------|--------|--------------------------------------|
-| `--r-none`    | 0px    | Terminal surfaces, code blocks       |
-| `--r-sm`      | 4px    | Badges, small tags                   |
-| `--r-md`      | 8px    | Buttons, inputs, cards               |
-| `--r-lg`      | 12px   | Large cards, modals                  |
-| `--r-pill`    | 9999px | Pill badges, toggle tracks           |
+| Token      | Value  | Usage                          |
+| ---------- | ------ | ------------------------------ |
+| `--r-none` | 0px    | Terminal surfaces, code blocks |
+| `--r-sm`   | 4px    | Badges, small tags             |
+| `--r-md`   | 8px    | Buttons, inputs, cards         |
+| `--r-lg`   | 12px   | Large cards, modals            |
+| `--r-pill` | 9999px | Pill badges, toggle tracks     |
 
 ### 6.3 Grid
 
@@ -393,15 +402,18 @@ This is the most important section in the design system.
 ### 7.1 Buttons
 
 **Primary (Accent Fill)**
+
 - Both modes: bg `--accent-color`, text white (#FFFFFF)
 - Hover: `--accent-hover`
 - The single most visible accent touchpoint
 
 **Ghost**
+
 - Transparent bg, 1px `--rule-default` border, `--ink-primary` text
 - Hover: `--bg-surface-hover` fill
 
 **Text Button**
+
 - No bg, no border. `--ink-secondary` text. Underline on hover.
 
 **Disabled**: opacity 0.4, cursor not-allowed.
@@ -437,6 +449,7 @@ The most recognizable UI moment. Accent color marks the earning moment.
 ### 7.5 Status Indicators
 
 Errors and warnings are the ONLY places color appears. Used like Nothing's red dot:
+
 - Tiny (6px dot or thin 2px left border on a card)
 - Never as full background fills on large areas
 - Always accompanied by clear text explanation
@@ -464,6 +477,7 @@ Everything appears gradually but disappears instantly. This is both the PRD's <2
 ### 9.2 Earnings Animation
 
 No color. Pure motion and weight:
+
 1. "+$0.03" fades in, translates up 4px (250ms)
 2. Brief warm glow pulse via box-shadow (200ms)
 3. Hold 1.5s
@@ -479,9 +493,11 @@ On earning surfaces, the dot-grid subtly pulses in opacity (0.3 to 0.5) on a 3-s
 ## 10. UI Library Mappings
 
 ### From MagicUI
+
 Terminal, Number Ticker, Dot Pattern, Flickering Grid, Retro Grid, Border Beam, Shimmer Button, Animated Beam
 
 ### From Aceternity
+
 Encrypted Text, Noise Background, ASCII Art, Moving Border, Dither Shader, Typewriter Effect, Code Block
 
 ---
@@ -507,4 +523,4 @@ Encrypted Text, Noise Background, ASCII Art, Moving Border, Dither Shader, Typew
 
 ---
 
-*The brand is the precision. The brand is the typography. The brand is the texture. One accent, eight touchpoints, and nothing more.*
+_The brand is the precision. The brand is the typography. The brand is the texture. One accent, eight touchpoints, and nothing more._
