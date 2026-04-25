@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import request from "supertest"
 import { app } from "../app.js"
+import { getRedis } from "../lib/redis.js"
 
 describe("GET /health", () => {
   it("returns health response with components", async () => {
@@ -80,6 +81,92 @@ describe("POST /auth/exchange", () => {
     const res = await request(app).post("/auth/exchange").send({ code: "nonexistent" })
     expect(res.status).toBe(401)
     expect(res.body.error).toBe("invalid_or_expired_code")
+  })
+})
+
+function extractState(setCookie: string | string[] | undefined): string {
+  const first = Array.isArray(setCookie) ? setCookie[0] : setCookie
+  const cookie = first ?? ""
+  const m = /gh_oauth_state=([a-f0-9]{32})/.exec(cookie)
+  if (!m?.[1]) throw new Error(`state cookie missing from: ${cookie}`)
+  return m[1]
+}
+
+describe("GET /auth/github/redirect (cli_port)", () => {
+  it("stores cli_port keyed by state when in range", async () => {
+    const res = await request(app).get("/auth/github/redirect?cli_port=54321")
+    expect(res.status).toBe(302)
+    expect(res.headers["location"]).toMatch(/^https:\/\/github\.com\/login\/oauth\/authorize\?/)
+
+    const state = extractState(res.headers["set-cookie"])
+    const raw = await getRedis().get<string>(`auth:state:${state}`)
+    expect(raw).toBeTruthy()
+    expect(JSON.parse(raw as string)).toEqual({ cliPort: 54321 })
+
+    await getRedis().del(`auth:state:${state}`)
+  })
+
+  it("ignores cli_port below range", async () => {
+    const res = await request(app).get("/auth/github/redirect?cli_port=54320")
+    const state = extractState(res.headers["set-cookie"])
+    const raw = await getRedis().get<string>(`auth:state:${state}`)
+    expect(raw).toBeNull()
+  })
+
+  it("ignores cli_port above range", async () => {
+    const res = await request(app).get("/auth/github/redirect?cli_port=54331")
+    const state = extractState(res.headers["set-cookie"])
+    const raw = await getRedis().get<string>(`auth:state:${state}`)
+    expect(raw).toBeNull()
+  })
+
+  it("ignores non-numeric cli_port", async () => {
+    const res = await request(app).get("/auth/github/redirect?cli_port=../../evil")
+    const state = extractState(res.headers["set-cookie"])
+    const raw = await getRedis().get<string>(`auth:state:${state}`)
+    expect(raw).toBeNull()
+  })
+})
+
+describe("GET /auth/github/callback (cli redirect)", () => {
+  it("forwards access_denied to localhost:cli_port when state is known", async () => {
+    // seed a valid state with cli_port
+    const state = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    await getRedis().set(`auth:state:${state}`, JSON.stringify({ cliPort: 54322 }), { ex: 60 })
+
+    const res = await request(app)
+      .get(`/auth/github/callback?state=${state}&error=access_denied`)
+      .set("Cookie", [`gh_oauth_state=${state}`])
+
+    expect(res.status).toBe(302)
+    expect(res.headers["location"]).toBe("http://localhost:54322/callback?error=access_denied")
+
+    // state entry should be consumed
+    const raw = await getRedis().get<string>(`auth:state:${state}`)
+    expect(raw).toBeNull()
+  })
+
+  it("falls back to CLIENT_REDIRECT_URL when no cli_port in state", async () => {
+    const state = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    // no redis entry for this state — i.e. regular web flow
+    const res = await request(app)
+      .get(`/auth/github/callback?state=${state}&error=access_denied`)
+      .set("Cookie", [`gh_oauth_state=${state}`])
+
+    expect(res.status).toBe(302)
+    // should NOT be localhost
+    expect(res.headers["location"]).not.toMatch(/^http:\/\/localhost:\d+\/callback/)
+    expect(res.headers["location"]).toContain("error=access_denied")
+  })
+
+  it("returns invalid_state via web redirect when state doesn't match cookie", async () => {
+    const res = await request(app).get("/auth/github/callback?state=abc&error=access_denied")
+    expect(res.status).toBe(302)
+    expect(res.headers["location"]).toContain("error=invalid_state")
+    // invalid state is rejected before we look up cli_port, so we never redirect
+    // to a CLI port — only to CLIENT_REDIRECT_URL (whatever host that is)
+    expect(res.headers["location"]).not.toContain(":54321/callback")
+    expect(res.headers["location"]).not.toContain(":54322/callback")
   })
 })
 

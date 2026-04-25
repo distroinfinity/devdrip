@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser"
 import cors from "cors"
 import helmet from "helmet"
 import { pinoHttp } from "pino-http"
+import { eq } from "drizzle-orm"
 import { env } from "./config/env.js"
 import { logger } from "./lib/logger.js"
 import { errorHandler } from "./errors/error-handler.js"
@@ -21,6 +22,8 @@ import { invitesRouter } from "./routes/invites.js"
 import { requireAuth } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
 import { globalLimiter, userLimiter, adminLimiter } from "./middleware/rate-limit.js"
+import { getDb } from "./db/index.js"
+import { users } from "./db/schema/users.js"
 
 const REDACTED_HEADERS = new Set(["authorization", "cookie", "set-cookie"])
 
@@ -62,7 +65,23 @@ app.use("/impressions", requireAuth, userLimiter, impressionsRouter)
 app.use("/clicks", requireAuth, userLimiter, clicksRouter)
 
 app.get("/me", requireAuth, userLimiter, async (_req, res) => {
-  await res.json({ userId: res.locals["userId"], githubLogin: res.locals["githubLogin"] })
+  const userId = res.locals["userId"] as string
+  const [row] = await getDb()
+    .select({
+      id: users.id,
+      githubLogin: users.githubLogin,
+      email: users.email,
+      avatarUrl: users.avatarUrl,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+
+  if (!row) {
+    await res.status(404).json({ error: "user_not_found" })
+    return
+  }
+  await res.json(row)
 })
 
 app.use(errorHandler)
