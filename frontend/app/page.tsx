@@ -30,9 +30,11 @@ export default function Home() {
 
         <HowItWorksSection />
 
+        {/* P0-006: SurfacesSection goes here */}
+
         <YourRulesSection />
 
-        {/* future sections: P0-006, P0-008 through P0-013 */}
+        {/* future sections: P0-008 through P0-013 */}
       </div>
     </main>
   );
