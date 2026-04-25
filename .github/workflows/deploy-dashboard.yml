@@ -24,6 +24,13 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
       - name: validate vercel secrets
         run: |
           test -n "$VERCEL_TOKEN" || { echo "Missing required GitHub secret: VERCEL_TOKEN"; exit 1; }
