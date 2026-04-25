@@ -52,7 +52,7 @@ describe("ledger", () => {
     const Database = (await import("better-sqlite3")).default
     const db = new Database(path, { readonly: true })
     try {
-      expect(db.pragma("user_version", { simple: true })).toBe(1)
+      expect(db.pragma("user_version", { simple: true })).toBe(2)
       expect(db.pragma("journal_mode", { simple: true })).toBe("wal")
 
       const tables = db
@@ -60,12 +60,14 @@ describe("ledger", () => {
         .all()
         .map((r: unknown) => (r as { name: string }).name)
       expect(tables).toContain("impressions")
+      expect(tables).toContain("clicks")
 
       const indices = db
         .prepare("SELECT name FROM sqlite_master WHERE type='index'")
         .all()
         .map((r: unknown) => (r as { name: string }).name)
       expect(indices).toContain("idx_impressions_unsynced")
+      expect(indices).toContain("idx_clicks_unsynced")
     } finally {
       db.close()
     }
@@ -188,5 +190,74 @@ describe("ledger", () => {
       "not a sqlite database at all"
     )
     l.close()
+  })
+})
+
+describe("v2 clicks table", () => {
+  it("opens a v1 ledger and migrates to v2 without losing impressions", async () => {
+    const { ledgerPath, openLedger } = await import("../ledger.js")
+    const Database = (await import("better-sqlite3")).default
+
+    // build a v1 schema manually and insert an impression row
+    const devdripDir = join(tempHome, ".devdrip")
+    const { mkdirSync } = await import("node:fs")
+    mkdirSync(devdripDir, { recursive: true, mode: 0o700 })
+    const dbPath = ledgerPath()
+    const db = new Database(dbPath)
+    db.exec(`
+      CREATE TABLE impressions (
+        id             TEXT PRIMARY KEY,
+        ad_id          TEXT NOT NULL,
+        campaign_id    TEXT NOT NULL,
+        surface        TEXT NOT NULL,
+        source         TEXT NOT NULL,
+        delivery_token TEXT NOT NULL,
+        started_at     INTEGER NOT NULL,
+        duration_ms    INTEGER NOT NULL,
+        result         TEXT NOT NULL,
+        device_id      TEXT NOT NULL,
+        cpm_rate       REAL,
+        synced_at      INTEGER
+      );
+      CREATE INDEX idx_impressions_unsynced ON impressions (synced_at) WHERE synced_at IS NULL;
+    `)
+    db.pragma("user_version = 1")
+    db.prepare(
+      `
+      INSERT INTO impressions (id, ad_id, campaign_id, surface, source, delivery_token,
+        started_at, duration_ms, result, device_id, cpm_rate, synced_at)
+      VALUES ('imp-v1', 'ad-1', 'camp-1', 'terminal-tv', 'api', 'tok-v1',
+        1000, 5000, 'completed', 'dev-1', 2.5, NULL)
+    `
+    ).run()
+    db.close()
+
+    // open via openLedger — should migrate to v2
+    const ledger = openLedger()
+    // original impression still accessible
+    expect(ledger.listUnsynced(10).some((r) => r.id === "imp-v1")).toBe(true)
+    // clicks table now exists — probe by writing and counting
+    ledger.recordClick({ id: "c-probe", deliveryToken: "tok-probe", createdAt: Date.now() })
+    expect(ledger.unsyncedClickCount()).toBe(1)
+    ledger.close()
+  })
+
+  it("records and lists unsynced clicks", async () => {
+    const { openLedger } = await import("../ledger.js")
+    const ledger = openLedger()
+    ledger.recordClick({ id: "c-1", deliveryToken: "tok-1", createdAt: Date.now() })
+    expect(ledger.unsyncedClickCount()).toBe(1)
+    const list = ledger.listUnsyncedClicks(10)
+    expect(list[0]?.deliveryToken).toBe("tok-1")
+    ledger.close()
+  })
+
+  it("markClicksSynced excludes rows from listUnsyncedClicks", async () => {
+    const { openLedger } = await import("../ledger.js")
+    const ledger = openLedger()
+    ledger.recordClick({ id: "c-2", deliveryToken: "tok-2", createdAt: Date.now() })
+    ledger.markClicksSynced(["c-2"], Date.now())
+    expect(ledger.listUnsyncedClicks(10)).toHaveLength(0)
+    ledger.close()
   })
 })

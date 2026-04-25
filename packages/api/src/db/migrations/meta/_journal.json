@@ -29,6 +29,13 @@
       "when": 1776441600000,
       "tag": "0003_carbon_ads_integration",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777026982365,
+      "tag": "0004_delivery_jti_and_indexes",
+      "breakpoints": true
     }
   ]
 }

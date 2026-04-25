@@ -23,6 +23,7 @@ import {
 } from "../lib/daemon/lifecycle.js"
 import { createOrchestrator } from "../lib/daemon/orchestrator.js"
 import { startDaemonServer } from "../lib/daemon/server.js"
+import { createSyncLoop } from "../lib/daemon/sync.js"
 
 const HEARTBEAT_INTERVAL_MS = 10_000
 const STALE_AFTER_MS = 30_000
@@ -188,6 +189,9 @@ export async function runDaemon(): Promise<number> {
     error: (msg: string, fields?: Record<string, unknown>) => appendLog("error", msg, fields),
   }
 
+  const syncLoop = createSyncLoop({ ledger, log })
+  syncLoop.start()
+
   // forward declaration: keyCapture.onKey closes over orchestrator, but
   // orchestrator needs keyCapture passed into createOrchestrator. keys can
   // only arrive after createOrchestrator returns, so the hoist is safe.
@@ -325,6 +329,7 @@ export async function runDaemon(): Promise<number> {
     shuttingDown = true
     clearInterval(heartbeatInterval)
     unwatchFile(watchedConfig)
+    await syncLoop.stop()
     await orchestrator.shutdown()
     await server.close()
     unlinkSocketIfExists(socketPath)
