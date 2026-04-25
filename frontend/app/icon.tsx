@@ -4,10 +4,19 @@ export const runtime = "edge";
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
+async function loadFont(family: string, weight: number): Promise<ArrayBuffer> {
+  const css = await fetch(
+    `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}:wght@${weight}`,
+    { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)" } },
+  ).then((r) => r.text());
+
+  const url = css.match(/src: url\((.+?)\)/)?.[1];
+  if (!url) throw new Error(`font url not found for ${family}`);
+  return fetch(url).then((r) => r.arrayBuffer());
+}
+
 export default async function Icon() {
-  const spaceMono = await fetch(
-    new URL("../public/fonts/SpaceMono-Regular.ttf", import.meta.url),
-  ).then((r) => r.arrayBuffer());
+  const spaceMono = await loadFont("Space Mono", 400);
 
   return new ImageResponse(
     (

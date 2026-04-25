@@ -6,14 +6,22 @@ export const alt =
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+// fetch from Google Fonts at runtime to avoid bundling ~570 KB into edge function
+async function loadFont(family: string, weight: number): Promise<ArrayBuffer> {
+  const css = await fetch(
+    `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}:wght@${weight}`,
+    { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)" } },
+  ).then((r) => r.text());
+
+  const url = css.match(/src: url\((.+?)\)/)?.[1];
+  if (!url) throw new Error(`font url not found for ${family}`);
+  return fetch(url).then((r) => r.arrayBuffer());
+}
+
 export default async function OgImage() {
   const [jetbrainsBold, spaceMono] = await Promise.all([
-    fetch(new URL("../public/fonts/JetBrainsMono-Bold.ttf", import.meta.url)).then(
-      (r) => r.arrayBuffer(),
-    ),
-    fetch(new URL("../public/fonts/SpaceMono-Regular.ttf", import.meta.url)).then(
-      (r) => r.arrayBuffer(),
-    ),
+    loadFont("JetBrains Mono", 700),
+    loadFont("Space Mono", 400),
   ]);
 
   return new ImageResponse(
