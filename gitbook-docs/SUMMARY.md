@@ -7,6 +7,7 @@
 - [Data Model](backend/data-model.md)
 - [Landing And Waitlist](frontend/landing-and-waitlist.md)
 - [CLI Current State](cli/current-state.md)
+- [Daemon + Hook IPC](cli/daemon-and-hooks.md)
 - [Dashboard Current State](dashboard/current-state.md)
 - [Dev Workflow](engineering/dev-workflow.md)
 - [Known Gaps](engineering/known-gaps.md)

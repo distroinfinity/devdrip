@@ -1,9 +1,26 @@
+import { homedir } from "node:os"
+import { join } from "node:path"
+
 // ── timing ──────────────────────────────────────────────────────────────────
 
 export const GRACE_PERIOD_MS = 3_000
 export const MAX_AD_DURATION_MS = 8_000
-export const VANISH_DEADLINE_MS = 200
-export const DAEMON_SOCKET_PATH = `${process.env["XDG_RUNTIME_DIR"] ?? "/tmp"}/devdrip.sock`
+
+// ── daemon socket path ─────────────────────────────────────────────────────
+
+const SUN_PATH_MAX = 104
+
+// Single source of truth for the daemon socket path. Evaluated lazily on each
+// call so tests that override `process.env.HOME` pick up the right home dir.
+// Unix domain socket paths have a ~104-byte limit on macOS (sun_path); falls
+// back to /tmp/devdrip-<uid>.sock on the rare long-home-dir case.
+export function daemonSocketPath(
+  uid: number = typeof process.getuid === "function" ? (process.getuid() as number) : 0
+): string {
+  const preferred = join(homedir(), ".devdrip", "daemon.sock")
+  if (preferred.length < SUN_PATH_MAX) return preferred
+  return `/tmp/devdrip-${uid}.sock`
+}
 
 // ── idle detection ─────────────────────────────────────────────────────────
 

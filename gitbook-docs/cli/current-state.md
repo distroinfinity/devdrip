@@ -34,9 +34,6 @@ Most commands only print a `TODO` message.
 That includes:
 
 - `config`
-- `daemon start`
-- `daemon stop`
-- `daemon status`
 - `sync`
 - `claim`
 - `doctor`
@@ -44,9 +41,6 @@ That includes:
 - `upgrade`
 - `verify`
 - `referral`
-- `hook pre-tool`
-- `hook stop`
-- `hook prompt-submit`
 
 ## `auth` + `status` (S2-06)
 
@@ -195,12 +189,14 @@ Two `src/lib` modules that give the future daemon local state without touching t
 
 ## What Is Missing For A Real CLI
 
-- daemon process lifecycle
-- sync pipeline (`devdrip sync` still stubbed; ledger exposes `listUnsynced` / `markSynced` for it)
-- hook → daemon IPC
+- sync pipeline (`devdrip sync` still stubbed; S3-07)
 - payout flow
 - doctor checks
 
+## Daemon + Hook IPC (S2-10, S2-11)
+
+Landed. See [daemon-and-hooks.md](./daemon-and-hooks.md) for the runtime shape.
+
 ## Engineering Takeaway
 
-`packages/cli` now has working identity, onboarding (`devdrip init`), ad preview (`devdrip demo`), the local ledger + ad cache modules, and the config/api-client/auth-flow helpers that every future command will lean on. New commands that hit the backend should use `apiFetch` from `src/lib/api-client.ts` so they inherit transparent token refresh. The remaining gaps are the daemon process, the hook → daemon IPC, and the sync pipeline.
+`packages/cli` now has working identity, onboarding (`devdrip init`), ad preview (`devdrip demo`), the local ledger + ad cache modules, and the config/api-client/auth-flow helpers that every future command will lean on. New commands that hit the backend should use `apiFetch` from `src/lib/api-client.ts` so they inherit transparent token refresh. The remaining gaps are the sync pipeline (S3-07), payouts, and doctor checks.
