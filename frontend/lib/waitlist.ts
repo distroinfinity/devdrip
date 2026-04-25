@@ -9,6 +9,12 @@ export interface AiTool {
   subOptions?: ToolSubOption[];
 }
 
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const isValidEmail = (v: string) => EMAIL_RE.test(v);
+
+// all valid ai_tools values (parent + sub-option)
+export const VALID_TOOL_VALUES = new Set<string>();
+
 export const AI_TOOLS: AiTool[] = [
   {
     value: "claude",
@@ -30,6 +36,14 @@ export const AI_TOOLS: AiTool[] = [
   { value: "codex", label: "Codex" },
   { value: "windsurf", label: "Windsurf" },
 ];
+
+// populate valid tool values set
+for (const tool of AI_TOOLS) {
+  VALID_TOOL_VALUES.add(tool.value);
+  if (tool.subOptions) {
+    for (const sub of tool.subOptions) VALID_TOOL_VALUES.add(sub.value);
+  }
+}
 
 export const MONTHLY_SPEND_OPTIONS = [
   { value: "10-20", label: "$10–20" },
