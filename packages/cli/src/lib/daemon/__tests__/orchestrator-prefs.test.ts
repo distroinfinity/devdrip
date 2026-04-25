@@ -44,18 +44,34 @@ function makeDeps() {
     close: vi.fn(),
   }
   const display = {
-    show: vi.fn((tty: string | null, a: CachedAd) => {
+    show: vi.fn((tty: string | null, a: CachedAd, _ctx: unknown) => {
       displayCalls.push({ tty, adId: a.id })
-      return { vanish: () => {} }
+      return { vanish: () => ({ latencyMs: 0 }), onResize: vi.fn(), flash: vi.fn() }
     }),
   }
+  const keyCapture = {
+    start: vi.fn(),
+    stop: vi.fn(),
+  }
+  const openUrl = vi.fn()
+  const fireBeacon = vi.fn()
   const log = {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
     debug: vi.fn(),
   }
-  return { adCache, ledger, display, log, ledgerWrites, displayCalls }
+  return {
+    adCache,
+    ledger,
+    display,
+    keyCapture,
+    openUrl,
+    fireBeacon,
+    log,
+    ledgerWrites,
+    displayCalls,
+  }
 }
 
 beforeEach(() => {
@@ -82,6 +98,9 @@ describe("orchestrator preferences gating", () => {
       adCache: d.adCache as never,
       ledger: d.ledger as never,
       display: d.display as never,
+      keyCapture: d.keyCapture as never,
+      openUrl: d.openUrl,
+      fireBeacon: d.fireBeacon,
       log: d.log,
       deviceId: "dev-1",
       preferences: prefs,
@@ -107,6 +126,9 @@ describe("orchestrator preferences gating", () => {
       adCache: d.adCache as never,
       ledger: d.ledger as never,
       display: d.display as never,
+      keyCapture: d.keyCapture as never,
+      openUrl: d.openUrl,
+      fireBeacon: d.fireBeacon,
       log: d.log,
       deviceId: "dev-1",
       preferences: prefs,
@@ -115,6 +137,45 @@ describe("orchestrator preferences gating", () => {
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
     // grace fires at 3s, still inside the 60s warmup → suppressed
     await vi.advanceTimersByTimeAsync(3100)
+    expect(d.displayCalls).toHaveLength(0)
+  })
+
+  it("session-start re-anchors sessionStartAt so warmup re-applies per-session", async () => {
+    // bug from PR review #5: sessionStartAt was set once at daemon startup and
+    // never reset, so sessionWarmupMs only fired once per daemon lifetime.
+    // After fix, clearSessionState (triggered by session-start) resets it.
+    const d = makeDeps()
+    const { createOrchestrator } = await import("../orchestrator.js")
+    const prefs: DevdripPreferences = {
+      ...defaultDevdripPreferences(),
+      sessionWarmupMs: 60_000,
+      nightMode: false,
+      quietHoursStart: null,
+      quietHoursEnd: null,
+    }
+    const orch = createOrchestrator({
+      adCache: d.adCache as never,
+      ledger: d.ledger as never,
+      display: d.display as never,
+      keyCapture: d.keyCapture as never,
+      openUrl: d.openUrl,
+      fireBeacon: d.fireBeacon,
+      log: d.log,
+      deviceId: "dev-1",
+      preferences: prefs,
+    })
+
+    // simulate the daemon being idle for 5 minutes — original warmup is over
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+
+    // a new Claude session begins → SessionStart hook fires → state cleared
+    orch.dispatch({ kind: "session-start", now: 5 * 60 * 1000 })
+
+    // the user submits a prompt immediately. Warmup window should now apply
+    // again from this moment, suppressing the first ad of the new session.
+    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 5 * 60 * 1000 })
+    await vi.advanceTimersByTimeAsync(3100)
+
     expect(d.displayCalls).toHaveLength(0)
   })
 
@@ -132,6 +193,9 @@ describe("orchestrator preferences gating", () => {
       adCache: d.adCache as never,
       ledger: d.ledger as never,
       display: d.display as never,
+      keyCapture: d.keyCapture as never,
+      openUrl: d.openUrl,
+      fireBeacon: d.fireBeacon,
       log: d.log,
       deviceId: "dev-1",
       preferences: prefs,

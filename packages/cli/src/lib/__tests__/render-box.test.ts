@@ -20,7 +20,6 @@ describe("renderBox", () => {
     expect(out).toContain(sampleAd.headline)
     expect(out).toContain(sampleAd.body)
     expect(out).toContain("vercel.com")
-    expect(out).toContain("press enter to dismiss")
     expect(out).toMatch(/╔|╗|╚|╝|║|═/)
   })
 
@@ -42,7 +41,6 @@ describe("renderBox", () => {
   it("handles missing body gracefully", () => {
     const out = renderBox({ ...sampleAd, body: undefined }, { source: "Carbon" })
     expect(out).toContain(sampleAd.headline)
-    expect(out).toContain("press enter to dismiss")
   })
 
   it("truncates single long words that exceed inner width", () => {
@@ -86,5 +84,120 @@ describe("renderBox", () => {
     expect(out).not.toContain("\u001b[31m")
     expect(out).not.toContain("\u001b[2J")
     expect(out).not.toContain("\u0007")
+  })
+})
+
+describe("renderBox — extended options", () => {
+  it("accepts width, earningsUsdc, progress without crashing", () => {
+    const out = renderBox(
+      { headline: "H", body: "B", url: "https://x.test" },
+      { width: 80, earningsUsdc: 0.0423, progress: 0.5, ascii: true }
+    )
+    expect(typeof out).toBe("string")
+    expect(out.length).toBeGreaterThan(0)
+  })
+
+  it("clamps width below 40 to 40", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 20, ascii: true })
+    const lines = out.split("\n")
+    for (const line of lines) {
+      if (line.startsWith("+") || line.startsWith("|")) {
+        expect([...line].length).toBeLessThanOrEqual(40)
+      }
+    }
+  })
+
+  it("clamps width above 120 to 120", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 500, ascii: true })
+    const lines = out.split("\n")
+    for (const line of lines) {
+      if (line.startsWith("+") || line.startsWith("|")) {
+        expect([...line].length).toBeLessThanOrEqual(120)
+      }
+    }
+  })
+
+  it("drops the right header segment when source/earnings would overflow at narrow width", () => {
+    // PR review #3: long source segment + earnings + tight width caused the
+    // header to grow past `width`, breaking box alignment. Right segment is
+    // now dropped when fillLen<4.
+    const out = renderBox(
+      { headline: "H", url: "https://x.test" },
+      {
+        width: 40,
+        ascii: true,
+        earningsUsdc: 0.123456789,
+        source: "very-long-source-name-that-overflows",
+      }
+    )
+    const lines = out.split("\n")
+    // header is the first line. its visible length must not exceed the clamped
+    // width (40 — which is also the lower clamp).
+    expect([...(lines[0] ?? "")].length).toBe(40)
+  })
+})
+
+describe("renderBox — action footer", () => {
+  it("includes [D] [S] [K] [M] action keys", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 80, ascii: true })
+    expect(out).toContain("[D]")
+    expect(out).toContain("[S]")
+    expect(out).toContain("[K]")
+    expect(out).toContain("[M]")
+    expect(out).toContain("discover")
+    expect(out).toContain("skip")
+  })
+
+  it("drops 'press enter to dismiss' — superseded by action footer", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 80, ascii: true })
+    expect(out).not.toContain("press enter to dismiss")
+  })
+})
+
+describe("renderBox — progress bar", () => {
+  it("renders filled cells proportional to progress (unicode)", () => {
+    const out = renderBox(
+      { headline: "H", url: "https://x.test" },
+      { width: 80, progress: 0.5, ascii: false }
+    )
+    expect(out).toMatch(/▇+░+/)
+  })
+
+  it("renders filled cells in ASCII mode", () => {
+    const out = renderBox(
+      { headline: "H", url: "https://x.test" },
+      { width: 80, progress: 0.5, ascii: true }
+    )
+    expect(out).toMatch(/#+-+/)
+  })
+
+  it("omits progress row when progress is undefined", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 80, ascii: true })
+    expect(out).not.toMatch(/#+-+/)
+  })
+})
+
+describe("renderBox — earnings header", () => {
+  it("includes formatted earnings in header when provided", () => {
+    const out = renderBox(
+      { headline: "H", url: "https://x.test" },
+      { width: 80, earningsUsdc: 0.0423, ascii: true }
+    )
+    expect(out).toContain("$0.0423")
+    expect(out).toContain("earned")
+  })
+
+  it("omits earnings segment when undefined", () => {
+    const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 80, ascii: true })
+    expect(out).not.toContain("$")
+    expect(out).not.toContain("earned")
+  })
+
+  it("includes source badge when provided", () => {
+    const out = renderBox(
+      { headline: "H", url: "https://x.test" },
+      { width: 80, source: "Carbon", ascii: true }
+    )
+    expect(out).toContain("via Carbon")
   })
 })

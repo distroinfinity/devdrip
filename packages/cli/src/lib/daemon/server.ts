@@ -1,8 +1,17 @@
 import { chmodSync } from "node:fs"
 import { createServer } from "node:net"
-import { parseWireEvent, type WireEvent } from "./protocol.js"
+import {
+  parseWireEvent,
+  type KillEvent,
+  type ReloadConfigEvent,
+  type WireEvent,
+} from "./protocol.js"
 import type { Event } from "./state-machine.js"
 import type { LoggerApi } from "./orchestrator.js"
+
+// Wire events that flow through the state machine. `kill` and `reload-config`
+// are admin control messages intercepted by `handleLine` before reaching here.
+type StateWireEvent = Exclude<WireEvent, KillEvent | ReloadConfigEvent>
 
 export interface DaemonServer {
   close(): Promise<void>
@@ -92,7 +101,7 @@ function handleLine(line: string, opts: StartDaemonServerOpts): void {
   opts.dispatch(toStateEvent(parsed))
 }
 
-function toStateEvent(w: WireEvent): Event {
+function toStateEvent(w: StateWireEvent): Event {
   const now = Date.now()
   switch (w.type) {
     case "idle-start":
@@ -101,9 +110,20 @@ function toStateEvent(w: WireEvent): Event {
       return { kind: "idle-end", now }
     case "dismiss":
       return { kind: "dismiss", now }
-    case "kill":
-    case "reload-config":
-      // handled upstream; still need an exhaustive switch
-      throw new Error(`${w.type} should not reach toStateEvent`)
+    case "session-start":
+      return { kind: "session-start", now }
+    case "action":
+      switch (w.action) {
+        case "discover":
+          return { kind: "discover-key", now }
+        case "skip":
+          return { kind: "skip-key", now }
+        case "kill-session":
+          return { kind: "kill-key", now }
+        case "mute":
+          return { kind: "mute-key", now }
+        case "dismiss":
+          return { kind: "dismiss", now }
+      }
   }
 }

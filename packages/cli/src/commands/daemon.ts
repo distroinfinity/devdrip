@@ -1,11 +1,13 @@
 import { spawn } from "node:child_process"
 import { closeSync, openSync, unwatchFile, watchFile } from "node:fs"
 import { createConnection } from "node:net"
+import { platform } from "node:os"
 import { Command } from "commander"
-import { configPath, readConfig } from "../lib/config.js"
+import { configPath, readConfig, writeConfig } from "../lib/config.js"
 import { openAdCache } from "../lib/ad-cache.js"
 import { openLedger } from "../lib/ledger.js"
 import { showAd } from "../lib/daemon/display.js"
+import { createKeyCapture } from "../lib/daemon/input.js"
 import {
   acquireSingletonLock,
   appendLog,
@@ -186,10 +188,64 @@ export async function runDaemon(): Promise<number> {
     error: (msg: string, fields?: Record<string, unknown>) => appendLog("error", msg, fields),
   }
 
-  const orchestrator = createOrchestrator({
+  // forward declaration: keyCapture.onKey closes over orchestrator, but
+  // orchestrator needs keyCapture passed into createOrchestrator. keys can
+  // only arrive after createOrchestrator returns, so the hoist is safe.
+  // eslint-disable-next-line prefer-const
+  let orchestrator: ReturnType<typeof createOrchestrator>
+
+  const keyCapture = createKeyCapture({
+    onKey: (action) => {
+      const now = Date.now()
+      switch (action) {
+        case "discover":
+          orchestrator.dispatch({ kind: "discover-key", now })
+          return
+        case "skip":
+          orchestrator.dispatch({ kind: "skip-key", now })
+          return
+        case "kill":
+          orchestrator.dispatch({ kind: "kill-key", now })
+          return
+        case "mute":
+          orchestrator.dispatch({ kind: "mute-key", now })
+          return
+        case "dismiss":
+          orchestrator.dispatch({ kind: "dismiss", now })
+          return
+      }
+    },
+    log,
+  })
+
+  const openUrl = (url: string): void => {
+    const cmd = platform() === "darwin" ? "open" : platform() === "win32" ? "start" : "xdg-open"
+    try {
+      const child = spawn(cmd, [url], { detached: true, stdio: "ignore" })
+      child.unref()
+    } catch (err) {
+      log.warn("openUrl spawn failed", { url, error: (err as Error).message })
+    }
+  }
+
+  const fireBeacon = (url: string): void => {
+    fetch(url, { method: "GET" }).catch(() => {})
+  }
+
+  const writePreferencesFn = async (next: typeof cfg.preferences): Promise<void> => {
+    const current = await readConfig()
+    if (!current) return
+    await writeConfig({ ...current, preferences: next })
+  }
+
+  orchestrator = createOrchestrator({
     adCache,
     ledger,
     display: { show: showAd },
+    keyCapture,
+    openUrl,
+    fireBeacon,
+    writePreferences: writePreferencesFn,
     log,
     deviceId: cfg.device.id,
     preferences: cfg.preferences,
