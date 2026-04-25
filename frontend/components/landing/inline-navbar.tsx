@@ -22,20 +22,14 @@ export function InlineNavbar() {
 
         {/* right: nav links + cta */}
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-1">
-            <a
-              href="#"
-              className="font-body text-[13px] text-[var(--ink-secondary)] px-3 py-1.5 rounded-md hover:bg-[var(--bg-surface-hover)] transition-colors"
+          <a
+              href="https://x.com/devdrip_"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden md:block font-body text-[13px] text-[var(--ink-secondary)] px-3 py-1.5 rounded-md hover:bg-[var(--bg-surface-hover)] transition-colors"
             >
-              Docs
+              Twitter
             </a>
-            <a
-              href="#"
-              className="font-body text-[13px] text-[var(--ink-secondary)] px-3 py-1.5 rounded-md hover:bg-[var(--bg-surface-hover)] transition-colors"
-            >
-              GitHub
-            </a>
-          </div>
           <WaitlistButton href="#waitlist" className="h-9 px-5 text-[13px]" />
         </div>
       </nav>
