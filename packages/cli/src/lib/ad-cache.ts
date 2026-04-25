@@ -12,14 +12,16 @@ import { configDir } from "./config.js"
 const CACHE_TTL_MS = 8 * 60 * 1000
 const REFRESH_THRESHOLD = 3
 const BATCH_SIZE = 10
-const CACHE_FILE_VERSION = 1
+// bumped to 2 for S3-05: cached ads now carry cpmRate. Version mismatch drops
+// the file so stale caches without the field don't crash the toast renderer.
+const CACHE_FILE_VERSION = 2
 
 export interface CachedAd extends ServedAdPayload {
   cacheSource: "api" | "demo"
 }
 
 interface CacheFile {
-  version: 1
+  version: 2
   // identity scope — delivery tokens are bound to a (user, device, surface).
   // if any of these drifts (re-auth, device re-register, surface change),
   // the cache is dropped to avoid serving ads that can never be credited.
@@ -60,6 +62,7 @@ interface BatchResponseAd {
   body?: string
   url: string
   display_time_ms: number
+  cpm_rate?: number
   delivery_token: string
   impression_beacon_url?: string | null
   click_tracking_url?: string | null
@@ -74,6 +77,9 @@ function toCachedAd(a: BatchResponseAd): CachedAd {
     body: a.body,
     url: a.url,
     displayTimeMs: a.display_time_ms,
+    // older API builds may not yet emit cpm_rate; fall back to 0 so the toast
+    // simply shows no delta rather than NaN. backend catch-up fixes the value.
+    cpmRate: a.cpm_rate ?? 0,
     deliveryToken: a.delivery_token,
     impressionBeaconUrl: a.impression_beacon_url ?? undefined,
     clickTrackingUrl: a.click_tracking_url ?? undefined,

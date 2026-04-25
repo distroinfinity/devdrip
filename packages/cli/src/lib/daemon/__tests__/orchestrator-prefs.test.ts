@@ -11,6 +11,7 @@ const ad: CachedAd = {
   body: "B",
   url: "https://x",
   displayTimeMs: 8000,
+  cpmRate: 5,
   deliveryToken: "tok",
   impressionBeaconUrl: undefined,
   clickTrackingUrl: undefined,
@@ -41,13 +42,20 @@ function makeDeps() {
     listUnsynced: vi.fn(() => []),
     markSynced: vi.fn(),
     unsyncedCount: vi.fn(() => 0),
+    sumTodayOptimistic: vi.fn(() => 0),
     close: vi.fn(),
   }
   const display = {
     show: vi.fn((tty: string | null, a: CachedAd, _ctx: unknown) => {
       displayCalls.push({ tty, adId: a.id })
-      return { vanish: () => ({ latencyMs: 0 }), onResize: vi.fn(), flash: vi.fn() }
+      return {
+        vanish: () => ({ latencyMs: 0 }),
+        onResize: vi.fn(),
+        flash: vi.fn(),
+        updateProgress: vi.fn(),
+      }
     }),
+    showToast: vi.fn(),
   }
   const keyCapture = {
     start: vi.fn(),

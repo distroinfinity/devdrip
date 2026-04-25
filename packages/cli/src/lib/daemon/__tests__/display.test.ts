@@ -30,6 +30,7 @@ const ad = {
   headline: "H",
   url: "https://x.test",
   displayTimeMs: 8000,
+  cpmRate: 5,
   deliveryToken: "tok",
   cacheSource: "api" as const,
 }

@@ -68,6 +68,7 @@ function toAdResponse(ad: ServedAdPayload) {
     body: ad.body,
     url: ad.url,
     display_time_ms: ad.displayTimeMs,
+    cpm_rate: ad.cpmRate,
     delivery_token: ad.deliveryToken,
     impression_beacon_url: ad.impressionBeaconUrl ?? null,
     click_tracking_url: ad.clickTrackingUrl ?? null,
