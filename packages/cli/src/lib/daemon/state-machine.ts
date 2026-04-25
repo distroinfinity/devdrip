@@ -5,8 +5,6 @@ import {
   MAX_AD_DURATION_MS,
   MIN_COMPLETED_DURATION_MS,
   MUTE_DURATION_MS,
-  REVENUE_SHARE_DEVELOPER,
-  VALID_IMPRESSION_FOR_TOAST_MS,
 } from "@devdrip/shared"
 import type { CachedAd } from "../ad-cache.js"
 import type { ImpressionResult, LocalImpression } from "../ledger.js"
@@ -46,15 +44,14 @@ export type Effect =
   | { kind: "openDiscover"; ad: CachedAd }
   // S3-04: drive the progress bar while the ad is on screen. orchestrator
   // runs a 500ms interval keyed on `shownAt` and pushes the tick to display.
-  | { kind: "startProgressTimer"; shownAt: number; displayTimeMs: number }
+  // The same tick drives the S3-05 earnings popup animation (in-box, top-
+  // right) so both live in one render loop. The ad is carried here so the
+  // tick can compute cpm-based popup decisions without re-reading state.
+  | { kind: "startProgressTimer"; shownAt: number; displayTimeMs: number; ad: CachedAd }
   | { kind: "cancelProgressTimer" }
   // S3-04: on completed/stop, snap to 100% and hold briefly before the box
   // vanishes so the jump reads as a deliberate finish, not a cold cut.
   | { kind: "snapProgressToComplete" }
-  // S3-05: after a qualifying impression, show a one-line earnings toast in
-  // the same bottom pane where the ad just lived. orchestrator pulls the
-  // optimistic `today` total from the local ledger.
-  | { kind: "showEarningsToast"; deltaUsdc: number }
 
 export interface Ctx {
   deviceId: string
@@ -128,7 +125,7 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
       effects: [
         { kind: "displayAd", tty: state.tty, ad: event.ad },
         { kind: "startVanishTimer", ms },
-        { kind: "startProgressTimer", shownAt: event.now, displayTimeMs: ms },
+        { kind: "startProgressTimer", shownAt: event.now, displayTimeMs: ms, ad: event.ad },
       ],
     }
   }
@@ -231,7 +228,7 @@ function stepInterAd(state: Extract<State, { kind: "INTER_AD" }>, event: Event):
       effects: [
         { kind: "displayAd", tty: state.tty, ad: event.ad },
         { kind: "startVanishTimer", ms },
-        { kind: "startProgressTimer", shownAt: event.now, displayTimeMs: ms },
+        { kind: "startProgressTimer", shownAt: event.now, displayTimeMs: ms, ad: event.ad },
       ],
     }
   }
@@ -259,21 +256,11 @@ function endShowing(
     durationMs,
     result,
     deviceId: ctx.deviceId,
-    // carry the server-advertised CPM into the ledger row so the earnings
-    // toast on the NEXT ad can sum today's optimistic total without an API
-    // round-trip. backend recomputes authoritative earnings at sync time.
+    // carry the server-advertised CPM into the ledger row so today's running
+    // total stays accurate without an API round-trip. backend recomputes
+    // authoritative earnings at sync time.
     cpmRate: state.ad.cacheSource === "api" ? cpmRate : null,
   }
-
-  // S3-05 toast gate: only surface earnings when the user actually watched,
-  // it was a real (non-demo) ad, and the CPM is non-zero. otherwise suppress
-  // — a "+$0.00 earned" toast is a worse signal than no toast.
-  const toastEligible =
-    result === "completed" &&
-    durationMs >= VALID_IMPRESSION_FOR_TOAST_MS &&
-    state.ad.cacheSource === "api" &&
-    cpmRate > 0
-  const deltaUsdc = toastEligible ? (cpmRate / 1000) * REVENUE_SHARE_DEVELOPER : 0
 
   // effect order matters. the orchestrator interprets `snapProgressToComplete`
   // as "flush a 100% frame, then pause PROGRESS_SNAP_HOLD_MS before running
@@ -286,9 +273,6 @@ function endShowing(
     { kind: "cancelVanishTimer" },
     { kind: "recordImpression", impression, ad: state.ad },
   ]
-  if (toastEligible) {
-    cleanup.push({ kind: "showEarningsToast", deltaUsdc })
-  }
 
   if (goToInterAd) {
     return {
