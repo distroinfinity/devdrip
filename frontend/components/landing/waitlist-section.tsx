@@ -39,11 +39,11 @@ export function WaitlistSection() {
     <section
       id="waitlist"
       aria-labelledby="waitlist-heading"
-      className="relative bg-[var(--bg-secondary)] overflow-hidden"
+      className="relative bg-[var(--bg-secondary)] overflow-hidden scroll-mt-20"
     >
-      <DotGrid opacity={0.3} variant="heartbeat" />
+      <DotGrid opacity={0.18} variant="heartbeat" />
 
-      <div className="relative mx-auto max-w-grid px-6 py-16 lg:py-24">
+      <div className="relative mx-auto max-w-grid px-6 py-20">
         <div className="flex flex-col items-center text-center gap-6">
           <BlurFade inView delay={0}>
             <div className="flex flex-col items-center">
