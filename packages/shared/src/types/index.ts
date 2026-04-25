@@ -101,6 +101,22 @@ export interface UserPreferences {
   dataSharingConsent: boolean
 }
 
+// Local, user-editable preferences persisted in ~/.devdrip/config.json.
+// Distinct from UserPreferences (server-side shape) because the CLI owns
+// the warmup + night-mode toggle and the server doesn't model those yet.
+export interface DevdripPreferences {
+  blockedCategories: AdCategory[]
+  maxPerHour: number
+  maxPerDay: number
+  sessionWarmupMs: number
+  // local hour (0-23); null = unset. wraparound allowed (start=22, end=7).
+  quietHoursStart: number | null
+  quietHoursEnd: number | null
+  // convenience: when true AND no custom quiet hours set, daemon treats 22→07 as quiet.
+  nightMode: boolean
+  tzOffsetMinutes: number
+}
+
 export interface User {
   id: string
   email: string
