@@ -13,13 +13,15 @@ import { devicesRouter } from "./routes/devices.js"
 import { advertisersRouter } from "./routes/advertisers.js"
 import { campaignsRouter } from "./routes/campaigns.js"
 import { adsRouter } from "./routes/ads.js"
-import { impressionsRouter } from "./routes/impressions.js"
-import { clicksRouter } from "./routes/clicks.js"
+import { ingestRouter } from "./routes/ingest.js"
 import { adminStatsRouter } from "./routes/admin-stats.js"
 import { adminUsersRouter } from "./routes/admin-users.js"
 import { adminPayoutsRouter } from "./routes/admin-payouts.js"
 import { invitesRouter } from "./routes/invites.js"
 import { mePreferencesRouter } from "./routes/me-preferences.js"
+import { meEarningsRouter } from "./routes/me-earnings.js"
+import { meAnalyticsRouter } from "./routes/me-analytics.js"
+import { adminReportsRouter } from "./routes/admin-reports.js"
 import { requireAuth } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
 import { globalLimiter, userLimiter, adminLimiter } from "./middleware/rate-limit.js"
@@ -32,7 +34,7 @@ export const app: Express = express()
 app.set("trust proxy", 1)
 app.use(helmet())
 app.use(cors({ origin: env.allowedOrigins, credentials: true }))
-app.use(express.json())
+app.use(express.json({ limit: "1mb" }))
 app.use(cookieParser())
 app.use(
   pinoHttp({
@@ -62,8 +64,7 @@ app.use("/admin/users", requireAdmin, adminLimiter, adminUsersRouter)
 app.use("/admin/payouts", requireAdmin, adminLimiter, adminPayoutsRouter)
 app.use("/invites", requireAdmin, adminLimiter, invitesRouter)
 app.use("/ads", requireAuth, userLimiter, adsRouter)
-app.use("/impressions", requireAuth, userLimiter, impressionsRouter)
-app.use("/clicks", requireAuth, userLimiter, clicksRouter)
+app.use("/ingest", requireAuth, ingestRouter)
 
 app.get("/me", requireAuth, userLimiter, async (_req, res) => {
   const userId = res.locals["userId"] as string
@@ -86,5 +87,8 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
 })
 
 app.use("/me", requireAuth, userLimiter, mePreferencesRouter)
+app.use("/me/earnings", requireAuth, userLimiter, meEarningsRouter)
+app.use("/me/analytics", requireAuth, userLimiter, meAnalyticsRouter)
+app.use("/admin/reports", requireAdmin, adminLimiter, adminReportsRouter)
 
 app.use(errorHandler)

@@ -171,6 +171,37 @@ async function tryRefresh(cfg: DevdripConfig, baseUrl: string): Promise<DevdripC
   }
 }
 
+export interface IngestItemResultImpression {
+  ok: boolean
+  deliveryToken: string
+  impressionId?: string
+  earnedAmount?: number
+  result?: string
+  error?: string
+}
+
+export interface IngestItemResultClick {
+  ok: boolean
+  deliveryToken: string
+  clickId?: string
+  earningsDelta?: number
+  error?: string
+}
+
+export interface IngestResponse {
+  impressions: IngestItemResultImpression[]
+  clicks: IngestItemResultClick[]
+}
+
+export interface IngestRequest {
+  impressions: { deliveryToken: string }[]
+  clicks: { deliveryToken: string }[]
+}
+
+export async function postIngest(body: IngestRequest): Promise<IngestResponse> {
+  return apiFetch<IngestResponse>("/ingest", { method: "POST", body })
+}
+
 export function reportError(err: unknown): never {
   if (err instanceof NotAuthenticatedError) {
     console.error(err.message)
