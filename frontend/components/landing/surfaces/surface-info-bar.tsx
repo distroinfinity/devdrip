@@ -1,17 +1,21 @@
-"use client";
-
 interface SurfaceInfoBarProps {
   earning: string;
   dismiss: string;
   detail: string;
+  description?: string;
 }
 
-export function SurfaceInfoBar({ earning, dismiss, detail }: SurfaceInfoBarProps) {
+export function SurfaceInfoBar({ earning, dismiss, detail, description }: SurfaceInfoBarProps) {
   return (
     <div className="mt-4 pt-4 border-t border-[var(--rule-default)]">
-      <p className="font-body text-body-s text-[var(--ink-secondary)] mb-3 leading-relaxed italic">
+      <p className="font-body text-body-s text-[var(--ink-secondary)] mb-1 leading-relaxed italic">
         {detail}
       </p>
+      {description && (
+        <p className="font-body text-[12px] text-[var(--ink-tertiary)] mb-3 leading-relaxed">
+          {description}
+        </p>
+      )}
       <div className="flex flex-wrap gap-6">
         <div>
           <div className="font-body text-[9px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.08em] mb-1">
