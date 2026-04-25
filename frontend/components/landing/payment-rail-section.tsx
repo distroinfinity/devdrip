@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, type RefObject } from "react";
+import { useRef, useEffect, useState, type RefObject, type Ref, type FC } from "react";
 import { BlurFade } from "@/components/ui/blur-fade";
 import { AnimatedBeam } from "@/components/ui/animated-beam";
 import { DotGrid } from "@/components/shared/dot-grid";
@@ -153,7 +153,7 @@ function StaticDashedBeam({
 const nodeBase =
   "rounded-md border bg-[var(--bg-surface)] flex items-center";
 
-function HubNode({ nodeRef }: { nodeRef?: React.Ref<HTMLDivElement> }) {
+function HubNode({ nodeRef }: { nodeRef?: Ref<HTMLDivElement> }) {
   return (
     <div
       ref={nodeRef}
@@ -180,7 +180,7 @@ function HubNode({ nodeRef }: { nodeRef?: React.Ref<HTMLDivElement> }) {
 
 interface RailConfig {
   name: string;
-  logo: React.FC<{ className?: string }>;
+  logo: FC<{ className?: string }>;
   active: boolean;
   badge: string;
 }
@@ -197,7 +197,7 @@ function RailNode({
   nodeRef,
 }: {
   rail: RailConfig;
-  nodeRef?: React.Ref<HTMLDivElement>;
+  nodeRef?: Ref<HTMLDivElement>;
 }) {
   const Logo = rail.logo;
 
@@ -208,7 +208,7 @@ function RailNode({
         nodeBase,
         "px-5 py-4 gap-3 min-w-[200px]",
         rail.active
-          ? "border-[var(--rule-strong)] opacity-100 shadow-accent-sm"
+          ? "border-[var(--rule-strong)] opacity-100 shadow-md"
           : "border-dashed border-[var(--rule-default)] opacity-40"
       )}
     >
@@ -252,6 +252,7 @@ const BEAM_END_X = -90;
 function DesktopFlow() {
   const containerRef = useRef<HTMLDivElement>(null);
   const hubRef = useRef<HTMLDivElement>(null);
+  // length must match RAILS
   const railRefs = [
     useRef<HTMLDivElement>(null),
     useRef<HTMLDivElement>(null),
@@ -335,7 +336,7 @@ function MobileFlow() {
       {RAILS.map((rail) => (
         <div key={rail.name} className="flex flex-col items-center">
           <div className="w-px h-6 border-l border-dashed border-[var(--ink-faint)]" />
-          <div className={cn(rail.active && "border-l-2 border-l-[var(--accent-color)]")}>
+          <div className={cn(rail.active && "border-l-2 border-l-[var(--rule-strong)]")}>
             <RailNode rail={rail} />
           </div>
         </div>
@@ -401,7 +402,7 @@ export function PaymentRailSection() {
             <MobileFlow />
           </BlurFade>
 
-          {/* data strip — 4 metrics */}
+          {/* data strip — 3 metrics */}
           <BlurFade inView delay={0.15}>
             <DataStrip data={RAIL_METRICS} separator="rule" />
           </BlurFade>
