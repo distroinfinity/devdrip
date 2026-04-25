@@ -45,7 +45,7 @@ export default function Home() {
             { name: "Your Rules", link: "#your-rules" },
             { name: "Payment Rail", link: "#payment-rail" },
           ]}
-          ctaLabel="Join Waitlist"
+          ctaLabel="Request Access"
           ctaHref="#waitlist"
         />
 
