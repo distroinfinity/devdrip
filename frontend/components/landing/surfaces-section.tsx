@@ -197,9 +197,10 @@ export function SurfacesSection() {
   }, []);
 
   return (
-    <section id="surfaces" className="relative overflow-hidden mx-auto max-w-grid px-6 py-20 scroll-mt-20">
+    <section id="surfaces" className="relative overflow-hidden scroll-mt-20">
       <DotGrid opacity={0.15} variant="static" />
-      <div className="relative">
+
+      <div className="relative mx-auto max-w-grid px-6 py-20">
         {/* header */}
         <BlurFade inView delay={0}>
           <div className="font-body text-[10px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.1em] mb-3">
