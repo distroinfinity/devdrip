@@ -12,7 +12,7 @@ export const env = {
   port: Number(optionalEnv("PORT", "3001")),
   nodeEnv: optionalEnv("NODE_ENV", "development"),
   get dbTarget(): "local" | "neon" {
-    const val = optionalEnv("DB_TARGET", "neon")
+    const val = optionalEnv("DB_TARGET", "local")
     if (val !== "local" && val !== "neon")
       throw new Error(`DB_TARGET must be "local" or "neon", got "${val}"`)
     return val
@@ -67,4 +67,22 @@ export const env = {
     if (origins.length === 0) throw new Error("ALLOWED_ORIGINS must contain at least one origin")
     return origins
   },
+}
+
+/**
+ * Refuses to boot if we'd be pointing a dev process at the deployed Neon DB.
+ * Escape hatch: DEVDRIP_ALLOW_NEON_IN_DEV=1 for deliberate integration testing
+ * against Neon from a dev machine.
+ */
+export function assertEnvSafe(): void {
+  if (env.nodeEnv !== "development") return
+  if (env.dbTarget !== "neon") return
+  if (process.env["DEVDRIP_ALLOW_NEON_IN_DEV"] === "1") return
+
+  throw new Error(
+    "refusing to start: NODE_ENV=development with DB_TARGET=neon. " +
+      "switch to local (set DB_TARGET=local and run `docker compose up -d postgres` " +
+      "from the repo root), or, to deliberately test against neon, re-run with " +
+      "DEVDRIP_ALLOW_NEON_IN_DEV=1"
+  )
 }

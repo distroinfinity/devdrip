@@ -8,41 +8,63 @@
 - GitHub OAuth app credentials for auth flow testing
 - Upstash Redis credentials only for production-like rate-limit testing; in development (`NODE_ENV=development` without `UPSTASH_REDIS_REST_URL`) the API falls back to an in-memory store
 
-## Local Postgres via Docker
+## Local Postgres via Docker Compose
 
-A ready-to-use image is already provisioned on most dev machines as container `devdrip-postgres`. Start or create it:
+Local dev runs against a Dockerized Postgres, never the Neon DB. A `docker-compose.yml` at the repo root defines the service; all worktrees share one container via compose project name `devdrip-dev`. The API startup guard refuses `NODE_ENV=development` + `DB_TARGET=neon` unless `DEVDRIP_ALLOW_NEON_IN_DEV=1` is set.
+
+**Secrets handling:** the compose file requires `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` via `${VAR:?…}` interpolation — no literals live in committed sources. Real values go in a **gitignored `.env` at the repo root**; `.env.example` documents the shape with `change-me` placeholders. `setup-worktree.sh --db-up` bootstraps `.env` with local-only defaults on first run. If you change `POSTGRES_PASSWORD`, update `DATABASE_URL_LOCAL` in `packages/api/.env` to match.
+
+From inside a worktree:
 
 ```bash
-# reuse an existing container
-docker start devdrip-postgres
+# bring up postgres + wait for healthy
+bash ~/.superset/worktrees/devdrip/setup-worktree.sh --db-up
 
-# or create one fresh
-docker run -d --name devdrip-postgres \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=devdrip \
-  -p 5432:5432 \
-  postgres:16-alpine
+# apply migrations against it
+pnpm --filter @devdrip/api db:migrate
+
+# status / stop / wipe (with confirmation)
+bash ~/.superset/worktrees/devdrip/setup-worktree.sh --db-status
+bash ~/.superset/worktrees/devdrip/setup-worktree.sh --db-down
+bash ~/.superset/worktrees/devdrip/setup-worktree.sh --db-reset
 ```
 
-Then in `packages/api/.env`:
+A fresh worktree can skip most of this — the full-setup mode does it automatically:
 
 ```bash
-DB_TARGET=local
-DATABASE_URL_LOCAL=postgresql://postgres:postgres@localhost:5432/devdrip
-DATABASE_URL_LOCAL_UNPOOLED=postgresql://postgres:postgres@localhost:5432/devdrip
+bash ~/.superset/worktrees/devdrip/setup-worktree.sh
+# → pnpm install → .env copy → docker up → wait healthy → migrate → tests
 ```
 
-Apply the schema once:
+### Env matrix
+
+| Variable                    | development (default)                                   | test                   | staging/production                 |
+| --------------------------- | ------------------------------------------------------- | ---------------------- | ---------------------------------- |
+| `NODE_ENV`                  | `development`                                           | `test` (set by vitest) | `production`                       |
+| `DB_TARGET`                 | `local`                                                 | unset (tests mock DB)  | `neon`                             |
+| `DATABASE_URL_LOCAL*`       | `postgres://devdrip:devdrip@localhost:5432/devdrip_dev` | —                      | —                                  |
+| `DATABASE_URL*`             | commented in `.env.shared`                              | —                      | Railway env vars                   |
+| `GITHUB_CLIENT_*`           | DevDrip Local OAuth app                                 | no-op test values      | DevDrip OAuth app                  |
+| `UPSTASH_REDIS_REST_*`      | unset → in-memory `TestRedis` fallback                  | unset → `TestRedis`    | real Upstash creds                 |
+| `DEVDRIP_ALLOW_NEON_IN_DEV` | unset                                                   | —                      | — (guard not active in production) |
+
+### Deliberately testing against Neon locally
+
+If you need to reproduce a prod-only data issue without deploying, uncomment the `DATABASE_URL*` lines in `.env.shared` (or your worktree's `.env`), set `DB_TARGET=neon`, and pass `DEVDRIP_ALLOW_NEON_IN_DEV=1`:
 
 ```bash
-pnpm --filter @devdrip/api db:push
+DB_TARGET=neon DEVDRIP_ALLOW_NEON_IN_DEV=1 pnpm --filter @devdrip/api dev
 ```
 
-Seed optional demo data:
+Without `DEVDRIP_ALLOW_NEON_IN_DEV=1`, the API refuses to start with an explicit "switch to local" message. This exists because every dev touching the same Neon DB was the cause of the S2-06 schema-drift incident.
+
+### Shared env file + drift detection
+
+`~/.superset/worktrees/devdrip/.env.shared` is the source of truth copied to `packages/api/.env` on each worktree setup. If you pull new secrets or defaults into the shared file later, refresh existing worktrees:
 
 ```bash
-pnpm --filter @devdrip/api db:seed
+bash ~/.superset/worktrees/devdrip/setup-worktree.sh --check-env  # lists drift
+bash ~/.superset/worktrees/devdrip/setup-worktree.sh --sync-env   # overwrite (backs up existing as .env.bak.<ts>)
 ```
 
 ## Install
@@ -93,8 +115,8 @@ Copy values from `packages/api/.env.example`.
 
 Important toggles:
 
-- `DB_TARGET=local` uses `DATABASE_URL_LOCAL`
-- `DB_TARGET=neon` uses `DATABASE_URL`
+- `DB_TARGET=local` (default in dev) uses `DATABASE_URL_LOCAL` → Docker Postgres
+- `DB_TARGET=neon` uses `DATABASE_URL` → Neon (deployed envs; requires `DEVDRIP_ALLOW_NEON_IN_DEV=1` in dev)
 
 Important runtime vars:
 
@@ -139,17 +161,6 @@ node packages/cli/dist/index.js admin invite generate --count 3
 ```
 
 All admin commands read the secret from `DEVDRIP_ADMIN_SECRET` (or `ADMIN_SECRET`) and the base URL from `DEVDRIP_API_URL` (default `http://localhost:3000`).
-
-## Current Validation Status In This Environment
-
-During documentation work, root validation could not be executed because dependencies are not installed in the current workspace snapshot.
-
-Observed result:
-
-- `pnpm test` fails because `turbo` is not available yet
-- `pnpm typecheck` fails for the same reason
-
-This is an environment issue, not a documented product behavior issue.
 
 ## Suggested Starting Points
 
