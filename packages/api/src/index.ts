@@ -1,20 +1,40 @@
 import "dotenv/config"
+import type { Socket } from "node:net"
 import express from "express"
 import type { Request, Response, NextFunction } from "express"
 import cookieParser from "cookie-parser"
+import { pinoHttp } from "pino-http"
 import { env } from "./config/env.js"
+import { logger } from "./lib/logger.js"
+import { probeDb, probeRedis } from "./lib/probes.js"
+import { healthRouter } from "./routes/health.js"
 import { authRouter } from "./routes/auth.js"
 import { devicesRouter } from "./routes/devices.js"
 import { requireAuth } from "./middleware/auth.js"
 import { globalLimiter, userLimiter } from "./middleware/rate-limit.js"
 
+const REDACTED_HEADERS = new Set(["authorization", "cookie", "set-cookie"])
+
 const app = express()
 app.set("trust proxy", 1)
 app.use(express.json())
 app.use(cookieParser())
-app.get("/health", async (_req, res) => {
-  await res.json({ ok: true })
-})
+app.use(
+  pinoHttp({
+    logger,
+    serializers: {
+      req(raw: Request) {
+        const headers: Record<string, string | string[] | undefined> = {}
+        for (const [k, v] of Object.entries(raw.headers)) {
+          headers[k] = REDACTED_HEADERS.has(k) ? "[redacted]" : v
+        }
+        return { method: raw.method, url: raw.url, headers }
+      },
+    },
+  })
+)
+
+app.use("/health", healthRouter)
 
 app.use(globalLimiter)
 
@@ -26,10 +46,56 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
 })
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("unhandled error:", err)
+  logger.error({ err }, "unhandled error")
   res.status(500).json({ error: err.message })
 })
 
-app.listen(env.port, () => {
-  console.log(`api listening on :${env.port}`)
+// ── startup ────────────────────────────────────────────────────────────────
+async function start() {
+  const [dbResult, redisResult] = await Promise.allSettled([probeDb(), probeRedis()])
+
+  if (dbResult.status === "fulfilled") {
+    logger.info("db connection ok")
+  } else {
+    logger.fatal({ err: dbResult.reason }, "db connection failed — exiting")
+    process.exit(1)
+  }
+
+  if (redisResult.status === "fulfilled") {
+    logger.info("redis connection ok")
+  } else {
+    logger.warn({ err: redisResult.reason }, "redis connection failed")
+  }
+
+  const server = app.listen(env.port, () => {
+    logger.info({ port: env.port }, "api listening")
+  })
+
+  // track sockets so shutdown can drain keep-alive connections
+  const openSockets = new Set<Socket>()
+  server.on("connection", (socket) => {
+    openSockets.add(socket)
+    socket.on("close", () => openSockets.delete(socket))
+  })
+
+  function shutdown(signal: string) {
+    logger.info({ signal }, "shutting down")
+    for (const socket of openSockets) socket.destroy()
+    server.close(() => {
+      logger.info("http server closed")
+      process.exit(0)
+    })
+    setTimeout(() => {
+      logger.warn("forced shutdown after timeout")
+      process.exit(1)
+    }, 10_000).unref()
+  }
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"))
+  process.on("SIGINT", () => shutdown("SIGINT"))
+}
+
+start().catch((err) => {
+  logger.fatal({ err }, "startup failed")
+  process.exit(1)
 })
