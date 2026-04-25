@@ -46,7 +46,6 @@ interface SurfaceTab {
   earningRate: string;
   dismissMechanism: string;
   keyDetail: string;
-  description: string;
 }
 
 const SURFACES: SurfaceTab[] = [
@@ -56,9 +55,7 @@ const SURFACES: SurfaceTab[] = [
     icon: Monitor,
     earningRate: "$0.02/view",
     dismissMechanism: "[S]kip  [D]iscover  [M]ute 30min",
-    keyDetail: "Rendered in pure ANSI. Feels like it belongs.",
-    description:
-      "When your agent is thinking, a small bordered panel appears below the output. It shows a developer tool you might actually want to know about. Press S to skip. Press D to discover. Press M to mute for 30 minutes. It vanishes the instant you type.",
+    keyDetail: "Pure ANSI. Feels like it belongs.",
   },
   {
     id: "companion-tab",
@@ -67,8 +64,6 @@ const SURFACES: SurfaceTab[] = [
     earningRate: "$0.03/view",
     dismissMechanism: "Tab auto-closes on resume",
     keyDetail: "Opens alongside your code. Never steals focus.",
-    description:
-      "A new editor tab opens unfocused alongside your active file. Rich content — interactive demos, tool recommendations, sponsored tips. Your cursor stays in your code. The tab closes within 200ms when you start typing.",
   },
   {
     id: "idle-widget",
@@ -76,9 +71,7 @@ const SURFACES: SurfaceTab[] = [
     icon: AppWindow,
     earningRate: "$0.02/view",
     dismissMechanism: "[Minimize] to pill",
-    keyDetail: "Works across any IDE. Minimizes to a pill.",
-    description:
-      "A floating mini-player shows sponsor content alongside your agent's progress bar and earnings streak. Minimizes to a tiny pill showing your running total. Works with any tool — not tied to a specific IDE.",
+    keyDetail: "Any IDE. Minimizes to a pill.",
   },
   {
     id: "morning-digest",
@@ -86,9 +79,7 @@ const SURFACES: SurfaceTab[] = [
     icon: Newspaper,
     earningRate: "$0.01/view",
     dismissMechanism: "[Dismiss All]  [Show fewer]",
-    keyDetail: "2–3 curated items at session start. That's it.",
-    description:
-      "When you open your IDE in the morning or return from a break, a brief digest shows 2–3 curated items — a tool launch, a coding tip, a role. Yesterday's earnings are right there. Dismiss all with one click.",
+    keyDetail: "2\u20133 items at session start. That\u2019s it.",
   },
   {
     id: "sponsored-challenge",
@@ -96,9 +87,7 @@ const SURFACES: SurfaceTab[] = [
     icon: Trophy,
     earningRate: "$0.10/challenge",
     dismissMechanism: "[S]kip challenge",
-    keyDetail: "Earn $0.10 while learning. Recruiters pay, you benefit.",
-    description:
-      "During longer agent tasks, an optional coding question appears. Answer correctly to earn a bonus. Challenges are genuinely educational — a MongoDB aggregation question teaches a real skill. Recruiters sponsor it, you learn and earn.",
+    keyDetail: "Earn $0.10 solving real problems.",
   },
   {
     id: "audio-companion",
@@ -106,9 +95,7 @@ const SURFACES: SurfaceTab[] = [
     icon: Volume2,
     earningRate: "$0.02/listen",
     dismissMechanism: "Any keystroke mutes instantly",
-    keyDetail: "Eyes stay on terminal. 15 seconds max.",
-    description:
-      "A short audio clip plays during agent work — a dev tip, a 15-second product pitch. Your eyes stay on the terminal output. Text transcript appears for accessibility. Any keystroke mutes it instantly.",
+    keyDetail: "Eyes on terminal. 15 seconds max.",
   },
 ];
 
@@ -210,8 +197,7 @@ export function SurfacesSection() {
             Six ways to earn. All optional.
           </h2>
           <p className="font-body text-body text-[var(--ink-secondary)] max-w-[600px] mb-10">
-            Each surface is native to its environment. Monospace in the terminal.
-            A tab in VS Code. A card at session start. You pick which ones run.
+            Native to each environment. You pick which ones run.
           </p>
         </BlurFade>
 
@@ -292,7 +278,6 @@ export function SurfacesSection() {
                     earning={activeSurface.earningRate}
                     dismiss={activeSurface.dismissMechanism}
                     detail={activeSurface.keyDetail}
-                    description={activeSurface.description}
                   />
                 </motion.div>
               </AnimatePresence>
@@ -306,7 +291,6 @@ export function SurfacesSection() {
             {[
               "Every surface is opt-in individually",
               "Content matches environment",
-              "One-keypress dismiss on all surfaces",
             ].map((item) => (
               <span
                 key={item}
