@@ -119,6 +119,7 @@ async function ensureDevice(): Promise<{ deviceId: string }> {
     user: cfg.user,
     device: { id: device.id },
     cli: cfg.cli,
+    preferences: cfg.preferences,
   })
   const status = previousId && previousId === device.id ? "confirmed" : "registered"
   log.success(`device ${status}: ${hostname()} (${platform()}/${device.ideType})`)
@@ -178,6 +179,7 @@ async function installHooks(): Promise<void> {
       user: cfg.user,
       device: cfg.device,
       cli: { binPath },
+      preferences: cfg.preferences,
     })
   }
 

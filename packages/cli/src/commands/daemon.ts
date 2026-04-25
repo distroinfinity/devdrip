@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process"
-import { closeSync, openSync } from "node:fs"
+import { closeSync, openSync, unwatchFile, watchFile } from "node:fs"
 import { createConnection } from "node:net"
 import { Command } from "commander"
-import { readConfig } from "../lib/config.js"
+import { configPath, readConfig } from "../lib/config.js"
 import { openAdCache } from "../lib/ad-cache.js"
 import { openLedger } from "../lib/ledger.js"
 import { showAd } from "../lib/daemon/display.js"
@@ -192,7 +192,33 @@ export async function runDaemon(): Promise<number> {
     display: { show: showAd },
     log,
     deviceId: cfg.device.id,
+    preferences: cfg.preferences,
   })
+
+  let lastCategoriesFingerprint = cfg.preferences.blockedCategories.slice().sort().join(",")
+
+  async function reloadPreferences(source: "socket" | "file"): Promise<void> {
+    try {
+      const next = await readConfig()
+      if (!next) return
+      orchestrator.updatePreferences(next.preferences)
+      const nextFp = next.preferences.blockedCategories.slice().sort().join(",")
+      if (nextFp !== lastCategoriesFingerprint) {
+        lastCategoriesFingerprint = nextFp
+        // blocked categories changed — the existing cache may still contain
+        // now-blocked ads. Force a refresh so the next display reflects the
+        // new blocklist (backend applies the server-side filter on fetch).
+        adCache.refreshNow().catch((err: Error) => {
+          log.warn("ad-cache refresh after preference change failed", {
+            error: err.message,
+          })
+        })
+      }
+      log.info("config reloaded", { source })
+    } catch (err) {
+      log.warn("config reload failed", { error: (err as Error).message })
+    }
+  }
 
   const started: Heartbeat = {
     version: 1,
@@ -210,6 +236,9 @@ export async function runDaemon(): Promise<number> {
     onKill: () => {
       void shutdown()
     },
+    onReloadConfig: () => {
+      void reloadPreferences("socket")
+    },
     log,
   })
 
@@ -225,11 +254,21 @@ export async function runDaemon(): Promise<number> {
     })
   }, HEARTBEAT_INTERVAL_MS)
 
+  // Poll-based watcher — fs.watch on macOS intermittently misses
+  // atomic rename-in-place writes from writeConfig(); watchFile polling at
+  // 1s is dull but reliable at MVP scale.
+  const watchedConfig = configPath()
+  watchFile(watchedConfig, { interval: 1000 }, (curr, prev) => {
+    if (curr.mtimeMs === prev.mtimeMs) return
+    void reloadPreferences("file")
+  })
+
   let shuttingDown = false
   async function shutdown(): Promise<void> {
     if (shuttingDown) return
     shuttingDown = true
     clearInterval(heartbeatInterval)
+    unwatchFile(watchedConfig)
     await orchestrator.shutdown()
     await server.close()
     unlinkSocketIfExists(socketPath)

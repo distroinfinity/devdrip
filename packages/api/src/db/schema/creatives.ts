@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm"
 import {
   pgEnum,
   pgTable,
@@ -7,6 +8,7 @@ import {
   boolean,
   timestamp,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core"
 import { campaigns } from "./campaigns.js"
 
@@ -68,5 +70,13 @@ export const creatives = pgTable(
   (t) => [
     index("creatives_source_active_idx").on(t.source, t.isActive),
     index("creatives_category_idx").on(t.category),
+    // Partial unique index required by the Carbon ephemeral-creative upsert
+    // (see carbon-ad.provider.ts — ON CONFLICT (source, external_creative_id)
+    // WHERE external_creative_id IS NOT NULL). Declared here so drizzle-kit
+    // push keeps it in sync; the SQL migration 0003_carbon_ads_integration
+    // defines the same thing for migrate-based deployments.
+    uniqueIndex("creatives_source_ext_id_uniq")
+      .on(t.source, t.externalCreativeId)
+      .where(sql`${t.externalCreativeId} IS NOT NULL`),
   ]
 )
