@@ -215,6 +215,38 @@ export interface Payout {
   confirmedAt?: string
 }
 
+// ── admin ───────────────────────────────────────────────────────────────────
+
+export interface AdminStatsBlock {
+  impressionsCount: number
+  spendUsdc: number
+  earningsUsdc: number
+}
+
+export interface AdminStats {
+  today: AdminStatsBlock
+  lifetime: AdminStatsBlock
+  // live snapshot — not date-filtered, so lives outside the today/lifetime blocks
+  activeCampaignsCount: number
+}
+
+export interface InviteCode {
+  id: string
+  code: string
+  usedBy: string | null
+  usedAt: string | null
+  createdAt: string
+}
+
+export interface AdminUser {
+  id: string
+  githubLogin: string | null
+  email: string
+  hasWallet: boolean
+  lifetimeEarningsUsdc: number
+  createdAt: string
+}
+
 // ── ad provider ────────────────────────────────────────────────────────────
 
 export { type AdRequest, type AdProvider } from "./ad-provider.js"
