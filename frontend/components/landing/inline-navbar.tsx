@@ -26,9 +26,12 @@ export function InlineNavbar() {
               href="https://x.com/devdrip_"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden md:block font-body text-[13px] text-[var(--ink-secondary)] px-3 py-1.5 rounded-md hover:bg-[var(--bg-surface-hover)] transition-colors"
+              aria-label="X (Twitter)"
+              className="hidden md:flex items-center text-[var(--ink-secondary)] px-3 py-1.5 rounded-md hover:bg-[var(--bg-surface-hover)] hover:text-[var(--ink-primary)] transition-colors"
             >
-              Twitter
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
             </a>
           <WaitlistButton href="#waitlist" className="h-9 px-5 text-[13px]" />
         </div>
