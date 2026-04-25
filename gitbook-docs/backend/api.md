@@ -233,6 +233,44 @@ Errors:
 - `401 invalid_token`
 - `404 user_not_found`
 
+### PUT /me/preferences
+
+Upsert the current user's preferences row. Only keys present in the body are written; unspecified columns preserve prior values.
+
+**Request body** (all keys optional):
+
+```json
+{
+  "blockedCategories": ["developer-recruiting"],
+  "tzOffsetMinutes": -330
+}
+```
+
+**Validation:**
+
+- `blockedCategories` — array; each element must be a valid `AdCategory` enum value.
+- `tzOffsetMinutes` — integer in `[-720, 840]`.
+- Unknown top-level keys → 400 `{ error: "unknown_field" }`.
+
+**Response (200):**
+
+```json
+{
+  "preferences": {
+    "blockedCategories": ["developer-recruiting"],
+    "enabledSurfaces": ["terminal-tv"],
+    "maxPerHour": 8,
+    "maxPerDay": 60,
+    "quietHoursStart": null,
+    "quietHoursEnd": null,
+    "tzOffsetMinutes": -330,
+    "idleSensitivityMs": 10000
+  }
+}
+```
+
+**Scope note (S4-06).** This endpoint is the `PUT` half only. `GET /preferences`, the daemon's 30-min sync loop, and the dashboard preferences UI remain in S4-06.
+
 ## `POST /devices`
 
 Purpose:

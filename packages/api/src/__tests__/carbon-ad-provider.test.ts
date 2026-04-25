@@ -93,11 +93,14 @@ describe("CarbonAdProvider", () => {
     expect(carbonAdProvider.name).toBe("carbon")
   })
 
-  it("returns empty array when carbonZoneKey is empty", async () => {
+  it("uses SDK demo defaults when carbonZoneKey is empty", async () => {
     ;(env as Record<string, unknown>).carbonZoneKey = ""
+    vi.mocked(mockFetchAd).mockResolvedValueOnce(null)
+
     const result = await carbonAdProvider.fetchAds(baseRequest())
+
+    expect(mockFetchAd).toHaveBeenCalledWith({ placement: "test-app" })
     expect(result).toEqual([])
-    expect(mockFetchAd).not.toHaveBeenCalled()
   })
 
   it("returns empty array when Carbon SDK returns null", async () => {

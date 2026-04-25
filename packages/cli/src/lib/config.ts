@@ -3,10 +3,10 @@ import { chmod, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/pro
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-export const CONFIG_VERSION = 1
+export const CONFIG_VERSION = 2
 
 export interface DevdripConfig {
-  version: number
+  version: 2
   apiUrl: string
   auth: {
     accessToken: string
@@ -19,6 +19,8 @@ export interface DevdripConfig {
     email: string
     avatarUrl: string | null
   }
+  device: { id: string | null }
+  cli: { binPath: string }
 }
 
 export function configDir(): string {
@@ -29,25 +31,65 @@ export function configPath(): string {
   return join(configDir(), "config.json")
 }
 
+interface RawConfigV1 {
+  version: 1
+  apiUrl: string
+  auth: DevdripConfig["auth"]
+  user: DevdripConfig["user"]
+}
+
+export class UnsupportedConfigVersionError extends Error {
+  constructor(version: unknown) {
+    super(
+      `unsupported config version ${String(version)} in ${configPath()} — run \`devdrip auth --force\` to recreate it`
+    )
+    this.name = "UnsupportedConfigVersionError"
+  }
+}
+
+function migrate(parsed: Record<string, unknown>): DevdripConfig {
+  const version = parsed["version"]
+  if (version === CONFIG_VERSION) {
+    const v2 = parsed as unknown as DevdripConfig
+    return {
+      ...v2,
+      device: v2.device ?? { id: null },
+      cli: v2.cli ?? { binPath: "" },
+    }
+  }
+  if (version === 1) {
+    const v1 = parsed as unknown as RawConfigV1
+    return {
+      version: CONFIG_VERSION,
+      apiUrl: v1.apiUrl,
+      auth: v1.auth,
+      user: v1.user,
+      device: { id: null },
+      cli: { binPath: "" },
+    }
+  }
+  throw new UnsupportedConfigVersionError(version)
+}
+
 export async function readConfig(): Promise<DevdripConfig | null> {
   try {
     const raw = await readFile(configPath(), "utf8")
-    const parsed = JSON.parse(raw) as DevdripConfig
-    if (parsed.version !== CONFIG_VERSION) return null
-    return parsed
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    return migrate(parsed)
   } catch (err) {
     if (isNotFound(err)) return null
     throw err
   }
 }
 
-export async function writeConfig(cfg: DevdripConfig): Promise<void> {
+export async function writeConfig(cfg: Omit<DevdripConfig, "version">): Promise<void> {
   const dir = configDir()
   const target = configPath()
   const tmp = join(dir, `.config.${randomBytes(6).toString("hex")}.tmp`)
 
   await mkdir(dir, { recursive: true, mode: 0o700 })
-  await writeFile(tmp, JSON.stringify(cfg, null, 2), { mode: 0o600 })
+  const toWrite: DevdripConfig = { ...cfg, version: CONFIG_VERSION }
+  await writeFile(tmp, JSON.stringify(toWrite, null, 2), { mode: 0o600 })
   await chmod(tmp, 0o600)
   await rename(tmp, target)
   // some filesystems preserve source mode on rename; re-chmod to be safe
