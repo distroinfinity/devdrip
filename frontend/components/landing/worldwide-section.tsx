@@ -1,20 +1,20 @@
-"use client";
+"use client"
 
-import { useRef } from "react";
-import { motion, useInView } from "motion/react";
-import { BlurFade } from "@/components/ui/blur-fade";
-import { DotGrid } from "@/components/shared/dot-grid";
-import { NumberTicker } from "@/components/ui/number-ticker";
-import { cn } from "@/lib/utils";
+import { useRef } from "react"
+import { motion, useInView } from "motion/react"
+import { BlurFade } from "@/components/ui/blur-fade"
+import { DotGrid } from "@/components/shared/dot-grid"
+import { NumberTicker } from "@/components/ui/number-ticker"
+import { cn } from "@/lib/utils"
 
 // --- data ---
 
-const ANNUAL_AI_COST = 20 * 12; // $240/yr
+const ANNUAL_AI_COST = 20 * 12 // $240/yr
 
 interface MarketData {
-  country: string;
-  medianSalary: number;
-  percentOfIncome: number;
+  country: string
+  medianSalary: number
+  percentOfIncome: number
 }
 
 const MARKETS: MarketData[] = [
@@ -25,9 +25,9 @@ const MARKETS: MarketData[] = [
 ].map((m) => ({
   ...m,
   percentOfIncome: parseFloat(((ANNUAL_AI_COST / m.medianSalary) * 100).toFixed(2)),
-}));
+}))
 
-const MAX_PERCENT = Math.max(...MARKETS.map((m) => m.percentOfIncome));
+const MAX_PERCENT = Math.max(...MARKETS.map((m) => m.percentOfIncome))
 
 // --- bar row ---
 
@@ -36,17 +36,17 @@ function MarketBar({
   index,
   isInView,
 }: {
-  market: MarketData;
-  index: number;
-  isInView: boolean;
+  market: MarketData
+  index: number
+  isInView: boolean
 }) {
-  const barWidth = (market.percentOfIncome / MAX_PERCENT) * 100;
+  const barWidth = (market.percentOfIncome / MAX_PERCENT) * 100
 
   return (
     <div
       className={cn(
         "grid grid-cols-[100px_1fr_56px] lg:grid-cols-[160px_1fr_80px] items-center gap-3 py-3",
-        index < MARKETS.length - 1 && "border-b border-[var(--rule-subtle)]",
+        index < MARKETS.length - 1 && "border-b border-[var(--rule-subtle)]"
       )}
     >
       {/* country + salary */}
@@ -85,14 +85,14 @@ function MarketBar({
         </span>
       </div>
     </div>
-  );
+  )
 }
 
 // --- income comparison chart ---
 
 function IncomeComparisonBars() {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  const ref = useRef<HTMLDivElement>(null)
+  const isInView = useInView(ref, { once: true, margin: "-50px" })
 
   return (
     <div ref={ref} className="w-full max-w-content">
@@ -107,7 +107,7 @@ function IncomeComparisonBars() {
         </span>
       </div>
     </div>
-  );
+  )
 }
 
 // --- section ---
@@ -145,8 +145,7 @@ export function WorldwideSection() {
                 $20/month is 0.2% in the US. In Bangalore, Lagos, or São Paulo, it&apos;s 3–5%.
               </p>
               <p className="font-body text-body font-semibold text-[var(--ink-primary)]">
-                Dev Drip exists so the cost of AI tools doesn&apos;t determine
-                who gets to use them.
+                Dev Drip exists so the cost of AI tools doesn&apos;t determine who gets to use them.
               </p>
             </div>
           </BlurFade>
@@ -158,5 +157,5 @@ export function WorldwideSection() {
         </div>
       </div>
     </section>
-  );
+  )
 }

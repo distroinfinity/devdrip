@@ -1,14 +1,6 @@
 "use client"
 
-import {
-  Children,
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react"
+import { Children, createContext, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { motion, MotionProps, useInView } from "motion/react"
 
 import { cn } from "@/lib/utils"
@@ -247,9 +239,5 @@ export const Terminal = ({
 
   if (!sequence) return content
 
-  return (
-    <SequenceContext.Provider value={contextValue}>
-      {content}
-    </SequenceContext.Provider>
-  )
+  return <SequenceContext.Provider value={contextValue}>{content}</SequenceContext.Provider>
 }

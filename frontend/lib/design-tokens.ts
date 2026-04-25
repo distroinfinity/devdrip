@@ -31,7 +31,7 @@ export const tokens = {
     light: { DEFAULT: "#4F46E5", hover: "#4338CA", glow: "rgba(79,70,229,0.15)", muted: "#C7D2FE" },
     dark: { DEFAULT: "#6366F1", hover: "#818CF8", glow: "rgba(99,102,241,0.2)", muted: "#312E81" },
   },
-} as const;
+} as const
 
 // terminal TV is always dark regardless of theme
 export const terminalColors = {
@@ -42,4 +42,4 @@ export const terminalColors = {
   textSecondary: "#8A8A94",
   textTertiary: "#5C5C66",
   textFaint: "#3A3A40",
-} as const;
+} as const

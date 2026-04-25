@@ -1,29 +1,19 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
 
 interface DataPoint {
-  label: string;
-  value: string;
+  label: string
+  value: string
 }
 
 interface DataStripProps {
-  data: DataPoint[];
-  separator?: "rule" | "spacing";
-  className?: string;
+  data: DataPoint[]
+  separator?: "rule" | "spacing"
+  className?: string
 }
 
-export function DataStrip({
-  data,
-  separator = "spacing",
-  className,
-}: DataStripProps) {
+export function DataStrip({ data, separator = "spacing", className }: DataStripProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-wrap gap-8",
-        separator === "rule" && "gap-0",
-        className,
-      )}
-    >
+    <div className={cn("flex flex-wrap gap-8", separator === "rule" && "gap-0", className)}>
       {data.map((point, i) => (
         <div key={i} className="flex items-center">
           {separator === "rule" && i > 0 && (
@@ -40,5 +30,5 @@ export function DataStrip({
         </div>
       ))}
     </div>
-  );
+  )
 }

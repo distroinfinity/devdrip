@@ -1,13 +1,13 @@
-"use client";
+"use client"
 
-import { cn } from "@/lib/utils";
-import { BlurFade } from "@/components/ui/blur-fade";
-import { DotGrid } from "@/components/shared/dot-grid";
-import { EncryptedText } from "@/components/ui/encrypted-text";
-import { WaitlistButton } from "@/components/shared/waitlist-button";
-import { HeroVisual } from "./hero-visual";
-import { HeroDataStrip } from "./hero-data-strip";
-import { ScrollNudge } from "./scroll-nudge";
+import { cn } from "@/lib/utils"
+import { BlurFade } from "@/components/ui/blur-fade"
+import { DotGrid } from "@/components/shared/dot-grid"
+import { EncryptedText } from "@/components/ui/encrypted-text"
+import { WaitlistButton } from "@/components/shared/waitlist-button"
+import { HeroVisual } from "./hero-visual"
+import { HeroDataStrip } from "./hero-data-strip"
+import { ScrollNudge } from "./scroll-nudge"
 
 export function HeroSection() {
   return (
@@ -60,7 +60,10 @@ export function HeroSection() {
 
           {/* cta */}
           <BlurFade delay={1.35} direction="up" duration={0.35} inView>
-            <WaitlistButton href="#waitlist" className="hover:-translate-y-px hover:shadow-md transition-transform" />
+            <WaitlistButton
+              href="#waitlist"
+              className="hover:-translate-y-px hover:shadow-md transition-transform"
+            />
           </BlurFade>
         </div>
 
@@ -76,5 +79,5 @@ export function HeroSection() {
         <ScrollNudge />
       </div>
     </section>
-  );
+  )
 }

@@ -1,23 +1,23 @@
-"use client";
+"use client"
 
-import { useRef, useEffect, useState, type RefObject, type Ref, type FC } from "react";
-import { BlurFade } from "@/components/ui/blur-fade";
-import { AnimatedBeam } from "@/components/ui/animated-beam";
-import { DotGrid } from "@/components/shared/dot-grid";
-import { DataStrip } from "@/components/shared/data-strip";
-import { cn } from "@/lib/utils";
+import { useRef, useEffect, useState, type RefObject, type Ref, type FC } from "react"
+import { BlurFade } from "@/components/ui/blur-fade"
+import { AnimatedBeam } from "@/components/ui/animated-beam"
+import { DotGrid } from "@/components/shared/dot-grid"
+import { DataStrip } from "@/components/shared/data-strip"
+import { cn } from "@/lib/utils"
 
 // --- data ---
 
 const RAIL_METRICS = [
   { label: "min payout", value: "$1.00" },
   { label: "settlement", value: "instant" },
-];
+]
 
 const TRUST_FACTS = [
   "Cash out to your bank anytime",
   "Real-time balance in dashboard + CLI",
-] as const;
+] as const
 
 // --- brand logos (inline SVG, currentColor) ---
 
@@ -31,7 +31,7 @@ function BaseLogo({ className }: { className?: string }) {
       className={cn("rounded-full object-cover shrink-0", className)}
       style={{ width: 28, height: 28 }}
     />
-  );
+  )
 }
 
 function CeloLogo({ className }: { className?: string }) {
@@ -44,7 +44,7 @@ function CeloLogo({ className }: { className?: string }) {
       className={cn("rounded-full object-cover shrink-0", className)}
       style={{ width: 28, height: 28 }}
     />
-  );
+  )
 }
 
 function StripeLogo({ className }: { className?: string }) {
@@ -57,7 +57,7 @@ function StripeLogo({ className }: { className?: string }) {
     >
       <path d="M13.479 9.883c0-1.04.47-1.81 1.37-1.81.86 0 1.31.73 1.31 1.77 0 1.87-1.01 2.89-2.13 2.89-.37 0-.73-.09-.98-.24l.02-2.16.42-.46Zm-3.05 3.56c0 .56.19.95.66 1.2.43.24 1.06.36 1.84.36 2.74 0 4.7-1.86 4.7-4.56 0-2.28-1.39-3.76-3.54-3.76-.8 0-1.5.21-2.01.53V4.5L10.43 5v8.06l.02.03-.04.34ZM7.1 13.98c.94 0 1.6-.2 2.13-.56l-.42-.98c-.4.22-.85.35-1.48.35-.92 0-1.44-.51-1.44-1.4 0-.84.56-1.42 1.38-1.42.5 0 .94.13 1.34.37l.42-1.02c-.52-.31-1.18-.48-1.86-.48-1.7 0-2.88 1.1-2.88 2.62 0 1.56 1.06 2.52 2.81 2.52Z" />
     </svg>
-  );
+  )
 }
 
 function PayPalLogo({ className }: { className?: string }) {
@@ -70,7 +70,7 @@ function PayPalLogo({ className }: { className?: string }) {
     >
       <path d="M7.076 21.337H5.47a.641.641 0 0 1-.633-.74L7.128 5.16a.768.768 0 0 1 .758-.648h4.734c1.573 0 2.756.395 3.515 1.173.636.652.954 1.56.945 2.699-.032 3.014-2.112 4.646-5.2 4.646h-1.31a.768.768 0 0 0-.758.648l-.836 5.446a.64.64 0 0 1-.633.54l-1.267.313ZM15.867 5.754c.058.64-.005 1.37-.2 2.18-.78 3.244-3.123 4.345-5.8 4.345h-.467l-.91 5.756h2.196l.75-4.787h1.297c3.08 0 5.39-1.725 5.9-4.98.238-1.513-.03-2.7-.766-3.514Z" />
     </svg>
-  );
+  )
 }
 
 function UpiLogo({ className }: { className?: string }) {
@@ -83,21 +83,21 @@ function UpiLogo({ className }: { className?: string }) {
     >
       <path d="M5.5 4h3.2l5.3 8.5V4H17v16h-3l-5.5-8.8V20H5.5V4Z" />
     </svg>
-  );
+  )
 }
 
 // --- static dashed beam (mirrors AnimatedBeam's ref-measurement logic) ---
 
 interface StaticDashedBeamProps {
-  containerRef: RefObject<HTMLElement | null>;
-  fromRef: RefObject<HTMLElement | null>;
-  toRef: RefObject<HTMLElement | null>;
-  curvature?: number;
-  startXOffset?: number;
-  startYOffset?: number;
-  endXOffset?: number;
-  endYOffset?: number;
-  className?: string;
+  containerRef: RefObject<HTMLElement | null>
+  fromRef: RefObject<HTMLElement | null>
+  toRef: RefObject<HTMLElement | null>
+  curvature?: number
+  startXOffset?: number
+  startYOffset?: number
+  endXOffset?: number
+  endYOffset?: number
+  className?: string
 }
 
 function StaticDashedBeam({
@@ -111,32 +111,32 @@ function StaticDashedBeam({
   endYOffset = 0,
   className,
 }: StaticDashedBeamProps) {
-  const [pathD, setPathD] = useState("");
-  const [dims, setDims] = useState({ width: 0, height: 0 });
+  const [pathD, setPathD] = useState("")
+  const [dims, setDims] = useState({ width: 0, height: 0 })
 
   useEffect(() => {
     const update = () => {
-      if (!containerRef.current || !fromRef.current || !toRef.current) return;
-      const cr = containerRef.current.getBoundingClientRect();
-      const fr = fromRef.current.getBoundingClientRect();
-      const tr = toRef.current.getBoundingClientRect();
+      if (!containerRef.current || !fromRef.current || !toRef.current) return
+      const cr = containerRef.current.getBoundingClientRect()
+      const fr = fromRef.current.getBoundingClientRect()
+      const tr = toRef.current.getBoundingClientRect()
 
-      setDims({ width: cr.width, height: cr.height });
+      setDims({ width: cr.width, height: cr.height })
 
-      const sx = fr.left - cr.left + fr.width / 2 + startXOffset;
-      const sy = fr.top - cr.top + fr.height / 2 + startYOffset;
-      const ex = tr.left - cr.left + tr.width / 2 + endXOffset;
-      const ey = tr.top - cr.top + tr.height / 2 + endYOffset;
-      const cy = sy - curvature;
+      const sx = fr.left - cr.left + fr.width / 2 + startXOffset
+      const sy = fr.top - cr.top + fr.height / 2 + startYOffset
+      const ex = tr.left - cr.left + tr.width / 2 + endXOffset
+      const ey = tr.top - cr.top + tr.height / 2 + endYOffset
+      const cy = sy - curvature
 
-      setPathD(`M ${sx},${sy} Q ${(sx + ex) / 2},${cy} ${ex},${ey}`);
-    };
+      setPathD(`M ${sx},${sy} Q ${(sx + ex) / 2},${cy} ${ex},${ey}`)
+    }
 
-    const ro = new ResizeObserver(update);
-    if (containerRef.current) ro.observe(containerRef.current);
-    update();
-    return () => ro.disconnect();
-  }, [containerRef, fromRef, toRef, curvature, startXOffset, startYOffset, endXOffset, endYOffset]);
+    const ro = new ResizeObserver(update)
+    if (containerRef.current) ro.observe(containerRef.current)
+    update()
+    return () => ro.disconnect()
+  }, [containerRef, fromRef, toRef, curvature, startXOffset, startYOffset, endXOffset, endYOffset])
 
   return (
     <svg
@@ -156,20 +156,16 @@ function StaticDashedBeam({
         fill="none"
       />
     </svg>
-  );
+  )
 }
 
 // --- hub node (Dev Drip platform) ---
 
-const nodeBase =
-  "rounded-md border bg-[var(--bg-surface)] flex items-center";
+const nodeBase = "rounded-md border bg-[var(--bg-surface)] flex items-center"
 
 function HubNode({ nodeRef }: { nodeRef?: Ref<HTMLDivElement> }) {
   return (
-    <div
-      ref={nodeRef}
-      className={cn(nodeBase, "border-[var(--rule-default)] px-6 py-5 gap-4")}
-    >
+    <div ref={nodeRef} className={cn(nodeBase, "border-[var(--rule-default)] px-6 py-5 gap-4")}>
       <div className="w-12 h-12 rounded-full bg-[var(--bg-inset)] flex items-center justify-center shrink-0">
         <span className="font-display text-[22px] font-bold text-[var(--ink-primary)] leading-none">
           DD
@@ -184,16 +180,16 @@ function HubNode({ nodeRef }: { nodeRef?: Ref<HTMLDivElement> }) {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 // --- rail node (payment rail endpoint) ---
 
 interface RailConfig {
-  name: string;
-  logos: FC<{ className?: string }>[];
-  active: boolean;
-  badge: string;
+  name: string
+  logos: FC<{ className?: string }>[]
+  active: boolean
+  badge: string
 }
 
 const RAILS: RailConfig[] = [
@@ -201,15 +197,9 @@ const RAILS: RailConfig[] = [
   { name: "Stripe", logos: [StripeLogo], active: false, badge: "soon" },
   { name: "PayPal", logos: [PayPalLogo], active: false, badge: "soon" },
   { name: "UPI", logos: [UpiLogo], active: false, badge: "soon" },
-];
+]
 
-function RailNode({
-  rail,
-  nodeRef,
-}: {
-  rail: RailConfig;
-  nodeRef?: Ref<HTMLDivElement>;
-}) {
+function RailNode({ rail, nodeRef }: { rail: RailConfig; nodeRef?: Ref<HTMLDivElement> }) {
   return (
     <div
       ref={nodeRef}
@@ -225,7 +215,9 @@ function RailNode({
         {rail.logos.map((Logo, i) => (
           <Logo
             key={i}
-            className={rail.active ? "text-[var(--ink-primary)]" : "text-[var(--ink-faint)] opacity-50"}
+            className={
+              rail.active ? "text-[var(--ink-primary)]" : "text-[var(--ink-faint)] opacity-50"
+            }
           />
         ))}
       </div>
@@ -233,9 +225,7 @@ function RailNode({
         <span
           className={cn(
             "font-body text-[15px] font-semibold leading-tight",
-            rail.active
-              ? "text-[var(--ink-primary)]"
-              : "text-[var(--ink-faint)]"
+            rail.active ? "text-[var(--ink-primary)]" : "text-[var(--ink-faint)]"
           )}
         >
           {rail.name}
@@ -252,28 +242,28 @@ function RailNode({
         {rail.badge}
       </span>
     </div>
-  );
+  )
 }
 
 // --- desktop flow (hub-and-spoke with beams) ---
 
 // beam offsets: start from right edge of hub, end at left edge of rail
-const BEAM_START_X = 90;
-const BEAM_END_X = -90;
+const BEAM_START_X = 90
+const BEAM_END_X = -90
 
 function DesktopFlow() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const hubRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null)
+  const hubRef = useRef<HTMLDivElement>(null)
   // length must match RAILS
   const railRefs = [
     useRef<HTMLDivElement>(null),
     useRef<HTMLDivElement>(null),
     useRef<HTMLDivElement>(null),
     useRef<HTMLDivElement>(null),
-  ];
+  ]
 
   // gentle arcs fanning from hub to each rail
-  const curvatures = [50, 18, -18, -50];
+  const curvatures = [50, 18, -18, -50]
 
   return (
     <div
@@ -336,7 +326,7 @@ function DesktopFlow() {
         />
       ))}
     </div>
-  );
+  )
 }
 
 // --- mobile flow (vertical stack, no SVG) ---
@@ -354,7 +344,7 @@ function MobileFlow() {
         </div>
       ))}
     </div>
-  );
+  )
 }
 
 // --- trust facts ---
@@ -364,16 +354,12 @@ function TrustFacts() {
     <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
       {TRUST_FACTS.map((fact, i) => (
         <span key={i} className="flex items-center gap-2">
-          {i > 0 && (
-            <span className="text-[var(--ink-faint)] text-[8px]">·</span>
-          )}
-          <span className="font-body text-[11px] text-[var(--ink-tertiary)]">
-            {fact}
-          </span>
+          {i > 0 && <span className="text-[var(--ink-faint)] text-[8px]">·</span>}
+          <span className="font-body text-[11px] text-[var(--ink-tertiary)]">{fact}</span>
         </span>
       ))}
     </div>
-  );
+  )
 }
 
 // --- section ---
@@ -402,8 +388,7 @@ export function PaymentRailSection() {
                 Sub-cent fees. Real dollars.
               </h2>
               <p className="font-body text-body text-[var(--ink-secondary)] max-w-[480px]">
-                USD on Base and Celo. Micropayments need sub-cent fees.
-                More rails coming.
+                USD on Base and Celo. Micropayments need sub-cent fees. More rails coming.
               </p>
             </div>
           </BlurFade>
@@ -426,5 +411,5 @@ export function PaymentRailSection() {
         </div>
       </div>
     </section>
-  );
+  )
 }

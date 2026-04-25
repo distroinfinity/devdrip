@@ -1,14 +1,14 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
+import { useState } from "react"
+import { motion } from "motion/react"
+import { cn } from "@/lib/utils"
 
 type Tab = {
-  title: string;
-  value: string;
-  content?: string | React.ReactNode | any;
-};
+  title: string
+  value: string
+  content?: string | React.ReactNode | any
+}
 
 export const Tabs = ({
   tabs: propTabs,
@@ -17,24 +17,24 @@ export const Tabs = ({
   tabClassName,
   contentClassName,
 }: {
-  tabs: Tab[];
-  containerClassName?: string;
-  activeTabClassName?: string;
-  tabClassName?: string;
-  contentClassName?: string;
+  tabs: Tab[]
+  containerClassName?: string
+  activeTabClassName?: string
+  tabClassName?: string
+  contentClassName?: string
 }) => {
-  const [active, setActive] = useState<Tab>(propTabs[0]);
-  const [tabs, setTabs] = useState<Tab[]>(propTabs);
+  const [active, setActive] = useState<Tab>(propTabs[0])
+  const [tabs, setTabs] = useState<Tab[]>(propTabs)
 
   const moveSelectedTabToTop = (idx: number) => {
-    const newTabs = [...propTabs];
-    const selectedTab = newTabs.splice(idx, 1);
-    newTabs.unshift(selectedTab[0]);
-    setTabs(newTabs);
-    setActive(newTabs[0]);
-  };
+    const newTabs = [...propTabs]
+    const selectedTab = newTabs.splice(idx, 1)
+    newTabs.unshift(selectedTab[0])
+    setTabs(newTabs)
+    setActive(newTabs[0])
+  }
 
-  const [hovering, setHovering] = useState(false);
+  const [hovering, setHovering] = useState(false)
 
   return (
     <>
@@ -52,7 +52,7 @@ export const Tabs = ({
             aria-selected={active.value === tab.value}
             aria-controls={`tabpanel-${tab.value}`}
             onClick={() => {
-              moveSelectedTabToTop(idx);
+              moveSelectedTabToTop(idx)
             }}
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
@@ -72,9 +72,7 @@ export const Tabs = ({
               />
             )}
 
-            <span className="relative block text-[var(--ink-primary)]">
-              {tab.title}
-            </span>
+            <span className="relative block text-[var(--ink-primary)]">{tab.title}</span>
           </button>
         ))}
       </div>
@@ -86,23 +84,23 @@ export const Tabs = ({
         className={cn("mt-32", contentClassName)}
       />
     </>
-  );
-};
+  )
+}
 
 export const FadeInDiv = ({
   className,
   tabs,
   hovering,
 }: {
-  className?: string;
-  key?: string;
-  tabs: Tab[];
-  active: Tab;
-  hovering?: boolean;
+  className?: string
+  key?: string
+  tabs: Tab[]
+  active: Tab
+  hovering?: boolean
 }) => {
   const isActive = (tab: Tab) => {
-    return tab.value === tabs[0].value;
-  };
+    return tab.value === tabs[0].value
+  }
   return (
     <div className="relative w-full h-full">
       {tabs.map((tab, idx) => (
@@ -127,5 +125,5 @@ export const FadeInDiv = ({
         </motion.div>
       ))}
     </div>
-  );
-};
+  )
+}

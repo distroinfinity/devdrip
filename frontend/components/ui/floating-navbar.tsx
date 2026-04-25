@@ -1,12 +1,7 @@
-"use client";
-import React, { useState } from "react";
-import {
-  motion,
-  AnimatePresence,
-  useScroll,
-  useMotionValueEvent,
-} from "motion/react";
-import { cn } from "@/lib/utils";
+"use client"
+import React, { useState } from "react"
+import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "motion/react"
+import { cn } from "@/lib/utils"
 
 export const FloatingNav = ({
   navItems,
@@ -16,33 +11,33 @@ export const FloatingNav = ({
   onCtaClick,
 }: {
   navItems: {
-    name: string;
-    link: string;
-    icon?: React.ReactNode;
-  }[];
-  className?: string;
-  ctaLabel?: string;
-  ctaHref?: string;
-  onCtaClick?: () => void;
+    name: string
+    link: string
+    icon?: React.ReactNode
+  }[]
+  className?: string
+  ctaLabel?: string
+  ctaHref?: string
+  onCtaClick?: () => void
 }) => {
-  const { scrollYProgress } = useScroll();
-  const [visible, setVisible] = useState(false);
+  const { scrollYProgress } = useScroll()
+  const [visible, setVisible] = useState(false)
 
   useMotionValueEvent(scrollYProgress, "change", (current) => {
     if (typeof current === "number") {
-      const direction = current - scrollYProgress.getPrevious()!;
+      const direction = current - scrollYProgress.getPrevious()!
 
       if (scrollYProgress.get() < 0.05) {
-        setVisible(false);
+        setVisible(false)
       } else {
         if (direction < 0) {
-          setVisible(true);
+          setVisible(true)
         } else {
-          setVisible(false);
+          setVisible(false)
         }
       }
     }
-  });
+  })
 
   return (
     <AnimatePresence mode="wait">
@@ -63,7 +58,10 @@ export const FloatingNav = ({
           className
         )}
       >
-        <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--rule-default)] bg-[var(--bg-surface)] px-2 py-1.5 shadow-md backdrop-blur-md" style={{ backgroundColor: "color-mix(in srgb, var(--bg-surface) 90%, transparent)" }}>
+        <div
+          className="flex items-center justify-center gap-2 rounded-full border border-[var(--rule-default)] bg-[var(--bg-surface)] px-2 py-1.5 shadow-md backdrop-blur-md"
+          style={{ backgroundColor: "color-mix(in srgb, var(--bg-surface) 90%, transparent)" }}
+        >
           <div className="hidden sm:flex items-center gap-1">
             {navItems.map((navItem, idx: number) => (
               <a
@@ -96,5 +94,5 @@ export const FloatingNav = ({
         </div>
       </motion.div>
     </AnimatePresence>
-  );
-};
+  )
+}
