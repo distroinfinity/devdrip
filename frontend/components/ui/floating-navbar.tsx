@@ -64,7 +64,7 @@ export const FloatingNav = ({
         )}
       >
         <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--rule-default)] bg-[var(--bg-surface)] px-2 py-1.5 shadow-md backdrop-blur-md" style={{ backgroundColor: "color-mix(in srgb, var(--bg-surface) 90%, transparent)" }}>
-          <div className="flex items-center gap-1">
+          <div className="hidden sm:flex items-center gap-1">
             {navItems.map((navItem, idx: number) => (
               <a
                 key={`link-${idx}`}
