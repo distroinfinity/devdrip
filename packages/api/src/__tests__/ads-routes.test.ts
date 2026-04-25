@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest"
-import { MAX_AD_DURATION_MS } from "@devdrip/shared"
+import { MAX_AD_DURATION_MS, AdSurface } from "@devdrip/shared"
 import type { ServedAdPayload } from "@devdrip/shared"
 
 // set JWT_SECRET before any imports that access env
@@ -192,6 +192,49 @@ describe("ads route handlers", () => {
         .set("Authorization", `Bearer ${validToken}`)
 
       expect(res.status).toBe(403)
+    })
+
+    it("serves ad when enabledSurfaces is empty array (treats empty as all-enabled)", async () => {
+      // empty array must not block serving — semantically identical to no prefs row
+      mockSelectFrom.mockImplementation((table: unknown) => {
+        if (table === devices) {
+          return {
+            where: vi
+              .fn()
+              .mockResolvedValue([
+                { id: TEST_DEVICE_ID, userId: TEST_USER_ID, os: "darwin", ideType: "terminal" },
+              ]),
+          }
+        }
+        if (table === preferences) {
+          return {
+            where: vi.fn().mockResolvedValue([
+              {
+                blockedCategories: [],
+                enabledSurfaces: [],
+                maxPerHour: 8,
+                maxPerDay: 60,
+                quietHoursStart: null,
+                quietHoursEnd: null,
+                tzOffsetMinutes: 0,
+              },
+            ]),
+          }
+        }
+        return { where: vi.fn().mockResolvedValue([]) }
+      })
+      mockFetchServedAds.mockResolvedValue([fakeServedAd("ad-empty-surfaces")])
+
+      const res = await request(app)
+        .get("/ads/next")
+        .query({ deviceId: TEST_DEVICE_ID, surface: "terminal-tv" })
+        .set("Authorization", `Bearer ${validToken}`)
+
+      expect(mockFetchServedAds).toHaveBeenCalledOnce()
+      const passedRequest = mockFetchServedAds.mock.calls[0]?.[0]
+      expect(passedRequest?.enabledSurfaces).toEqual(Object.values(AdSurface))
+      expect(res.status).toBe(200)
+      expect(res.body.ad.id).toBe("ad-empty-surfaces")
     })
   })
 

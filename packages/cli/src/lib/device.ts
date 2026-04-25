@@ -3,6 +3,7 @@ import { execSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { hostname, platform } from "node:os"
 import type { Device, IdeType } from "@devdrip/shared"
+import { apiFetch } from "./api-client.js"
 
 // platform-specific stable machine ID — survives hostname changes and is
 // unique per physical/virtual machine, unlike hostname+platform+arch
@@ -44,27 +45,16 @@ function detectIdeType(): IdeType {
   return "terminal"
 }
 
-export async function registerDevice(token: string, apiBaseUrl: string): Promise<Device> {
-  const res = await fetch(`${apiBaseUrl}/devices`, {
+export async function registerDevice(): Promise<Device> {
+  const { device } = await apiFetch<{ device: Device }>("/devices", {
     method: "POST",
-    signal: AbortSignal.timeout(5_000),
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
+    timeoutMs: 5_000,
+    body: {
       machineIdHash: getMachineIdHash(),
       os: platform(),
       ideType: detectIdeType(),
       deviceName: hostname(),
-    }),
+    },
   })
-
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string }
-    throw new Error(`device registration failed: ${body.error ?? res.statusText}`)
-  }
-
-  const { device } = (await res.json()) as { device: Device }
   return device
 }
