@@ -37,10 +37,9 @@ export function DeadTimeSection() {
             <BlurFade inView delay={0.1}>
               <div className="max-w-content space-y-4 mb-10">
                 <p className="font-body text-body text-[var(--ink-secondary)]">
-                  Your agent is refactoring 4 files. The spinner is spinning.
-                  You can&apos;t code — the agent is in the files. You can&apos;t
-                  leave — it might need input in 30 seconds. So you check Slack.
-                  Scroll Twitter. Stare at the terminal.
+                  Your agent is refactoring 4 files. You can&apos;t code.
+                  You can&apos;t leave. So you check Slack, scroll Twitter,
+                  stare at the terminal.
                 </p>
                 <p className="font-body text-body text-[var(--ink-secondary)]">
                   That&apos;s 15 to 60 minutes every day.{" "}
@@ -49,7 +48,7 @@ export function DeadTimeSection() {
                   </span>
                 </p>
                 <p className="font-body text-body text-[var(--ink-primary)]">
-                  Dev Drip fills it with something that actually pays you.
+                  Dev Drip fills it with content that pays you.
                 </p>
               </div>
             </BlurFade>
