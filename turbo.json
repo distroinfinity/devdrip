@@ -11,7 +11,15 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"]
+      "inputs": ["src/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+      "passThroughEnv": [
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "ALLOWED_ORIGINS",
+        "JWT_SECRET",
+        "NODE_ENV",
+        "DB_TARGET"
+      ]
     },
     "lint": {
       "inputs": ["src/**/*.{ts,tsx}", "eslint.config.*", ".eslintrc*"]
