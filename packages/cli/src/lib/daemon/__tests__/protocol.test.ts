@@ -50,4 +50,25 @@ describe("parseWireEvent", () => {
   it("rejects non-string tty", () => {
     expect(parseWireEvent(JSON.stringify({ type: "idle-start", tty: 123 }))).toBeNull()
   })
+
+  it("parses session-start", () => {
+    const ev = parseWireEvent(JSON.stringify({ type: "session-start" }))
+    expect(ev).toEqual({ type: "session-start" })
+  })
+
+  it.each(["discover", "skip", "kill-session", "mute", "dismiss"])(
+    "parses action event: %s",
+    (action) => {
+      const ev = parseWireEvent(JSON.stringify({ type: "action", action }))
+      expect(ev).toEqual({ type: "action", action })
+    }
+  )
+
+  it("rejects action event with unknown action", () => {
+    expect(parseWireEvent(JSON.stringify({ type: "action", action: "bogus" }))).toBeNull()
+  })
+
+  it("rejects action event without action field", () => {
+    expect(parseWireEvent(JSON.stringify({ type: "action" }))).toBeNull()
+  })
 })

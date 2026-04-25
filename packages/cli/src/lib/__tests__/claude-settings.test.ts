@@ -46,6 +46,7 @@ describe("mergeDevdripHooks", () => {
         ],
         Stop: [{ hooks: [{ type: "command", command: `${BIN} hook stop` }] }],
         UserPromptSubmit: [{ hooks: [{ type: "command", command: `${BIN} hook prompt-submit` }] }],
+        SessionStart: [{ hooks: [{ type: "command", command: `${BIN} hook session-start` }] }],
       },
     }
     const { next, changed } = mergeDevdripHooks(existing, BIN)
@@ -53,6 +54,7 @@ describe("mergeDevdripHooks", () => {
     expect(next.hooks?.PreToolUse).toHaveLength(1)
     expect(next.hooks?.Stop).toHaveLength(1)
     expect(next.hooks?.UserPromptSubmit).toHaveLength(1)
+    expect(next.hooks?.SessionStart).toHaveLength(1)
   })
 
   it("updates in place when bin path changed (nvm switch / version bump)", () => {
@@ -133,14 +135,21 @@ describe("mergeDevdripHooks", () => {
       `"${BIN_WITH_SPACES}" hook pre-tool`
     )
   })
+
+  it("merges SessionStart hook", () => {
+    const { next } = mergeDevdripHooks({}, "/Users/x/.devdrip/bin/devdrip")
+    expect(next.hooks?.SessionStart).toBeDefined()
+    expect(next.hooks?.SessionStart?.[0]?.hooks[0]?.command).toContain("hook session-start")
+  })
 })
 
 describe("getMissingDevdripHookEvents", () => {
-  it("returns missing events until all three hooks are installed", () => {
+  it("returns missing events until all hooks are installed", () => {
     expect(getMissingDevdripHookEvents({ hooks: {} }, BIN)).toEqual([
       "PreToolUse",
       "Stop",
       "UserPromptSubmit",
+      "SessionStart",
     ])
 
     expect(
@@ -152,6 +161,7 @@ describe("getMissingDevdripHookEvents", () => {
             UserPromptSubmit: [
               { hooks: [{ type: "command", command: `${BIN} hook prompt-submit` }] },
             ],
+            SessionStart: [{ hooks: [{ type: "command", command: `${BIN} hook session-start` }] }],
           },
         },
         BIN

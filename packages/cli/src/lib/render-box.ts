@@ -1,7 +1,8 @@
 import type { AdPayload } from "@devdrip/shared"
 
-const WIDTH = 72
-const INNER = WIDTH - 4 // space for "║ " and " ║"
+const DEFAULT_WIDTH = 72
+const MIN_WIDTH = 40
+const MAX_WIDTH = 120
 
 interface Chars {
   tl: string
@@ -20,6 +21,31 @@ export function shouldUseAscii(): boolean {
   if (process.env["NO_COLOR"]) return true
   if (!process.stdout.isTTY) return true
   return false
+}
+
+function actionFooter(inner: number): string {
+  // full label works at inner >= 55; shorter at narrow widths.
+  const full = "[D] discover   [S] skip   [K] kill session   [M] mute 30m"
+  const short = "[D]iscover  [S]kip  [K]ill  [M]ute"
+  const tiny = "[D] [S] [K] [M]"
+  if (inner >= 55) return full
+  if (inner >= 34) return short
+  return tiny
+}
+
+function progressBar(progress: number, cells: number, ascii: boolean): string {
+  const clamped = progress < 0 ? 0 : progress > 1 ? 1 : progress
+  const filled = Math.round(clamped * cells)
+  const empty = cells - filled
+  const fillCh = ascii ? "#" : "▇"
+  const emptyCh = ascii ? "-" : "░"
+  return fillCh.repeat(filled) + emptyCh.repeat(empty)
+}
+
+function progressCellCount(inner: number): number {
+  // bar fills ~40% of inner width, min 8, max 40
+  const raw = Math.floor(inner * 0.4)
+  return Math.max(8, Math.min(40, raw))
 }
 
 function wrap(text: string, max: number): string[] {
@@ -57,8 +83,8 @@ function padRight(s: string, n: number): string {
   return s + " ".repeat(n - len)
 }
 
-function line(c: Chars, inner: string): string {
-  return `${c.v} ${padRight(inner, INNER)} ${c.v}`
+function line(c: Chars, text: string, inner: number): string {
+  return `${c.v} ${padRight(text, inner)} ${c.v}`
 }
 
 function sanitize(text: string): string {
@@ -68,21 +94,43 @@ function sanitize(text: string): string {
 
 export interface RenderBoxOpts {
   source?: string
+  earningsUsdc?: number
+  progress?: number // 0..1
+  width?: number
   ascii?: boolean
+}
+
+function clampWidth(w: number | undefined): number {
+  const v = w ?? DEFAULT_WIDTH
+  if (!Number.isFinite(v)) return DEFAULT_WIDTH
+  if (v < MIN_WIDTH) return MIN_WIDTH
+  if (v > MAX_WIDTH) return MAX_WIDTH
+  return v
 }
 
 export function renderBox(
   ad: Pick<AdPayload, "headline" | "body" | "url">,
   opts: RenderBoxOpts = {}
 ): string {
+  const width = clampWidth(opts.width)
+  const inner = width - 4 // space for "║ " and " ║"
   const c = (opts.ascii ?? false) ? ASCII : UNI
-  const sourceBadge = opts.source ? `via ${opts.source}` : ""
   const title = "DEV DRIP TV"
+  const earningsSegment =
+    opts.earningsUsdc !== undefined ? `$${opts.earningsUsdc.toFixed(4)} earned` : ""
+  const sourceSegment = opts.source ? `via ${opts.source}` : ""
 
-  // header: c.tl + "═ DEV DRIP TV ═...═ via Carbon ═" + c.tr
-  const headerInnerLen = WIDTH - 2
-  const leftLabel = ` ${title} `
-  const rightLabel = sourceBadge ? ` ${sourceBadge} ` : ""
+  // build header segments separated by " · " when multiple exist
+  const leftSegments = [title, earningsSegment].filter(Boolean)
+  const leftLabel = ` ${leftSegments.join(" · ")} `
+  // drop the right segment if it would push the header past `width`. need at
+  // least 4 fill chars (2 left corner pad + 2 right corner pad) for the box
+  // to render cleanly; below that, the right label is dropped entirely so
+  // the header still aligns at exactly `width`.
+  const headerInnerLen = width - 2
+  const rightLabelRaw = sourceSegment ? ` ${sourceSegment} ` : ""
+  const tentativeFill = headerInnerLen - leftLabel.length - rightLabelRaw.length
+  const rightLabel = tentativeFill >= 4 ? rightLabelRaw : ""
   const fillLen = headerInnerLen - leftLabel.length - rightLabel.length
   const left = c.h + leftLabel
   const right = rightLabel + c.h
@@ -93,15 +141,20 @@ export function renderBox(
   const bodyText = ad.body ? sanitize(ad.body) : ""
   const url = ad.url ? sanitize(ad.url) : ""
 
+  const footerLine = actionFooter(inner)
+
   const body = [
-    line(c, ""),
-    line(c, headline),
-    ...(bodyText ? wrap(bodyText, INNER).map((l) => line(c, l)) : []),
-    line(c, ""),
-    line(c, padRight("", Math.max(0, Math.floor(INNER / 2) - 12)) + "press enter to dismiss"),
+    line(c, "", inner),
+    line(c, headline, inner),
+    ...(bodyText ? wrap(bodyText, inner).map((l) => line(c, l, inner)) : []),
+    line(c, "", inner),
+    line(c, footerLine, inner),
+    ...(opts.progress !== undefined
+      ? [line(c, progressBar(opts.progress, progressCellCount(inner), opts.ascii ?? false), inner)]
+      : []),
   ]
 
-  const footer = `${c.bl}${c.h.repeat(WIDTH - 2)}${c.br}`
+  const footer = `${c.bl}${c.h.repeat(width - 2)}${c.br}`
 
   const parts = [header, ...body, footer]
   if (url) parts.push(`→ ${url}`)

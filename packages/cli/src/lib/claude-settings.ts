@@ -17,6 +17,7 @@ export interface Settings {
     PreToolUse?: HookGroup[]
     Stop?: HookGroup[]
     UserPromptSubmit?: HookGroup[]
+    SessionStart?: HookGroup[]
     [k: string]: HookGroup[] | undefined
   }
   [k: string]: unknown
@@ -24,15 +25,16 @@ export interface Settings {
 
 const DEVDRIP_BIN_RE = /^devdrip(?:\.js|\.mjs|\.cjs|\.exe)?$/i
 const DEVDRIP_COMMAND_RE =
-  /^\s*(?:"((?:\\.|[^"])*)"|'([^']*)'|(\S+))\s+hook\s+(pre-tool|stop|prompt-submit)(?:\s|$)/
+  /^\s*(?:"((?:\\.|[^"])*)"|'([^']*)'|(\S+))\s+hook\s+(pre-tool|stop|prompt-submit|session-start)(?:\s|$)/
 
-export type HookEvent = "PreToolUse" | "Stop" | "UserPromptSubmit"
-type Sub = "pre-tool" | "stop" | "prompt-submit"
+export type HookEvent = "PreToolUse" | "Stop" | "UserPromptSubmit" | "SessionStart"
+type Sub = "pre-tool" | "stop" | "prompt-submit" | "session-start"
 
 const EVENTS: Array<{ event: HookEvent; sub: Sub; matcher?: string }> = [
   { event: "PreToolUse", sub: "pre-tool", matcher: "*" },
   { event: "Stop", sub: "stop" },
   { event: "UserPromptSubmit", sub: "prompt-submit" },
+  { event: "SessionStart", sub: "session-start" },
 ]
 
 function quoteShellArg(arg: string): string {
