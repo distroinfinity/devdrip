@@ -4,6 +4,7 @@ import { eq, and, isNull } from "drizzle-orm"
 import { env } from "../config/env.js"
 import { logger } from "../lib/logger.js"
 import { getDb } from "../db/index.js"
+import { getRedis } from "../lib/redis.js"
 import { users } from "../db/schema/users.js"
 import { refreshTokens } from "../db/schema/refresh_tokens.js"
 import {
@@ -21,14 +22,6 @@ import {
 import { generateReferralCode } from "../lib/referral.js"
 import { requireAuth } from "../middleware/auth.js"
 import { authLimiter, refreshLimiter } from "../middleware/rate-limit.js"
-
-// one-time code store for secure token delivery (60s TTL)
-// TODO: replace with Redis when scaling to multiple instances
-interface PendingTokens {
-  accessToken: string
-  refreshToken: string
-}
-const pendingCodes = new Map<string, PendingTokens>()
 
 export const authRouter: ReturnType<typeof Router> = Router()
 
@@ -132,10 +125,13 @@ authRouter.get("/github/callback", authLimiter, async (req, res) => {
       expiresAt: refreshTokenExpiresAt(),
     })
 
-    // store tokens behind a one-time code — never expose tokens in URLs
+    // store tokens behind a one-time code in Redis (60s TTL)
     const exchangeCode = randomBytes(16).toString("hex")
-    pendingCodes.set(exchangeCode, { accessToken, refreshToken: rawRefresh })
-    setTimeout(() => pendingCodes.delete(exchangeCode), 60_000)
+    await getRedis().set(
+      `auth:code:${exchangeCode}`,
+      JSON.stringify({ accessToken, refreshToken: rawRefresh }),
+      { ex: 60 }
+    )
 
     const redirectUrl = new URL(env.clientRedirectUrl)
     redirectUrl.searchParams.set("code", exchangeCode)
@@ -154,13 +150,14 @@ authRouter.post("/exchange", authLimiter, async (req, res) => {
     return
   }
 
-  const tokens = pendingCodes.get(code)
-  if (!tokens) {
+  const key = `auth:code:${code}`
+  const raw = await getRedis().getdel<string>(key)
+  if (!raw) {
     await res.status(401).json({ error: "invalid_or_expired_code" })
     return
   }
 
-  pendingCodes.delete(code)
+  const tokens = JSON.parse(raw) as { accessToken: string; refreshToken: string }
   await res.json({ token: tokens.accessToken, refresh_token: tokens.refreshToken })
 })
 
