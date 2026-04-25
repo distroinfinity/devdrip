@@ -36,6 +36,7 @@ export const tokens = {
 // terminal TV is always dark regardless of theme
 export const terminalColors = {
   bg: "#0E0E11",
+  bgInset: "#16161A",
   border: "#2A2A2E",
   text: "#EDEDF0",
   textSecondary: "#8A8A94",
