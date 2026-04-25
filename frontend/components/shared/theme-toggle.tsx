@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { toggleTheme, getTheme, initTheme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const [theme, setThemeState] = useState<"light" | "dark">("light");
 
   useEffect(() => {
@@ -17,7 +18,12 @@ export function ThemeToggle() {
         toggleTheme();
         setThemeState(getTheme());
       }}
-      className="font-body text-[13px] font-medium text-[var(--ink-secondary)] border border-[var(--rule-default)] rounded-md px-3.5 py-1.5 hover:bg-[var(--bg-surface-hover)] transition-colors"
+      className={cn(
+        "font-body text-[13px] font-medium text-[var(--ink-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors",
+        className
+          ? className
+          : "border border-[var(--rule-default)] rounded-md px-3.5 py-1.5",
+      )}
     >
       {theme === "light" ? "Dark" : "Light"}
     </button>
