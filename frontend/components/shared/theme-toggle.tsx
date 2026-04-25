@@ -8,8 +8,20 @@ export function ThemeToggle({ className }: { className?: string }) {
   const [theme, setThemeState] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    initTheme();
+    const cleanup = initTheme();
     setThemeState(getTheme());
+
+    // sync react state when data-theme changes (system listener or external)
+    const observer = new MutationObserver(() => setThemeState(getTheme()));
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+
+    return () => {
+      cleanup();
+      observer.disconnect();
+    };
   }, []);
 
   return (
