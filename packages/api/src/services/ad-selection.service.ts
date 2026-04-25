@@ -27,6 +27,8 @@ interface CandidateRow {
   category: string
   source: string
   cpmRate: number
+  impressionBeaconUrl: string | null
+  clickTrackingUrl: string | null
   // campaign fields for targeting/budget checks
   campBudgetTotal: number
   campBudgetSpent: number
@@ -62,6 +64,8 @@ function toAdPayload(row: CandidateRow): AdPayload {
     body: row.body ?? undefined,
     url: row.ctaUrl ?? "",
     displayTimeMs: MAX_AD_DURATION_MS,
+    impressionBeaconUrl: row.impressionBeaconUrl ?? undefined,
+    clickTrackingUrl: row.clickTrackingUrl ?? undefined,
   }
 }
 
@@ -100,6 +104,8 @@ async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
       category: creatives.category,
       source: creatives.source,
       cpmRate: creatives.cpmRate,
+      impressionBeaconUrl: creatives.impressionBeaconUrl,
+      clickTrackingUrl: creatives.clickTrackingUrl,
       campBudgetTotal: campaigns.budgetTotal,
       campBudgetSpent: campaigns.budgetSpent,
       campBudgetDaily: campaigns.budgetDaily,
