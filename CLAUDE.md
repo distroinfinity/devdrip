@@ -26,14 +26,15 @@ Dev Drip monetizes AI coding tool idle time with opt-in ads. Developers earn USD
 
 ## Hard Rules
 
-- <200ms ad vanish — hard requirement, measure it, log it
+- &lt;200ms ad vanish — hard requirement, measure it, log it
 - hooks always exit 0 — never block Claude Code
 - local ledger is ground truth — backend can be down
 - 3s grace period before showing ads — no ads on fast tool calls
 
-## Rules
+## Dev Rules
 
 - load frontend-design skill for anything frontend
 - minimal comments, crisp pointers, lowercase start
 - never mention claude or ai in commits, keep messages crisp
-- when completing a Notion ticket, post completion comment: key decisions, gotchas, tick AC checkboxes
+- after each notion task: post completion comment: key decisions, gotchas, tick AC checkboxes
+- post every significant changes lets keep updating and maintaining engineering gitbook-docs
