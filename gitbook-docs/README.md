@@ -9,7 +9,7 @@ DevDrip is building an opt-in monetization layer around AI coding tool idle time
 In the repo today, the implemented product surface is split across these packages:
 
 - `frontend` runs the public landing page and the waitlist intake flow.
-- `packages/api` runs the backend API for health, auth, and device registration.
+- `packages/api` runs the backend API for health, auth, device registration, and campaign management (advertisers, campaigns, creatives CRUD with budget pacing).
 - `packages/shared` holds shared enums, types, and constants for the product model.
 - `packages/cli` exposes the planned CLI command surface, with most commands still stubbed.
 - `packages/dashboard` is a separate dashboard app shell with minimal UI today.
@@ -40,13 +40,18 @@ What is real right now:
 - one-time auth code exchange
 - refresh token rotation
 - authenticated device registration
-- shared domain model for campaigns, creatives, impressions, earnings, payouts, and referrals
+- admin-protected CRUD for advertisers, campaigns, and creatives
+- campaign status state machine (draft → active → paused ↔ active → completed) with activation guards
+- Redis-backed budget pacing engine (daily/hourly tracking, even/front_loaded/asap strategies)
+- creative round-robin rotation via Redis
+- campaign stats aggregation (impressions, clicks, CTR, live spend)
+- shared domain model for impressions, earnings, payouts, and referrals
 
 What is not built yet:
 
 - daemon flow
 - local ledger flow
-- ad serving flow
+- ad serving waterfall
 - impression ingestion API
 - earnings and payout APIs
 - real dashboard product pages
