@@ -10,6 +10,7 @@ import { earningsLedger } from "../db/schema/earnings.js"
 import { NotFoundError, ConflictError, StateError, pgErrorCode } from "../errors/index.js"
 import { recordSpend, rollbackSpend } from "../lib/budget.js"
 import { incrementFrequency } from "../lib/frequency.js"
+import { fireBeacon } from "../lib/beacon.js"
 import { transitionStatus } from "./campaign.service.js"
 import { logger } from "../lib/logger.js"
 
@@ -36,9 +37,9 @@ export async function recordImpression(input: RecordImpressionInput) {
       creativeId: creatives.id,
       campaignId: creatives.campaignId,
       source: creatives.source,
-      surface: creatives.surface,
       category: creatives.category,
       cpmRate: creatives.cpmRate,
+      viewabilityBeaconUrl: creatives.viewabilityBeaconUrl,
       budgetTotal: campaigns.budgetTotal,
       budgetSpent: campaigns.budgetSpent,
       budgetDaily: campaigns.budgetDaily,
@@ -50,10 +51,9 @@ export async function recordImpression(input: RecordImpressionInput) {
       and(
         eq(creatives.id, input.creativeId),
         eq(creatives.isActive, true),
-        eq(creatives.surface, input.surface),
         eq(campaigns.status, "active"),
-        sql`(${campaigns.startsAt} IS NULL OR ${campaigns.startsAt} <= ${now})`,
-        sql`(${campaigns.endsAt} IS NULL OR ${campaigns.endsAt} > ${now})`
+        sql`(${campaigns.startsAt} IS NULL OR ${campaigns.startsAt} <= ${now.toISOString()})`,
+        sql`(${campaigns.endsAt} IS NULL OR ${campaigns.endsAt} > ${now.toISOString()})`
       )
     )
 
@@ -86,7 +86,7 @@ export async function recordImpression(input: RecordImpressionInput) {
           creativeId: input.creativeId,
           deviceId: input.deviceId,
           source: row.source as AdSource,
-          surface: row.surface as AdSurface,
+          surface: input.surface,
           durationMs: input.durationMs,
           result: input.result,
           cpmRate: row.cpmRate,
@@ -102,7 +102,7 @@ export async function recordImpression(input: RecordImpressionInput) {
           userId: input.userId,
           impressionId: imp.id,
           amountUsdc: earnedAmount,
-          surface: row.surface as AdSurface,
+          surface: input.surface,
           adCategory: row.category as (typeof earningsLedger)["$inferInsert"]["adCategory"],
         })
       }
@@ -115,15 +115,26 @@ export async function recordImpression(input: RecordImpressionInput) {
   }
 
   // fire-and-forget: increment frequency counters
-  incrementFrequency(input.deviceId, row.campaignId, row.surface as AdSurface).catch((err) => {
+  incrementFrequency(input.deviceId, row.campaignId, input.surface).catch((err) => {
     logger.warn({ err, deviceId: input.deviceId }, "incrementFrequency failed")
   })
 
   // fire-and-forget: transition campaign to completed if budget exhausted
-  if (spendResult.exhausted) {
+  // skip for external ad network campaigns (carbon etc.) — they manage their own budget
+  if (spendResult.exhausted && row.source !== "carbon") {
     transitionStatus(row.campaignId, "completed").catch((err) => {
       logger.warn({ err, campaignId: row.campaignId }, "auto-complete campaign failed")
     })
+  }
+
+  // fire external ad network beacons
+  if (row.source === "carbon") {
+    // viewability beacon fires only on completed impressions
+    if (input.result === "completed" && row.viewabilityBeaconUrl) {
+      fireBeacon(row.viewabilityBeaconUrl).catch((err) => {
+        logger.warn({ err, creativeId: input.creativeId }, "carbon statview beacon failed")
+      })
+    }
   }
 
   return impression

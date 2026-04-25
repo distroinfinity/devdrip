@@ -101,13 +101,22 @@ class TestRedis {
   }
 }
 
-let _testRedis: Redis | undefined
+let _memoryRedis: Redis | undefined
 
 export function getRedis(): Redis {
+  // tests always use in-memory
   if (process.env.NODE_ENV === "test") {
-    _testRedis ??= new TestRedis() as unknown as Redis
-    return _testRedis
+    _memoryRedis ??= new TestRedis() as unknown as Redis
+    return _memoryRedis
   }
+
+  // local dev without Upstash: in-memory fallback
+  if (process.env.NODE_ENV === "development" && !process.env["UPSTASH_REDIS_REST_URL"]) {
+    _memoryRedis ??= new TestRedis() as unknown as Redis
+    return _memoryRedis
+  }
+
+  // production/staging: require real Redis (env.upstashRedisRestUrl throws if missing)
 
   if (!_redis) {
     _redis = new Redis({ url: env.upstashRedisRestUrl, token: env.upstashRedisRestToken })
