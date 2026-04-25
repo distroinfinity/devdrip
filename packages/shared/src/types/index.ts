@@ -115,10 +115,10 @@ export interface User {
 export interface Device {
   id: string
   userId: string
-  deviceName: string
+  deviceName: string | null
   os: string
   ideType: IdeType
-  lastHeartbeat: string
+  lastHeartbeat: string | null
   createdAt: string
 }
 
