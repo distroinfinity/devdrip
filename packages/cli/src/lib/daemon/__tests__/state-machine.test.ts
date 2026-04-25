@@ -104,7 +104,7 @@ describe("state-machine: GRACE transitions", () => {
     expect(r.effects).toEqual([
       { kind: "displayAd", tty: "/dev/ttys003", ad },
       { kind: "startVanishTimer", ms: 8000 },
-      { kind: "startProgressTimer", shownAt: 3100, displayTimeMs: 8000 },
+      { kind: "startProgressTimer", shownAt: 3100, displayTimeMs: 8000, ad },
     ])
   })
 
