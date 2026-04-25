@@ -371,11 +371,11 @@ export function PaymentRailSection() {
     <section
       id="payment-rail"
       aria-labelledby="payment-rail-heading"
-      className="relative bg-[var(--bg-secondary)] overflow-hidden"
+      className="relative bg-[var(--bg-secondary)] overflow-hidden scroll-mt-20"
     >
-      <DotGrid opacity={0.3} variant="heartbeat" />
+      <DotGrid opacity={0.35} variant="heartbeat" />
 
-      <div className="relative mx-auto max-w-grid px-6 py-16 lg:py-24">
+      <div className="relative mx-auto max-w-grid px-6 py-20">
         <div className="flex flex-col items-center text-center gap-8 lg:gap-12">
           {/* header — caption + h2 + one sentence */}
           <BlurFade inView delay={0}>
@@ -403,12 +403,12 @@ export function PaymentRailSection() {
           </BlurFade>
 
           {/* data strip — 3 metrics */}
-          <BlurFade inView delay={0.15}>
+          <BlurFade inView delay={0.2}>
             <DataStrip data={RAIL_METRICS} separator="rule" />
           </BlurFade>
 
           {/* trust facts */}
-          <BlurFade inView delay={0.2}>
+          <BlurFade inView delay={0.3}>
             <TrustFacts />
           </BlurFade>
         </div>

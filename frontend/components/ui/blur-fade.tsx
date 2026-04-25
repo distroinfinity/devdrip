@@ -37,7 +37,7 @@ export function BlurFade({
   offset = 6,
   direction = "down",
   inView = false,
-  inViewMargin = "-50px",
+  inViewMargin = "-80px",
   blur = "6px",
   ...props
 }: BlurFadeProps) {
