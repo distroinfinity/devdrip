@@ -1,4 +1,4 @@
-import { desc, eq, inArray, sql } from "drizzle-orm"
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import { devices } from "../db/schema/devices.js"
 import { impressions } from "../db/schema/impressions.js"
@@ -23,13 +23,39 @@ export interface EarningsSummary {
   topCategories: { category: string; amountUsdc: number }[]
 }
 
+export interface EarningsTimeseriesPoint {
+  date: string
+  amount: number
+}
+
+export interface EarningsTimeseries {
+  days: number
+  granularity: "day"
+  points: EarningsTimeseriesPoint[]
+}
+
+export const TIMESERIES_MIN_DAYS = 1
+export const TIMESERIES_MAX_DAYS = 180
+export const TIMESERIES_DEFAULT_DAYS = 90
+
 function key(userId: string): string {
   return `earnings:summary:${userId}`
 }
 
+function timeseriesKey(userId: string, days: number): string {
+  return `earnings:timeseries:${userId}:${days}`
+}
+
 export async function invalidateEarningsSummary(userId: string): Promise<void> {
   try {
-    await getRedis().del(key(userId))
+    const redis = getRedis()
+    await Promise.all([
+      redis.del(key(userId)),
+      // range of common day sizes — dashboard uses 90, leave room for others
+      redis.del(timeseriesKey(userId, 30)),
+      redis.del(timeseriesKey(userId, 90)),
+      redis.del(timeseriesKey(userId, 180)),
+    ])
   } catch (err) {
     logger.warn({ err, userId }, "earnings summary invalidate failed")
   }
@@ -189,4 +215,95 @@ function countStreak(days: string[], today: string): number {
     cursor -= dayMs
   }
   return n
+}
+
+export async function getEarningsTimeseries(
+  userId: string,
+  opts: { days?: number } = {}
+): Promise<EarningsTimeseries> {
+  const days = clampDays(opts.days ?? TIMESERIES_DEFAULT_DAYS)
+
+  const cached = await safeGetTs(userId, days)
+  if (cached) return cached
+
+  const fresh = await computeTimeseries(userId, days)
+  await safeSetTs(userId, days, fresh)
+  return fresh
+}
+
+function clampDays(n: number): number {
+  if (!Number.isFinite(n)) return TIMESERIES_DEFAULT_DAYS
+  const v = Math.floor(n)
+  if (v < TIMESERIES_MIN_DAYS) return TIMESERIES_MIN_DAYS
+  if (v > TIMESERIES_MAX_DAYS) return TIMESERIES_MAX_DAYS
+  return v
+}
+
+async function safeGetTs(userId: string, days: number): Promise<EarningsTimeseries | null> {
+  try {
+    const raw = await getRedis().get<string>(timeseriesKey(userId, days))
+    return raw ? (JSON.parse(raw) as EarningsTimeseries) : null
+  } catch {
+    return null
+  }
+}
+
+async function safeSetTs(userId: string, days: number, value: EarningsTimeseries): Promise<void> {
+  try {
+    await getRedis().set(timeseriesKey(userId, days), JSON.stringify(value), {
+      ex: CACHE_TTL_SECONDS,
+    })
+  } catch {
+    // cache miss on failure is fine
+  }
+}
+
+async function computeTimeseries(userId: string, days: number): Promise<EarningsTimeseries> {
+  const db = getDb()
+
+  const [tzRow] = await db
+    .select({ tz: preferences.tzOffsetMinutes })
+    .from(preferences)
+    .where(eq(preferences.userId, userId))
+  const tzOffsetMinutes = tzRow?.tz ?? 0
+
+  // lower bound in UTC — the window [now - days, now] in the user's tz shifts
+  // by at most 1 day, so widen the DB filter by 1 day and trim in JS
+  const windowStart = new Date(Date.now() - (days + 1) * 86_400_000)
+
+  const rows = await db
+    .select({
+      day: sql<string>`to_char(date_trunc('day', ${earningsLedger.createdAt} + interval ${sql.raw(`'${tzOffsetMinutes} minutes'`)}), 'YYYY-MM-DD')`,
+      amount: sql<number>`coalesce(sum(${earningsLedger.amountUsdc}), 0)`,
+    })
+    .from(earningsLedger)
+    .where(and(eq(earningsLedger.userId, userId), gte(earningsLedger.createdAt, windowStart)))
+    .groupBy(
+      sql`date_trunc('day', ${earningsLedger.createdAt} + interval ${sql.raw(`'${tzOffsetMinutes} minutes'`)})`
+    )
+
+  const byDay = new Map<string, number>()
+  for (const r of rows) {
+    byDay.set(r.day, Number(r.amount))
+  }
+
+  const points = densifyDays(byDay, days, tzOffsetMinutes)
+
+  return { days, granularity: "day", points }
+}
+
+// fill zero-days so the chart x-axis has no gaps; end = today in user's tz
+function densifyDays(
+  byDay: Map<string, number>,
+  days: number,
+  tzOffsetMinutes: number
+): EarningsTimeseriesPoint[] {
+  const today = nowLocalDay(tzOffsetMinutes)
+  const end = new Date(today + "T00:00:00Z").getTime()
+  const points: EarningsTimeseriesPoint[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date(end - i * 86_400_000).toISOString().slice(0, 10)
+    points.push({ date, amount: byDay.get(date) ?? 0 })
+  }
+  return points
 }

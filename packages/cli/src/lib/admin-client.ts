@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = "https://api.devdrip.sh"
+const DEFAULT_BASE_URL = "https://devdrip-api-production.up.railway.app"
 
 function readSecret(): string {
   const secret = process.env["DEVDRIP_ADMIN_SECRET"] ?? process.env["ADMIN_SECRET"]
