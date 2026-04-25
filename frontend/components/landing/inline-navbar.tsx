@@ -1,6 +1,5 @@
 "use client";
 
-import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { WaitlistButton } from "@/components/shared/waitlist-button";
 import { BlurFade } from "@/components/ui/blur-fade";
 
@@ -21,7 +20,7 @@ export function InlineNavbar() {
           </span>
         </div>
 
-        {/* right: nav links + theme toggle + cta */}
+        {/* right: nav links + cta */}
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-1">
             <a
@@ -37,10 +36,7 @@ export function InlineNavbar() {
               GitHub
             </a>
           </div>
-          <div className="hidden md:block">
-            <ThemeToggle />
-          </div>
-          <WaitlistButton className="h-9 px-5 text-[13px]" />
+          <WaitlistButton href="#waitlist" className="h-9 px-5 text-[13px]" />
         </div>
       </nav>
     </BlurFade>
