@@ -71,6 +71,7 @@ function fakeServedAd(id: string): ServedAdPayload {
     body: "Test body",
     url: "https://example.com",
     displayTimeMs: MAX_AD_DURATION_MS,
+    cpmRate: 5,
     deliveryToken: "jwt-token-123",
     impressionBeaconUrl: "https://track.example.com/impression",
     clickTrackingUrl: "https://track.example.com/click",

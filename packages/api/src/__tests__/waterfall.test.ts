@@ -72,6 +72,7 @@ function fakeAd(id: string, source: string): AdPayload {
     headline: `${source} ad`,
     url: "https://example.com",
     displayTimeMs: MAX_AD_DURATION_MS,
+    cpmRate: 5,
   }
 }
 

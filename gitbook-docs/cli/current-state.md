@@ -280,3 +280,32 @@ Beacon (`impressionBeaconUrl`) fires only when an ad was on screen for ≥1 seco
 ### Vanish latency
 
 Every vanish logs `vanish latency ms=<n>` to `~/.devdrip/daemon.log`. p95 under load should remain under 200ms.
+
+## Progress bar + earnings toast (S3-04 / S3-05)
+
+### Progress curve
+
+The progress bar inside the ad box is a simulated-work indicator, not a real completion signal. Orchestrator runs a 500ms tick (`PROGRESS_TICK_MS`) keyed on `shownAt`, feeding a sigmoid `1 / (1 + exp(-8·(x − 0.5)))` where `x = elapsed / displayTimeMs`, scaled to `PROGRESS_CAP = 0.9`. This holds the bar below 100% for the whole impression — the jump to full only happens when Claude actually Stops (or the ad times out). Glyphs are thin-track (`━╸─`) to stay quiet inside the heavy double border; ASCII fallback is `=>-`. A verb prefix (`working`/`thinking`/`shipping`/`cooking`) cycles every 4s, keyed off elapsed time so it's deterministic across ticks — blends with Claude Code's verb-loader feel without copying its vocabulary.
+
+On Stop (`idle-end`), any skip/discover/dismiss, or vanish timeout, the state machine emits a `snapProgressToComplete` effect before `vanishDisplay`. The orchestrator recognizes this as a pause point: it writes the 100% frame immediately, then defers the rest of the cleanup (vanish + record + toast) by `PROGRESS_SNAP_HOLD_MS = 120` so the user actually sees the bar fill before the box clears.
+
+### Earnings toast gating
+
+After a valid completed impression, the bottom pane is replaced for 2 seconds with a one-line toast:
+
+```
+  ✓ +$0.0042 earned · today $1.24
+```
+
+Gating in `state-machine.ts#endShowing`:
+
+- `result === "completed"` (skipped / interrupted / killed / muted → no toast)
+- `durationMs >= VALID_IMPRESSION_FOR_TOAST_MS` (3000) — matches the ticket's "shown >3s" bar
+- `ad.cacheSource === "api"` — demo ads never toast
+- `ad.cpmRate > 0`
+
+`deltaUsdc = (cpmRate / 1000) * REVENUE_SHARE_DEVELOPER` (0.7), same formula the backend uses at sync. `todayUsdc` comes from `ledger.sumTodayOptimistic(tzOffsetMinutes)` which aggregates `cpm_rate` across today's local day and divides once. Backend remains authoritative at sync — this is display-only.
+
+### cpmRate plumbing
+
+`/ads/batch` now includes `cpm_rate` on each row. `AdPayload.cpmRate` is required in shared types; `ad-cache.ts` propagates it into `CachedAd` and bumps `CACHE_FILE_VERSION` to `2` so pre-upgrade caches drop safely. The ledger row stores it on `record()`, making the "today total" resilient to API downtime between ads.
