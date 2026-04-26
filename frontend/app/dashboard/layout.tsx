@@ -1,10 +1,30 @@
 import { redirect } from "next/navigation"
+import { ChannelMode } from "@devdrip/shared"
 import { AppShell } from "@/components/dashboard/app-shell"
 import { getServerUser } from "@/lib/auth"
+import { apiFetchOrRefresh } from "@/lib/api"
+import type { PreferencesPayload } from "@/lib/dashboard-api"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getServerUser()
   if (!user) redirect("/sign-in")
 
-  return <AppShell user={user}>{children}</AppShell>
+  // fetch prefs server-side so the mode toggle's initial state matches the
+  // user's saved value without a client-side waterfall.
+  let initialMode: ChannelMode = ChannelMode.Mix
+  try {
+    const { preferences } = await apiFetchOrRefresh<PreferencesPayload>(
+      "/me/preferences",
+      "/dashboard"
+    )
+    initialMode = (preferences.channelMode ?? ChannelMode.Mix) as ChannelMode
+  } catch {
+    // if prefs fetch fails, default to Mix — the toggle shows "both" until the user clicks something
+  }
+
+  return (
+    <AppShell user={user} initialMode={initialMode}>
+      {children}
+    </AppShell>
+  )
 }
