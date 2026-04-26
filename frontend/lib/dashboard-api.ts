@@ -130,6 +130,31 @@ export async function putPreferences(body: UpdatePreferencesBody): Promise<Synce
   return res.preferences
 }
 
+// ── reading list ────────────────────────────────────────────────────────────
+
+export interface ReadingItem {
+  id: string
+  newsId: string
+  source: string
+  headline: string
+  url: string
+  score: number
+  savedAt: string // ISO 8601 from server
+}
+
+export interface ReadingListResponse {
+  items: ReadingItem[]
+  hasMore: boolean
+}
+
+export async function getReadingItems(limit = 100): Promise<ReadingListResponse> {
+  return apiFetch<ReadingListResponse>(`/me/reading?limit=${limit}`)
+}
+
+export async function deleteReadingItem(id: string): Promise<void> {
+  await apiFetch(`/me/reading/${id}`, { method: "DELETE" })
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 function buildQuery(params: Record<string, unknown>): string {
