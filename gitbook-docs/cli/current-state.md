@@ -137,16 +137,7 @@ Reads:
 
 For historical reference, the pre-PR4 `devdrip auth` flow used a local HTTP callback server + browser OAuth round-trip. Replaced by QR-pairing via Mini App. The original implementation lives in git history at commit `dc418e7`'s `packages/cli/src/commands/auth.ts`.
 
-### `devdrip status`
-
-Reads `~/.devdrip/config.json` and calls `GET /me`. If the access token is expired, the CLI's `apiFetch` transparently rotates it via `POST /auth/refresh` and retries. Output:
-
-- no config → `auth: not signed in (run \`devdrip auth\`)`
-- healthy → `auth: signed in as @<login>` + email
-- refresh-invalid → config is cleared, message prompts re-auth
-- api unreachable → falls back to cached identity with an offline indicator
-
-### Config file shape
+## Config file shape
 
 `~/.devdrip/config.json` (mode `0600`):
 
@@ -184,7 +175,7 @@ Reads `~/.devdrip/config.json` and calls `GET /me`. If the access token is expir
 
 `preferences` is owned by the `devdrip config` command (S2-12); see [`config` section](#devdrip-config-s2-12) below. The daemon watches this file and reloads preferences live.
 
-### Library layout
+## Library layout
 
 - `src/lib/config.ts` — atomic read/write/delete with mode enforcement. Unknown config versions now fail explicitly instead of silently behaving like a logged-out session.
 - `src/lib/auth-flow.ts` — port scanner, one-shot callback server, browser opener.
@@ -389,7 +380,6 @@ Two `src/lib` modules that give the future daemon local state without touching t
 
 ## What Is Missing For A Real CLI
 
-- payout flow (`devdrip claim` still a stub)
 - backend `/me/uninstall` endpoint for retention tracking + email claim link (deferred: no email infra)
 - `devdrip doctor --fix` auto-remediation (deferred: duplicates `init` paths)
 
@@ -490,13 +480,16 @@ JSON schema (stable, document before 1.0):
 
 ```json
 {
-  "user": { "githubLogin": "...", "email": "..." } | null,
+  "user": { "githubLogin": "...", "email": "...",
+            "walletAddress": "0x...", "verificationLevel": "device" | "orb" | null,
+            "signedUpAt": "2026-04-26T12:00:00Z" | null,
+            "miniAppComplete": true } | null,
   "earnings": { "balance": 5.8, "today": 1.24, "week": 5.8, "month": 23.4, "allTime": 23.4,
                 "streakDays": 3, "totalImpressions": 122, "totalClicks": 4,
                 "topCategories": [{ "category": "...", "amountUsdc": 1.8 }] } | null,
   "earningsFromCache": false,
   "earningsCacheAgeMs": null,
-  "payout": { "eligible": false, "threshold": 1.0, "shortfall": 0 } | null,
+  "payout": { "eligible": false, "threshold": 0.5, "shortfall": 0 } | null,
   "unsynced": { "impressions": 2, "clicks": 0 },
   "localTodayOptimistic": 1.24,
   "daemon": { "health": "running" | "stale" | "not-running", "pid": 49017, "socketPath": "...",
@@ -506,6 +499,8 @@ JSON schema (stable, document before 1.0):
   "offlineReason": null | "network" | "api 500" | "local-only" | "not-signed-in"
 }
 ```
+
+The `user.{walletAddress, verificationLevel, signedUpAt, miniAppComplete}` fields and the `MIN_PAYOUT_USDC = 0.5` threshold landed in S4-WC1 PR4 alongside the World Chain claim flow. See [`status` (S2-06; extended in S4-WC1 PR4)](#status-s2-06-extended-in-s4-wc1-pr4) for the human-readable output.
 
 ## Frequency caps (S3-12)
 
