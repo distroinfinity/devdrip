@@ -17,7 +17,7 @@ import { putPreferences } from "../lib/preferences-client.js"
 import { runInitHealthCheck } from "../lib/health.js"
 import { runDemo } from "./demo.js"
 import { registerDevice } from "../lib/device.js"
-import { runLogin } from "./auth.js"
+import { runLogin } from "./login.js"
 
 const CATEGORY_LABELS: Record<AdCategory, string> = {
   [AdCategory.CloudInfrastructure]: "Cloud & infrastructure",
