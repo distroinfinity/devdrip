@@ -5,6 +5,7 @@ import {
   listCampaignReports,
   getCampaignReport,
   getAdvertiserReport,
+  getNewsReports,
   type CampaignReportFilters,
 } from "../services/reports.service.js"
 
@@ -34,6 +35,17 @@ adminReportsRouter.get("/advertisers/:id", async (req, res, next) => {
   try {
     const id = validateUUID(req.params["id"], "advertiser_id")
     const data = await getAdvertiserReport(id)
+    res.json(data)
+  } catch (err) {
+    next(err)
+  }
+})
+
+adminReportsRouter.get("/news", async (req, res, next) => {
+  try {
+    const daysRaw = req.query["days"]
+    const days = typeof daysRaw === "string" ? Number.parseInt(daysRaw, 10) : undefined
+    const data = await getNewsReports(days)
     res.json(data)
   } catch (err) {
     next(err)
