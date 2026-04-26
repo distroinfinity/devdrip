@@ -230,7 +230,7 @@ async function runHealthCheck(): Promise<boolean> {
 function printSummary(): void {
   note(
     [
-      "→ dashboard: https://devdrip.xyz (coming soon)",
+      "→ dashboard: https://devdrip.xyz/dashboard",
       "→ run `devdrip status` to see your earnings",
     ].join("\n"),
     "what's next"
