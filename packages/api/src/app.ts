@@ -101,6 +101,9 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
       githubLogin: users.githubLogin,
       email: users.email,
       avatarUrl: users.avatarUrl,
+      walletAddress: users.walletAddress,
+      verificationLevel: users.verificationLevel,
+      signedUpAt: users.signedUpAt,
     })
     .from(users)
     .where(eq(users.id, userId))
@@ -110,7 +113,15 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
     await res.status(404).json({ error: "user_not_found" })
     return
   }
-  await res.json(row)
+  await res.json({
+    id: row.id,
+    githubLogin: row.githubLogin,
+    email: row.email,
+    avatarUrl: row.avatarUrl,
+    walletAddress: row.walletAddress,
+    verificationLevel: row.verificationLevel,
+    signedUpAt: row.signedUpAt?.toISOString() ?? null,
+  })
 })
 
 app.use("/me", requireAuth, userLimiter, mePreferencesRouter)
