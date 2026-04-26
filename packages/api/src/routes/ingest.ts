@@ -2,6 +2,7 @@ import { Router } from "express"
 import { ImpressionResult, MAX_AD_DURATION_MS, MIN_COMPLETED_DURATION_MS } from "@devdrip/shared"
 import { validateIngest, type IngestItem } from "../validators/ingest.validators.js"
 import * as impressionService from "../services/impression.service.js"
+import { recordNewsImpression } from "../services/news-impression.service.js"
 import {
   peekDeliveryToken,
   verifyDeliveryTokenForIngest,
@@ -94,13 +95,48 @@ ingestRouter.post("/", async (req, res, next) => {
       clickResults.push(out)
     }
 
-    // best-effort: drop the user's earnings cache so the dashboard sees writes
-    // promptly. failure to invalidate is harmless (60s natural TTL).
-    invalidateEarningsSummary(userId).catch((err) => {
-      logger.warn({ err, userId }, "earnings summary invalidation failed")
-    })
+    interface NewsImpressionResultItem {
+      ok: boolean
+      newsId: string
+      error?: string
+    }
 
-    res.status(200).json({ impressions: impressionResults, clicks: clickResults })
+    const newsResults: NewsImpressionResultItem[] = []
+    for (const item of input.newsImpressions) {
+      try {
+        await recordNewsImpression({
+          userId,
+          deviceId: item.deviceId,
+          newsId: item.newsId,
+          source: item.source,
+          durationMs: item.durationMs,
+          result: item.result,
+          openedUrl: item.openedUrl,
+          saved: item.saved,
+        })
+        newsResults.push({ ok: true, newsId: item.newsId })
+      } catch (err) {
+        newsResults.push({
+          ok: false,
+          newsId: item.newsId,
+          error: err instanceof Error ? err.message : "internal_error",
+        })
+      }
+    }
+
+    // best-effort: only bust earnings cache when ad impressions are present.
+    // news-only batches must not invalidate earnings (spec §11 structural isolation).
+    if (input.impressions.length > 0) {
+      invalidateEarningsSummary(userId).catch((err) => {
+        logger.warn({ err, userId }, "earnings summary invalidation failed")
+      })
+    }
+
+    res.status(200).json({
+      impressions: impressionResults,
+      clicks: clickResults,
+      newsImpressions: newsResults,
+    })
   } catch (err) {
     next(err)
   }
