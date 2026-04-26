@@ -7,7 +7,7 @@ import {
   MUTE_DURATION_MS,
 } from "@devdrip/shared"
 import type { CachedSlot } from "../slot-cache.js"
-import type { ImpressionResult, LocalImpression } from "../ledger.js"
+import type { ImpressionResult, LocalImpression, LocalNewsImpression } from "../ledger.js"
 
 export type State =
   | { kind: "IDLE" }
@@ -44,6 +44,7 @@ export type Effect =
   | { kind: "cancelInterAdTimer" }
   | { kind: "vanishDisplay" }
   | { kind: "recordImpression"; impression: LocalImpression; ad: CachedSlot }
+  | { kind: "recordNewsImpression"; impression: LocalNewsImpression; ad: CachedSlot }
   | { kind: "setSessionKilled" }
   | { kind: "clearSessionState" }
   | { kind: "writeMuteUntil"; muteUntil: number }
@@ -287,6 +288,22 @@ function endShowing(
       cpmRate: slot.cacheSource === "api" ? (adPayload.cpmRate ?? 0) : null,
     }
     cleanup.push({ kind: "recordImpression", impression, ad: slot })
+  }
+  if (slot.kind === "news") {
+    const newsImpression: LocalNewsImpression = {
+      id: randomUUID(),
+      newsId: slot.payload.id,
+      source: slot.payload.source,
+      deviceId: ctx.deviceId,
+      durationMs,
+      result,
+      // openedUrl left false here — orchestrator overrides from its per-session flag
+      openedUrl: false,
+      // saved is denormalized analytics; reading_pending tracks the actual save intent
+      saved: false,
+      createdAt: now,
+    }
+    cleanup.push({ kind: "recordNewsImpression", impression: newsImpression, ad: slot })
   }
 
   if (goToInterAd) {
