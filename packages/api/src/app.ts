@@ -27,6 +27,8 @@ import { miniappAuthRouter } from "./routes/miniapp-auth.js"
 import { miniappWorldIdRouter } from "./routes/miniapp-world-id.js"
 import { miniappGithubRouter } from "./routes/miniapp-github.js"
 import { miniappSignupRouter } from "./routes/miniapp-signup.js"
+import { cliPairRouter } from "./routes/cli-pair.js"
+import { miniappCliLinkRouter } from "./routes/miniapp-cli-link.js"
 import { requireAuth } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
 import { globalLimiter, userLimiter, adminLimiter } from "./middleware/rate-limit.js"
@@ -65,6 +67,8 @@ app.use("/miniapp/wallet-auth", miniappAuthRouter)
 app.use("/miniapp/world-id", miniappWorldIdRouter)
 app.use("/miniapp/github-oauth", miniappGithubRouter)
 app.use("/miniapp/signup", miniappSignupRouter)
+app.use("/cli/pair", cliPairRouter)
+app.use("/miniapp/cli-link", miniappCliLinkRouter)
 app.use("/devices", requireAuth, devicesRouter)
 app.use("/advertisers", requireAdmin, adminLimiter, advertisersRouter)
 app.use("/campaigns", requireAdmin, adminLimiter, campaignsRouter)
