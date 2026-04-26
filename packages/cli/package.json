@@ -1,14 +1,38 @@
 {
   "name": "@devdrip/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Earn or learn while your AI agent codes — opt-in USDC micropayments and tech news during Claude Code idle time.",
   "private": false,
   "type": "module",
   "bin": {
     "devdrip": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
+  "homepage": "https://devdrip.xyz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/distroinfinity/devdrip.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/distroinfinity/devdrip/issues"
+  },
+  "keywords": [
+    "claude-code",
+    "ai",
+    "usdc",
+    "micropayments",
+    "world-chain",
+    "developer-tools",
+    "cli"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -8,9 +8,9 @@ import {
   type DevdripConfig,
 } from "./config.js"
 
-// railway-hosted prod api. override with DEVDRIP_API_URL for local/staging.
-// note: api.devdrip.sh is the eventual public hostname but dns isn't wired yet.
-const DEFAULT_BASE_URL = "https://devdrip-api-production.up.railway.app"
+// railway-hosted prod api, fronted by api.devdrip.xyz.
+// override with DEVDRIP_API_URL for local/staging.
+const DEFAULT_BASE_URL = "https://api.devdrip.xyz"
 const DEFAULT_TIMEOUT_MS = 10_000
 
 // Mirrors the backend `/me` response. Commands that call /me should import this
