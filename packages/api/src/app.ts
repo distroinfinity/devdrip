@@ -23,6 +23,10 @@ import { meEarningsRouter } from "./routes/me-earnings.js"
 import { meAnalyticsRouter } from "./routes/me-analytics.js"
 import { meImpressionsRouter } from "./routes/me-impressions.js"
 import { adminReportsRouter } from "./routes/admin-reports.js"
+import { miniappAuthRouter } from "./routes/miniapp-auth.js"
+import { miniappWorldIdRouter } from "./routes/miniapp-world-id.js"
+import { miniappGithubRouter } from "./routes/miniapp-github.js"
+import { miniappSignupRouter } from "./routes/miniapp-signup.js"
 import { requireAuth } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
 import { globalLimiter, userLimiter, adminLimiter } from "./middleware/rate-limit.js"
@@ -57,6 +61,10 @@ app.use("/health", healthRouter)
 app.use(globalLimiter)
 
 app.use("/auth", authRouter)
+app.use("/miniapp/wallet-auth", miniappAuthRouter)
+app.use("/miniapp/world-id", miniappWorldIdRouter)
+app.use("/miniapp/github-oauth", miniappGithubRouter)
+app.use("/miniapp/signup", miniappSignupRouter)
 app.use("/devices", requireAuth, devicesRouter)
 app.use("/advertisers", requireAdmin, adminLimiter, advertisersRouter)
 app.use("/campaigns", requireAdmin, adminLimiter, campaignsRouter)
