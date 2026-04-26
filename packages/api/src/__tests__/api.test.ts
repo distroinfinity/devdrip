@@ -99,9 +99,8 @@ describe("GET /auth/github/redirect (cli_port)", () => {
     expect(res.headers["location"]).toMatch(/^https:\/\/github\.com\/login\/oauth\/authorize\?/)
 
     const state = extractState(res.headers["set-cookie"])
-    const raw = await getRedis().get<string>(`auth:state:${state}`)
-    expect(raw).toBeTruthy()
-    expect(JSON.parse(raw as string)).toEqual({ cliPort: 54321 })
+    const ctx = await getRedis().get<{ cliPort: number }>(`auth:state:${state}`)
+    expect(ctx).toEqual({ cliPort: 54321 })
 
     await getRedis().del(`auth:state:${state}`)
   })

@@ -11,6 +11,8 @@ describe("byteToAction", () => {
     ["K", "kill"],
     ["m", "mute"],
     ["M", "mute"],
+    ["b", "save"],
+    ["B", "save"],
     ["\r", "dismiss"],
     ["\n", "dismiss"],
     [" ", "dismiss"],
@@ -20,7 +22,7 @@ describe("byteToAction", () => {
     expect(byteToAction(input)).toBe(expected)
   })
 
-  it.each(["a", "b", "x", "1", "?"])("returns null for unmapped byte %j", (input) => {
+  it.each(["a", "x", "1", "?"])("returns null for unmapped byte %j", (input) => {
     expect(byteToAction(input)).toBeNull()
   })
 })

@@ -72,8 +72,7 @@ export async function getEarningsSummary(userId: string): Promise<EarningsSummar
 
 async function safeGet(userId: string): Promise<EarningsSummary | null> {
   try {
-    const raw = await getRedis().get<string>(key(userId))
-    return raw ? (JSON.parse(raw) as EarningsSummary) : null
+    return (await getRedis().get<EarningsSummary>(key(userId))) ?? null
   } catch {
     return null
   }
@@ -241,8 +240,7 @@ function clampDays(n: number): number {
 
 async function safeGetTs(userId: string, days: number): Promise<EarningsTimeseries | null> {
   try {
-    const raw = await getRedis().get<string>(timeseriesKey(userId, days))
-    return raw ? (JSON.parse(raw) as EarningsTimeseries) : null
+    return (await getRedis().get<EarningsTimeseries>(timeseriesKey(userId, days))) ?? null
   } catch {
     return null
   }
