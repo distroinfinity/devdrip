@@ -47,6 +47,13 @@ export async function verifyMiniAppSession(
 
 export const MINIAPP_COOKIE_NAME = "dd_miniapp"
 export const MINIAPP_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 days in seconds
-export const MINIAPP_COOKIE_PATH = "/m"
+// Cookie Path scopes which API requests carry the cookie. Per RFC 6265 a
+// Path=/m would NOT match /miniapp/... (the next char after /m must be / or
+// end-of-URL), so we scope to /miniapp to cover all backend Mini App routes
+// (/miniapp/wallet-auth/*, /miniapp/world-id/*, /miniapp/github-oauth/*,
+// /miniapp/signup/*, /miniapp/cli-link/*). The frontend pages live at /m/*
+// but they don't read this cookie directly — they fetch /miniapp/* endpoints
+// which need it.
+export const MINIAPP_COOKIE_PATH = "/miniapp"
 
 export { joseErrors as miniAppJoseErrors }
