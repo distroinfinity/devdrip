@@ -12,12 +12,13 @@
 ## Registered Commands
 
 - `init`
-- `auth`
+- `login` — World Chain QR pairing flow (S4-WC1 PR4)
+- `auth` — **deprecated** alias for `login`; removed in next major release
 - `config`
-- `status`
+- `status` — extended with World identity (wallet, verification, signup state)
 - `daemon`
 - `sync`
-- `claim`
+- `claim` — real implementation (S4-WC1 PR4); was a stub
 - `demo`
 - `doctor`
 - `uninstall`
@@ -31,39 +32,110 @@
 
 Stub commands (still print `TODO`):
 
-- `claim`
 - `verify`
 - `referral`
 
-`sync` has a minimal impl; `doctor` / `uninstall` / `demo` / `upgrade` landed with Sprint-5 polish and are covered below.
+`sync` has a minimal impl; `doctor` / `uninstall` / `demo` / `upgrade` landed with Sprint-5 polish; `login` / `claim` / `status` (with World identity) landed with S4-WC1 PR4.
 
-## `auth` + `status` (S2-06)
+## `login` (S4-WC1 PR4)
 
-`devdrip auth` runs the GitHub OAuth round-trip and persists the session locally. `devdrip status` reads that session and shows the signed-in identity.
+`devdrip login` is the canonical way to link the CLI to a DevDrip account. Replaces the GitHub-OAuth-via-browser flow that `devdrip auth` used (now a deprecation alias).
 
-### `devdrip auth`
+### Flow
 
-Flow:
+1. `POST /cli/pair` mints a Crockford-base32 pair code (`XXX-XXX-XXX`, no I/L/O/U) with 5-min TTL. Returns `{ code, link_url, qr_payload, expires_at }`.
+2. CLI renders an ASCII QR via `qrcode-terminal` and prints the code + link URL.
+3. CLI long-polls `GET /cli/pair/:code` (server long-polls 25s internally; client sleeps 1s between attempts) with a 5-min total budget.
+4. User scans the QR with World App's camera → opens DevDrip Mini App with `?link=<code>`. If first-time, completes the 3-step signup wizard. If returning, the Mini App's final step shows "Link this CLI?" → `POST /miniapp/cli-link/:code`.
+5. Long-poll receives `200 { token, refresh_token, user }`. CLI fetches `/me` with the new token (sanity round-trip) and persists `~/.devdrip/config.json` atomically.
 
-1. picks the first free TCP port in `[54321, 54330]` on `127.0.0.1` and starts a one-route HTTP server there.
-2. opens the default browser (`open` / `xdg-open` / `cmd start`) to `${DEVDRIP_API_URL}/auth/github/redirect?cli_port=<port>`.
-3. waits up to 60 seconds for the browser round-trip. On timeout or SIGINT the server closes and the command exits non-zero.
-4. the backend handles GitHub consent, mints a one-time exchange code, and redirects the browser to `http://localhost:<port>/callback?code=<one-time>` (or `?error=<reason>`).
-5. `POST /auth/exchange` with the one-time code → `{ token, refresh_token }`.
-6. `GET /me` with the bearer token → user profile (`id`, `githubLogin`, `email`, `avatarUrl`).
-7. writes `~/.devdrip/config.json` atomically (tmp file + rename) with mode `0600`. Parent directory is created with mode `0700`.
+The persisted config shape is **byte-equivalent** to what `devdrip auth` wrote — daemon-compat preserved (PR2's `paired-token-prefs-sync.test.ts` integration test gates this).
 
-Flags:
+### Flags
 
-- `--logout` — revokes refresh tokens via `POST /auth/logout` and deletes `~/.devdrip/config.json`. No-ops (exit 0) when no config exists.
-- `-f, --force` — skip the "already signed in, re-authenticate?" confirmation prompt.
+- `-f, --force` — skip the "already signed in, pass --force to re-link" check.
 
-Error handling:
+### Error handling
 
-- ports 54321–54330 all in use → exit 1 with a clear message.
-- user denies GitHub consent → local server receives `?error=access_denied`, prints `auth cancelled`, exits 1.
-- 60-second timeout with no callback → exit 1.
-- backend 5xx during exchange → exit 1, no token persisted.
+- pair session expired (`410`) → exit 1 with re-run instruction.
+- 5-min total budget exhausted → exit 1.
+- network / API down → propagates via `reportError`.
+
+## `auth` (deprecated)
+
+Kept for one release as an alias for `login`. Prints `⚠ \`devdrip auth\` is deprecated — use \`devdrip login\` instead`to stderr, then delegates to the`login`flow.`--logout`still works (revokes refresh tokens via`POST /auth/logout` + deletes config). Removed in next major release.
+
+## `status` (S2-06; extended in S4-WC1 PR4)
+
+Reads `~/.devdrip/config.json` and calls `GET /me` (which now includes World identity fields). Output:
+
+```
+user:     @manu (manu@example.com)
+wallet:   0x1479…9325
+world id: device
+mini app: complete
+earnings: $1.23 today · $4.56 week · $12.34 month
+streak:   7 days
+balance:  $4.56 → payout eligible (min $0.50)
+unsynced: 0 impressions, 0 clicks
+daemon:   running (uptime 2h 15m, pid 12345)
+```
+
+The new "wallet / world id / mini app" lines were added in PR4. They're populated from the extended `/me` response (`walletAddress`, `verificationLevel`, `signedUpAt`). `mini app: incomplete` shows when `signedUpAt` is null — user has not finished the Mini App signup wizard.
+
+JSON mode (`--json`) includes the same fields:
+
+```json
+{
+  "user": {
+    "githubLogin": "manu",
+    "email": "manu@example.com",
+    "walletAddress": "0x14791697260E4c9A71f18484C9f997B308e59325",
+    "verificationLevel": "device",
+    "signedUpAt": "2026-04-26T12:00:00.000Z",
+    "miniAppComplete": true
+  },
+  "earnings": { ... },
+  ...
+}
+```
+
+Reads:
+
+- no config → `auth: not signed in (run \`devdrip login\`)`
+- config but `/me` fails (network) → falls back to cached identity, omits World identity
+- token expired → transparent refresh via `POST /auth/refresh`, retries `/me`
+- refresh fails → config is cleared, message prompts re-login
+
+## `claim` (S4-WC1 PR4)
+
+`devdrip claim` requests a USDC payout to the user's bound World Wallet.
+
+### Flow
+
+1. `GET /me/balance` → `{ availableUsdc, lifetimeEarnedUsdc, pendingPayoutsUsdc }`.
+2. If `availableUsdc < 0.5` → error + exit 1 with shortfall message.
+3. Confirm prompt (via `@clack/prompts`): `claim $X.XX USDC?` (skipped with `-y / --yes`).
+4. Generate `crypto.randomUUID()` for `Idempotency-Key` header.
+5. `POST /me/payouts/claim` → `{ id, status: "pending", amount_usdc, wallet_address }`.
+6. Poll `GET /me/payouts/:id` every 3s for up to 90s. On terminal status print result:
+   - `confirmed` → `✓ confirmed` + WorldScan tx link
+   - `failed` → `✗ failed: <reason>` + exit 1
+7. Polling timeout → message tells the user to check `devdrip status` later.
+
+### Flags
+
+- `-y, --yes` — skip the confirm prompt.
+
+### Error handling
+
+- not signed in → `not signed in. run \`devdrip login\` first.` + exit 1.
+- balance < $0.50 → exit 1 with shortfall.
+- API returns 4xx → propagates via `reportError`.
+
+## Original `auth` flow (replaced)
+
+For historical reference, the pre-PR4 `devdrip auth` flow used a local HTTP callback server + browser OAuth round-trip. Replaced by QR-pairing via Mini App. The original implementation lives in git history at commit `dc418e7`'s `packages/cli/src/commands/auth.ts`.
 
 ### `devdrip status`
 
