@@ -7,7 +7,8 @@ import { env, assertEnvSafe } from "./config/env.js"
 import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
 import { startSettlementLoop, stopSettlementLoop } from "./workers/settlement.js"
-import { startAutoDisburseCron, tick as runDisburseOnce } from "./workers/auto-disburse.js"
+import { startAutoDisburseCron } from "./workers/auto-disburse.js"
+import { runAutoDisburse } from "./services/auto-disburse.service.js"
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("[worker] unhandledRejection at:", promise, "reason:", reason)
@@ -25,13 +26,29 @@ async function start(): Promise<void> {
 
   if (process.argv.includes("--once-disburse")) {
     logger.info("running auto-disburse once and exiting")
-    await runDisburseOnce()
-    process.exit(0)
+    // Call the service directly so any failure (DB error, SQL bug) propagates
+    // to a non-zero exit code. The wrapper tick() in workers/auto-disburse.ts
+    // catches+logs errors so they don't kill the cron loop, but for the manual
+    // CLI an operator MUST see a non-zero exit on failure.
+    try {
+      const summary = await runAutoDisburse()
+      logger.info({ inserted: summary.inserted }, "auto-disburse complete")
+      process.exit(0)
+    } catch (err) {
+      logger.error({ err }, "auto-disburse failed")
+      process.exit(1)
+    }
   }
 
   // Fail fast if the hot wallet env vars aren't set — worker can't function
-  // without them. Reading the getter triggers requireEnv which throws.
+  // without them. Reading BOTH getters triggers requireEnv which throws.
+  // hotWalletPrivateKey was previously only read lazily inside getWalletClient
+  // during the first broadcast, which let the worker boot looking healthy and
+  // crash on first payout instead of at startup.
   const hotWallet = env.hotWalletAddress
+  // Touch the private key getter to force the requireEnv check at boot.
+  // We discard the return value; getWalletClient() reads it again later.
+  void env.hotWalletPrivateKey
   logger.info({ hotWallet }, "worker starting; hot wallet configured")
 
   const [dbResult, redisResult] = await Promise.allSettled([probeDb(), probeRedis()])
