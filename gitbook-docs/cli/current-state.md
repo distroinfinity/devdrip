@@ -29,17 +29,13 @@
 
 ## Current Behavior
 
-Most commands only print a `TODO` message.
+Stub commands (still print `TODO`):
 
-That includes:
-
-- `sync`
 - `claim`
-- `doctor`
-- `uninstall`
-- `upgrade`
 - `verify`
 - `referral`
+
+`sync` has a minimal impl; `doctor` / `uninstall` / `demo` / `upgrade` landed with Sprint-5 polish and are covered below.
 
 ## `auth` + `status` (S2-06)
 
@@ -185,9 +181,88 @@ Notes:
 - `tzOffsetMinutes` is refreshed from `Date().getTimezoneOffset()` on every save so users who move timezones don't need to edit manually.
 - Interactive mode shows the current JSON in a `note()` block after each edit so you can see a diff before saving.
 
-## devdrip demo (S2-07, partial — S5-04 owns the polished version)
+## devdrip demo (S2-07 → S5-04)
 
-`devdrip demo` fetches one real ad from `GET /ads/next?surface=terminal-tv&deviceId=<id>` and renders it via `renderBox()` (fixed 72-col unicode box, ASCII fallback when not a TTY or `NO_COLOR=1`). Ad headline/body/url text is sanitized before printing so terminal control sequences cannot corrupt the screen. Press enter to dismiss. If the backend returns 204 (no ads queued), it prints a graceful "try again after your next Claude session" message. The `[DEMO]` badge, interactive key practice, and vanish-timing stats remain scoped to S5-04.
+`devdrip demo` fetches one real ad from `GET /ads/next?surface=terminal-tv&deviceId=<id>` and renders it via `renderBox()` with an amber `[DEMO]` badge in the header so a user can't mistake a practice ad for a real logged one. Ad headline/body/url text is sanitized before printing so terminal control sequences cannot corrupt the screen. If the backend returns 204 or errors out, the command falls back to the bundled `DEMO_ADS` fixture so the preview is useful offline.
+
+Interactive key practice (S5-04): after the box renders, stdin goes to raw mode and `processByteChunk()` from `lib/daemon/input.ts` maps keys the same way the real daemon does — `D` discover, `S` skip, `K` kill, `M` mute, and Enter/space/esc to dismiss. Non-dismiss keys print a confirmation line so the user can see the mapping fire. `[D]` prints `would open: <url>` instead of actually opening the browser.
+
+Vanish-timing: the dismiss keystroke → post-cleanup time is measured and printed (`dismiss → vanish: 2 ms (target <200 ms)`). This matches the `<200ms ad vanish` hard rule from the daemon — it's the cleanup path that bounds it, not wall-clock.
+
+Flags:
+
+- `--ascii` — force ASCII rendering and skip the key loop. Designed for CI and `NO_COLOR` scenarios where raw-mode tty tricks would hang.
+
+In non-TTY (piped) contexts the command prints the box and exits immediately without entering the key loop, so scripts don't hang. `devdrip init` calls `runDemo()` in-process for the onboarding preview step.
+
+## devdrip doctor (S5-02)
+
+`devdrip doctor` is the support-load surface — if a user says "it's not working", this is the first thing they run. Eight probes in a fixed output order, each with a remediation hint on failure:
+
+1. `auth valid (GET /me)` — rotates the access token automatically via `apiFetch`.
+2. `device registered` — checks `cfg.device.id`.
+3. `hooks installed in ~/.claude/settings.json` — all four events (`PreToolUse`, `Stop`, `UserPromptSubmit`, `SessionStart`) present, pointing at the current `cli.binPath`.
+4. `backend reachable (GET /health)` — public endpoint, 500 ms budget.
+5. `daemon running` — `readDaemonStatus()` says `running` AND `lastHeartbeatAgeMs < 20_000`.
+6. `ad cache populated` — `~/.devdrip/ad-cache.json` has ≥1 ad and `expiresAt > now`.
+7. `tty writable` — `process.stdout.isTTY` + `access("/dev/tty")` on unix; Windows passes on stdout-only.
+8. `disk space for ledger` — `fs.statfs(~/.devdrip)` → fail under 10 MB, warn under 100 MB, pass otherwise. Platform-unsupported → report `unknown` and pass (Windows / older libuv).
+
+Layout stays deterministic regardless of which probe resolves first (`Promise.all` + fixed-index destructure). Probes share the same `Probe` shape used by `runInitHealthCheck` so the init 4-probe panel is a strict subset of doctor's output.
+
+Flags:
+
+- `--json` — emits `{ ok: boolean, probes: Probe[] }` for scripting / `jq` / CI.
+
+Exit codes:
+
+- `0` — every probe passed.
+- `1` — at least one probe failed.
+- warn-but-ok probes (disk space between 10 MB and 100 MB) don't affect the exit code; the human output styles them yellow.
+
+## devdrip uninstall (S5-03, P0)
+
+`devdrip uninstall` is the trust surface. Claude Code must work identically after running it, and earnings must remain claimable. There is no email/telemetry and no guilt loop.
+
+Flow:
+
+1. **Confirm** via `@clack/prompts.confirm()` — `-y` / `--yes` skips for scripting.
+2. **Stop daemon first.** Calls `runStop()` from `daemon.ts`. After the S4-06 prefs-sync loop landed, the daemon can rewrite `~/.devdrip/config.json` every 30 min, so stopping before any config/settings write is the only way to avoid a race. The command asserts `readDaemonStatus().health !== "running"` afterward and aborts if the daemon refuses to stop.
+3. **Restore or strip Claude hooks.** If `~/.claude/settings.json.devdrip-backup` exists, the backup is written back verbatim (byte-for-byte) and the backup file is removed. Otherwise `removeDevdripHooks(settings)` strips every entry whose command matches `parseDevdripCommand` — so stale hooks from old installs or dead worktrees are cleaned up too — and drops any empty groups + empty event arrays. Atomic write via `writeSettingsAtomic` so partial writes can't leave a broken settings file.
+4. **Drop the symlink** at `~/.devdrip/bin/devdrip` if it exists.
+5. **Fetch pending earnings** from `/me/earnings/summary`, falling back to `status-cache.ts` on network error. Prints pending balance, claim status against `MIN_PAYOUT_USDC = 1.0`, the dashboard URL, and "earnings preserved 90 days" assurance.
+6. **Preserve `~/.devdrip/` by default.** The ledger (with unsynced impressions) and cache are kept so re-running `init` restores everything. `cfg.cli.binPath` is cleared so a fresh init starts from a clean path.
+7. **`--purge`** opt-in: `rm -rf ~/.devdrip/` (config + ledger + cache + logs + local-only state like `preferences.muteUntil`).
+8. Final hint on how to remove the binary: `npm uninstall -g @devdrip/cli`.
+
+Per the ticket AC, no email is sent — there's no email infrastructure on the backend today. The claim URL in stdout is the authoritative handoff; future work can add a backend `/me/uninstall` endpoint for retention tracking.
+
+## devdrip upgrade (S5-10)
+
+`devdrip upgrade` checks the npm registry for a newer `@devdrip/cli` version. No auto-install: users may install via npm / pnpm / bun / volta / asdf / brew and a hardcoded `npm install -g` would fight the real installer.
+
+Lib: `src/lib/upgrade-check.ts`.
+
+- `fetchLatestVersion()` — `fetch("https://registry.npmjs.org/@devdrip/cli/latest")` with a 1.5 s `AbortController` timeout. Throws `Error("registry returned <status>")` on non-2xx.
+- `compareSemver(a, b)` — numeric part-by-part compare plus pre-release suffix rule (pre-release sorts below plain release). Not a full semver library; the only comparisons made are `current` vs `latest`.
+- `readUpgradeCheckCache() / writeUpgradeCheckCache()` — JSON at `~/.devdrip/upgrade-check.json`, atomic write, mode `0600`.
+- `maybeCheck(current, opts)` — returns `{ latest, outdated, cached } | null`. Cache-hit path when the file is younger than `CHECK_INTERVAL_MS = 7 days` and `opts.force` is not set. `opts.timeoutMs` swallows network errors and returns `null` (used by the passive `status` integration).
+
+Command behavior:
+
+- `devdrip upgrade` — cache-preferred. Exit 0 whether up-to-date or outdated (informational).
+- `devdrip upgrade --force` — bypasses the 7-day cache. Exit 1 only on network/registry error.
+
+Output shape:
+
+```
+current: 0.0.0
+latest:  0.3.1 (cached — checked within 7d)
+
+→ npm install -g @devdrip/cli@latest
+```
+
+Passive check in `devdrip status`: a fire-and-forget `maybeCheck(version, { timeoutMs: 500 })` runs in parallel with the main status query. If it returns outdated, one line is appended: `upgrade:  0.3.1 available (run \`devdrip upgrade\`)`. Skipped on `--json`to keep the scripting shape stable. The 500 ms cap and error-swallowing keeps the`status` hot path unaffected.
 
 ## `admin` Subcommands
 
@@ -242,9 +317,9 @@ Two `src/lib` modules that give the future daemon local state without touching t
 
 ## What Is Missing For A Real CLI
 
-- sync pipeline (`devdrip sync` still stubbed; S3-07)
-- payout flow
-- doctor checks
+- payout flow (`devdrip claim` still a stub)
+- backend `/me/uninstall` endpoint for retention tracking + email claim link (deferred: no email infra)
+- `devdrip doctor --fix` auto-remediation (deferred: duplicates `init` paths)
 
 ## Daemon + Hook IPC (S2-10, S2-11)
 

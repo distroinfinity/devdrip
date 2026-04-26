@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs"
+import { createRequire } from "node:module"
 import { Command } from "commander"
 import { MIN_PAYOUT_USDC } from "@devdrip/shared"
 import { ApiError, apiFetch, NotAuthenticatedError, reportError } from "../lib/api-client.js"
@@ -10,6 +11,9 @@ import {
   writeStatusCache,
   type CachedEarningsSummary,
 } from "../lib/status-cache.js"
+import { maybeCheck } from "../lib/upgrade-check.js"
+
+const require = createRequire(import.meta.url)
 
 // Mirrors the backend `EarningsSummary` shape (packages/api/src/services/earnings.service.ts).
 // Re-declared locally so this command doesn't take a dependency on the API package.
@@ -58,6 +62,10 @@ export const statusCmd = new Command("status")
       const ledger = readLocalLedger(tzOffsetMinutes)
       const daemon = readDaemonStatus()
 
+      // passive upgrade check — 500ms cap, errors swallowed, never gates the
+      // main flow. --json skips it so scripts see a stable shape.
+      const upgradePromise = opts.json ? Promise.resolve(null) : runPassiveUpgradeCheck()
+
       const { earnings, earningsFromCache, earningsCacheAgeMs, offline, offlineReason } =
         await fetchEarnings(cfg, opts.local ?? false)
 
@@ -79,10 +87,28 @@ export const statusCmd = new Command("status")
         return
       }
       printHuman(payload)
+      const upgrade = await upgradePromise
+      if (upgrade?.outdated) {
+        console.log(`upgrade:  ${upgrade.latest} available (run \`devdrip upgrade\`)`)
+      }
     } catch (err) {
       reportError(err)
     }
   })
+
+// Passive check for `status`: 500 ms budget, cached result preferred, any
+// error = silent null. The main status output never waits on this beyond
+// the half-second.
+async function runPassiveUpgradeCheck(): Promise<{ latest: string; outdated: boolean } | null> {
+  try {
+    // path relative to the bundled dist/index.js, matching src/index.ts
+    const { version = "0.0.0" } = require("../package.json") as { version?: string }
+    const result = await maybeCheck(version, { timeoutMs: 500 })
+    return result
+  } catch {
+    return null
+  }
+}
 
 function readLocalLedger(tzOffsetMinutes: number): LocalLedgerState {
   // ledger file is created lazily on first impression write. avoid creating it
