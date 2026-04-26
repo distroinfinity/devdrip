@@ -66,34 +66,80 @@ export async function fetchPairTokens(code: string): Promise<PairFetchResult> {
   if (row.expiresAt < new Date()) return { kind: "expired" }
   if (row.status !== "linked") return { kind: "pending" }
 
-  // Tokens were stashed in Redis at link time. getdel makes them single-use.
+  // Happy path: stash exists from linkPairSession. getdel makes it single-use.
   const stash = await getRedis().getdel<string>(`${TOKEN_STASH_PREFIX}${code}`)
-  if (!stash) return { kind: "expired" }
-  const parsed = JSON.parse(stash) as { token: string; refreshToken: string; user: PairUserPayload }
-  return { kind: "linked", ...parsed }
+  if (stash) {
+    const parsed = JSON.parse(stash) as {
+      token: string
+      refreshToken: string
+      user: PairUserPayload
+    }
+    return { kind: "linked", ...parsed }
+  }
+
+  // Recovery path: stash missing (Redis eviction, partial link). The row's
+  // userId is the source of truth for who owns this pairing — mint a fresh
+  // pair from it. This keeps the user from being stuck on a permanently
+  // 'linked' row that can never deliver tokens.
+  if (!row.userId) return { kind: "expired" }
+  const [user] = await db
+    .select({
+      id: users.id,
+      githubLogin: users.githubLogin,
+      email: users.email,
+      avatarUrl: users.avatarUrl,
+    })
+    .from(users)
+    .where(eq(users.id, row.userId))
+    .limit(1)
+  if (!user || !user.githubLogin) return { kind: "expired" }
+
+  const accessToken = await signAccessToken(
+    { sub: user.id, github_login: user.githubLogin },
+    env.jwtSecret
+  )
+  const rawRefresh = generateRefreshToken()
+  await db.insert(refreshTokens).values({
+    userId: user.id,
+    tokenHash: hashRefreshToken(rawRefresh),
+    family: randomUUID(),
+    expiresAt: refreshTokenExpiresAt(),
+  })
+
+  return {
+    kind: "linked",
+    token: accessToken,
+    refreshToken: rawRefresh,
+    user: {
+      id: user.id,
+      githubLogin: user.githubLogin,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+    },
+  }
 }
 
-// Atomic: only succeeds if pair_session is still pending and not expired.
-// Returns the issued token + refresh + user payload (the long-poll route
-// stashes them in Redis under the pair code; the long-poll consumes them).
+// Mint tokens + stash BEFORE flipping pair_session status. If anything fails
+// before the status flip the row stays 'pending' and the user can retry. We
+// leak at most one refresh_token row per failed attempt. The status flip is
+// an atomic conditional update; if a concurrent caller wins the race we
+// clean up our stash and return 410.
 export async function linkPairSession(code: string, userId: string): Promise<PairUserPayload> {
   const db = getDb()
   const now = new Date()
 
-  const [linked] = await db
-    .update(cliPairSessions)
-    .set({ userId, status: "linked", completedAt: now })
-    .where(
-      and(
-        eq(cliPairSessions.code, code),
-        eq(cliPairSessions.status, "pending"),
-        sql`${cliPairSessions.expiresAt} > ${now.toISOString()}`
-      )
-    )
-    .returning()
+  // 1. Validate the session is still claimable. Read-only — we don't mutate
+  //    state until we've staged tokens.
+  const [session] = await db
+    .select()
+    .from(cliPairSessions)
+    .where(eq(cliPairSessions.code, code))
+    .limit(1)
+  if (!session || session.status !== "pending" || session.expiresAt < now) {
+    throw new ApiError(410, "pair_session_unavailable")
+  }
 
-  if (!linked) throw new ApiError(410, "pair_session_unavailable")
-
+  // 2. Look up the user. Daemon-compat requires github_login in the JWT.
   const [user] = await db
     .select({
       id: users.id,
@@ -105,12 +151,10 @@ export async function linkPairSession(code: string, userId: string): Promise<Pai
     .where(eq(users.id, userId))
     .limit(1)
   if (!user) throw new ApiError(500, "user_lookup_failed_after_link")
-  if (!user.githubLogin) {
-    // Daemon doesn't read this, but signAccessToken puts it in the JWT — must
-    // be present for the token to be byte-equivalent to /auth/exchange.
-    throw new ApiError(400, "github_not_bound")
-  }
+  if (!user.githubLogin) throw new ApiError(400, "github_not_bound")
 
+  // 3-5. Mint tokens, insert refresh row, stash in Redis — all BEFORE flipping
+  //      session status.
   const accessToken = await signAccessToken(
     { sub: user.id, github_login: user.githubLogin },
     env.jwtSecret
@@ -135,6 +179,27 @@ export async function linkPairSession(code: string, userId: string): Promise<Pai
     JSON.stringify({ token: accessToken, refreshToken: rawRefresh, user: userPayload }),
     { ex: TOKEN_STASH_TTL_SECONDS }
   )
+
+  // 6. Atomic status flip — only succeeds if still pending and not expired.
+  const [linked] = await db
+    .update(cliPairSessions)
+    .set({ userId, status: "linked", completedAt: now })
+    .where(
+      and(
+        eq(cliPairSessions.code, code),
+        eq(cliPairSessions.status, "pending"),
+        sql`${cliPairSessions.expiresAt} > ${now.toISOString()}`
+      )
+    )
+    .returning()
+
+  // 7. Race lost — another link request flipped the row first. Clean up our
+  //    stash so the winner's tokens (which they staged in their own call)
+  //    aren't accidentally consumed by us. Refresh_tokens leaks one row.
+  if (!linked) {
+    await getRedis().del(`${TOKEN_STASH_PREFIX}${code}`)
+    throw new ApiError(410, "pair_session_unavailable")
+  }
 
   return userPayload
 }
