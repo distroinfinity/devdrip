@@ -113,11 +113,10 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
     const clicks = deps.ledger.listUnsyncedClicks(CLICK_BATCH_CAP)
     const newsImpressions = deps.ledger.listUnsyncedNewsImpressions(NEWS_IMPRESSION_BATCH_CAP)
 
-    let ingestResult: SyncResult = {
+    let ingestResult: Omit<SyncResult, "readingSavesSynced"> = {
       impressionsSynced: 0,
       clicksSynced: 0,
       newsImpressionsSynced: 0,
-      readingSavesSynced: 0,
       errors: 0,
       terminal: 0,
     }
@@ -157,6 +156,8 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
       backoffMs = 0
     }
 
+    // reading saves wait for the next tick if /ingest threw — saves are less urgent
+    // than impressions and the server is idempotent on retry.
     const readingSavesSynced = await flushReadingSaves().catch(() => 0)
     return { ...ingestResult, readingSavesSynced }
   }
@@ -191,7 +192,7 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
     clicks: LocalClick[],
     newsImpressions: LocalNewsImpression[],
     res: IngestResponse
-  ): SyncResult {
+  ): Omit<SyncResult, "readingSavesSynced"> {
     const nowMs = now()
     const okImpressions: string[] = []
     const terminalImpressions: string[] = []
@@ -265,7 +266,6 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
       impressionsSynced: okImpressions.length,
       clicksSynced: okClicks.length,
       newsImpressionsSynced: okNewsImpressions.length,
-      readingSavesSynced: 0,
       errors,
       terminal: terminalImpressions.length + terminalClicks.length,
     }
