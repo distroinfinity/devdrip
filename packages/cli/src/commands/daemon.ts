@@ -4,7 +4,7 @@ import { createConnection } from "node:net"
 import { platform } from "node:os"
 import { Command } from "commander"
 import { configPath, readConfig, writeConfig } from "../lib/config.js"
-import { openAdCache } from "../lib/ad-cache.js"
+import { openSlotCache } from "../lib/slot-cache.js"
 import { openLedger } from "../lib/ledger.js"
 import { showAd } from "../lib/daemon/display.js"
 import { createKeyCapture } from "../lib/daemon/input.js"
@@ -179,7 +179,7 @@ export async function runDaemon(): Promise<number> {
   unlinkSocketIfExists(socketPath)
 
   const ledger = openLedger()
-  const adCache = openAdCache({
+  const slotCache = openSlotCache({
     userId: cfg.user.id,
     deviceId: cfg.device.id,
     surface: "terminal-tv",
@@ -253,7 +253,7 @@ export async function runDaemon(): Promise<number> {
   }
 
   orchestrator = createOrchestrator({
-    adCache,
+    slotCache,
     ledger,
     display: { show: showAd },
     keyCapture,
@@ -278,8 +278,8 @@ export async function runDaemon(): Promise<number> {
         // blocked categories changed — the existing cache may still contain
         // now-blocked ads. Force a refresh so the next display reflects the
         // new blocklist (backend applies the server-side filter on fetch).
-        adCache.refreshNow().catch((err: Error) => {
-          log.warn("ad-cache refresh after preference change failed", {
+        slotCache.refreshNow().catch((err: Error) => {
+          log.warn("slot-cache refresh after preference change failed", {
             error: err.message,
           })
         })
@@ -344,7 +344,7 @@ export async function runDaemon(): Promise<number> {
     await server.close()
     unlinkSocketIfExists(socketPath)
     ledger.close()
-    adCache.close()
+    slotCache.close()
     removeHeartbeat()
     lock?.release()
     log.info("daemon stopped")
