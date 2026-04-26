@@ -69,6 +69,14 @@ class TestRedis {
     return next
   }
 
+  async incrby(key: string, delta: number): Promise<number> {
+    const current = Number((await this.get(key)) ?? "0")
+    const next = current + delta
+    const expiresAt = this.read(key)?.expiresAt
+    this.store.set(key, { value: String(next), expiresAt })
+    return next
+  }
+
   async incrbyfloat(key: string, delta: number): Promise<number> {
     const current = Number((await this.get(key)) ?? "0")
     const next = current + delta

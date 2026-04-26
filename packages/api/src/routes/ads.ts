@@ -10,7 +10,7 @@ import {
   validateFetchAdsNextQuery,
   validateFetchAdsBatchQuery,
 } from "../validators/ad.validators.js"
-import { fetchServedAds } from "../services/ad-delivery.service.js"
+import { fetchServedAds } from "../services/content-delivery.service.js"
 import { ForbiddenError, NotFoundError } from "../errors/index.js"
 
 export const adsRouter: ReturnType<typeof Router> = Router()
