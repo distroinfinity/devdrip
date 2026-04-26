@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp } from "drizzle-orm/pg-core"
+import { pgTable, uuid, text, integer, boolean, timestamp } from "drizzle-orm/pg-core"
 import { users } from "./users.js"
 
 export const preferences = pgTable("preferences", {
@@ -15,6 +15,8 @@ export const preferences = pgTable("preferences", {
   quietHoursEnd: integer("quiet_hours_end"),
   tzOffsetMinutes: integer("tz_offset_minutes").notNull().default(0),
   idleSensitivityMs: integer("idle_sensitivity_ms").notNull().default(10_000),
+  sessionWarmupMs: integer("session_warmup_ms").notNull().default(15_000),
+  nightMode: boolean("night_mode").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
