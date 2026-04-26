@@ -24,6 +24,7 @@ import { meAnalyticsRouter } from "./routes/me-analytics.js"
 import { meImpressionsRouter } from "./routes/me-impressions.js"
 import { meContentRouter } from "./routes/me-content.js"
 import { meReadingRouter } from "./routes/me-reading.js"
+import { meNewsStatsRouter } from "./routes/me-news-stats.js"
 import { adminReportsRouter } from "./routes/admin-reports.js"
 import { requireAuth } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
@@ -95,6 +96,7 @@ app.use("/me/analytics", requireAuth, userLimiter, meAnalyticsRouter)
 app.use("/me/impressions", requireAuth, userLimiter, meImpressionsRouter)
 app.use("/me/content", requireAuth, userLimiter, meContentRouter)
 app.use("/me/reading", requireAuth, userLimiter, meReadingRouter)
+app.use("/me/news-stats", requireAuth, userLimiter, meNewsStatsRouter)
 app.use("/admin/reports", requireAdmin, adminLimiter, adminReportsRouter)
 
 app.use(errorHandler)
