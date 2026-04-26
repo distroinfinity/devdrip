@@ -265,6 +265,49 @@ Tables modeled and seeded but not yet exposed through dedicated API routes:
 
 This is useful for local development once the DB is configured.
 
+## news_impressions
+
+Analytics ledger for news views. Fully isolated from earnings — no `earned_amount` column by design.
+
+| Column      | Type        | Notes                                            |
+| ----------- | ----------- | ------------------------------------------------ |
+| id          | uuid        | primary key                                      |
+| user_id     | uuid        | FK → users (cascade)                             |
+| device_id   | uuid        | FK → devices (cascade)                           |
+| news_id     | text        | namespaced: "hn:38291043"                        |
+| source      | text        | "hn" — enum at app layer                         |
+| duration_ms | integer     |                                                  |
+| result      | text        | ImpressionResult                                 |
+| opened_url  | boolean     | user pressed `d` while showing                   |
+| saved       | boolean     | denormalized — also exists in reading_list_items |
+| created_at  | timestamptz |                                                  |
+
+Indexes: `(user_id)`, `(user_id, created_at)` for the stories-read query hot path.
+
+## reading_list_items
+
+Saved stories. Snapshot fields survive upstream edits.
+
+| Column   | Type        | Notes                 |
+| -------- | ----------- | --------------------- |
+| id       | uuid        |                       |
+| user_id  | uuid        | FK → users (cascade)  |
+| news_id  | text        |                       |
+| source   | text        |                       |
+| headline | text        | snapshot at save time |
+| url      | text        | snapshot              |
+| score    | integer     | snapshot              |
+| saved_at | timestamptz |                       |
+
+Indexes: `(user_id, saved_at)`, unique `(user_id, news_id)` (idempotent saves).
+
+## preferences (extended)
+
+Two new columns in v0.X:
+
+- `channel_mode text NOT NULL DEFAULT 'mix'` — earn / learn / mix
+- `news_topics text[] NOT NULL DEFAULT '{}'` — future-proofed for v1.1 topic filters
+
 ## Important Notes
 
 - the waitlist table used by `frontend/app/api/waitlist/route.ts` is not part of this Drizzle schema tree
