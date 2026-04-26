@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url"
 import { Command } from "commander"
 import { initCmd } from "./commands/init.js"
 import { authCmd } from "./commands/auth.js"
+import { loginCmd } from "./commands/login.js"
 import { configCmd } from "./commands/config.js"
 import { statusCmd } from "./commands/status.js"
 import { daemonCmd } from "./commands/daemon.js"
@@ -34,6 +35,7 @@ export const program = new Command()
 program
   .addCommand(initCmd)
   .addCommand(preferencesCmd)
+  .addCommand(loginCmd)
   .addCommand(authCmd)
   .addCommand(configCmd)
   .addCommand(statusCmd)

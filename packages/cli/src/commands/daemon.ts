@@ -59,6 +59,13 @@ export async function runStart(): Promise<number> {
     stdio: ["ignore", logFd, logFd],
     env: process.env,
   })
+  // Always handle spawn errors. Without this listener, EACCES / ENOENT from
+  // an unexecutable bin path (common in test environments where binPath
+  // points at a temp file) escapes as an unhandled 'error' event and crashes
+  // the parent process.
+  child.on("error", (err) => {
+    console.error(`daemon spawn failed: ${(err as Error).message}`)
+  })
   child.unref()
   // the child inherited its own fd copy; the parent's can be closed.
   try {

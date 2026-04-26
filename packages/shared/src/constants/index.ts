@@ -5,7 +5,11 @@ import { ChannelMode } from "../types/index.js"
 
 // ── timing ──────────────────────────────────────────────────────────────────
 
-export const GRACE_PERIOD_MS = 1_500
+// Grace before showing the ad once Claude takes over (PreToolUse / prompt
+// submit). Keeping this at 0 means the ad renders on the next event-loop
+// tick, which is what we want — show terminal-tv as soon as control hands
+// off to Claude, regardless of whether it's a fast or slow tool call.
+export const GRACE_PERIOD_MS = 0
 export const MAX_AD_DURATION_MS = 8_000
 
 // ── daemon socket path ─────────────────────────────────────────────────────
@@ -54,9 +58,10 @@ export const REVENUE_SHARE_OSS_FUND = 0.05
 
 // ── payouts ────────────────────────────────────────────────────────────────
 
-// User-initiated claim floor. Was 1.0 under the orphaned Base Sepolia plan;
-// lowered to 0.5 for World Chain since gas is negligible on World Chain Sepolia.
-export const MIN_PAYOUT_USDC = 0.5
+// MIN_PAYOUT_USDC moved to constants/chain.ts so the frontend can import it
+// without dragging in this file's Node-only daemonSocketPath helper. Re-export
+// preserves existing CLI/API imports of `MIN_PAYOUT_USDC` from "@devdrip/shared".
+export { MIN_PAYOUT_USDC } from "./chain.js"
 
 // ── impression validation ──────────────────────────────────────────────────
 
