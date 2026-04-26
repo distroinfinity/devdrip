@@ -37,6 +37,23 @@ export async function broadcastPayout(row: PendingPayout): Promise<void> {
   const recipient = row.walletAddress as `0x${string}`
   const amountUnits = parseUnits(row.amountUsdc.toString(), USDC_DECIMALS)
 
+  // Pre-flight: USDC balance FIRST — gas estimation simulates the transfer
+  // and would revert with "ERC20: transfer amount exceeds balance" if USDC is
+  // short, which we'd otherwise mis-classify as a transient gas-estimation
+  // error and retry 3× before failing with the wrong reason. Checking balance
+  // first means insufficient_funds surfaces immediately and gas estimation
+  // only fails for genuine RPC/contract-level issues.
+  const usdcBalance = (await publicClient.readContract({
+    address: WORLD_CHAIN_SEPOLIA.usdcAddress,
+    abi: usdcAbi,
+    functionName: "balanceOf",
+    args: [hotWallet],
+  })) as bigint
+  if (usdcBalance < amountUnits) {
+    await markFailed(row.id, "insufficient_funds", log)
+    return
+  }
+
   // Pre-flight: gas estimate + ETH balance
   let gasEstimate: bigint
   let gasPrice: bigint
@@ -60,18 +77,6 @@ export async function broadcastPayout(row: PendingPayout): Promise<void> {
   const ethBalance = await publicClient.getBalance({ address: hotWallet })
   if (ethBalance < gasEstimate * gasPrice) {
     await markFailed(row.id, "insufficient_gas", log)
-    return
-  }
-
-  // Pre-flight: USDC balance
-  const usdcBalance = (await publicClient.readContract({
-    address: WORLD_CHAIN_SEPOLIA.usdcAddress,
-    abi: usdcAbi,
-    functionName: "balanceOf",
-    args: [hotWallet],
-  })) as bigint
-  if (usdcBalance < amountUnits) {
-    await markFailed(row.id, "insufficient_funds", log)
     return
   }
 
