@@ -28,6 +28,6 @@ export const newsImpressions = pgTable(
   },
   (t) => ({
     userIdIdx: index("news_impressions_user_id_idx").on(t.userId),
-    createdAtIdx: index("news_impressions_created_at_idx").on(t.createdAt),
+    userCreatedAtIdx: index("news_impressions_user_created_at_idx").on(t.userId, t.createdAt),
   })
 )
