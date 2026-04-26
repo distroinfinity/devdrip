@@ -1,6 +1,7 @@
 import { homedir } from "node:os"
 import { join } from "node:path"
 import type { DevdripPreferences } from "../types/index.js"
+import { ChannelMode } from "../types/index.js"
 
 // ── timing ──────────────────────────────────────────────────────────────────
 
@@ -102,6 +103,8 @@ export function defaultDevdripPreferences(): DevdripPreferences {
     quietHoursStart: null,
     quietHoursEnd: null,
     nightMode: false,
+    channelMode: ChannelMode.Mix,
+    newsTopics: [],
     tzOffsetMinutes: -new Date().getTimezoneOffset(),
     idleSensitivityMs: IDLE_SENSITIVITY_MS,
     // Sentinel "never synced" — first GET /me/preferences will replace it.
