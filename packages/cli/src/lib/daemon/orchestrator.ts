@@ -630,6 +630,25 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     if (imp.result !== "skipped" && imp.durationMs >= 1_000 && impressionBeaconUrl) {
       deps.fireBeacon(impressionBeaconUrl)
     }
+    // Demo-only mock: stream the in-toast earnings to the backend so the
+    // Mini App's polling balance card sees the same number tick up live.
+    // Fire-and-forget; failures are silent so they never block the daemon.
+    if (imp.result === "completed" && imp.source === "api" && imp.cpmRate && imp.cpmRate > 0) {
+      const deltaUsdc = (imp.cpmRate / 1000) * REVENUE_SHARE_DEVELOPER
+      if (deltaUsdc > 0) void mockEarn(deltaUsdc).catch(() => {})
+    }
+  }
+
+  async function mockEarn(amountUsdc: number): Promise<void> {
+    try {
+      const { apiFetch } = await import("../api-client.js")
+      await apiFetch("/me/balance/mock-earn", {
+        method: "POST",
+        body: JSON.stringify({ amount_usdc: amountUsdc }),
+      })
+    } catch {
+      // silently swallow — this is a demo ergonomic, not a critical path
+    }
   }
 
   type Reason =
