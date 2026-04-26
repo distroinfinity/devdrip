@@ -38,7 +38,7 @@ import type { DevdripConfig } from "../config.js"
 import { defaultDevdripPreferences } from "@devdrip/shared"
 
 const cfg: DevdripConfig = {
-  version: 3,
+  version: 4,
   apiUrl: "http://localhost:3000",
   auth: { accessToken: "a", refreshToken: "b", accessTokenExpiresAt: "2099-01-01T00:00:00Z" },
   user: { id: "u", githubLogin: "gh", email: "e@x.com", avatarUrl: null },
