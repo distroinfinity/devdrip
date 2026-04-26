@@ -1,7 +1,8 @@
-import { and, desc, eq, lt } from "drizzle-orm"
+import { and, desc, eq, lt, or, sql } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import { payouts } from "../db/schema/payouts.js"
 import { ApiError } from "../errors/index.js"
+import type { ListPayoutsCursor } from "../validators/me-payouts.validators.js"
 
 export interface PayoutSummary {
   id: string
@@ -34,31 +35,41 @@ export interface PayoutListResult {
 const DEFAULT_LIMIT = 20
 const MAX_LIMIT = 100
 
-// Cursor is the createdAt ISO string of the last row in the previous page —
-// next page returns rows STRICTLY older than the cursor.
+// Cursor is `<createdAt-iso>|<uuid>` of the last row in the previous page.
+// Order is `(created_at DESC, id DESC)` so the (createdAt, id) tuple gives a
+// total order — no skipped/duplicated rows when batch inserts (auto-disburse
+// cron) produce same-microsecond timestamps.
 export async function listPayouts(
   userId: string,
-  opts: { cursor?: string; limit?: number }
+  opts: { cursor?: ListPayoutsCursor; limit?: number }
 ): Promise<PayoutListResult> {
   const db = getDb()
   const limit = Math.min(opts.limit ?? DEFAULT_LIMIT, MAX_LIMIT)
 
   const conditions = [eq(payouts.userId, userId)]
   if (opts.cursor) {
-    const cursorDate = new Date(opts.cursor)
+    const cursorDate = new Date(opts.cursor.createdAt)
     if (isNaN(cursorDate.getTime())) throw new ApiError(400, "invalid_cursor")
-    conditions.push(lt(payouts.createdAt, cursorDate))
+    const tuple = or(
+      lt(payouts.createdAt, cursorDate),
+      and(eq(payouts.createdAt, cursorDate), lt(payouts.id, sql`${opts.cursor.id}::uuid`))
+    )
+    if (tuple) conditions.push(tuple)
   }
 
   const rows = await db
     .select()
     .from(payouts)
     .where(and(...conditions))
-    .orderBy(desc(payouts.createdAt))
+    .orderBy(desc(payouts.createdAt), desc(payouts.id))
     .limit(limit + 1)
 
   const items = rows.slice(0, limit).map(shape)
-  const nextCursor = rows.length > limit ? (rows[limit - 1]?.createdAt.toISOString() ?? null) : null
+  const lastIncluded = rows[limit - 1]
+  const nextCursor =
+    rows.length > limit && lastIncluded
+      ? `${lastIncluded.createdAt.toISOString()}|${lastIncluded.id}`
+      : null
   return { items, nextCursor }
 }
 
