@@ -71,30 +71,21 @@ export async function mintResumeCode(data: ResumeData): Promise<string> {
 }
 
 export async function consumeResumeCode(code: string): Promise<ResumeData | null> {
-  const raw = await getRedis().getdel<string>(`${RESUME_KEY_PREFIX}${code}`)
-  if (!raw) return null
-  try {
-    const parsed = JSON.parse(raw) as ResumeData
-    if (typeof parsed === "object" && parsed && typeof parsed.userId === "string") return parsed
-  } catch {
-    // not JSON
-  }
+  // upstash auto-parses JSON on get, so the stored object round-trips back as-is.
+  const parsed = await getRedis().getdel<ResumeData>(`${RESUME_KEY_PREFIX}${code}`)
+  if (parsed && typeof parsed === "object" && typeof parsed.userId === "string") return parsed
   return null
 }
 
 export async function consumeGithubOauthState(state: string): Promise<GithubOauthState | null> {
-  const raw = await getRedis().getdel<string>(`${STATE_KEY_PREFIX}${state}`)
+  // Backward-compat: older entries stored just the userId as a plain string;
+  // new entries store JSON. Upstash auto-parses JSON, so JSON entries come back
+  // as objects and legacy plain-string entries come back as strings.
+  const raw = await getRedis().getdel<GithubOauthState | string>(`${STATE_KEY_PREFIX}${state}`)
   if (!raw) return null
-  // Backward-compat: older entries stored just the userId as a plain string.
-  // New entries store JSON. Try JSON first; fall back to treating the raw
-  // value as a userId.
-  try {
-    const parsed = JSON.parse(raw) as GithubOauthState
-    if (typeof parsed === "object" && parsed && typeof parsed.userId === "string") return parsed
-  } catch {
-    // not JSON — fall through
-  }
-  return { userId: raw }
+  if (typeof raw === "object" && typeof raw.userId === "string") return raw
+  if (typeof raw === "string") return { userId: raw }
+  return null
 }
 
 // Same shape as the existing /auth/github/callback identity-fetch path, but

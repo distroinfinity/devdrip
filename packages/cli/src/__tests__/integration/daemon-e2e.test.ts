@@ -187,7 +187,7 @@ describe("daemon end-to-end (demo cache fallback)", () => {
 
   // rotation within one busy window — demo ads display for 4s each, inter-ad
   // gap is 500ms, grace is 3s. 3000 + 4000 + 500 + ~1000 = 8.5s gets us two
-  // "showing ad" log lines (second ad just started).
+  // "showing slot" log lines (second ad just started).
   it("rotates to a second ad within one busy window", async () => {
     child = spawn("node", [binPath, "daemon", "run"], {
       env: { ...process.env, HOME: tempHome },
@@ -209,11 +209,11 @@ describe("daemon end-to-end (demo cache fallback)", () => {
     await sendSocket(JSON.stringify({ type: "idle-start", tty: target, pid: 1, ts: Date.now() }))
 
     // grace (3s) + first display (4s) + inter-ad (0.5s) + buffer for second
-    // display to log "showing ad" → ~8.5s total.
+    // display to log "showing slot" → ~8.5s total.
     await waitFor(() => {
       try {
         const log = readFileSync(join(devdripDir, "daemon.log"), "utf8")
-        const matches = log.match(/showing ad/g)
+        const matches = log.match(/showing slot/g)
         return (matches?.length ?? 0) >= 2
       } catch {
         return false
@@ -221,7 +221,7 @@ describe("daemon end-to-end (demo cache fallback)", () => {
     }, 12_000)
 
     const log = readFileSync(join(devdripDir, "daemon.log"), "utf8")
-    const count = (log.match(/showing ad/g) ?? []).length
+    const count = (log.match(/showing slot/g) ?? []).length
     expect(count).toBeGreaterThanOrEqual(2)
 
     await sendSocket(JSON.stringify({ type: "idle-end", ts: Date.now() }))

@@ -41,13 +41,9 @@ function parseCliPort(raw: unknown): number | null {
 }
 
 async function consumeStateContext(state: string): Promise<{ cliPort?: number } | null> {
-  const raw = await getRedis().getdel<string>(`auth:state:${state}`)
-  if (!raw) return null
-  try {
-    return JSON.parse(raw) as { cliPort?: number }
-  } catch {
-    return null
-  }
+  // upstash auto-parses JSON on get, so the stored object round-trips back as-is.
+  const ctx = await getRedis().getdel<{ cliPort?: number }>(`auth:state:${state}`)
+  return ctx ?? null
 }
 
 function buildRedirectUrl(cliPort: number | undefined, params: Record<string, string>): string {
@@ -201,18 +197,9 @@ authRouter.post("/exchange", authLimiter, async (req, res) => {
   }
 
   const key = `auth:code:${code}`
-  const raw = await getRedis().getdel<string>(key)
-  if (!raw) {
+  const tokens = await getRedis().getdel<{ accessToken: string; refreshToken: string }>(key)
+  if (!tokens) {
     await res.status(401).json({ error: "invalid_or_expired_code" })
-    return
-  }
-
-  let tokens: { accessToken: string; refreshToken: string }
-  try {
-    tokens = JSON.parse(raw) as { accessToken: string; refreshToken: string }
-  } catch (err) {
-    logger.error({ err }, "malformed exchange payload in redis")
-    await res.status(500).json({ error: "internal_error" })
     return
   }
   await res.json({ token: tokens.accessToken, refresh_token: tokens.refreshToken })

@@ -32,7 +32,7 @@ describe("config migration", () => {
     const cfg = await readConfig()
 
     expect(cfg).not.toBeNull()
-    expect(cfg?.version).toBe(3)
+    expect(cfg?.version).toBe(4)
     expect(cfg?.device).toEqual({ id: null })
     expect(cfg?.cli).toEqual({ binPath: "" })
     expect(cfg?.user.githubLogin).toBe("gh")
@@ -58,7 +58,7 @@ describe("config migration", () => {
 
     const { readConfig } = await import("../config.js")
     const cfg = await readConfig()
-    expect(cfg?.version).toBe(3)
+    expect(cfg?.version).toBe(4)
     expect(cfg?.device?.id).toBe("dev-1")
     expect(cfg?.cli?.binPath).toBe("/usr/local/bin/devdrip")
     expect(cfg?.preferences.blockedCategories).toEqual([])
@@ -115,7 +115,7 @@ describe("config migration", () => {
       cli: { binPath: "" },
     })
     const cfg = await readConfig()
-    expect(cfg?.version).toBe(3)
+    expect(cfg?.version).toBe(4)
     expect(cfg?.preferences.blockedCategories).toEqual([])
   })
 })
