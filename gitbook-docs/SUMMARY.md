@@ -3,6 +3,7 @@
 - [DevDrip Engineering Docs](README.md)
 - [Architecture Overview](architecture/overview.md)
 - [Monorepo Layout](architecture/monorepo.md)
+- [World Chain Stack](architecture/chain.md)
 - [Backend API](backend/api.md)
 - [Data Model](backend/data-model.md)
 - [Landing And Waitlist](frontend/landing-and-waitlist.md)

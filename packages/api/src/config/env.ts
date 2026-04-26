@@ -67,6 +67,29 @@ export const env = {
     if (origins.length === 0) throw new Error("ALLOWED_ORIGINS must contain at least one origin")
     return origins
   },
+
+  // ── world chain (added in PR1) ──
+  // Hot wallet env is lazy — requireEnv only fires when a getter is read,
+  // which is either the worker (PR3) or the chain:check smoke script. The
+  // API HTTP path never accesses hotWallet* in PR1, so the API still boots
+  // without these env vars set.
+  get hotWalletPrivateKey() {
+    return requireEnv("HOT_WALLET_PRIVATE_KEY")
+  },
+  get hotWalletAddress() {
+    return requireEnv("HOT_WALLET_ADDRESS")
+  },
+  get worldChainRpc() {
+    return optionalEnv("WORLD_CHAIN_RPC", "https://worldchain-sepolia.g.alchemy.com/public")
+  },
+  get worldscanBase() {
+    return optionalEnv("WORLDSCAN_BASE", "https://worldchain-sepolia.explorer.alchemy.com")
+  },
+  // World developer-portal app_id — needed by Mini App auth (PR2) and links.
+  // Optional in PR1 (chain code path doesn't read it); required from PR2 on.
+  get worldAppId() {
+    return optionalEnv("WORLD_APP_ID", "")
+  },
 }
 
 /**

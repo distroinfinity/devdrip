@@ -1,4 +1,13 @@
-import { pgTable, uuid, varchar, bigint, integer, timestamp, boolean } from "drizzle-orm/pg-core"
+import {
+  pgTable,
+  uuid,
+  varchar,
+  bigint,
+  integer,
+  timestamp,
+  boolean,
+  numeric,
+} from "drizzle-orm/pg-core"
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -9,6 +18,11 @@ export const users = pgTable("users", {
   reposCount: integer("repos_count"),
   primaryLanguage: varchar("primary_language", { length: 100 }),
   walletAddress: varchar("wallet_address", { length: 42 }),
+  // World identity (added in PR1 — populated by Mini App auth in PR2)
+  // NUMERIC(78,0) holds a 256-bit nullifier hash exactly without precision loss.
+  nullifierHash: numeric("nullifier_hash", { precision: 78, scale: 0 }).unique(),
+  verificationLevel: varchar("verification_level", { length: 16 }),
+  signedUpAt: timestamp("signed_up_at", { withTimezone: true }),
   referralCode: varchar("referral_code", { length: 20 }).unique().notNull(),
   tosAcceptedAt: timestamp("tos_accepted_at", { withTimezone: true }),
   streakDays: integer("streak_days").notNull().default(0),
