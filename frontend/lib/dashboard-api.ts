@@ -155,6 +155,17 @@ export async function deleteReadingItem(id: string): Promise<void> {
   await apiFetch(`/me/reading/${id}`, { method: "DELETE" })
 }
 
+// ── news stats ──────────────────────────────────────────────────────────────
+
+export interface NewsStats {
+  thisWeek: number
+  lastWeek: number
+}
+
+export async function getNewsStats(): Promise<NewsStats> {
+  return apiFetch<NewsStats>("/me/news-stats")
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 function buildQuery(params: Record<string, unknown>): string {
