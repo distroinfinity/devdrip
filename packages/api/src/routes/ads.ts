@@ -72,6 +72,11 @@ function toAdResponse(ad: ServedAdPayload) {
     delivery_token: ad.deliveryToken,
     impression_beacon_url: ad.impressionBeaconUrl ?? null,
     click_tracking_url: ad.clickTrackingUrl ?? null,
+    // S3-12: per-campaign daily cap hint. `null` when the campaign has no
+    // `targeting_rules.maxImpressions` set. Backend stays authoritative in
+    // Redis; this field lets the daemon apply the same cap locally as a guard
+    // against cached ads over-firing between sync windows.
+    campaign_max_impressions_per_day: ad.campaignMaxImpressionsPerDay ?? null,
   }
 }
 
