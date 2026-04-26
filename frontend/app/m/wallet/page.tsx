@@ -1,7 +1,7 @@
 import { headers, cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { MiniAppShell } from "../_components/mini-app-shell"
-import { BalanceCard } from "./_components/balance-card"
+import { LiveBalanceCard } from "./_components/live-balance-card"
 import { PayoutHistory } from "@/components/wallet/payout-history"
 import { fetchMiniAppMe } from "@/lib/miniapp-api"
 import type { Balance, PayoutListResult } from "@/lib/wallet-api"
@@ -34,10 +34,10 @@ export default async function WalletPage() {
   return (
     <MiniAppShell title="Wallet">
       <div className="flex flex-col gap-6">
-        <BalanceCard
-          available={balance?.availableUsdc ?? 0}
-          lifetime={balance?.lifetimeEarnedUsdc ?? 0}
-          pending={balance?.pendingPayoutsUsdc ?? 0}
+        <LiveBalanceCard
+          initialAvailable={balance?.availableUsdc ?? 0}
+          initialLifetime={balance?.lifetimeEarnedUsdc ?? 0}
+          initialPending={balance?.pendingPayoutsUsdc ?? 0}
         />
         <section>
           <h2 className="mb-3 text-sm font-medium text-[var(--ink-secondary)]">Payout history</h2>
