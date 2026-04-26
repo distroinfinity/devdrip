@@ -1,13 +1,15 @@
 "use client"
 
 import { useRef, useState, useTransition } from "react"
-import { ChannelMode } from "@devdrip/shared"
-import { putPreferences } from "@/lib/dashboard-api"
+import type { ChannelMode } from "@devdrip/shared"
+import { updateChannelMode } from "@/app/dashboard/actions"
 
+// string literals match the ChannelMode enum values in @devdrip/shared
+// (kept inline to avoid bundling shared's node:path import into the client)
 const OPTIONS: { value: ChannelMode; label: string; emoji: string }[] = [
-  { value: ChannelMode.Learn, label: "learn", emoji: "📰" },
-  { value: ChannelMode.Earn, label: "earn", emoji: "💰" },
-  { value: ChannelMode.Mix, label: "both", emoji: "🎭" },
+  { value: "learn" as ChannelMode, label: "learn", emoji: "📰" },
+  { value: "earn" as ChannelMode, label: "earn", emoji: "💰" },
+  { value: "mix" as ChannelMode, label: "both", emoji: "🎭" },
 ]
 
 export function ModeToggle({ initial }: { initial: ChannelMode }) {
@@ -22,11 +24,10 @@ export function ModeToggle({ initial }: { initial: ChannelMode }) {
     setActive(next)
     setError(null)
     startTransition(async () => {
-      try {
-        await putPreferences({ channelMode: next })
-      } catch {
+      const result = await updateChannelMode(next)
+      if (!result.ok) {
         setActive(prev)
-        setError("couldn't update mode")
+        setError(result.error ?? "couldn't update mode")
       }
     })
   }
