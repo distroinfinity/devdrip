@@ -3,7 +3,7 @@ import { apiFetch, ApiError, NotAuthenticatedError, reportError } from "../lib/a
 import { detectColor, dim, green, yellow } from "../lib/ansi.js"
 import { readConfig } from "../lib/config.js"
 import { processByteChunk, type KeyAction } from "../lib/daemon/input.js"
-import { DEMO_ADS } from "../lib/ad-cache-fixtures.js"
+import { DEMO_SLOTS } from "../lib/slot-cache-fixtures.js"
 import { renderBox } from "../lib/render-box.js"
 
 interface AdNextResponse {
@@ -47,12 +47,17 @@ async function pickAd(deviceId: string): Promise<DemoAd> {
       throw err
     }
   }
-  const fixture = DEMO_ADS[0]
+  const fixture = DEMO_SLOTS[0]
   if (!fixture) {
-    // unreachable — DEMO_ADS is a non-empty constant at module scope
+    // unreachable — DEMO_SLOTS is a non-empty constant at module scope
     return { headline: "DevDrip demo", body: undefined, url: "https://devdrip.sh" }
   }
-  return { headline: fixture.headline, body: fixture.body, url: fixture.url }
+  const p = fixture.kind === "ad" ? fixture.payload : null
+  return {
+    headline: p?.headline ?? "DevDrip demo",
+    body: p?.body,
+    url: p?.url ?? "https://devdrip.sh",
+  }
 }
 
 interface PracticeOutcome {
