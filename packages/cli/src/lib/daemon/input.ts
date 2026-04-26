@@ -2,7 +2,7 @@ import { closeSync, constants as fsConstants, openSync } from "node:fs"
 import { ReadStream } from "node:tty"
 import type { LoggerApi } from "./orchestrator.js"
 
-export type KeyAction = "discover" | "skip" | "kill" | "mute" | "dismiss"
+export type KeyAction = "discover" | "skip" | "kill" | "mute" | "dismiss" | "save"
 
 export interface KeyCapture {
   start(ttyPath: string): void
@@ -49,6 +49,9 @@ export function byteToAction(byte: string): KeyAction | null {
     case "m":
     case "M":
       return "mute"
+    case "b":
+    case "B":
+      return "save"
     case "\r":
     case "\n":
     case " ":
