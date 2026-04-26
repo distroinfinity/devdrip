@@ -239,14 +239,23 @@ function printSummary(): void {
 
 // Without an active daemon, hook events fire into a dead socket and ads never
 // render. init now starts the daemon explicitly so a fresh user can open
-// Claude Code and immediately see ads with no extra step.
+// Claude Code and immediately see ads with no extra step. Wrapped in a broad
+// catch because runStart spawns a child process — in CI/test environments the
+// fake binary path may not be executable (EACCES), and we never want a init
+// failure here to abort the whole onboarding.
 async function ensureDaemonRunning(): Promise<void> {
-  const { runStart } = await import("./daemon.js")
-  const code = await runStart()
-  if (code !== 0) {
-    log.warn("daemon failed to start — run `devdrip daemon start` manually")
-  } else {
-    log.success("daemon started")
+  try {
+    const { runStart } = await import("./daemon.js")
+    const code = await runStart()
+    if (code !== 0) {
+      log.warn("daemon failed to start — run `devdrip daemon start` manually")
+    } else {
+      log.success("daemon started")
+    }
+  } catch (err) {
+    log.warn(
+      `daemon start skipped (${err instanceof Error ? err.message : String(err)}) — run \`devdrip daemon start\` manually`
+    )
   }
 }
 
