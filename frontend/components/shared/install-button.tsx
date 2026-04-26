@@ -4,9 +4,9 @@ import { useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { cn } from "@/lib/utils"
 
-type WaitlistState = "idle" | "submitting" | "success"
+type InstallState = "idle" | "submitting" | "success"
 
-interface WaitlistButtonProps {
+interface InstallButtonProps {
   onClick?: () => void | Promise<void>
   href?: string
   className?: string
@@ -15,17 +15,16 @@ interface WaitlistButtonProps {
   successLabel?: string
 }
 
-export function WaitlistButton({
+export function InstallButton({
   onClick,
-  href,
+  href = "#install",
   className,
-  idleLabel = "Request Beta Access",
-  submittingLabel = "Requesting...",
-  successLabel = "Request sent.",
-}: WaitlistButtonProps) {
-  const [state, setState] = useState<WaitlistState>("idle")
+  idleLabel = "Install",
+  submittingLabel = "...",
+  successLabel = "Done.",
+}: InstallButtonProps) {
+  const [state, setState] = useState<InstallState>("idle")
 
-  // when href is provided, render as a simple scroll link — no state machine
   if (href) {
     return (
       <a

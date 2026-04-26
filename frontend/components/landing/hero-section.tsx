@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 import { BlurFade } from "@/components/ui/blur-fade"
 import { DotGrid } from "@/components/shared/dot-grid"
 import { EncryptedText } from "@/components/ui/encrypted-text"
-import { WaitlistButton } from "@/components/shared/waitlist-button"
+import { InstallButton } from "@/components/shared/install-button"
 import { HeroVisual } from "./hero-visual"
 import { HeroDataStrip } from "./hero-data-strip"
 import { ScrollNudge } from "./scroll-nudge"
@@ -52,16 +52,17 @@ export function HeroSection() {
           {/* subhead */}
           <BlurFade delay={1.1} direction="up" duration={0.4} inView>
             <p className="font-body text-[15px] text-[var(--ink-secondary)] max-w-[480px] mb-6 leading-relaxed">
-              Opt-in content during AI idle time.
+              Verified-human USDC, settled on World Chain.
               <br className="hidden sm:block" />
-              Skip anything. Earn USD.
+              Skip anything. Auto-paid every Sunday.
             </p>
           </BlurFade>
 
           {/* cta */}
           <BlurFade delay={1.35} direction="up" duration={0.35} inView>
-            <WaitlistButton
-              href="#waitlist"
+            <InstallButton
+              href="#install"
+              idleLabel="Install"
               className="hover:-translate-y-px hover:shadow-md transition-transform"
             />
           </BlurFade>

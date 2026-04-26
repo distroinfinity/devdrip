@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { Resend } from "resend"
 import { render } from "@react-email/render"
@@ -9,7 +10,11 @@ import type { WaitlistResponse, WaitlistSource } from "@/lib/waitlist"
 const VALID_SPEND: Set<string> = new Set(MONTHLY_SPEND_OPTIONS.map((o) => o.value))
 
 // lazy-init — Resend throws if API key is missing at import time (breaks build)
-const getSql = () => neon(process.env.DATABASE_URL!)
+const getSql = () => {
+  const url = process.env.DATABASE_URL
+  if (!url) throw new Error("DATABASE_URL is not set")
+  return neon(url)
+}
 const getResend = () => new Resend(process.env.RESEND_API_KEY)
 
 // in-memory rate limit — resets on redeploy, fine for pre-launch
@@ -17,7 +22,7 @@ const rateMap = new Map<string, number[]>()
 const RATE_LIMIT = 5
 const RATE_WINDOW_MS = 60 * 60 * 1000 // 1 hour
 
-const VALID_SOURCES: WaitlistSource[] = ["hero", "nav", "bottom"]
+const VALID_SOURCES: WaitlistSource[] = ["hero", "nav", "bottom", "install"]
 
 async function hashIp(ip: string): Promise<string> {
   const salt = process.env.IP_HASH_SALT || "devdrip"
