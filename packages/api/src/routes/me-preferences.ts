@@ -20,6 +20,8 @@ function shape(row: PreferencesRow) {
     idleSensitivityMs: row.idleSensitivityMs,
     sessionWarmupMs: row.sessionWarmupMs,
     nightMode: row.nightMode,
+    channelMode: row.channelMode,
+    newsTopics: row.newsTopics,
     updatedAt: row.updatedAt.toISOString(),
   }
 }
