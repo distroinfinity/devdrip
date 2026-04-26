@@ -29,10 +29,10 @@ export async function verifyWorldId(
   input: VerifyWorldIdInput
 ): Promise<{ verificationLevel: "device" | "orb" }> {
   const action = env.worldIdAction
-  const appId = env.worldAppId
-  if (!appId) throw new ApiError(500, "world_app_id_not_configured")
+  const rpId = env.worldIdRpId
+  if (!rpId) throw new ApiError(500, "world_id_rp_id_not_configured")
 
-  const cloudUrl = `https://developer.world.org/api/v4/verify/${appId}`
+  const cloudUrl = `https://developer.world.org/api/v4/verify/${rpId}`
   const cloudResp = await fetch(cloudUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },

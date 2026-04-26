@@ -85,6 +85,7 @@ After PR4: `POST /miniapp/wallet-auth/verify` for a returning wallet (already bo
 
 ## Operator notes
 
-- `WORLD_APP_ID` env var (Railway + Vercel) — register the Mini App at https://developer.world.org. The same value is exposed to clients via `NEXT_PUBLIC_WORLD_APP_ID`.
+- `WORLD_APP_ID` env var (Railway + Vercel) — register the Mini App at https://developer.world.org. Used in deeplink URLs (frontend) and forwarded to MiniKit on the client. The same value is exposed to clients via `NEXT_PUBLIC_WORLD_APP_ID`.
+- `WORLD_ID_RP_ID` env var (Railway) — used in the cloud verify URL `POST /api/v4/verify/{rp_id}`. Per the World 4.0 docs, prefer `rp_id`; the verify endpoint still accepts `app_id` for back-compat, so the API falls back to `WORLD_APP_ID` when `WORLD_ID_RP_ID` is unset.
 - `WORLD_ID_ACTION` env var — defaults to `devdrip-signup`. Override only for staging environments to avoid colliding with prod nullifiers.
 - Hot wallet ops (faucets, refill, drain): see [World Chain Stack](chain.md).
