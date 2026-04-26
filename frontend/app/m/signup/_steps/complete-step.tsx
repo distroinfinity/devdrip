@@ -44,7 +44,7 @@ export function CompleteStep({ linkCode }: CompleteStepProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-[var(--rule-default)] bg-[var(--bg-surface)] p-5">
       <h2 className="text-xl font-semibold">You&apos;re in 🎉</h2>
       <p className="text-[var(--ink-secondary)]">
         Welcome to DevDrip. Head to your wallet to start earning.
@@ -52,7 +52,7 @@ export function CompleteStep({ linkCode }: CompleteStepProps) {
       <button
         type="button"
         onClick={() => router.push("/m/wallet")}
-        className="rounded-md bg-[var(--accent)] px-4 py-3 font-medium text-[var(--bg-primary)]"
+        className="rounded-md bg-[var(--accent-color)] px-4 py-3 font-medium text-[var(--ink-inverse)]"
       >
         Go to wallet
       </button>

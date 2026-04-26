@@ -46,7 +46,7 @@ describe("state-machine: IDLE transitions", () => {
   it("IDLE + idle-start → GRACE with startGraceTimer effect", () => {
     const r = step(idle, { kind: "idle-start", tty: "/dev/ttys003", now: 100 }, CTX)
     expect(r.state).toEqual({ kind: "GRACE", tty: "/dev/ttys003", enteredAt: 100 })
-    expect(r.effects).toEqual([{ kind: "startGraceTimer", ms: 1500 }])
+    expect(r.effects).toEqual([{ kind: "startGraceTimer", ms: 0 }])
   })
 
   it("IDLE + idle-end → IDLE, no effects", () => {

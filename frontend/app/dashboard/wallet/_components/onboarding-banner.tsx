@@ -24,7 +24,7 @@ export function OnboardingBanner() {
       </div>
       {qrSvg && (
         <div
-          className="shrink-0 rounded-md border border-[var(--border-subtle)] bg-white p-2"
+          className="shrink-0 rounded-md border border-[var(--rule-default)] bg-white p-2"
           dangerouslySetInnerHTML={{ __html: qrSvg }}
         />
       )}

@@ -11,7 +11,7 @@ interface BalanceCardProps {
 export function BalanceCard({ available, lifetime, pending }: BalanceCardProps) {
   const canClaim = available >= MIN_PAYOUT_USDC
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-[var(--border-subtle)] p-4">
+    <section className="flex flex-col gap-3 rounded-lg border border-[var(--rule-default)] bg-[var(--bg-surface)] p-4">
       <div className="flex items-baseline justify-between">
         <span className="text-sm text-[var(--ink-secondary)]">Available</span>
         <span className="text-3xl font-semibold tabular-nums">{formatUsdc(available)}</span>
