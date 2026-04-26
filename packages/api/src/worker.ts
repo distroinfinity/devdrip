@@ -7,6 +7,7 @@ import { env, assertEnvSafe } from "./config/env.js"
 import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
 import { startSettlementLoop, stopSettlementLoop } from "./workers/settlement.js"
+import { startAutoDisburseCron, tick as runDisburseOnce } from "./workers/auto-disburse.js"
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("[worker] unhandledRejection at:", promise, "reason:", reason)
@@ -21,6 +22,12 @@ process.on("uncaughtException", (err) => {
 
 async function start(): Promise<void> {
   assertEnvSafe()
+
+  if (process.argv.includes("--once-disburse")) {
+    logger.info("running auto-disburse once and exiting")
+    await runDisburseOnce()
+    process.exit(0)
+  }
 
   // Fail fast if the hot wallet env vars aren't set — worker can't function
   // without them. Reading the getter triggers requireEnv which throws.
@@ -40,6 +47,7 @@ async function start(): Promise<void> {
   }
 
   startSettlementLoop()
+  startAutoDisburseCron()
 
   function shutdown(signal: string): void {
     logger.info({ signal }, "worker shutting down")
