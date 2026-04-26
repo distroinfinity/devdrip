@@ -107,6 +107,8 @@ async function fetchMixSlots(req: ContentRequest, n: number): Promise<SlotConten
   const redis = getRedis()
   const counterKey = `mix:counter:${req.userId}`
   const after = await redis.incrby(counterKey, n)
+  // ttl slides on every mix call: an inactive user's counter expires 90 days
+  // after their LAST mix request, not 90 days after creation. by design.
   await redis.expire(counterKey, MIX_COUNTER_TTL_SEC)
   const start = after - n
 
