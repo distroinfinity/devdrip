@@ -87,7 +87,7 @@ export async function linkPairSession(code: string, userId: string): Promise<Pai
       and(
         eq(cliPairSessions.code, code),
         eq(cliPairSessions.status, "pending"),
-        sql`${cliPairSessions.expiresAt} > ${now}`
+        sql`${cliPairSessions.expiresAt} > ${now.toISOString()}`
       )
     )
     .returning()
