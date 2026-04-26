@@ -22,7 +22,16 @@ import { mePreferencesRouter } from "./routes/me-preferences.js"
 import { meEarningsRouter } from "./routes/me-earnings.js"
 import { meAnalyticsRouter } from "./routes/me-analytics.js"
 import { meImpressionsRouter } from "./routes/me-impressions.js"
+import { meBalanceRouter } from "./routes/me-balance.js"
+import { mePayoutsRouter } from "./routes/me-payouts.js"
 import { adminReportsRouter } from "./routes/admin-reports.js"
+import { miniappAuthRouter } from "./routes/miniapp-auth.js"
+import { miniappWorldIdRouter } from "./routes/miniapp-world-id.js"
+import { miniappGithubRouter } from "./routes/miniapp-github.js"
+import { miniappSignupRouter } from "./routes/miniapp-signup.js"
+import { cliPairRouter } from "./routes/cli-pair.js"
+import { miniappCliLinkRouter } from "./routes/miniapp-cli-link.js"
+import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
 import { globalLimiter, userLimiter, adminLimiter } from "./middleware/rate-limit.js"
@@ -54,9 +63,22 @@ app.use(
 
 app.use("/health", healthRouter)
 
+// Test-only routes — mounted ABOVE globalLimiter so the integration test
+// can hit them without rate-limiting interference. Hard-gated to non-prod
+// at the mount site; the route handler also short-circuits in production.
+if (env.nodeEnv !== "production") {
+  app.use("/__test", testHelpersRouter)
+}
+
 app.use(globalLimiter)
 
 app.use("/auth", authRouter)
+app.use("/miniapp/wallet-auth", miniappAuthRouter)
+app.use("/miniapp/world-id", miniappWorldIdRouter)
+app.use("/miniapp/github-oauth", miniappGithubRouter)
+app.use("/miniapp/signup", miniappSignupRouter)
+app.use("/cli/pair", cliPairRouter)
+app.use("/miniapp/cli-link", miniappCliLinkRouter)
 app.use("/devices", requireAuth, devicesRouter)
 app.use("/advertisers", requireAdmin, adminLimiter, advertisersRouter)
 app.use("/campaigns", requireAdmin, adminLimiter, campaignsRouter)
@@ -91,6 +113,8 @@ app.use("/me", requireAuth, userLimiter, mePreferencesRouter)
 app.use("/me/earnings", requireAuth, userLimiter, meEarningsRouter)
 app.use("/me/analytics", requireAuth, userLimiter, meAnalyticsRouter)
 app.use("/me/impressions", requireAuth, userLimiter, meImpressionsRouter)
+app.use("/me/balance", requireAuth, userLimiter, meBalanceRouter)
+app.use("/me/payouts", requireAuth, userLimiter, mePayoutsRouter)
 app.use("/admin/reports", requireAdmin, adminLimiter, adminReportsRouter)
 
 app.use(errorHandler)
