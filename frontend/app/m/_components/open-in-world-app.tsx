@@ -26,13 +26,13 @@ export function OpenInWorldApp() {
         </p>
         {qrSvg && (
           <div
-            className="rounded-md border border-[var(--border-subtle)] bg-white p-3"
+            className="rounded-md border border-[var(--rule-default)] bg-white p-3"
             dangerouslySetInnerHTML={{ __html: qrSvg }}
           />
         )}
         <a
           href={deeplink}
-          className="text-sm text-[var(--accent)] underline"
+          className="text-sm text-[var(--accent-color)] underline"
           target="_blank"
           rel="noopener noreferrer"
         >

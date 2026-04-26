@@ -43,7 +43,7 @@ export function WorldIdStep() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-[var(--rule-default)] bg-[var(--bg-surface)] p-5">
       <p className="text-[var(--ink-secondary)]">
         Verify with World ID to prove you&apos;re a unique human. Device verification works — no Orb
         needed.
@@ -52,7 +52,7 @@ export function WorldIdStep() {
         type="button"
         disabled={status === "loading"}
         onClick={() => void handleVerify()}
-        className="rounded-md bg-[var(--accent)] px-4 py-3 font-medium text-[var(--bg-primary)] disabled:opacity-50"
+        className="rounded-md bg-[var(--accent-color)] px-4 py-3 font-medium text-[var(--ink-inverse)] disabled:opacity-50"
       >
         {status === "loading" ? "Verifying..." : "Verify with World ID"}
       </button>

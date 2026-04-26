@@ -237,6 +237,19 @@ function printSummary(): void {
   )
 }
 
+// Without an active daemon, hook events fire into a dead socket and ads never
+// render. init now starts the daemon explicitly so a fresh user can open
+// Claude Code and immediately see ads with no extra step.
+async function ensureDaemonRunning(): Promise<void> {
+  const { runStart } = await import("./daemon.js")
+  const code = await runStart()
+  if (code !== 0) {
+    log.warn("daemon failed to start — run `devdrip daemon start` manually")
+  } else {
+    log.success("daemon started")
+  }
+}
+
 export async function runInit(): Promise<void> {
   intro("devdrip init — let's get you earning")
 
@@ -249,6 +262,7 @@ export async function runInit(): Promise<void> {
   await savePreferences(blocked)
 
   await installHooks()
+  await ensureDaemonRunning()
   await previewAd()
 
   const ok = await runHealthCheck()

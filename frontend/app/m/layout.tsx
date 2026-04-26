@@ -6,35 +6,55 @@ import { OpenInWorldApp } from "./_components/open-in-world-app"
 
 const WORLD_APP_ID = process.env.NEXT_PUBLIC_WORLD_APP_ID
 
+// MiniKit.install() bridges to World App's native runtime over a postMessage
+// channel that may take a frame or two to settle. Reading isInstalled()
+// synchronously right after install() can return false even when we ARE
+// inside the World App webview — most reliably reproduced when the page
+// is reached via an OAuth round-trip redirect (the page load happens after
+// the WebView has already torn down a previous bridge instance).
+//
+// We poll isInstalled() a few times with short backoffs before giving up
+// and rendering the OpenInWorldApp fallback. The total wait is bounded
+// (<= 1.2s) so a real browser still sees the fallback quickly.
+const POLL_INTERVALS_MS = [0, 50, 100, 200, 400, 800] // cumulative ~1.5s
+const MAX_POLLS = POLL_INTERVALS_MS.length
+
 interface MiniAppLayoutProps {
   children: ReactNode
 }
 
-// Client-side gate: MiniKit.isInstalled() returns true only inside World App's
-// webview. In a regular browser the user sees the Open-in-World-App landing.
-//
-// We don't render the children at all when MiniKit isn't installed — server
-// fetches in child server components (e.g., /m/wallet) would otherwise hit the
-// /miniapp/me 401 path repeatedly. Better UX: just show the landing.
 export default function MiniAppLayout({ children }: MiniAppLayoutProps) {
   const [installed, setInstalled] = useState<"unknown" | "yes" | "no">("unknown")
 
   useEffect(() => {
     if (!WORLD_APP_ID) {
-      // Misconfig — the env var is a hard requirement. Treat as not-installed
-      // so the landing renders with a copy-link the user can troubleshoot with.
       setInstalled("no")
       return
     }
     MiniKit.install(WORLD_APP_ID)
-    setInstalled(MiniKit.isInstalled() ? "yes" : "no")
+    let cancelled = false
+    let attempt = 0
+    function check() {
+      if (cancelled) return
+      if (MiniKit.isInstalled()) {
+        setInstalled("yes")
+        return
+      }
+      attempt += 1
+      if (attempt >= MAX_POLLS) {
+        setInstalled("no")
+        return
+      }
+      const delay = POLL_INTERVALS_MS[attempt] ?? 800
+      setTimeout(check, delay)
+    }
+    check()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  if (installed === "unknown") {
-    // Briefly null while MiniKit hydrates.
-    return null
-  }
+  if (installed === "unknown") return null
   if (installed === "no") return <OpenInWorldApp />
-
   return <>{children}</>
 }

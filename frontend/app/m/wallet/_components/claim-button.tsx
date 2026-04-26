@@ -63,7 +63,7 @@ export function ClaimButton({ available, canClaim }: ClaimButtonProps) {
         type="button"
         disabled={status === "claiming" || status === "polling"}
         onClick={() => void handleClaim()}
-        className="rounded-md bg-[var(--accent)] px-4 py-3 font-medium text-[var(--bg-primary)] disabled:opacity-50"
+        className="rounded-md bg-[var(--accent-color)] px-4 py-3 font-medium text-[var(--ink-inverse)] disabled:opacity-50"
       >
         {status === "claiming" ? "Submitting…" : `Claim ${formatUsdc(available)}`}
       </button>
