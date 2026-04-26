@@ -4,6 +4,8 @@
 - [Architecture Overview](architecture/overview.md)
 - [Monorepo Layout](architecture/monorepo.md)
 - [World Chain Stack](architecture/chain.md)
+- [World Identity](architecture/identity.md)
+- [Mini App](frontend/mini-app.md)
 - [Backend API](backend/api.md)
 - [Data Model](backend/data-model.md)
 - [Landing And Waitlist](frontend/landing-and-waitlist.md)
