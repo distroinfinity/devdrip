@@ -994,6 +994,30 @@ Response (always 2xx unless catastrophic):
 
 Terminal per-item errors → CLI marks `synced_at = -1` (tombstone, stops retrying). Transient → CLI leaves `synced_at = NULL` for next cycle.
 
+## News + Reading endpoints
+
+- `GET /me/content/next?deviceId=<uuid>&n=<int>&surface=<terminal-tv>` — returns `{ items: SlotContent[] }` based on user's `channelMode`. The daemon batches this every 8 minutes (slot-cache TTL).
+- `POST /me/reading` — body: `{ newsId, source, headline, url, score }`. Idempotent on `(user_id, news_id)`; returns 201 if new, 200 if existing.
+- `GET /me/reading?limit=N` — returns `{ items, hasMore }`. Default + max limit 100 in MVP.
+- `DELETE /me/reading/:id` — 204 on success, 404 if not owned.
+- `GET /me/news-stats` — returns `{ thisWeek, lastWeek }`. 60s in-memory cache.
+
+## /ingest extension
+
+Body now also accepts:
+
+```json
+{
+  "impressions": [...],
+  "clicks": [...],
+  "newsImpressions": [
+    { "newsId", "source", "deviceId", "durationMs", "result", "openedUrl", "saved" }
+  ]
+}
+```
+
+Response gains `newsImpressions: [{ ok, newsId, error? }]`. Earnings-summary cache invalidation only fires when `impressions.length > 0`.
+
 ### `GET /me/earnings/summary`
 
 Purpose:

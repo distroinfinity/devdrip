@@ -3,8 +3,9 @@ import { homedir, hostname, platform } from "node:os"
 import { lstatSync, mkdirSync, realpathSync, statSync, symlinkSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
 import { Command } from "commander"
-import { multiselect, intro, outro, cancel, isCancel, log, note } from "@clack/prompts"
-import { AdCategory } from "@devdrip/shared"
+import { intro, outro, log, note } from "@clack/prompts"
+import type { AdCategory } from "@devdrip/shared"
+import { ChannelMode } from "@devdrip/shared"
 import { ApiError, NotAuthenticatedError, reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import {
@@ -14,22 +15,11 @@ import {
   mergeDevdripHooks,
 } from "../lib/claude-settings.js"
 import { putPreferences } from "../lib/preferences-client.js"
+import { pickCategories, pickChannelMode } from "../lib/prompts/preferences.js"
 import { runInitHealthCheck } from "../lib/health.js"
 import { runDemo } from "./demo.js"
 import { registerDevice } from "../lib/device.js"
 import { runLogin } from "./login.js"
-
-const CATEGORY_LABELS: Record<AdCategory, string> = {
-  [AdCategory.CloudInfrastructure]: "Cloud & infrastructure",
-  [AdCategory.DeveloperTools]: "Developer tools",
-  [AdCategory.Databases]: "Databases",
-  [AdCategory.MonitoringObservability]: "Monitoring & observability",
-  [AdCategory.DeveloperRecruiting]: "Developer recruiting / jobs",
-  [AdCategory.DeveloperEducation]: "Developer education",
-  [AdCategory.SaasProducts]: "SaaS products",
-}
-
-const ALL_CATEGORIES = Object.values(AdCategory) as AdCategory[]
 
 function claudeDir(): string {
   return join(homedir(), ".claude")
@@ -126,34 +116,26 @@ async function ensureDevice(): Promise<{ deviceId: string }> {
   return { deviceId: device.id }
 }
 
-async function pickCategories(current: AdCategory[]): Promise<AdCategory[]> {
-  // multiselect pre-checks the categories the user WANTS to see (i.e., not blocked).
-  // selection returns allowed; we invert back to blocked for the backend.
-  const preCheckedAllowed = ALL_CATEGORIES.filter((c) => !current.includes(c))
-
-  const selected = await multiselect<AdCategory>({
-    message: "Which categories would you like to see ads from?",
-    options: ALL_CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
-    initialValues: preCheckedAllowed,
-    required: false,
-  })
-
-  if (isCancel(selected)) {
-    cancel("cancelled")
-    process.exit(0)
-  }
-
-  const allowed = selected as AdCategory[]
-  return ALL_CATEGORIES.filter((c) => !allowed.includes(c))
-}
-
-async function savePreferences(blocked: AdCategory[]): Promise<void> {
+async function savePreferences(blocked: AdCategory[], channelMode: ChannelMode): Promise<void> {
   const tzOffsetMinutes = -new Date().getTimezoneOffset()
-  await putPreferences({ blockedCategories: blocked, tzOffsetMinutes })
+  const updated = await putPreferences({ blockedCategories: blocked, tzOffsetMinutes, channelMode })
+  // mirror to local config so daemon/demo/preferences see the new mode without
+  // waiting on the next prefs-sync tick
+  const cfg = await readConfig()
+  if (cfg) {
+    await writeConfig({
+      apiUrl: cfg.apiUrl,
+      auth: cfg.auth,
+      user: cfg.user,
+      device: cfg.device,
+      cli: cfg.cli,
+      preferences: { ...cfg.preferences, ...updated },
+    })
+  }
   log.success(
     blocked.length === 0
-      ? "preferences saved (all categories allowed)"
-      : `preferences saved (${blocked.length} categor${blocked.length === 1 ? "y" : "ies"} blocked)`
+      ? `preferences saved (mode: ${channelMode}, all categories allowed)`
+      : `preferences saved (mode: ${channelMode}, ${blocked.length} categor${blocked.length === 1 ? "y" : "ies"} blocked)`
   )
 }
 
@@ -266,9 +248,19 @@ export async function runInit(): Promise<void> {
   await ensureClaudeDir()
   await ensureDevice()
 
-  // GET /preferences doesn't exist yet (S4-06) — MVP init starts with no blocks pre-checked
-  const blocked = await pickCategories([])
-  await savePreferences(blocked)
+  // channel mode picker first — gates whether to ask about ad categories
+  const channelMode = await pickChannelMode()
+
+  // learn-mode users skip the categories prompt entirely. do NOT auto-set
+  // blocked = ALL_CATEGORIES — the mode itself is the gate (delivery checks
+  // channelMode), and a later flip back to earn/mix should preserve any
+  // category prefs the user set today.
+  let blocked: AdCategory[] = []
+  if (channelMode === ChannelMode.Earn || channelMode === ChannelMode.Mix) {
+    blocked = await pickCategories([])
+  }
+
+  await savePreferences(blocked, channelMode)
 
   await installHooks()
   await ensureDaemonRunning()

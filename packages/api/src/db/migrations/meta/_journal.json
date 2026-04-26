@@ -57,6 +57,13 @@
       "when": 1777223270811,
       "tag": "0007_pref_default_zero",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1777224303375,
+      "tag": "0008_news_and_reading",
+      "breakpoints": true
     }
   ]
 }

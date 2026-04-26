@@ -4,10 +4,10 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { defaultDevdripPreferences, type DevdripPreferences } from "@devdrip/shared"
 
-export const CONFIG_VERSION = 3
+export const CONFIG_VERSION = 4
 
 export interface DevdripConfig {
-  version: 3
+  version: 4
   apiUrl: string
   auth: {
     accessToken: string
@@ -49,6 +49,16 @@ interface RawConfigV2 {
   cli?: DevdripConfig["cli"]
 }
 
+interface RawConfigV3 {
+  version: 3
+  apiUrl: string
+  auth: DevdripConfig["auth"]
+  user: DevdripConfig["user"]
+  device?: DevdripConfig["device"]
+  cli?: DevdripConfig["cli"]
+  preferences?: Partial<DevdripPreferences>
+}
+
 export class UnsupportedConfigVersionError extends Error {
   constructor(version: unknown) {
     super(
@@ -67,9 +77,24 @@ function mergePreferences(saved: Partial<DevdripPreferences> | undefined): Devdr
 function migrate(parsed: Record<string, unknown>): DevdripConfig {
   const version = parsed["version"]
   if (version === CONFIG_VERSION) {
-    const v3 = parsed as unknown as DevdripConfig
+    const v4 = parsed as unknown as DevdripConfig
     return {
-      ...v3,
+      ...v4,
+      device: v4.device ?? { id: null },
+      cli: v4.cli ?? { binPath: "" },
+      preferences: mergePreferences(v4.preferences),
+    }
+  }
+  if (version === 3) {
+    const v3 = parsed as unknown as RawConfigV3
+    // mergePreferences fills in channelMode (Mix) and newsTopics ([]) defaults
+    // from defaultDevdripPreferences() — no user prompt needed. existing v3
+    // users get auto-migrated; they can flip mode via `devdrip preferences`.
+    return {
+      version: CONFIG_VERSION,
+      apiUrl: v3.apiUrl,
+      auth: v3.auth,
+      user: v3.user,
       device: v3.device ?? { id: null },
       cli: v3.cli ?? { binPath: "" },
       preferences: mergePreferences(v3.preferences),

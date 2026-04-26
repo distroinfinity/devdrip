@@ -26,7 +26,7 @@ beforeEach(() => {
   // in isolation.
   const cfg = {
     version: 3,
-    apiUrl: "http://127.0.0.1:0", // unreachable; ad-cache will fall back to demo fixtures
+    apiUrl: "http://127.0.0.1:0", // unreachable; slot-cache will fall back to demo fixtures
     auth: {
       accessToken: "x",
       refreshToken: "x",

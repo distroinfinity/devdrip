@@ -6,13 +6,13 @@ import {
   MIN_COMPLETED_DURATION_MS,
   MUTE_DURATION_MS,
 } from "@devdrip/shared"
-import type { CachedAd } from "../ad-cache.js"
-import type { ImpressionResult, LocalImpression } from "../ledger.js"
+import type { CachedSlot } from "../slot-cache.js"
+import type { ImpressionResult, LocalImpression, LocalNewsImpression } from "../ledger.js"
 
 export type State =
   | { kind: "IDLE" }
   | { kind: "GRACE"; tty: string | null; enteredAt: number }
-  | { kind: "SHOWING"; tty: string | null; ad: CachedAd; shownAt: number }
+  | { kind: "SHOWING"; tty: string | null; ad: CachedSlot; shownAt: number }
   | { kind: "INTER_AD"; tty: string | null; enteredAt: number }
 
 // S3-14: events that target a specific session carry an optional `tty` field
@@ -24,35 +24,37 @@ export type Event =
   | { kind: "idle-start"; tty: string | null; now: number }
   | { kind: "idle-end"; now: number; tty?: string | null }
   | { kind: "dismiss"; now: number; tty?: string | null }
-  | { kind: "grace-elapsed"; ad: CachedAd | null; now: number; tty?: string | null }
+  | { kind: "grace-elapsed"; ad: CachedSlot | null; now: number; tty?: string | null }
   | { kind: "vanish-elapsed"; now: number; tty?: string | null }
   | { kind: "skip-key"; now: number; tty?: string | null }
   | { kind: "kill-key"; now: number; tty?: string | null }
   | { kind: "mute-key"; now: number; tty?: string | null }
   | { kind: "discover-key"; now: number; tty?: string | null }
-  | { kind: "inter-ad-elapsed"; ad: CachedAd | null; now: number; tty?: string | null }
+  | { kind: "inter-ad-elapsed"; ad: CachedSlot | null; now: number; tty?: string | null }
   | { kind: "session-start"; now: number; tty?: string | null }
+  | { kind: "save-key"; now: number; tty?: string | null }
 
 export type Effect =
   | { kind: "startGraceTimer"; ms: number }
   | { kind: "cancelGraceTimer" }
-  | { kind: "displayAd"; tty: string | null; ad: CachedAd }
+  | { kind: "displayAd"; tty: string | null; ad: CachedSlot }
   | { kind: "startVanishTimer"; ms: number }
   | { kind: "cancelVanishTimer" }
   | { kind: "startInterAdTimer"; ms: number }
   | { kind: "cancelInterAdTimer" }
   | { kind: "vanishDisplay" }
-  | { kind: "recordImpression"; impression: LocalImpression; ad: CachedAd }
+  | { kind: "recordImpression"; impression: LocalImpression; ad: CachedSlot }
+  | { kind: "recordNewsImpression"; impression: LocalNewsImpression; ad: CachedSlot }
   | { kind: "setSessionKilled" }
   | { kind: "clearSessionState" }
   | { kind: "writeMuteUntil"; muteUntil: number }
-  | { kind: "openDiscover"; ad: CachedAd; deliveryToken: string }
+  | { kind: "openDiscover"; ad: CachedSlot; deliveryToken: string }
   // S3-04: drive the progress bar while the ad is on screen. orchestrator
   // runs a 500ms interval keyed on `shownAt` and pushes the tick to display.
   // The same tick drives the S3-05 earnings popup animation (in-box, top-
   // right) so both live in one render loop. The ad is carried here so the
   // tick can compute cpm-based popup decisions without re-reading state.
-  | { kind: "startProgressTimer"; shownAt: number; displayTimeMs: number; ad: CachedAd }
+  | { kind: "startProgressTimer"; shownAt: number; displayTimeMs: number; ad: CachedSlot }
   | { kind: "cancelProgressTimer" }
   // S3-04: on completed/stop, snap to 100% and hold briefly before the box
   // vanishes so the jump reads as a deliberate finish, not a cold cut.
@@ -124,7 +126,8 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
   }
   if (event.kind === "grace-elapsed") {
     if (!event.ad) return { state: { kind: "IDLE" }, effects: [] }
-    const ms = Math.min(event.ad.displayTimeMs, MAX_AD_DURATION_MS)
+    const displayTimeMs = event.ad.payload.displayTimeMs
+    const ms = Math.min(displayTimeMs, MAX_AD_DURATION_MS)
     return {
       state: { kind: "SHOWING", tty: state.tty, ad: event.ad, shownAt: event.now },
       effects: [
@@ -134,6 +137,7 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
       ],
     }
   }
+  if (event.kind === "save-key") return { state, effects: [] }
   // vanish-elapsed, skip-key, discover-key, inter-ad-elapsed
   // are stale in GRACE — orchestrator logs and drops
   return { state, effects: [] }
@@ -147,7 +151,8 @@ function stepShowing(
   if (
     event.kind === "idle-start" ||
     event.kind === "grace-elapsed" ||
-    event.kind === "inter-ad-elapsed"
+    event.kind === "inter-ad-elapsed" ||
+    event.kind === "save-key"
   ) {
     return { state, effects: [] }
   }
@@ -180,12 +185,10 @@ function stepShowing(
     // discover opens the advertiser URL in the browser AND keeps rotation
     // going so the user doesn't lose the ad stream while Claude is still busy.
     const base = endShowing(state, event.now, ctx, "completed", /*goToInterAd*/ true)
+    const deliveryToken = state.ad.kind === "ad" ? state.ad.payload.deliveryToken : ""
     return {
       state: base.state,
-      effects: [
-        { kind: "openDiscover", ad: state.ad, deliveryToken: state.ad.deliveryToken },
-        ...base.effects,
-      ],
+      effects: [{ kind: "openDiscover", ad: state.ad, deliveryToken }, ...base.effects],
     }
   }
   if (event.kind === "session-start") {
@@ -230,7 +233,8 @@ function stepInterAd(state: Extract<State, { kind: "INTER_AD" }>, event: Event):
     if (!event.ad) {
       return { state: { kind: "IDLE" }, effects: [] }
     }
-    const ms = Math.min(event.ad.displayTimeMs, MAX_AD_DURATION_MS)
+    const displayTimeMs = event.ad.payload.displayTimeMs
+    const ms = Math.min(displayTimeMs, MAX_AD_DURATION_MS)
     return {
       state: { kind: "SHOWING", tty: state.tty, ad: event.ad, shownAt: event.now },
       effects: [
@@ -240,7 +244,7 @@ function stepInterAd(state: Extract<State, { kind: "INTER_AD" }>, event: Event):
       ],
     }
   }
-  // skip-key / discover-key / vanish-elapsed — stale in INTER_AD, ignore
+  // skip-key / discover-key / vanish-elapsed / save-key — stale in INTER_AD, ignore
   return { state, effects: [] }
 }
 
@@ -252,23 +256,7 @@ function endShowing(
   goToInterAd: boolean
 ): StepResult {
   const durationMs = Math.max(0, Math.min(now - state.shownAt, MAX_AD_DURATION_MS))
-  const cpmRate = state.ad.cpmRate ?? 0
-  const impression: LocalImpression = {
-    id: randomUUID(),
-    adId: state.ad.id,
-    campaignId: state.ad.campaignId,
-    surface: "terminal-tv",
-    source: state.ad.cacheSource,
-    deliveryToken: state.ad.deliveryToken,
-    startedAt: state.shownAt,
-    durationMs,
-    result,
-    deviceId: ctx.deviceId,
-    // carry the server-advertised CPM into the ledger row so today's running
-    // total stays accurate without an API round-trip. backend recomputes
-    // authoritative earnings at sync time.
-    cpmRate: state.ad.cacheSource === "api" ? cpmRate : null,
-  }
+  const slot = state.ad
 
   // effect order matters. the orchestrator interprets `snapProgressToComplete`
   // as "flush a 100% frame, then pause PROGRESS_SNAP_HOLD_MS before running
@@ -279,8 +267,44 @@ function endShowing(
     { kind: "snapProgressToComplete" },
     { kind: "vanishDisplay" },
     { kind: "cancelVanishTimer" },
-    { kind: "recordImpression", impression, ad: state.ad },
   ]
+  // only emit recordImpression for ad slots — news slots have no ledger row
+  if (slot.kind === "ad") {
+    const adPayload = slot.payload
+    const impression: LocalImpression = {
+      id: randomUUID(),
+      adId: adPayload.id,
+      campaignId: adPayload.campaignId,
+      surface: "terminal-tv",
+      source: slot.cacheSource,
+      deliveryToken: adPayload.deliveryToken,
+      startedAt: state.shownAt,
+      durationMs,
+      result,
+      deviceId: ctx.deviceId,
+      // carry the server-advertised CPM into the ledger row so today's running
+      // total stays accurate without an API round-trip. backend recomputes
+      // authoritative earnings at sync time.
+      cpmRate: slot.cacheSource === "api" ? (adPayload.cpmRate ?? 0) : null,
+    }
+    cleanup.push({ kind: "recordImpression", impression, ad: slot })
+  }
+  if (slot.kind === "news") {
+    const newsImpression: LocalNewsImpression = {
+      id: randomUUID(),
+      newsId: slot.payload.id,
+      source: slot.payload.source,
+      deviceId: ctx.deviceId,
+      durationMs,
+      result,
+      // openedUrl left false here — orchestrator overrides from its per-session flag
+      openedUrl: false,
+      // saved is denormalized analytics; reading_pending tracks the actual save intent
+      saved: false,
+      createdAt: now,
+    }
+    cleanup.push({ kind: "recordNewsImpression", impression: newsImpression, ad: slot })
+  }
 
   if (goToInterAd) {
     return {
