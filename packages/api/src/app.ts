@@ -31,6 +31,7 @@ import { miniappGithubRouter } from "./routes/miniapp-github.js"
 import { miniappSignupRouter } from "./routes/miniapp-signup.js"
 import { cliPairRouter } from "./routes/cli-pair.js"
 import { miniappCliLinkRouter } from "./routes/miniapp-cli-link.js"
+import { miniappMeRouter } from "./routes/miniapp-me.js"
 import { adminHotWalletRouter } from "./routes/admin-hot-wallet.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
@@ -80,6 +81,7 @@ app.use("/miniapp/github-oauth", miniappGithubRouter)
 app.use("/miniapp/signup", miniappSignupRouter)
 app.use("/cli/pair", cliPairRouter)
 app.use("/miniapp/cli-link", miniappCliLinkRouter)
+app.use("/miniapp/me", miniappMeRouter)
 app.use("/devices", requireAuth, devicesRouter)
 app.use("/advertisers", requireAdmin, adminLimiter, advertisersRouter)
 app.use("/campaigns", requireAdmin, adminLimiter, campaignsRouter)
