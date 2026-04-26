@@ -163,6 +163,9 @@ interface Session {
   // into the recordNewsImpression effect so openedUrl is accurate (the state
   // machine can't know this — it doesn't own key-intercept logic).
   openedNewsUrl: boolean
+  // set true when save-key successfully writes a reading_pending row for the
+  // active news slot; carried into recordNewsImpression so saved is accurate.
+  savedNews: boolean
 }
 
 export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
@@ -200,6 +203,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       adsInCurrentBusyWindow: 0,
       sessionStartAt: now(),
       openedNewsUrl: false,
+      savedNews: false,
     }
     sessions.set(key, s)
     return s
@@ -323,6 +327,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             score: slot.payload.score,
             savedAt: now(),
           })
+          session.savedNews = true
           deps.log.info("news saved", { newsId: slot.payload.id })
           if (session.currentDisplay) {
             try {
@@ -530,6 +535,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         const finalImpression: LocalNewsImpression = {
           ...effect.impression,
           openedUrl: session.openedNewsUrl,
+          saved: session.savedNews,
         }
         try {
           deps.ledger.recordNewsImpression(finalImpression)
@@ -538,11 +544,13 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             result: effect.impression.result,
             durationMs: effect.impression.durationMs,
             openedUrl: finalImpression.openedUrl,
+            saved: finalImpression.saved,
           })
         } catch (err) {
           deps.log.warn("news impression ledger write failed", { error: (err as Error).message })
         }
         session.openedNewsUrl = false
+        session.savedNews = false
         return
       }
       case "setSessionKilled":
@@ -555,6 +563,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         session.currentSlotKind = null
         session.sessionStartAt = now()
         session.openedNewsUrl = false
+        session.savedNews = false
         deps.log.info("session state cleared", { tty: session.tty })
         return
       case "writeMuteUntil":
