@@ -1,13 +1,27 @@
 import { ThemeToggle } from "@/components/shared/theme-toggle"
+import { WorldChip } from "@/components/shared/world-chip"
+import { WORLD_CHAIN_SEPOLIA } from "@devdrip/shared/constants/chain"
 
 export function Footer() {
   return (
     <footer className="border-t border-[var(--rule-default)] bg-[var(--bg-primary)]">
       <div className="mx-auto max-w-grid px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-        {/* wordmark */}
-        <span className="font-display text-[12px] font-bold text-[var(--ink-tertiary)] tracking-tight">
-          dev drip
-        </span>
+        {/* wordmark + chain badge */}
+        <div className="flex items-center gap-3">
+          <span className="font-display text-[12px] font-bold text-[var(--ink-tertiary)] tracking-tight">
+            dev drip
+          </span>
+          <span aria-hidden className="h-3.5 w-px bg-[var(--rule-default)]" />
+          <WorldChip />
+          <a
+            href={WORLD_CHAIN_SEPOLIA.blockExplorerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden md:inline font-data text-[10px] tracking-[0.1em] uppercase text-[var(--ink-tertiary)] hover:text-[var(--ink-secondary)] transition-colors"
+          >
+            chain {WORLD_CHAIN_SEPOLIA.chainId} · sepolia
+          </a>
+        </div>
 
         {/* nav links */}
         <nav className="flex items-center gap-4">

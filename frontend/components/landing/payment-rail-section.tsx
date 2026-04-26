@@ -15,7 +15,7 @@ const RAIL_METRICS = [
 ]
 
 const TRUST_FACTS = [
-  "Cash out to your bank anytime",
+  "Auto-paid every Sunday over $5",
   "Real-time balance in dashboard + CLI",
 ] as const
 
@@ -372,10 +372,10 @@ export function PaymentRailSection() {
                 id="payment-rail-heading"
                 className="font-display text-h2 md:text-h1 font-bold text-[var(--ink-primary)] tracking-[-0.02em] mb-4"
               >
-                Sub-cent fees. Real dollars.
+                Sub-cent fees. Real USDC.
               </h2>
               <p className="font-body text-body text-[var(--ink-secondary)] max-w-[480px]">
-                USDC micropayments with sub-cent fees. More rails coming.
+                USDC on World Chain. Gasless transfers. Auto-disbursed every Sunday over $5.
               </p>
             </div>
           </BlurFade>

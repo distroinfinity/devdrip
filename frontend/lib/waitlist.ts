@@ -53,7 +53,7 @@ export const MONTHLY_SPEND_OPTIONS = [
 
 export type MonthlySpend = (typeof MONTHLY_SPEND_OPTIONS)[number]["value"] | ""
 
-export type WaitlistSource = "hero" | "nav" | "bottom"
+export type WaitlistSource = "hero" | "nav" | "bottom" | "install"
 
 export interface WaitlistPayload {
   email: string

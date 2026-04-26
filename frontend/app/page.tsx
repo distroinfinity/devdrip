@@ -33,14 +33,15 @@ const PaymentRailSection = dynamic(
     })),
   { ssr: true }
 )
-const WorldwideSection = dynamic(
+const BuiltOnWorldSection = dynamic(
   () =>
-    import("@/components/landing/worldwide-section").then((m) => ({ default: m.WorldwideSection })),
+    import("@/components/landing/built-on-world-section").then((m) => ({
+      default: m.BuiltOnWorldSection,
+    })),
   { ssr: true }
 )
-const WaitlistSection = dynamic(
-  () =>
-    import("@/components/landing/waitlist-section").then((m) => ({ default: m.WaitlistSection })),
+const InstallSection = dynamic(
+  () => import("@/components/landing/install-section").then((m) => ({ default: m.InstallSection })),
   { ssr: true }
 )
 
@@ -53,12 +54,12 @@ export default function Home() {
         <FloatingNav
           navItems={[
             { name: "How It Works", link: "#how-it-works" },
-            { name: "Surfaces", link: "#surfaces" },
             { name: "Your Rules", link: "#your-rules" },
-            { name: "Payment Rail", link: "#payment-rail" },
+            { name: "Payouts", link: "#payment-rail" },
+            { name: "World", link: "#built-on-world" },
           ]}
-          ctaLabel="Request Access"
-          ctaHref="#waitlist"
+          ctaLabel="Install"
+          ctaHref="#install"
         />
 
         <HeroSection />
@@ -71,13 +72,11 @@ export default function Home() {
 
         <YourRulesSection />
 
-        {/* P0-008 The Math — not yet built */}
         <PaymentRailSection />
 
-        <WorldwideSection />
+        <BuiltOnWorldSection />
 
-        {/* P0-010 Open Source Fund, P0-012 FAQ — not yet built */}
-        <WaitlistSection />
+        <InstallSection />
       </main>
 
       <Footer />
