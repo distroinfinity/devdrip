@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { formatUsdc, MIN_PAYOUT_USDC } from "@devdrip/shared"
+import { formatUsdc } from "@devdrip/shared/format"
+import { MIN_PAYOUT_USDC } from "@devdrip/shared/constants/chain"
 import { claim, fetchPayout, type PayoutSummary } from "@/lib/wallet-api"
 
 interface ClaimButtonProps {

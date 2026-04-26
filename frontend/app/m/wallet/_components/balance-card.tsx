@@ -1,4 +1,5 @@
-import { formatUsdc, MIN_PAYOUT_USDC } from "@devdrip/shared"
+import { formatUsdc } from "@devdrip/shared/format"
+import { MIN_PAYOUT_USDC } from "@devdrip/shared/constants/chain"
 import { ClaimButton } from "./claim-button"
 
 interface BalanceCardProps {
