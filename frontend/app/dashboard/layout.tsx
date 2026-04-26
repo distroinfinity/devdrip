@@ -17,7 +17,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       "/me/preferences",
       "/dashboard"
     )
-    initialMode = (preferences.channelMode ?? ChannelMode.Mix) as ChannelMode
+    initialMode = preferences.channelMode
   } catch {
     // if prefs fetch fails, default to Mix — the toggle shows "both" until the user clicks something
   }
