@@ -59,7 +59,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   if (!me.githubLogin) {
     return (
       <MiniAppShell title="Sign up — step 3 of 3">
-        <GithubStep />
+        <GithubStep linkCode={linkCode} />
       </MiniAppShell>
     )
   }

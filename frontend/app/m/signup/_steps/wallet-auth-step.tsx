@@ -44,7 +44,7 @@ export function WalletAuthStep() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-[var(--rule-default)] bg-[var(--bg-surface)] p-5">
       <p className="text-[var(--ink-secondary)]">
         Connect your World Wallet. We&apos;ll bind it as the address you receive USDC payouts at.
       </p>
@@ -52,7 +52,7 @@ export function WalletAuthStep() {
         type="button"
         disabled={status === "loading"}
         onClick={() => void handleConnect()}
-        className="rounded-md bg-[var(--accent)] px-4 py-3 font-medium text-[var(--bg-primary)] disabled:opacity-50"
+        className="rounded-md bg-[var(--accent-color)] px-4 py-3 font-medium text-[var(--ink-inverse)] disabled:opacity-50"
       >
         {status === "loading" ? "Connecting..." : "Connect World Wallet"}
       </button>

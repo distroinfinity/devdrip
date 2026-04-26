@@ -173,18 +173,9 @@ describe("orchestrator", () => {
     expect(d.ledgerWrites[0]?.source).toBe("api")
   })
 
-  it("cancels the grace timer when idle-end arrives during GRACE", async () => {
-    const d = makeDeps()
-    const orch = await createOrch(d)
-
-    orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
-    await vi.advanceTimersByTimeAsync(500) // mid-grace
-    orch.dispatch({ kind: "idle-end", now: 500 })
-    await vi.advanceTimersByTimeAsync(5000)
-
-    expect(d.displayCalls).toHaveLength(0)
-    expect(d.ledgerWrites).toHaveLength(0)
-  })
+  // Removed: "cancels the grace timer when idle-end arrives during GRACE"
+  // GRACE_PERIOD_MS is now 0 — there's no mid-grace window for idle-end to
+  // cancel into. Premise of the test is no longer valid.
 
   it("records interrupted when Stop hook fires mid-ad", async () => {
     const d = makeDeps()

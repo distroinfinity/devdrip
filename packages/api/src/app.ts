@@ -34,7 +34,7 @@ import { miniappCliLinkRouter } from "./routes/miniapp-cli-link.js"
 import { miniappMeRouter } from "./routes/miniapp-me.js"
 import { adminHotWalletRouter } from "./routes/admin-hot-wallet.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
-import { requireAuth } from "./middleware/auth.js"
+import { requireAuth, requireBearerOrMiniApp } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
 import { globalLimiter, userLimiter, adminLimiter } from "./middleware/rate-limit.js"
 import { getDb } from "./db/index.js"
@@ -128,8 +128,8 @@ app.use("/me", requireAuth, userLimiter, mePreferencesRouter)
 app.use("/me/earnings", requireAuth, userLimiter, meEarningsRouter)
 app.use("/me/analytics", requireAuth, userLimiter, meAnalyticsRouter)
 app.use("/me/impressions", requireAuth, userLimiter, meImpressionsRouter)
-app.use("/me/balance", requireAuth, userLimiter, meBalanceRouter)
-app.use("/me/payouts", requireAuth, userLimiter, mePayoutsRouter)
+app.use("/me/balance", requireBearerOrMiniApp, userLimiter, meBalanceRouter)
+app.use("/me/payouts", requireBearerOrMiniApp, userLimiter, mePayoutsRouter)
 app.use("/admin/reports", requireAdmin, adminLimiter, adminReportsRouter)
 
 app.use(errorHandler)
