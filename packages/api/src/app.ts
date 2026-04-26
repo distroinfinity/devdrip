@@ -29,6 +29,7 @@ import { miniappGithubRouter } from "./routes/miniapp-github.js"
 import { miniappSignupRouter } from "./routes/miniapp-signup.js"
 import { cliPairRouter } from "./routes/cli-pair.js"
 import { miniappCliLinkRouter } from "./routes/miniapp-cli-link.js"
+import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
 import { globalLimiter, userLimiter, adminLimiter } from "./middleware/rate-limit.js"
@@ -59,6 +60,13 @@ app.use(
 )
 
 app.use("/health", healthRouter)
+
+// Test-only routes — mounted ABOVE globalLimiter so the integration test
+// can hit them without rate-limiting interference. Hard-gated to non-prod
+// at the mount site; the route handler also short-circuits in production.
+if (env.nodeEnv !== "production") {
+  app.use("/__test", testHelpersRouter)
+}
 
 app.use(globalLimiter)
 
