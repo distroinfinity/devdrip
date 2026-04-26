@@ -1,10 +1,19 @@
 // Per-payout broadcast pipeline. Called by the settlement worker for one
-// payout at a time. Performs: pre-flight balance checks → sign + broadcast
-// transfer → wait for receipt → mark confirmed/failed/retry.
+// payout at a time.
 //
-// Retry semantics: on broadcast or receipt timeout, set status back to
-// 'pending' and bump retry_count. The worker's next tick re-picks the row.
-// After MAX_RETRIES failures, mark permanently failed.
+// Two paths:
+//   (A) row.txHash IS NULL — fresh broadcast: pre-flight checks → sign + send
+//       → wait for receipt → mark confirmed/failed/retry.
+//   (B) row.txHash IS NOT NULL — reconciliation only: a previous attempt
+//       already broadcast a tx for this payout. Poll for the receipt; NEVER
+//       sign a second tx. This is the safe-money invariant — once a tx hash
+//       exists for a payout we either confirm it, see it revert on-chain, or
+//       fail permanently after retries — but we never duplicate the send.
+//
+// If a tx is genuinely dropped from the mempool the row will exhaust retries
+// and land in `failed` with `broadcast_timeout_after_3_retries`. Operator
+// recovery: NULL out tx_hash + reset status to 'pending' to allow a fresh
+// broadcast.
 
 import { eq, sql } from "drizzle-orm"
 import type { Logger } from "pino"
@@ -26,10 +35,52 @@ export interface PendingPayout {
   walletAddress: string
   amountUsdc: number
   retryCount: number
+  // Set when a previous broadcast attempt got far enough to obtain a tx hash.
+  // Presence forces the reconciliation-only path so we never double-send.
+  txHash: Hex | null
 }
 
 export async function broadcastPayout(row: PendingPayout): Promise<void> {
   const log = logger.child({ payoutId: row.id, retryCount: row.retryCount })
+
+  // Path B — reconciliation only. Never sign a second tx for this payout.
+  if (row.txHash) {
+    await reconcileExistingTx(row, log)
+    return
+  }
+
+  // Path A — fresh broadcast.
+  await freshBroadcast(row, log)
+}
+
+async function reconcileExistingTx(row: PendingPayout, log: Logger): Promise<void> {
+  const txHash = row.txHash
+  if (!txHash) return
+  log.info({ txHash }, "reconciling existing tx; not broadcasting")
+  const publicClient = getPublicClient()
+  try {
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash: txHash,
+      timeout: RECEIPT_TIMEOUT_MS,
+    })
+    if (receipt.status === "success") {
+      await markConfirmed(row.id, txHash, Number(receipt.blockNumber), log)
+      return
+    }
+    // Reverted on-chain — deterministic with the same args. Don't retry.
+    const reason = `reverted: tx ${txHash} status=0x0`
+    await markFailed(row.id, reason as PayoutFailureReason, log)
+  } catch (err) {
+    // Receipt unavailable — tx may still be in mempool, may be dropped. Bump
+    // the retry count (or fail permanently after MAX_RETRIES) but DO NOT
+    // broadcast a new tx. Operator recovery: NULL the tx_hash to allow a
+    // fresh broadcast.
+    log.warn({ err, txHash }, "reconcile receipt unavailable; bumping retry without broadcast")
+    await retryOrFail(row, "broadcast_timeout_after_3_retries", log)
+  }
+}
+
+async function freshBroadcast(row: PendingPayout, log: Logger): Promise<void> {
   const publicClient = getPublicClient()
   const walletClient = getWalletClient()
 
@@ -40,9 +91,7 @@ export async function broadcastPayout(row: PendingPayout): Promise<void> {
   // Pre-flight: USDC balance FIRST — gas estimation simulates the transfer
   // and would revert with "ERC20: transfer amount exceeds balance" if USDC is
   // short, which we'd otherwise mis-classify as a transient gas-estimation
-  // error and retry 3× before failing with the wrong reason. Checking balance
-  // first means insufficient_funds surfaces immediately and gas estimation
-  // only fails for genuine RPC/contract-level issues.
+  // error and retry 3× before failing with the wrong reason.
   const usdcBalance = (await publicClient.readContract({
     address: WORLD_CHAIN_SEPOLIA.usdcAddress,
     abi: usdcAbi,
@@ -103,8 +152,8 @@ export async function broadcastPayout(row: PendingPayout): Promise<void> {
     return
   }
 
-  // Stash the tx hash + retry timestamp so an admin can correlate even if the
-  // receipt poll later crashes the worker.
+  // Stash the tx hash IMMEDIATELY so the next worker tick (or any retry path)
+  // sees this attempt and switches to reconciliation-only mode.
   const db = getDb()
   await db
     .update(payouts)
@@ -118,24 +167,37 @@ export async function broadcastPayout(row: PendingPayout): Promise<void> {
       timeout: RECEIPT_TIMEOUT_MS,
     })
     if (receipt.status === "success") {
-      await db
-        .update(payouts)
-        .set({
-          status: "confirmed",
-          txBlockNumber: Number(receipt.blockNumber),
-          confirmedAt: new Date(),
-          updatedAt: sql`now()`,
-        })
-        .where(eq(payouts.id, row.id))
-      log.info({ txHash, blockNumber: Number(receipt.blockNumber) }, "payout confirmed")
+      await markConfirmed(row.id, txHash, Number(receipt.blockNumber), log)
       return
     }
     const reason = `reverted: tx ${txHash} status=0x0`
     await markFailed(row.id, reason as PayoutFailureReason, log)
   } catch (err) {
-    log.warn({ err, txHash }, "receipt wait timed out; will retry")
+    log.warn(
+      { err, txHash },
+      "receipt wait timed out; will retry (no re-broadcast — tx_hash already set)"
+    )
     await retryOrFail(row, "broadcast_timeout_after_3_retries", log)
   }
+}
+
+async function markConfirmed(
+  payoutId: string,
+  txHash: Hex,
+  blockNumber: number,
+  log: Logger
+): Promise<void> {
+  const db = getDb()
+  await db
+    .update(payouts)
+    .set({
+      status: "confirmed",
+      txBlockNumber: blockNumber,
+      confirmedAt: new Date(),
+      updatedAt: sql`now()`,
+    })
+    .where(eq(payouts.id, payoutId))
+  log.info({ txHash, blockNumber }, "payout confirmed")
 }
 
 async function markFailed(

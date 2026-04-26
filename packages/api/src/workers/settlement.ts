@@ -4,6 +4,7 @@
 // poll). The lock window is just the SELECT+UPDATE — broadcast happens after.
 
 import { sql } from "drizzle-orm"
+import type { Hex } from "viem"
 import { getDb } from "../db/index.js"
 import { logger } from "../lib/logger.js"
 import { broadcastPayout, type PendingPayout } from "../services/payout-broadcast.service.js"
@@ -16,6 +17,7 @@ interface ClaimRow {
   wallet_address: string
   amount_usdc: number
   retry_count: number
+  tx_hash: string | null
 }
 
 export async function claimNextPending(): Promise<PendingPayout | null> {
@@ -25,8 +27,11 @@ export async function claimNextPending(): Promise<PendingPayout | null> {
     // (crash recovery — if a worker dies mid-broadcast, the row would otherwise
     // be stuck in 'processing' forever). 5 min is comfortably longer than the
     // 30s receipt timeout × max_retries=3 envelope.
+    //
+    // tx_hash is carried forward so broadcastPayout can take the
+    // reconciliation-only path when a previous attempt already broadcast a tx.
     const result = await tx.execute(sql`
-      SELECT id, user_id, wallet_address, amount_usdc, retry_count
+      SELECT id, user_id, wallet_address, amount_usdc, retry_count, tx_hash
       FROM payouts
       WHERE status = 'pending'
          OR (status = 'processing' AND updated_at < now() - interval '5 minutes')
@@ -50,6 +55,7 @@ export async function claimNextPending(): Promise<PendingPayout | null> {
       walletAddress: row.wallet_address,
       amountUsdc: Number(row.amount_usdc),
       retryCount: row.retry_count,
+      txHash: row.tx_hash as Hex | null,
     }
   })
 }
