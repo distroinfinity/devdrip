@@ -190,18 +190,48 @@ export interface IngestItemResultClick {
   error?: string
 }
 
+export interface IngestNewsImpressionItem {
+  newsId: string
+  source: string
+  deviceId: string
+  durationMs: number
+  result: string
+  openedUrl: boolean
+  saved: boolean
+}
+
+export interface IngestItemResultNewsImpression {
+  ok: boolean
+  newsId: string
+  error?: string
+}
+
 export interface IngestResponse {
   impressions: IngestItemResultImpression[]
   clicks: IngestItemResultClick[]
+  newsImpressions?: IngestItemResultNewsImpression[]
 }
 
 export interface IngestRequest {
   impressions: { deliveryToken: string }[]
   clicks: { deliveryToken: string }[]
+  newsImpressions?: IngestNewsImpressionItem[]
 }
 
 export async function postIngest(body: IngestRequest): Promise<IngestResponse> {
   return apiFetch<IngestResponse>("/ingest", { method: "POST", body })
+}
+
+export interface SaveReadingItemBody {
+  newsId: string
+  source: string
+  headline: string
+  url: string
+  score: number
+}
+
+export async function postReadingSave(body: SaveReadingItemBody): Promise<void> {
+  await apiFetch("/me/reading", { method: "POST", body })
 }
 
 export function reportError(err: unknown): never {
