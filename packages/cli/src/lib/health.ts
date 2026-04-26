@@ -243,7 +243,7 @@ export async function runInitHealthCheck(
 }
 
 // Doctor adds four probes on top of the init set. Results are returned in a
-// fixed order (auth, device, hooks, backend, daemon, ad-cache, tty, disk)
+// fixed order (auth, device, hooks, backend, daemon, slot-cache, tty, disk)
 // regardless of how they resolved, so the human output is deterministic and
 // the --json shape is stable across runs.
 export async function runDoctorHealthCheck(
