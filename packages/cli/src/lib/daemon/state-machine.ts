@@ -126,7 +126,7 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
   }
   if (event.kind === "grace-elapsed") {
     if (!event.ad) return { state: { kind: "IDLE" }, effects: [] }
-    const displayTimeMs = event.ad.kind === "ad" ? event.ad.payload.displayTimeMs : 4000
+    const displayTimeMs = event.ad.payload.displayTimeMs
     const ms = Math.min(displayTimeMs, MAX_AD_DURATION_MS)
     return {
       state: { kind: "SHOWING", tty: state.tty, ad: event.ad, shownAt: event.now },
@@ -233,7 +233,7 @@ function stepInterAd(state: Extract<State, { kind: "INTER_AD" }>, event: Event):
     if (!event.ad) {
       return { state: { kind: "IDLE" }, effects: [] }
     }
-    const displayTimeMs = event.ad.kind === "ad" ? event.ad.payload.displayTimeMs : 4000
+    const displayTimeMs = event.ad.payload.displayTimeMs
     const ms = Math.min(displayTimeMs, MAX_AD_DURATION_MS)
     return {
       state: { kind: "SHOWING", tty: state.tty, ad: event.ad, shownAt: event.now },
