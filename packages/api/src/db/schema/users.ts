@@ -4,7 +4,7 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   githubId: bigint("github_id", { mode: "number" }).unique(),
   githubLogin: varchar("github_login", { length: 255 }),
-  email: varchar("email", { length: 255 }).unique().notNull(),
+  email: varchar("email", { length: 255 }).unique(),
   avatarUrl: varchar("avatar_url", { length: 512 }),
   reposCount: integer("repos_count"),
   primaryLanguage: varchar("primary_language", { length: 100 }),
