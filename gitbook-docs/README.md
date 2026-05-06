@@ -2,7 +2,7 @@
 
 Current-state docs for engineers working in this repo.
 
-> _Distro TV is the post-pivot product (2026-05-05). Sections describing earnings/payouts/wallet/world will be revised as M1-M8 land. See `docs/superpowers/specs/2026-05-05-distro-tv-pivot-design.md` for the full design._
+> _Distro TV is the post-pivot product (2026-05). M1 (rip + rename) and M2 (magic-link auth + /setup onboarding) have shipped. Subsequent sections describing slot delivery, channels, watchlists, and admin tooling will be revised as M3-M8 land. See `docs/superpowers/specs/2026-05-05-distro-tv-pivot-design.md` (local) for the full design._
 
 > **Previously DevDrip.** The product was originally called DevDrip (opt-in ads + USDC micropayments). In May 2026 it pivoted to Distro TV — an ambient news + market terminal feed. Pages flagged "(deprecated)" describe surfaces being torn out. The agent-treasury pivot page describes a prior intermediate direction that was also superseded.
 
@@ -18,28 +18,35 @@ In the repo today, the implemented product surface is split across these package
 - `packages/cli` exposes the CLI command surface (`distro init`, `distro daemon`, `distro status`, `distro watchlist`, etc.).
 - `packages/dashboard` is a separate dashboard app shell with minimal UI today.
 
-## Current State (post-M1)
+## Current State (post-M2)
 
 ```text
 browser
-  -> frontend landing page
-  -> frontend waitlist route
-     -> neon postgres
-     -> resend email
+  -> frontend landing page + waitlist
+  -> /setup onboarding (pair-exchange, magic-link sign-in)
+  -> /sign-in (magic-link form)
+  -> /dashboard/* (auth-gated; account page, preferences, reading)
+     -> session JWT in HTTP-only cookie
 
 cli / daemon
   -> packages/api
-     -> github oauth
-     -> jwt auth
+     -> anonymous device registration (no auth required)
+     -> magic-link auth (Resend, SHA-256 hashed tokens)
+     -> pairing handoff (CLI → browser → /setup)
+     -> jwt auth (7-day session JWT)
      -> postgres via drizzle
-     -> redis via upstash
+     -> redis via upstash (pairing codes, rate-limit)
 ```
 
-What is real right now (end of M1):
+What is real right now (end of M2):
 
 - landing page and waitlist flow
-- GitHub OAuth + JWT auth
-- device registration
+- anonymous-first device registration (device bearer auth)
+- magic-link sign-in via Resend + optional anonymous→email upgrade
+- CLI ↔ browser pairing handoff (`distro init` → `/setup?pair=…`)
+- `/setup` onboarding page with 4 states
+- `/dashboard/account` (email, user/device IDs, sign-out)
+- middleware auth gate (dashboard protected behind session cookie)
 - slot impression ingestion (news kind)
 - slot cache (reads `/me/content/next`, falls back to demo fixtures)
 - daemon lifecycle (start/stop/status/heartbeat)
@@ -49,8 +56,7 @@ What is real right now (end of M1):
 
 What arrives in upcoming milestones:
 
-- M2: auth stabilization + real device-registration round-trip
-- M3: live news slot rendering from API
+- M3: news pipeline (channels schema + worker + selection algorithm)
 - M4: ticker slots + watchlist management
 - M5: demo loop end-to-end → merge to main
 

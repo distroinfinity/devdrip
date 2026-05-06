@@ -1,93 +1,67 @@
-# World Identity
+# Identity & Auth
 
-> **Deprecated.** This page describes the World ID + walletAuth flow being removed in the agent-treasury pivot. See [Agent Treasury Pivot](agent-treasury-pivot.md). After the pivot lands, identity becomes Privy + optional GitHub on Base Sepolia. World code is preserved on the `archive/world-integration` branch.
+Distro TV uses an **anonymous-first** auth model. Every device gets a local identity at install time; email-bound user identity is an optional upgrade.
 
-DevDrip binds three credentials per user before any USDC payout can happen:
+## Anonymous device flow (M1, automatic)
 
-1. **World Wallet address** — proves the user controls a payout destination, captured via MiniKit `walletAuth` (SIWE).
-2. **World ID nullifier hash** — proves the user is a unique human, captured via IDKit (Device or Orb verification level).
-3. **GitHub identity** — preserves the "verified developer" positioning, captured via GitHub OAuth.
+1. `distro init` generates a local 256-bit `device_secret` and POSTs to `/devices/register` (no auth required).
+2. The API creates a `users` row (with `email: NULL`) and a `devices` row with the SHA-256 hash of the secret.
+3. The CLI stores the raw secret in `~/.distro/config.json` and uses `Authorization: Bearer device.<secret>` for all subsequent API calls.
 
-All three are required for `users.signed_up_at` to flip from `NULL` to a timestamp. The Mini App signup wizard at `/m/signup` walks the user through them in order; refresh resumes from the next-undone step (state derived from which `users.*` columns are still null).
+The user can use Distro TV indefinitely without ever signing in. Their preferences and reading list are scoped to their anonymous user.
 
-## Why three?
+## Magic-link sign-in (M2, optional upgrade)
 
-Each credential closes a different attack:
+When the user enters an email on `/setup` (or `/sign-in`):
 
-| Credential           | Defends against                                                 |
-| -------------------- | --------------------------------------------------------------- |
-| World Wallet address | claim flows that paste arbitrary 0x addresses (typo / phishing) |
-| World ID nullifier   | bot farms / sybil signups that inflate the impression ledger    |
-| GitHub OAuth         | non-developers signing up to drain the float                    |
+1. Frontend POSTs to `/auth/magic-link/send` with `{email, pairingCode?}`.
+2. API generates a 32-byte token, stores its SHA-256 hash in `magic_link_tokens` (15-min TTL, single-use), and emails the raw token via Resend.
+3. User clicks the link → frontend `/auth/magic-link/verify` route extracts the token and POSTs to `/auth/magic-link/verify`.
+4. API verifies the hash, finds-or-creates a user by email, and **if a `pairingCode` was present**: re-points the paired device's `user_id` to the email-bound user (deletes the now-orphan anonymous user if it has no other devices).
+5. API issues a 7-day session JWT containing `{sub: userId, email}`.
+6. Frontend sets the JWT in an HTTP-only cookie (`distrotv_session`).
 
-The World ID action `devdrip-signup` is namespaced — same nullifier may legitimately appear under different actions in the future (e.g., `devdrip-claim-bonus`) without colliding.
+The same JWT is the API's bearer auth — the frontend's cookie value is sent as `Authorization: Bearer <jwt>` to the API. No separate session abstraction.
 
-## Storage
+## CLI ↔ Browser pairing
 
-`users` table (relevant columns):
+`distro init` calls `POST /devices/pair` (authed via the device bearer) to get a 10-min pairing code, then opens the browser at `/setup?pair=<code>`. The browser exchanges the code via `POST /auth/exchange-pair` (public) which returns a 7-day session JWT bound to the device's current (anonymous) user. The user can then sign in via magic-link to upgrade.
 
-| Column                                             | Type                                         | Notes                                                                               |
-| -------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `wallet_address`                                   | `varchar(42)` nullable, no unique constraint | bound at walletAuth verify                                                          |
-| `nullifier_hash`                                   | `numeric(78,0) unique nullable`              | bound at world-id verify; NUMERIC(78,0) holds a 256-bit hash without precision loss |
-| `verification_level`                               | `varchar(16)` nullable                       | `'device'` or `'orb'`                                                               |
-| `github_id`, `github_login`, `email`, `avatar_url` | from existing schema                         | bound at github-oauth callback                                                      |
-| `signed_up_at`                                     | `timestamptz` nullable                       | flipped to `now()` when all three above are bound                                   |
+The pairing code lives in Redis (`pair:<code>` 10-min TTL). After exchange, a `pair-remember:<code>` entry (30-min TTL) lets the magic-link verify flow re-point the right device after the user clicks the email.
 
-Plus the `nullifiers` table (anti-replay), keyed on the composite `(nullifier, action)`:
+## Cross-device sync
 
-```sql
-CREATE TABLE "nullifiers" (
-  "nullifier" NUMERIC(78,0) NOT NULL,
-  "action" TEXT NOT NULL,
-  "user_id" UUID NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
-  "verified_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY ("nullifier", "action")
-);
-```
-
-The PK enforces "this nullifier has already been used for this action — reject the second attempt." The API surfaces this as a `409 nullifier_already_used` error.
+Devices sharing the same `users.id` automatically share preferences via `GET /me/preferences`. When a user signs in via magic-link on a new device, the magic-link verify re-points that device to their email-bound user — and prefs immediately follow.
 
 ## Session model
 
-Two distinct credentials, one shared JWT secret, different audiences:
+| Surface    | Mechanism                                          | TTL    |
+| ---------- | -------------------------------------------------- | ------ |
+| Dashboard  | HTTP-only cookie `distrotv_session` (session JWT)  | 7 days |
+| CLI/daemon | `Authorization: Bearer device.<secret>` (raw hash) | n/a    |
 
-| Surface                        | Where it lives                                                 | Audience claim    | Path scope      |
-| ------------------------------ | -------------------------------------------------------------- | ----------------- | --------------- |
-| Mini App session               | HttpOnly cookie `dd_miniapp`                                   | `devdrip-miniapp` | `Path=/miniapp` |
-| Bearer token (CLI + dashboard) | `~/.devdrip/auth.json` (CLI) or `dd_access` cookie (dashboard) | `devdrip`         | n/a             |
+The dashboard middleware checks cookie presence at the Edge (no JWT crypto); `lib/session.ts`'s `getSession()` does full `jose` verification in server components.
 
-The audience check in `jose.jwtVerify` cryptographically separates the two surfaces — a Mini App cookie cannot authorize a Bearer call to `/me/*` and vice versa, even though both JWTs are signed with the same `JWT_SECRET`.
+## DB schema (M2 additions)
 
-The Mini App cookie is path-scoped to `/miniapp` (not the frontend page route `/m`). Browsers send a cookie only to URLs whose path matches the cookie's `Path` attribute by RFC 6265 prefix-match rules. Frontend Mini App pages at `/m/*` make `fetch()` calls to `/api/miniapp/*` which Next.js rewrites to the backend `/miniapp/*` (preserving the path for cookie-attach purposes). Same-origin throughout.
+```sql
+-- magic_link_tokens (migration 0011)
+CREATE TABLE magic_link_tokens (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  token_hash  TEXT NOT NULL UNIQUE,          -- SHA-256(raw_token)
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pairing_code TEXT,                          -- optional, from CLI handoff
+  expires_at  TIMESTAMPTZ NOT NULL,           -- now() + 15 min
+  consumed_at TIMESTAMPTZ                     -- set on first use (single-use)
+);
 
-## CLI ↔ Mini App pairing
-
-`devdrip login` mints a pair code via `POST /cli/pair`, prints an ASCII QR, and long-polls `GET /cli/pair/:code`. The user scans with World App's camera, the deeplink opens the DevDrip Mini App with `?link=<code>`, and the signup wizard's final step shows "Link this CLI?" → `POST /miniapp/cli-link/:code` atomically binds the pair session to the Mini App user and mints a CLI session token.
-
-The CLI session token is **byte-equivalent** to today's `/auth/exchange` response shape:
-
-- Same JWT secret (`JWT_SECRET`)
-- Same audience (`devdrip`, NOT the Mini App audience)
-- Same claims (`sub`, `github_login`, `iss`, `aud`, `iat`, `exp`)
-- Same refresh token shape (rotation-tracked in `refresh_tokens` table)
-- Same persisted `~/.devdrip/auth.json` config v3 shape
-
-This is load-bearing: the daemon's `prefs-sync` loop reads the token from `~/.devdrip/auth.json` and calls `GET /me/preferences` with `Authorization: Bearer <token>`. The new `devdrip login` flow must produce a token the daemon accepts unchanged. PR2's integration test `paired-token-prefs-sync.test.ts` gates this guarantee — gated behind `DEVDRIP_INTEGRATION_RUN=1` so it doesn't run in regular CI without setup.
-
-## walletAuth nonce
-
-`POST /miniapp/wallet-auth/nonce` mints a 32-byte hex nonce stored in Upstash with 5-minute TTL (key `walletauth:nonce:<nonce>`). The Mini App passes it to `MiniKit.commandsAsync.walletAuth({ nonce })`, which returns a SIWE payload signed by the user's World Wallet. `POST /miniapp/wallet-auth/verify` consumes the nonce atomically (`getdel`), calls `verifySiweMessage()` from `@worldcoin/minikit-js`, and on success upserts the user by recovered address (or returns the existing user if the wallet was previously bound).
-
-Single-use is critical: a leaked nonce is useless after one verify attempt regardless of how it leaked.
-
-## Returning users
-
-After PR4: `POST /miniapp/wallet-auth/verify` for a returning wallet (already bound to a user) issues a Mini App session JWT with `signup: true` immediately, skipping the redundant `/miniapp/signup/complete` round-trip. The client routes them straight to `/m/wallet`.
+-- preferences.channel_mode values updated:
+-- 'earn' → 'news', 'learn' → 'markets', 'both' → 'mix'
+-- (migration 0011 + shared ChannelMode enum)
+```
 
 ## Operator notes
 
-- `WORLD_APP_ID` env var (Railway + Vercel) — register the Mini App at https://developer.world.org. Used in deeplink URLs (frontend) and forwarded to MiniKit on the client. The same value is exposed to clients via `NEXT_PUBLIC_WORLD_APP_ID`.
-- `WORLD_ID_RP_ID` env var (Railway) — used in the cloud verify URL `POST /api/v4/verify/{rp_id}`. Per the World 4.0 docs, prefer `rp_id`; the verify endpoint still accepts `app_id` for back-compat, so the API falls back to `WORLD_APP_ID` when `WORLD_ID_RP_ID` is unset.
-- `WORLD_ID_ACTION` env var — defaults to `devdrip-signup`. Override only for staging environments to avoid colliding with prod nullifiers.
-- Hot wallet ops (faucets, refill, drain): see [World Chain Stack](chain.md).
+- `RESEND_API_KEY` — required in production for magic-link emails; if absent the API logs the link in dev mode (no email sent).
+- `JWT_SECRET` — signs all session JWTs. Rotate requires all existing sessions to be invalidated (cookie cleared on next request).
+- `REDIS_URL` (Upstash) — stores pairing codes (`pair:<code>`, 10-min TTL) and per-email rate-limit keys (`ml:rate:<email>`, 60-s TTL).
