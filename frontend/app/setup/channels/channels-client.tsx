@@ -14,14 +14,13 @@ export function ChannelsClientImpl({ initial }: { initial: ChannelDto[] }) {
 
   function onSave() {
     setError(null)
+    const subscribedKeys = channels.filter((c) => c.subscribed).map((c) => c.key)
+    if (subscribedKeys.length === 0) {
+      setError("pick at least one channel to continue")
+      return
+    }
     start(async () => {
-      const result = await saveChannelsFromSetup(
-        channels.map((c) => ({
-          key: c.key,
-          subscribed: c.subscribed ?? false,
-          priority: c.priority ?? 0,
-        }))
-      )
+      const result = await saveChannelsFromSetup(subscribedKeys)
       if (result.ok) {
         router.push("/dashboard")
       } else {

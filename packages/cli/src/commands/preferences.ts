@@ -69,15 +69,13 @@ async function runPreferences(): Promise<void> {
       }
       const current = await getMyChannels()
       const next = await pickChannels(current)
-      await putMyChannels(
-        next.map((c) => ({
-          key: c.key,
-          subscribed: c.subscribed ?? false,
-          priority: c.priority ?? 0,
-        }))
-      )
-      const subscribed = next.filter((c) => c.subscribed).map((c) => c.label)
-      log.success(subscribed.length === 0 ? "all channels off" : subscribed.join(", "))
+      if (next.length === 0) {
+        log.warn("at least one channel must stay on — keeping previous selection")
+        continue
+      }
+      await putMyChannels(next)
+      const labels = current.filter((c) => next.includes(c.key)).map((c) => c.label)
+      log.success(labels.join(", "))
       continue
     }
 

@@ -317,19 +317,15 @@ export async function runInit(): Promise<void> {
     try {
       const current = await getMyChannels()
       const next = await pickChannels(current)
-      await putMyChannels(
-        next.map((c) => ({
-          key: c.key,
-          subscribed: c.subscribed ?? false,
-          priority: c.priority ?? 0,
-        }))
-      )
-      const subscribed = next.filter((c) => c.subscribed).map((c) => c.label)
-      log.success(
-        subscribed.length === 0
-          ? "channels saved (none — pick some later via dashboard)"
-          : `channels saved (${subscribed.join(", ")})`
-      )
+      if (next.length === 0) {
+        log.warn(
+          "no channels selected — defaults (tech, finance) kept. change later via /dashboard/preferences"
+        )
+      } else {
+        await putMyChannels(next)
+        const labels = current.filter((c) => next.includes(c.key)).map((c) => c.label)
+        log.success(`channels saved (${labels.join(", ")})`)
+      }
     } catch (err) {
       log.warn(
         `channel picker skipped (${err instanceof Error ? err.message : String(err)}) — change later via /dashboard/preferences`

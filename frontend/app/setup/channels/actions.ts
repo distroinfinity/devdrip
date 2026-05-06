@@ -2,15 +2,15 @@
 
 import { redirect } from "next/navigation"
 import { apiFetchOrRefresh, ApiError, UnauthenticatedError } from "@/lib/api"
-import type { ChannelDto } from "@distrotv/shared"
+import type { ChannelKey } from "@distrotv/shared"
 
 export async function saveChannelsFromSetup(
-  updates: { key: ChannelDto["key"]; subscribed: boolean; priority: number }[]
+  keys: ChannelKey[]
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     await apiFetchOrRefresh("/me/channels", "/setup/channels", {
       method: "PUT",
-      body: JSON.stringify({ channels: updates }),
+      body: JSON.stringify({ channels: keys }),
       headers: { "Content-Type": "application/json" },
     })
     return { ok: true }

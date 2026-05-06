@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation"
 import { putPreferences, type UpdatePreferencesBody } from "@/lib/dashboard-api"
 import { apiFetchOrRefresh, ApiError, UnauthenticatedError } from "@/lib/api"
-import type { ChannelDto, SyncedPreferences } from "@distrotv/shared"
+import type { ChannelDto, ChannelKey, SyncedPreferences } from "@distrotv/shared"
 
 export interface SaveResult {
   ok: boolean
@@ -33,16 +33,14 @@ export interface SaveChannelsResult {
   error?: string
 }
 
-export async function saveChannels(
-  updates: { key: ChannelDto["key"]; subscribed: boolean; priority: number }[]
-): Promise<SaveChannelsResult> {
+export async function saveChannels(keys: ChannelKey[]): Promise<SaveChannelsResult> {
   try {
     const data = await apiFetchOrRefresh<{ channels: ChannelDto[] }>(
       "/me/channels",
       "/dashboard/preferences",
       {
         method: "PUT",
-        body: JSON.stringify({ channels: updates }),
+        body: JSON.stringify({ channels: keys }),
         headers: { "Content-Type": "application/json" },
       }
     )

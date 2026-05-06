@@ -41,7 +41,11 @@ export function PreferencesForm({ initial, initialChannels }: PreferencesFormPro
   function save(): void {
     if (!dirty || pending) return
     const snapshot = prefs
-    const channelSnapshot = channels
+    const subscribedKeys = channels.filter((c) => c.subscribed).map((c) => c.key)
+    if (subscribedKeys.length === 0) {
+      setStatus({ kind: "error", message: "pick at least one channel before saving" })
+      return
+    }
     startTransition(async () => {
       setStatus({ kind: "saving" })
       const result = await savePreferences({
@@ -60,13 +64,7 @@ export function PreferencesForm({ initial, initialChannels }: PreferencesFormPro
         return
       }
 
-      const channelResult = await saveChannels(
-        channelSnapshot.map((c) => ({
-          key: c.key,
-          subscribed: c.subscribed ?? false,
-          priority: c.priority ?? 0,
-        }))
-      )
+      const channelResult = await saveChannels(subscribedKeys)
       if (channelResult.ok && channelResult.channels) {
         setSavedChannels(channelResult.channels)
         setChannels(channelResult.channels)
