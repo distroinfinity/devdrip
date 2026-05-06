@@ -1,4 +1,4 @@
-import { DotGrid } from "@devdrip/design-system/components/dot-grid"
+import { DotGrid } from "@distrotv/design-system/components/dot-grid"
 
 export function EmptyAnalytics() {
   return (

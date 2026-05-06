@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { cn } from "@devdrip/design-system/utils"
+import { cn } from "@distrotv/design-system/utils"
 import { categoryLabel } from "@/lib/categories"
 import { formatDateTimeShort, formatDurationMs, formatUsdPrecise } from "@/lib/format"
 import type { ImpressionDetail } from "@/lib/dashboard-api"

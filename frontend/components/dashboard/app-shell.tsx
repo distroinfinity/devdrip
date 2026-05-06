@@ -1,5 +1,5 @@
-import type { ChannelMode } from "@devdrip/shared"
-import { DotGrid } from "@devdrip/design-system/components/dot-grid"
+import type { ChannelMode } from "@distrotv/shared"
+import { DotGrid } from "@distrotv/design-system/components/dot-grid"
 import { AppHeader } from "./app-header"
 import { AppFooter } from "./app-footer"
 import { NavPill } from "./nav-pill"

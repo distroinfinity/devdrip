@@ -4,8 +4,8 @@ import { lstatSync, mkdirSync, realpathSync, statSync, symlinkSync, unlinkSync }
 import { join } from "node:path"
 import { Command } from "commander"
 import { intro, outro, log, note } from "@clack/prompts"
-import type { AdCategory } from "@devdrip/shared"
-import { ChannelMode } from "@devdrip/shared"
+import type { AdCategory } from "@distrotv/shared"
+import { ChannelMode } from "@distrotv/shared"
 import { ApiError, NotAuthenticatedError, reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import {

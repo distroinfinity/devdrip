@@ -1,5 +1,5 @@
 import { Command } from "commander"
-import type { AdminStats, AdminStatsBlock } from "@devdrip/shared"
+import type { AdminStats, AdminStatsBlock } from "@distrotv/shared"
 import { adminFetch, reportError } from "../../lib/admin-client.js"
 import { printTable, printJson, formatUsdc } from "../../lib/table.js"
 

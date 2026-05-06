@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { DotGrid } from "@devdrip/design-system/components/dot-grid"
+import { DotGrid } from "@distrotv/design-system/components/dot-grid"
 import { AppHeader } from "@/components/dashboard/app-header"
 import { AppFooter } from "@/components/dashboard/app-footer"
 import { IconGitHub } from "@/components/dashboard/icon-github"

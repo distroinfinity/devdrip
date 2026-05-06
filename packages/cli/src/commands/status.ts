@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs"
 import { createRequire } from "node:module"
 import { Command } from "commander"
-import { MIN_PAYOUT_USDC } from "@devdrip/shared"
+import { MIN_PAYOUT_USDC } from "@distrotv/shared"
 import {
   ApiError,
   apiFetch,

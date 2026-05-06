@@ -1,4 +1,4 @@
-import { BlurFade } from "@devdrip/design-system/components/blur-fade"
+import { BlurFade } from "@distrotv/design-system/components/blur-fade"
 import { apiFetchOrRefresh } from "@/lib/api"
 import type { AnalyticsResponse } from "@/lib/dashboard-api"
 import { RangeSelector } from "@/components/dashboard/analytics/range-selector"

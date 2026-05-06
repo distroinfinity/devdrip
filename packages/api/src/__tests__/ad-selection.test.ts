@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import type { AdRequest } from "@devdrip/shared"
-import { AdSurface, MAX_AD_DURATION_MS } from "@devdrip/shared"
+import type { AdRequest } from "@distrotv/shared"
+import { AdSurface, MAX_AD_DURATION_MS } from "@distrotv/shared"
 
 // mock Redis and DB before importing service
 vi.mock("../lib/redis.js", () => ({

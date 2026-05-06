@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { execSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { hostname, platform } from "node:os"
-import type { Device, IdeType } from "@devdrip/shared"
+import type { Device, IdeType } from "@distrotv/shared"
 import { apiFetch } from "./api-client.js"
 
 // platform-specific stable machine ID — survives hostname changes and is

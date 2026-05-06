@@ -1,5 +1,5 @@
 import { multiselect, select, isCancel, cancel } from "@clack/prompts"
-import { AdCategory, ChannelMode } from "@devdrip/shared"
+import { AdCategory, ChannelMode } from "@distrotv/shared"
 
 const CATEGORY_LABELS: Record<AdCategory, string> = {
   [AdCategory.CloudInfrastructure]: "Cloud & infrastructure",

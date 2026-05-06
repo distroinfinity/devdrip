@@ -10,7 +10,7 @@ import {
   TOAST_HOLD_MS,
   VALID_IMPRESSION_FOR_TOAST_MS,
   type DevdripPreferences,
-} from "@devdrip/shared"
+} from "@distrotv/shared"
 import type { SlotCache, CachedSlot } from "../slot-cache.js"
 import type { Ledger, LocalImpression, LocalNewsImpression } from "../ledger.js"
 import type { KeyCapture } from "./input.js"

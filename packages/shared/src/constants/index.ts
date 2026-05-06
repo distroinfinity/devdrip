@@ -60,7 +60,7 @@ export const REVENUE_SHARE_OSS_FUND = 0.05
 
 // MIN_PAYOUT_USDC moved to constants/chain.ts so the frontend can import it
 // without dragging in this file's Node-only daemonSocketPath helper. Re-export
-// preserves existing CLI/API imports of `MIN_PAYOUT_USDC` from "@devdrip/shared".
+// preserves existing CLI/API imports of `MIN_PAYOUT_USDC` from "@distrotv/shared".
 export { MIN_PAYOUT_USDC } from "./chain.js"
 
 // ── impression validation ──────────────────────────────────────────────────

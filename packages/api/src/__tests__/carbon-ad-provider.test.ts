@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import type { AdRequest } from "@devdrip/shared"
-import { AdSurface, MAX_AD_DURATION_MS } from "@devdrip/shared"
+import type { AdRequest } from "@distrotv/shared"
+import { AdSurface, MAX_AD_DURATION_MS } from "@distrotv/shared"
 
 // mock env before importing provider
 vi.mock("../config/env.js", () => ({

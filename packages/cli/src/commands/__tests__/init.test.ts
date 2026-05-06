@@ -14,7 +14,7 @@ import {
 } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { AdCategory, ChannelMode } from "@devdrip/shared"
+import { AdCategory, ChannelMode } from "@distrotv/shared"
 
 let tempHome: string
 let origArgv1: string | undefined

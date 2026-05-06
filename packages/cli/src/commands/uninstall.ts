@@ -4,7 +4,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { Command } from "commander"
 import { cancel, confirm, intro, isCancel, log, note, outro } from "@clack/prompts"
-import { MIN_PAYOUT_USDC } from "@devdrip/shared"
+import { MIN_PAYOUT_USDC } from "@distrotv/shared"
 import { ApiError, apiFetch, NotAuthenticatedError, reportError } from "../lib/api-client.js"
 import { readSettings, removeDevdripHooks, writeSettingsAtomic } from "../lib/claude-settings.js"
 import { configDir, readConfig, writeConfig } from "../lib/config.js"
@@ -186,7 +186,7 @@ export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Pr
     log.info(`kept ${configDir()} (use --purge to delete local state)`)
   }
 
-  outro("done — run `npm uninstall -g @devdrip/cli` to remove the binary")
+  outro("done — run `npm uninstall -g @distrotv/cli` to remove the binary")
   return 0
 }
 

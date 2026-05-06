@@ -1,4 +1,4 @@
-import { ImpressionResult, NewsSource } from "@devdrip/shared"
+import { ImpressionResult, NewsSource } from "@distrotv/shared"
 import { ValidationError } from "../errors/index.js"
 import { requireBody } from "./common.js"
 

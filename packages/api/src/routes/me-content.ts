@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { AdSurface, ChannelMode } from "@devdrip/shared"
+import { AdSurface, ChannelMode } from "@distrotv/shared"
 import { fetchSlots, type ContentRequest } from "../services/content-delivery.service.js"
 import { ValidationError } from "../errors/index.js"
 import { logger } from "../lib/logger.js"

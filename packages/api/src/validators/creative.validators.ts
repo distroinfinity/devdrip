@@ -1,4 +1,4 @@
-import { AdCategory, AdSource, AdSurface } from "@devdrip/shared"
+import { AdCategory, AdSource, AdSurface } from "@distrotv/shared"
 import { ValidationError } from "../errors/index.js"
 import {
   validateStringField,

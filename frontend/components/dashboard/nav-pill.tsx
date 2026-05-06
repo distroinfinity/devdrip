@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { cn } from "@devdrip/design-system/utils"
+import { cn } from "@distrotv/design-system/utils"
 
 interface NavPillProps {
   href: string

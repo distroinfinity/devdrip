@@ -6,8 +6,8 @@ import type {
   AdSurface,
   IdeType,
   TargetingRules,
-} from "@devdrip/shared"
-import { MAX_AD_DURATION_MS } from "@devdrip/shared"
+} from "@distrotv/shared"
+import { MAX_AD_DURATION_MS } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { campaigns } from "../db/schema/campaigns.js"
 import { creatives } from "../db/schema/creatives.js"

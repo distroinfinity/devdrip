@@ -1,5 +1,5 @@
-import type { AdSurface } from "@devdrip/shared"
-import { MAX_ADS_PER_HOUR_PER_SURFACE } from "@devdrip/shared"
+import type { AdSurface } from "@distrotv/shared"
+import { MAX_ADS_PER_HOUR_PER_SURFACE } from "@distrotv/shared"
 import { getRedis } from "./redis.js"
 import { logger } from "./logger.js"
 

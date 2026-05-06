@@ -5,7 +5,7 @@ import {
   MAX_AD_DURATION_MS,
   MIN_COMPLETED_DURATION_MS,
   MUTE_DURATION_MS,
-} from "@devdrip/shared"
+} from "@distrotv/shared"
 import type { CachedSlot } from "../slot-cache.js"
 import type { ImpressionResult, LocalImpression, LocalNewsImpression } from "../ledger.js"
 

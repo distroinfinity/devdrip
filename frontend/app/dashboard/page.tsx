@@ -1,5 +1,5 @@
-import type { EarningsSummary, EarningsTimeseries } from "@devdrip/shared"
-import { ChannelMode } from "@devdrip/shared"
+import type { EarningsSummary, EarningsTimeseries } from "@distrotv/shared"
+import { ChannelMode } from "@distrotv/shared"
 import { EarningsHero } from "@/components/dashboard/earnings-hero"
 import { StatGrid } from "@/components/dashboard/stat-grid"
 import { EarningsChart } from "@/components/dashboard/earnings-chart"

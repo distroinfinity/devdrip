@@ -1,5 +1,5 @@
 import { Command } from "commander"
-import type { AdminUser } from "@devdrip/shared"
+import type { AdminUser } from "@distrotv/shared"
 import { adminFetch, reportError } from "../../lib/admin-client.js"
 import { printTable, printJson, shortId, formatDate, formatUsdc } from "../../lib/table.js"
 

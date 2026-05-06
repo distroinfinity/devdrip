@@ -1,5 +1,5 @@
-import { IconX } from "@devdrip/design-system/components/icon-x"
-import { cn } from "@devdrip/design-system/utils"
+import { IconX } from "@distrotv/design-system/components/icon-x"
+import { cn } from "@distrotv/design-system/utils"
 
 interface SocialStripProps {
   className?: string

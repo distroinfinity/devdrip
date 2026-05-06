@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTransition } from "react"
-import { cn } from "@devdrip/design-system/utils"
+import { cn } from "@distrotv/design-system/utils"
 
 const SOURCES = ["", "direct", "carbon", "ethicalads", "google", "amazon", "x402"] as const
 const RESULTS = ["", "completed", "skipped", "expired", "interrupted"] as const

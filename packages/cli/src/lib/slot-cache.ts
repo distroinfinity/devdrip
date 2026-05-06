@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto"
 import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import type { SlotContent } from "@devdrip/shared"
+import type { SlotContent } from "@distrotv/shared"
 import { apiFetch as defaultApiFetch } from "./api-client.js"
 import { DEMO_SLOTS } from "./slot-cache-fixtures.js"
 import { configDir } from "./config.js"

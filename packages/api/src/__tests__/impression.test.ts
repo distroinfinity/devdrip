@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { AdSurface, REVENUE_SHARE_DEVELOPER, ImpressionResult } from "@devdrip/shared"
+import { AdSurface, REVENUE_SHARE_DEVELOPER, ImpressionResult } from "@distrotv/shared"
 
 // mock dependencies before imports
 vi.mock("../db/index.js", () => ({

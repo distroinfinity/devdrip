@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm"
-import { AdSurface, MAX_ADS_PER_HOUR_TOTAL, MAX_ADS_PER_DAY } from "@devdrip/shared"
-import type { AdCategory, AdRequest, IdeType } from "@devdrip/shared"
+import { AdSurface, MAX_ADS_PER_HOUR_TOTAL, MAX_ADS_PER_DAY } from "@distrotv/shared"
+import type { AdCategory, AdRequest, IdeType } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { devices } from "../db/schema/devices.js"
 import { preferences } from "../db/schema/preferences.js"

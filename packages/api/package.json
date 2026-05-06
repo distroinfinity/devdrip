@@ -1,5 +1,5 @@
 {
-  "name": "@devdrip/api",
+  "name": "@distrotv/api",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@carbonads/sdk": "^0.2.2",
-    "@devdrip/shared": "workspace:*",
+    "@distrotv/shared": "workspace:*",
     "@neondatabase/serverless": "^1.0.2",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",

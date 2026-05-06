@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import type { EarningsTimeseriesPoint } from "@devdrip/shared"
+import type { EarningsTimeseriesPoint } from "@distrotv/shared"
 import { formatDayShort, formatUsd, formatUsdCompact } from "@/lib/format"
 
 interface EarningsChartProps {

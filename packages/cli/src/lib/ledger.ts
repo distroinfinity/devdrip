@@ -1,7 +1,7 @@
 import { chmodSync, mkdirSync, renameSync } from "node:fs"
 import { join } from "node:path"
 import Database, { type Statement } from "better-sqlite3"
-import { REVENUE_SHARE_DEVELOPER } from "@devdrip/shared"
+import { REVENUE_SHARE_DEVELOPER } from "@distrotv/shared"
 import { configDir } from "./config.js"
 
 export type ImpressionResult = "completed" | "skipped" | "expired" | "interrupted"

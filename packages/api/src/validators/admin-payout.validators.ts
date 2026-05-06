@@ -1,4 +1,4 @@
-import { PayoutStatus } from "@devdrip/shared"
+import { PayoutStatus } from "@distrotv/shared"
 import { ValidationError } from "../errors/index.js"
 import { requireBody, validateEnumValue, validateStringField } from "./common.js"
 

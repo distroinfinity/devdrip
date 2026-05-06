@@ -1,4 +1,4 @@
-import { AdSurface } from "@devdrip/shared"
+import { AdSurface } from "@distrotv/shared"
 import { ValidationError } from "../errors/index.js"
 import { validateUUID, validateEnumValue, requireBody } from "./common.js"
 

@@ -1,7 +1,7 @@
 // packages/api/src/chain/config.ts
 
 import { defineChain } from "viem"
-import { WORLD_CHAIN_SEPOLIA } from "@devdrip/shared"
+import { WORLD_CHAIN_SEPOLIA } from "@distrotv/shared"
 
 export { WORLD_CHAIN_SEPOLIA }
 

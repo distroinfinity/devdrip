@@ -1,4 +1,4 @@
-import { formatUsdc, worldscanTxUrl } from "@devdrip/shared/format"
+import { formatUsdc, worldscanTxUrl } from "@distrotv/shared/format"
 import type { PayoutSummary } from "@/lib/wallet-api"
 
 interface PayoutHistoryProps {

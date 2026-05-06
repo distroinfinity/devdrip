@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm"
-import type { ImpressionResult, AdSurface, AdSource } from "@devdrip/shared"
-import { REVENUE_SHARE_DEVELOPER } from "@devdrip/shared"
+import type { ImpressionResult, AdSurface, AdSource } from "@distrotv/shared"
+import { REVENUE_SHARE_DEVELOPER } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { creatives } from "../db/schema/creatives.js"
 import { campaigns } from "../db/schema/campaigns.js"

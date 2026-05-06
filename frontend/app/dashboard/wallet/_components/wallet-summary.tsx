@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import QRCode from "qrcode"
-import { formatUsdc } from "@devdrip/shared/format"
+import { formatUsdc } from "@distrotv/shared/format"
 
 interface WalletSummaryProps {
   walletAddress: string | null

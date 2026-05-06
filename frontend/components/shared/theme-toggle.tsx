@@ -1,1 +1,1 @@
-export { ThemeToggle } from "@devdrip/design-system/components/theme-toggle"
+export { ThemeToggle } from "@distrotv/design-system/components/theme-toggle"

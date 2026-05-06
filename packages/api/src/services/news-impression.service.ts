@@ -1,4 +1,4 @@
-import type { ImpressionResult, NewsSource } from "@devdrip/shared"
+import type { ImpressionResult, NewsSource } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { newsImpressions } from "../db/schema/news_impressions.js"
 

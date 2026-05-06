@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { AdSurface } from "@devdrip/shared"
+import { AdSurface } from "@distrotv/shared"
 
 vi.mock("../lib/redis.js", () => ({
   getRedis: vi.fn(),

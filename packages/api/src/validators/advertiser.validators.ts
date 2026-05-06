@@ -1,4 +1,4 @@
-import type { BillingInfo } from "@devdrip/shared"
+import type { BillingInfo } from "@distrotv/shared"
 import { ValidationError } from "../errors/index.js"
 import { validateEmail, validateStringField, requireBody } from "./common.js"
 

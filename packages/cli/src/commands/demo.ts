@@ -5,7 +5,7 @@ import { readConfig } from "../lib/config.js"
 import { processByteChunk, type KeyAction } from "../lib/daemon/input.js"
 import { DEMO_SLOTS } from "../lib/slot-cache-fixtures.js"
 import { renderBox, renderNewsBox } from "../lib/render-box.js"
-import { ChannelMode, type SlotContent, type NewsPayload } from "@devdrip/shared"
+import { ChannelMode, type SlotContent, type NewsPayload } from "@distrotv/shared"
 
 interface AdNextResponse {
   ad: {

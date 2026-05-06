@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest"
-import { MAX_AD_DURATION_MS, AdSurface } from "@devdrip/shared"
-import type { ServedAdPayload } from "@devdrip/shared"
+import { MAX_AD_DURATION_MS, AdSurface } from "@distrotv/shared"
+import type { ServedAdPayload } from "@distrotv/shared"
 
 // set JWT_SECRET before any imports that access env
 process.env["JWT_SECRET"] = "test-secret-that-is-long-enough-for-hs256-signing-purposes"

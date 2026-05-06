@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify, errors } from "jose"
 import { randomUUID } from "node:crypto"
-import type { AdSurface } from "@devdrip/shared"
+import type { AdSurface } from "@distrotv/shared"
 import { env } from "../config/env.js"
 import { ForbiddenError } from "../errors/index.js"
 import { getRedis } from "./redis.js"

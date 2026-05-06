@@ -5,7 +5,7 @@
 // idempotent — re-running within the same week is a no-op.
 
 import { sql } from "drizzle-orm"
-import { MIN_AUTO_DISBURSE_USDC } from "@devdrip/shared"
+import { MIN_AUTO_DISBURSE_USDC } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 
 export interface AutoDisburseSummary {

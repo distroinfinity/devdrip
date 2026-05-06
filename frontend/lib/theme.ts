@@ -1,1 +1,1 @@
-export * from "@devdrip/design-system/theme"
+export * from "@distrotv/design-system/theme"

@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
-import { spaceMono, dmSans, jetbrainsMono } from "@devdrip/design-system/fonts"
-import { themeInitScript } from "@devdrip/design-system/theme"
+import { spaceMono, dmSans, jetbrainsMono } from "@distrotv/design-system/fonts"
+import { themeInitScript } from "@distrotv/design-system/theme"
 import { Analytics } from "@vercel/analytics/react"
-import "@devdrip/design-system/tokens.css"
+import "@distrotv/design-system/tokens.css"
 import "./globals.css"
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://devdrip.xyz"

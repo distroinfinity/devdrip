@@ -1,4 +1,4 @@
-import { DotGrid } from "@devdrip/design-system/components/dot-grid"
+import { DotGrid } from "@distrotv/design-system/components/dot-grid"
 
 export function EmptyEarnings() {
   return (
@@ -18,7 +18,7 @@ export function EmptyEarnings() {
 
         <pre className="mx-auto mt-5 inline-block rounded-md border border-[var(--rule-default)] bg-[var(--bg-inset)] px-4 py-3 text-left">
           <code className="font-data text-[12px] text-[var(--ink-primary)]">
-            npm i -g @devdrip/cli
+            npm i -g @distrotv/cli
             {"\n"}devdrip auth
           </code>
         </pre>

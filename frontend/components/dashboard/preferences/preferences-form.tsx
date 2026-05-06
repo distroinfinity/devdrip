@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import type { SyncedPreferences } from "@devdrip/shared"
-import { cn } from "@devdrip/design-system/utils"
+import type { SyncedPreferences } from "@distrotv/shared"
+import { cn } from "@distrotv/design-system/utils"
 import { savePreferences } from "@/app/dashboard/preferences/actions"
 import { BlockedCategoriesGrid } from "./blocked-categories-grid"
 import { FrequencySliders } from "./frequency-sliders"

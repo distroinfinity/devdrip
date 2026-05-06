@@ -3,7 +3,7 @@ import { getDb } from "../db/index.js"
 import { impressions } from "../db/schema/impressions.js"
 import { earningsLedger } from "../db/schema/earnings.js"
 import { campaigns } from "../db/schema/campaigns.js"
-import type { AdminStats, AdminStatsBlock } from "@devdrip/shared"
+import type { AdminStats, AdminStatsBlock } from "@distrotv/shared"
 
 // today = since start of current UTC day; admin ops are a single global clock
 function startOfUtcDay(): Date {

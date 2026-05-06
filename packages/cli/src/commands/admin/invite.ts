@@ -1,5 +1,5 @@
 import { Command } from "commander"
-import type { InviteCode } from "@devdrip/shared"
+import type { InviteCode } from "@distrotv/shared"
 import { adminFetch, reportError } from "../../lib/admin-client.js"
 import { printJson, printTable, formatDate } from "../../lib/table.js"
 

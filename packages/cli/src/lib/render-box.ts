@@ -1,4 +1,4 @@
-import type { AdPayload, NewsPayload } from "@devdrip/shared"
+import type { AdPayload, NewsPayload } from "@distrotv/shared"
 import { bold, detectColor, dim, green, yellow, type ColorMode } from "./ansi.js"
 
 const DEFAULT_WIDTH = 72

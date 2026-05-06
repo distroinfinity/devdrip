@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm"
-import { MIN_PAYOUT_USDC } from "@devdrip/shared"
+import { MIN_PAYOUT_USDC } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { payouts } from "../db/schema/payouts.js"
 import { users } from "../db/schema/users.js"

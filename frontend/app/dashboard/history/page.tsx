@@ -1,4 +1,4 @@
-import { BlurFade } from "@devdrip/design-system/components/blur-fade"
+import { BlurFade } from "@distrotv/design-system/components/blur-fade"
 import { apiFetchOrRefresh } from "@/lib/api"
 import type { ImpressionListResponse, ListImpressionsFilters } from "@/lib/dashboard-api"
 import { HistoryFilters } from "@/components/dashboard/history/history-filters"

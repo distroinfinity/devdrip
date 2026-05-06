@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto"
 import { chmod, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { defaultDevdripPreferences, type DevdripPreferences } from "@devdrip/shared"
+import { defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
 
 export const CONFIG_VERSION = 4
 

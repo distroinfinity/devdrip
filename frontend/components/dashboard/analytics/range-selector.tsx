@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTransition } from "react"
-import { cn } from "@devdrip/design-system/utils"
+import { cn } from "@distrotv/design-system/utils"
 
 const PRESETS = [
   { label: "7d", days: 7 },

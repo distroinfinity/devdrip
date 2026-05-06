@@ -1,5 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm"
-import type { NewsSource } from "@devdrip/shared"
+import type { NewsSource } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { readingListItems } from "../db/schema/reading_list_items.js"
 import { newsImpressions } from "../db/schema/news_impressions.js"

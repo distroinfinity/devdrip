@@ -1,4 +1,4 @@
-import { AdCategory, AdSurface } from "@devdrip/shared"
+import { AdCategory, AdSurface } from "@distrotv/shared"
 import { ValidationError } from "../errors/index.js"
 import {
   validateUUID,

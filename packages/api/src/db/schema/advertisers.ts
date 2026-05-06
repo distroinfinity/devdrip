@@ -1,5 +1,5 @@
 import { pgTable, uuid, varchar, jsonb, timestamp } from "drizzle-orm/pg-core"
-import type { BillingInfo } from "@devdrip/shared"
+import type { BillingInfo } from "@distrotv/shared"
 
 export const advertisers = pgTable("advertisers", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { ImpressionResult, MAX_AD_DURATION_MS, MIN_COMPLETED_DURATION_MS } from "@devdrip/shared"
+import { ImpressionResult, MAX_AD_DURATION_MS, MIN_COMPLETED_DURATION_MS } from "@distrotv/shared"
 import { validateIngest, type IngestItem } from "../validators/ingest.validators.js"
 import * as impressionService from "../services/impression.service.js"
 import { recordNewsImpression } from "../services/news-impression.service.js"

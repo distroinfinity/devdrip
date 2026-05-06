@@ -1,7 +1,7 @@
 import Link from "next/link"
-import { Logomark } from "@devdrip/design-system/components/logomark"
-import { Wordmark } from "@devdrip/design-system/components/wordmark"
-import { VersionBadge } from "@devdrip/design-system/components/version-badge"
+import { Logomark } from "@distrotv/design-system/components/logomark"
+import { Wordmark } from "@distrotv/design-system/components/wordmark"
+import { VersionBadge } from "@distrotv/design-system/components/version-badge"
 
 // matches landing inline-navbar: logomark + wordmark + version badge
 export function BrandMark({ href = "/dashboard" }: { href?: string }) {

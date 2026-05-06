@@ -20,6 +20,6 @@ export const USDC_DECIMALS = 6
 export const MIN_AUTO_DISBURSE_USDC = 5.0
 
 // User-initiated claim floor. Lives here (not constants/index.ts) so the
-// frontend can import via @devdrip/shared/constants/chain without dragging in
+// frontend can import via @distrotv/shared/constants/chain without dragging in
 // the Node-only daemonSocketPath helper that lives in constants/index.ts.
 export const MIN_PAYOUT_USDC = 0.5

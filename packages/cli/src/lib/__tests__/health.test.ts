@@ -35,7 +35,7 @@ vi.mock("../claude-settings.js", () => ({
 
 import { runInitHealthCheck } from "../health.js"
 import type { DevdripConfig } from "../config.js"
-import { defaultDevdripPreferences } from "@devdrip/shared"
+import { defaultDevdripPreferences } from "@distrotv/shared"
 
 const cfg: DevdripConfig = {
   version: 4,

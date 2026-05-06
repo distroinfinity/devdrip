@@ -1,5 +1,5 @@
-import { BlurFade } from "@devdrip/design-system/components/blur-fade"
-import { DotGrid } from "@devdrip/design-system/components/dot-grid"
+import { BlurFade } from "@distrotv/design-system/components/blur-fade"
+import { DotGrid } from "@distrotv/design-system/components/dot-grid"
 import { formatUsd } from "@/lib/format"
 
 interface EarningsHeroProps {

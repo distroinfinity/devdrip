@@ -1,4 +1,4 @@
-import { NewsSource, type NewsPayload } from "@devdrip/shared"
+import { NewsSource, type NewsPayload } from "@distrotv/shared"
 import { getRedis } from "../lib/redis.js"
 import { logger } from "../lib/logger.js"
 

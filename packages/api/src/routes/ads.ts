@@ -1,5 +1,5 @@
 import { Router } from "express"
-import type { ServedAdPayload } from "@devdrip/shared"
+import type { ServedAdPayload } from "@distrotv/shared"
 import {
   validateFetchAds,
   validateFetchAdsNextQuery,

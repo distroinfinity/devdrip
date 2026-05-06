@@ -2,7 +2,7 @@ import { sql, eq, desc, count } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import { users } from "../db/schema/users.js"
 import { earningsLedger } from "../db/schema/earnings.js"
-import type { AdminUser } from "@devdrip/shared"
+import type { AdminUser } from "@distrotv/shared"
 
 export async function list(
   limit: number,

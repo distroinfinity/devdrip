@@ -1,4 +1,4 @@
-import type { SyncedPreferences } from "@devdrip/shared"
+import type { SyncedPreferences } from "@distrotv/shared"
 import { ApiError } from "../api-client.js"
 import { readConfig, writeConfig } from "../config.js"
 import { getPreferences, putPreferences } from "../preferences-client.js"

@@ -16,7 +16,7 @@ import {
   daemonSocketPath,
   defaultDevdripPreferences,
   type DevdripPreferences,
-} from "@devdrip/shared"
+} from "@distrotv/shared"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { sendHookEvent } from "../lib/daemon/hook-client.js"
 import { putPreferences } from "../lib/preferences-client.js"

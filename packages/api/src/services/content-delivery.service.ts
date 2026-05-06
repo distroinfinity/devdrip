@@ -4,8 +4,8 @@ import type {
   ServedAdPayload,
   NewsPayload,
   SlotContent,
-} from "@devdrip/shared"
-import { ChannelMode } from "@devdrip/shared"
+} from "@distrotv/shared"
+import { ChannelMode } from "@distrotv/shared"
 import { manualAdProvider } from "./ad-selection.service.js"
 import { carbonAdProvider } from "./carbon-ad.provider.js"
 import { issueDeliveryToken } from "../lib/ad-delivery.js"

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { Command } from "commander"
 import { confirm } from "@clack/prompts"
-import { MIN_PAYOUT_USDC, formatUsdc, worldscanTxUrl } from "@devdrip/shared"
+import { MIN_PAYOUT_USDC, formatUsdc, worldscanTxUrl } from "@distrotv/shared"
 import { apiFetch, NotAuthenticatedError, reportError } from "../lib/api-client.js"
 
 interface Balance {
