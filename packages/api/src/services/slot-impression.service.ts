@@ -1,12 +1,11 @@
-import type { ImpressionResult, NewsSource } from "@distrotv/shared"
+import type { ImpressionResult, NewsSource, SlotKind } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { slotImpressions } from "../db/schema/slot_impressions.js"
 
 // hard guarantee: no imports from earnings.service / budget / frequency / beacon.
 // the absence of those imports IS the structural earnings-isolation guarantee.
 
-// local union until Batch 7 consolidates via @distrotv/shared SlotKind
-export type SlotImpressionKind = "news" | "ticker" | "sponsored" | "portfolio"
+export type SlotImpressionKind = SlotKind
 
 export interface SlotImpressionInput {
   userId: string

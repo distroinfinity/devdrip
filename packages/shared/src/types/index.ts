@@ -80,28 +80,11 @@ export interface Device {
   createdAt: string
 }
 
-// ── slot content union ─────────────────────────────────────────────────────
+// ── slot payload types ─────────────────────────────────────────────────────
 
-// content-agnostic slot envelope. adding a new content type means a new variant
-// here + a new render branch in cli daemon display.ts (exhaustiveness-checked).
-export interface NewsSlot {
-  kind: "news"
-  payload: NewsPayload
-}
-
-export type SlotContent = NewsSlot
-
-export interface NewsPayload {
-  // namespaced id: "hn:38291043" — keeps the dedup set source-agnostic
-  id: string
-  source: NewsSource
-  headline: string
-  url: string
-  score: number
-  commentsUrl?: string
-  // server computes at fetch time; daemon renders "1h" / "3d"
-  ageSeconds: number
-  // server-set, default ~10s. lives on the payload so different content types
-  // can carry different defaults.
-  displayTimeMs: number
-}
+export type { NewsPayload } from "./NewsPayload.js"
+export type { TickerPayload, TickerStats } from "./TickerPayload.js"
+export type { SlotPayload, SlotKind, SlotLayout } from "./SlotPayload.js"
+export type { WatchlistDto } from "./WatchlistDto.js"
+export type { AlertDto } from "./AlertDto.js"
+export type { ChannelDto } from "./ChannelDto.js"

@@ -121,6 +121,7 @@ export async function getNewsPool(): Promise<CachedNewsItem[]> {
 
 function toPayload(item: CachedNewsItem): NewsPayload {
   return {
+    kind: "news",
     id: item.id,
     source: item.source,
     headline: item.headline,

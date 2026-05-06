@@ -4,13 +4,13 @@ import { detectColor, dim, green, yellow } from "../lib/ansi.js"
 import { readConfig } from "../lib/config.js"
 import { processByteChunk, type KeyAction } from "../lib/daemon/input.js"
 import { renderNewsBox } from "../lib/render-box.js"
-import type { SlotContent, NewsPayload } from "@distrotv/shared"
+import type { SlotPayload, NewsPayload } from "@distrotv/shared"
 
 interface ContentResponse {
-  items?: SlotContent[]
+  items?: SlotPayload[]
 }
 
-async function fetchOneSlot(deviceId: string): Promise<SlotContent | null> {
+async function fetchOneSlot(deviceId: string): Promise<SlotPayload | null> {
   try {
     const resp = await apiFetch<ContentResponse>("/me/content/next", {
       query: { deviceId, n: 1 },
@@ -26,6 +26,7 @@ async function fetchOneSlot(deviceId: string): Promise<SlotContent | null> {
 
 function fallbackNewsPayload(): NewsPayload {
   return {
+    kind: "news",
     id: "demo-hn:1",
     source: "hn" as never, // matches NewsSource.HackerNews enum value
     headline: "Distro TV — news demo (offline)",
@@ -86,7 +87,7 @@ function runKeyPractice(onAction: (a: KeyAction) => void): Promise<PracticeOutco
 
 async function runNewsDemoOnce(deviceId: string, opts: { ascii?: boolean }): Promise<void> {
   const slot = await fetchOneSlot(deviceId)
-  const payload: NewsPayload = slot && slot.kind === "news" ? slot.payload : fallbackNewsPayload()
+  const payload: NewsPayload = slot && slot.kind === "news" ? slot : fallbackNewsPayload()
 
   const color = detectColor()
   const ascii = opts.ascii ?? false

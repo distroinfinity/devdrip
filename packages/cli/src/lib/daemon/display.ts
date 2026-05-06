@@ -88,11 +88,11 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
   }
 
   function renderInitial(): string {
-    return renderNewsBox(slot.payload as Parameters<typeof renderNewsBox>[0], baseNewsOpts)
+    return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], baseNewsOpts)
   }
 
   function renderTick(progress: number, elapsedMs: number): string {
-    return renderNewsBox(slot.payload as Parameters<typeof renderNewsBox>[0], {
+    return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], {
       ...baseNewsOpts,
       progress,
       elapsedMs,

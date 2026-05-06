@@ -1,4 +1,5 @@
 import { pgTable, uuid, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core"
+import type { SlotKind } from "@distrotv/shared"
 import { users } from "./users.js"
 import { devices } from "./devices.js"
 
@@ -24,10 +25,7 @@ export const slotImpressions = pgTable(
     openedUrl: boolean("opened_url").notNull().default(false),
     // denormalized — duplicates reading_list_items existence; useful for analytics joins
     saved: boolean("saved").notNull().default(false),
-    kind: text("kind")
-      .$type<"news" | "ticker" | "sponsored" | "portfolio">()
-      .notNull()
-      .default("news"),
+    kind: text("kind").$type<SlotKind>().notNull().default("news"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

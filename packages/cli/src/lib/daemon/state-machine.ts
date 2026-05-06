@@ -126,7 +126,7 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
   }
   if (event.kind === "grace-elapsed") {
     if (!event.ad) return { state: { kind: "IDLE" }, effects: [] }
-    const displayTimeMs = event.ad.payload.displayTimeMs
+    const displayTimeMs = event.ad.kind === "news" ? event.ad.displayTimeMs : MAX_AD_DURATION_MS
     const ms = Math.min(displayTimeMs, MAX_AD_DURATION_MS)
     return {
       state: { kind: "SHOWING", tty: state.tty, ad: event.ad, shownAt: event.now },
@@ -233,7 +233,7 @@ function stepInterAd(state: Extract<State, { kind: "INTER_AD" }>, event: Event):
     if (!event.ad) {
       return { state: { kind: "IDLE" }, effects: [] }
     }
-    const displayTimeMs = event.ad.payload.displayTimeMs
+    const displayTimeMs = event.ad.kind === "news" ? event.ad.displayTimeMs : MAX_AD_DURATION_MS
     const ms = Math.min(displayTimeMs, MAX_AD_DURATION_MS)
     return {
       state: { kind: "SHOWING", tty: state.tty, ad: event.ad, shownAt: event.now },
@@ -271,8 +271,8 @@ function endShowing(
   if (slot.kind === "news") {
     const newsImpression: LocalNewsImpression = {
       id: randomUUID(),
-      newsId: slot.payload.id,
-      source: slot.payload.source,
+      newsId: slot.id,
+      source: slot.source,
       deviceId: ctx.deviceId,
       durationMs,
       result,

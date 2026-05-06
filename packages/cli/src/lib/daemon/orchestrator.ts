@@ -126,8 +126,8 @@ interface Session {
   progressTimer: NodeJS.Timeout | null
   // the display handle for whatever ad is currently on THIS session's tty
   currentDisplay: DisplayHandleApi | null
-  // kind of the slot currently showing ("news"), or null when idle
-  currentSlotKind: "news" | null
+  // kind of the slot currently showing, or null when idle
+  currentSlotKind: string | null
   // per-session suppression bits
   sessionKilled: boolean
   adsInCurrentBusyWindow: number
@@ -293,15 +293,15 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         try {
           deps.ledger.recordReadingPending({
             id: randomUUID(),
-            newsId: slot.payload.id,
-            source: slot.payload.source,
-            headline: slot.payload.headline,
-            url: slot.payload.url,
-            score: slot.payload.score,
+            newsId: slot.id,
+            source: slot.source,
+            headline: slot.headline,
+            url: slot.url,
+            score: slot.score,
             savedAt: now(),
           })
           session.savedNews = true
-          deps.log.info("news saved", { newsId: slot.payload.id })
+          deps.log.info("news saved", { newsId: slot.id })
           if (session.currentDisplay) {
             try {
               session.currentDisplay.flash()
@@ -379,7 +379,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         }
         return
       case "displayAd": {
-        const payloadId = effect.ad.payload.id
+        const payloadId = effect.ad.kind === "news" ? effect.ad.id : effect.ad.symbol
         if (!effect.tty) {
           deps.log.warn("display skipped: no tty path", { payloadId })
           queueMicrotask(() => dispatch({ kind: "dismiss", now: now(), tty: session.tty }))
@@ -400,7 +400,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             dispatch({ kind: "dismiss", now: now(), tty: session.tty })
           })
           deps.keyCapture.start(effect.tty)
-          const displayTimeMs = effect.ad.payload.displayTimeMs
+          const displayTimeMs = effect.ad.kind === "news" ? effect.ad.displayTimeMs : 0
           deps.log.info("showing slot", {
             payloadId,
             kind: effect.ad.kind,
@@ -537,7 +537,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         return
       case "openDiscover": {
         try {
-          deps.openUrl(effect.ad.payload.url)
+          if (effect.ad.kind === "news") deps.openUrl(effect.ad.url)
         } catch (err) {
           deps.log.warn("openUrl failed", { error: (err as Error).message })
         }
@@ -550,7 +550,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   function handleRecord(_imp: unknown, slot: CachedSlot): void {
     if (slot.kind === "news") {
       // news impressions are ledgered separately via recordNewsImpression
-      deps.log.debug("skipping ad-ledger write for news slot", { newsId: slot.payload.id })
+      deps.log.debug("skipping ad-ledger write for news slot", { newsId: slot.id })
       return
     }
   }
