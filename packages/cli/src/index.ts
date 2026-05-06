@@ -15,6 +15,8 @@ import { upgradeCmd } from "./commands/upgrade.js"
 import { hookCmd } from "./commands/hook.js"
 import { discoverCmd, killSessionCmd, muteCmd, skipCmd } from "./commands/action.js"
 import { preferencesCmd } from "./commands/preferences.js"
+import { watchlistCmd } from "./commands/watchlist.js"
+import { feedbackCmd } from "./commands/feedback.js"
 
 const require = createRequire(import.meta.url)
 const { version = "0.0.0" } = require("../package.json") as {
@@ -43,6 +45,8 @@ program
   .addCommand(skipCmd)
   .addCommand(killSessionCmd)
   .addCommand(muteCmd)
+  .addCommand(watchlistCmd)
+  .addCommand(feedbackCmd)
 
 async function main() {
   await program.parseAsync()
