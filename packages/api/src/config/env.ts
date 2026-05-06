@@ -19,7 +19,10 @@ export const env = {
   },
 
   get resendApiKey() {
-    return optionalEnv("RESEND_API_KEY", "re_dev_placeholder")
+    const nodeEnv = optionalEnv("NODE_ENV", "development")
+    return nodeEnv === "production"
+      ? requireEnv("RESEND_API_KEY")
+      : optionalEnv("RESEND_API_KEY", "re_dev_placeholder")
   },
   get magicLinkFromEmail() {
     return optionalEnv("MAGIC_LINK_FROM_EMAIL", "auth@devdrip.xyz")
@@ -49,7 +52,6 @@ export const env = {
   },
 }
 
-// M2 will add MAGIC_LINK_FROM, RESEND_API_KEY, MAGIC_LINK_BASE_URL.
 // M3 may add NEWS_FETCH_INTERVAL_MS.
 // M4 will add FINNHUB_API_KEY, COINGECKO_API_KEY (optional), TICKER_FETCH_INTERVAL_MS.
 // M7 will add ADMIN_EMAILS, POSTHOG_API_KEY, SLACK_WEBHOOK_URL.

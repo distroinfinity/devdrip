@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
-import { Resend } from "resend"
+import { Resend, type CreateEmailResponse } from "resend"
 import { env } from "../config/env.js"
 import { logger } from "../lib/logger.js"
 import { hashSecret } from "../lib/secret-hash.js"
@@ -56,13 +56,29 @@ export async function sendMagicLink(input: SendMagicLinkInput): Promise<void> {
     return
   }
 
-  const resp = await getResend().emails.send({
-    from: env.magicLinkFromEmail,
-    to: email,
-    subject: "Sign in to Distro TV",
-    html: magicLinkEmailHtml({ email, link, expiresInMinutes }),
-    text: magicLinkEmailText({ email, link, expiresInMinutes }),
-  })
+  const SEND_TIMEOUT_MS = 10_000
+  let resp: CreateEmailResponse
+  try {
+    resp = await Promise.race([
+      getResend().emails.send({
+        from: env.magicLinkFromEmail,
+        to: email,
+        subject: "Sign in to Distro TV",
+        html: magicLinkEmailHtml({ email, link, expiresInMinutes }),
+        text: magicLinkEmailText({ email, link, expiresInMinutes }),
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("resend_timeout")), SEND_TIMEOUT_MS)
+      ),
+    ])
+  } catch (err) {
+    if (err instanceof Error && err.message === "resend_timeout") {
+      logger.error({ email }, "resend send timed out (10s)")
+      throw new MagicLinkError("email_send_timeout", 504)
+    }
+    logger.error({ err, email }, "resend send threw")
+    throw new MagicLinkError("email_send_failed", 502)
+  }
 
   if (resp.error) {
     logger.error({ err: resp.error, email }, "resend email send failed")

@@ -17,7 +17,8 @@ const verifyBodySchema = z.object({
 authMagicLinkRouter.post("/send", async (req, res) => {
   const parse = sendBodySchema.safeParse(req.body)
   if (!parse.success) {
-    await res.status(400).json({ error: "invalid_body", detail: parse.error.message })
+    logger.debug({ err: parse.error.flatten() }, "/auth/magic-link/send invalid body")
+    await res.status(400).json({ error: "invalid_body" })
     return
   }
   try {
