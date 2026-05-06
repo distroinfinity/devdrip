@@ -1,6 +1,6 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
-import { renderBox, renderNewsBox, type NewsRenderOpts, type RenderBoxOpts } from "../render-box.js"
+import { renderNewsBox, type NewsRenderOpts } from "../render-box.js"
 import type { CachedSlot } from "../slot-cache.js"
 
 const MAX_WRITE_ATTEMPTS = 3
@@ -34,7 +34,6 @@ function readTtyDimensions(fd: number): { rows: number; cols: number; ws: WriteS
 }
 
 export interface RenderCtx {
-  earningsUsdc?: number
   source?: string
   width?: number
 }
@@ -83,28 +82,21 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
   let ws: WriteStream | null
   // captured for flash() so we can re-emit the box with highlighted chrome.
   let lastRenderedText = ""
-  // base opts objects per slot kind — captured once so updateProgress can
-  // re-render without the caller threading every option through.
-  const baseAdOpts: RenderBoxOpts = {
-    earningsUsdc: ctx.earningsUsdc,
-    source: ctx.source,
-    width: ctx.width,
-  }
   const baseNewsOpts: NewsRenderOpts = {
     source: ctx.source,
     width: ctx.width,
   }
 
   function renderInitial(): string {
-    if (slot.kind === "ad") return renderBox(slot.payload, baseAdOpts)
-    return renderNewsBox(slot.payload, baseNewsOpts)
+    return renderNewsBox(slot.payload as Parameters<typeof renderNewsBox>[0], baseNewsOpts)
   }
 
   function renderTick(progress: number, elapsedMs: number): string {
-    if (slot.kind === "ad") {
-      return renderBox(slot.payload, { ...baseAdOpts, progress, elapsedMs })
-    }
-    return renderNewsBox(slot.payload, { ...baseNewsOpts, progress, elapsedMs })
+    return renderNewsBox(slot.payload as Parameters<typeof renderNewsBox>[0], {
+      ...baseNewsOpts,
+      progress,
+      elapsedMs,
+    })
   }
 
   try {
@@ -113,7 +105,6 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     initialCols = dims.cols
     ws = dims.ws
 
-    baseAdOpts.width = ctx.width ?? initialCols
     baseNewsOpts.width = ctx.width ?? initialCols
     const text = renderInitial()
     const adHeight = text.split("\n").length

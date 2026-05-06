@@ -25,7 +25,7 @@ export interface DisplayApi {
   show(
     ttyPath: string,
     slot: CachedSlot,
-    ctx: { earningsUsdc?: number; source?: string; width?: number }
+    ctx: { source?: string; width?: number }
   ): DisplayHandleApi
 }
 
