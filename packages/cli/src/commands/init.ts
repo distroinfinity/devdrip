@@ -22,7 +22,9 @@ import {
   mergeDevdripHooks,
 } from "../lib/claude-settings.js"
 import { putPreferences } from "../lib/preferences-client.js"
+import { getMyChannels, putMyChannels } from "../lib/channels-client.js"
 import { pickCategories, pickChannelMode } from "../lib/prompts/preferences.js"
+import { pickChannels } from "../lib/prompts/channels.js"
 import { runInitHealthCheck } from "../lib/health.js"
 import { runDemo } from "./demo.js"
 import { registerAnonDevice, refreshDeviceMetadata } from "../lib/device.js"
@@ -310,6 +312,30 @@ export async function runInit(): Promise<void> {
   }
 
   await savePreferences(blocked, channelMode)
+
+  if (channelMode !== ChannelMode.Markets) {
+    try {
+      const current = await getMyChannels()
+      const next = await pickChannels(current)
+      await putMyChannels(
+        next.map((c) => ({
+          key: c.key,
+          subscribed: c.subscribed ?? false,
+          priority: c.priority ?? 0,
+        }))
+      )
+      const subscribed = next.filter((c) => c.subscribed).map((c) => c.label)
+      log.success(
+        subscribed.length === 0
+          ? "channels saved (none — pick some later via dashboard)"
+          : `channels saved (${subscribed.join(", ")})`
+      )
+    } catch (err) {
+      log.warn(
+        `channel picker skipped (${err instanceof Error ? err.message : String(err)}) — change later via /dashboard/preferences`
+      )
+    }
+  }
 
   await installHooks()
   await ensureDaemonRunning()

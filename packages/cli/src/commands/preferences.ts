@@ -4,9 +4,11 @@ import type { ChannelMode, SyncedPreferences } from "@distrotv/shared"
 import { reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { getPreferences, putPreferences } from "../lib/preferences-client.js"
+import { getMyChannels, putMyChannels } from "../lib/channels-client.js"
 import { pickChannelMode, pickCategories } from "../lib/prompts/preferences.js"
+import { pickChannels } from "../lib/prompts/channels.js"
 
-type Action = "mode" | "categories" | "caps" | "topics" | "cancel"
+type Action = "mode" | "channels" | "categories" | "caps" | "topics" | "cancel"
 
 async function mirrorToLocal(updated: SyncedPreferences): Promise<void> {
   const cfg = await readConfig()
@@ -26,6 +28,7 @@ async function showMenu(currentMode: ChannelMode): Promise<Action> {
     message: "what would you like to change?",
     options: [
       { value: "mode", label: `channel mode (currently: ${currentMode})` },
+      { value: "channels", label: "channels (tech / finance / crypto / …)" },
       { value: "categories", label: "ad categories" },
       { value: "caps", label: "caps & quiet hours (coming soon)" },
       { value: "topics", label: "news topics (v1.1 — coming soon)" },
@@ -57,6 +60,21 @@ async function runPreferences(): Promise<void> {
       prefs = await putPreferences({ channelMode: next })
       await mirrorToLocal(prefs)
       log.success(`channel mode → ${next}`)
+      continue
+    }
+
+    if (action === "channels") {
+      const current = await getMyChannels()
+      const next = await pickChannels(current)
+      await putMyChannels(
+        next.map((c) => ({
+          key: c.key,
+          subscribed: c.subscribed ?? false,
+          priority: c.priority ?? 0,
+        }))
+      )
+      const subscribed = next.filter((c) => c.subscribed).map((c) => c.label)
+      log.success(subscribed.length === 0 ? "all channels off" : subscribed.join(", "))
       continue
     }
 
