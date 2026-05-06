@@ -9,6 +9,7 @@ import { logger } from "./lib/logger.js"
 import { errorHandler } from "./errors/error-handler.js"
 import { healthRouter } from "./routes/health.js"
 import { authRouter } from "./routes/auth.js"
+import { authMagicLinkRouter } from "./routes/auth-magic-link.js"
 import { devicesRouter, devicesRegisterRouter } from "./routes/devices.js"
 import { mePreferencesRouter } from "./routes/me-preferences.js"
 import { meReadingRouter } from "./routes/me-reading.js"
@@ -16,7 +17,7 @@ import { meContentRouter } from "./routes/me-content.js"
 import { ingestRouter } from "./routes/ingest.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
-import { globalLimiter, userLimiter } from "./middleware/rate-limit.js"
+import { globalLimiter, userLimiter, authLimiter } from "./middleware/rate-limit.js"
 import { getDb } from "./db/index.js"
 import { users } from "./db/schema/users.js"
 
@@ -55,6 +56,7 @@ if (env.nodeEnv !== "production") {
 app.use(globalLimiter)
 
 app.use("/auth", authRouter)
+app.use("/auth/magic-link", authLimiter, authMagicLinkRouter)
 // M2: re-mount /cli/pair when magic-link pairing flow is rebuilt
 // app.use("/cli/pair", cliPairRouter)
 // public — anon device registration (no auth required)
