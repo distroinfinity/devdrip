@@ -9,6 +9,9 @@ import { getDb } from "../db/index.js"
 import { magicLinkTokens } from "../db/schema/magic_link_tokens.js"
 import { users } from "../db/schema/users.js"
 import { devices } from "../db/schema/devices.js"
+import { preferences } from "../db/schema/preferences.js"
+import { readingListItems } from "../db/schema/reading_list_items.js"
+import { slotImpressions } from "../db/schema/slot_impressions.js"
 import { signAccessToken, SESSION_TTL_SECONDS } from "../lib/jwt.js"
 import { magicLinkEmailHtml, magicLinkEmailText } from "../lib/email-templates/magic-link.js"
 import { exchangePairingCodeForDeviceId } from "./pairing.service.js"
@@ -155,6 +158,7 @@ export async function verifyMagicLink(rawToken: string): Promise<VerifyMagicLink
       if (device && device.userId !== user.id) {
         const oldUserId = device.userId
         await db.update(devices).set({ userId: user.id }).where(eq(devices.id, deviceId))
+        await transferAnonUserData(oldUserId, user.id)
         await deleteUserIfNoDevices(oldUserId)
       }
     }
@@ -167,6 +171,32 @@ export async function verifyMagicLink(rawToken: string): Promise<VerifyMagicLink
   )
 
   return { userId: user.id, accessToken, email }
+}
+
+// transfers per-user rows from anon user to email user before the anon user is deleted.
+// preferences: email user wins on conflict (don't overwrite if they already have prefs).
+// reading_list_items + slot_impressions: additive merge — preserve everything.
+async function transferAnonUserData(fromUserId: string, toUserId: string): Promise<void> {
+  const db = getDb()
+  // 1. preferences: only transfer if destination has none
+  const [destPrefs] = await db
+    .select({ id: preferences.id })
+    .from(preferences)
+    .where(eq(preferences.userId, toUserId))
+    .limit(1)
+  if (!destPrefs) {
+    await db.update(preferences).set({ userId: toUserId }).where(eq(preferences.userId, fromUserId))
+  }
+  // 2. reading list items: always transfer (additive merge)
+  await db
+    .update(readingListItems)
+    .set({ userId: toUserId })
+    .where(eq(readingListItems.userId, fromUserId))
+  // 3. slot impressions: always transfer (preserve usage history)
+  await db
+    .update(slotImpressions)
+    .set({ userId: toUserId })
+    .where(eq(slotImpressions.userId, fromUserId))
 }
 
 async function deleteUserIfNoDevices(userId: string): Promise<void> {
