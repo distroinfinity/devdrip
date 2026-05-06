@@ -1,16 +1,17 @@
 import { cookies } from "next/headers"
 import { NextResponse, type NextRequest } from "next/server"
-import { ACCESS_COOKIE } from "@/lib/cookies"
+import { COOKIE_NAME } from "@/lib/session"
 import { API_URL } from "@/lib/env"
 
 // CSV passes through Next so the request stays same-origin and we can attach
-// the bearer from the httpOnly dd_access cookie. The browser triggers a
+// the bearer from the httpOnly session cookie. The browser triggers a
 // download via Content-Disposition set by the API; we forward the body
 // directly without buffering it.
 export async function GET(req: NextRequest): Promise<Response> {
-  const token = cookies().get(ACCESS_COOKIE)?.value
+  const jar = await cookies()
+  const token = jar.get(COOKIE_NAME)?.value
   if (!token) {
-    return NextResponse.redirect(new URL("/auth/refresh?next=/dashboard/history", req.url))
+    return NextResponse.redirect(new URL("/sign-in?next=/dashboard/history", req.url))
   }
 
   const search = req.nextUrl.searchParams.toString()
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   })
 
   if (upstream.status === 401) {
-    return NextResponse.redirect(new URL("/auth/refresh?next=/dashboard/history", req.url))
+    return NextResponse.redirect(new URL("/sign-in?next=/dashboard/history", req.url))
   }
   if (!upstream.ok || !upstream.body) {
     return new NextResponse(`upstream ${upstream.status}`, { status: 502 })
