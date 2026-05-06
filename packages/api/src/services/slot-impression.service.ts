@@ -1,6 +1,6 @@
 import type { ImpressionResult, NewsSource } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
-import { newsImpressions } from "../db/schema/news_impressions.js"
+import { slotImpressions } from "../db/schema/slot_impressions.js"
 
 // hard guarantee: no imports from earnings.service / budget / frequency / beacon.
 // the absence of those imports IS the structural earnings-isolation guarantee.
@@ -17,13 +17,13 @@ export interface SlotImpressionInput {
   result: ImpressionResult
   openedUrl: boolean
   saved: boolean
-  kind: SlotImpressionKind // default "news"; Batch 5 adds kind column to DB
+  kind: SlotImpressionKind // default "news"
 }
 
 export async function recordSlotImpression(input: SlotImpressionInput) {
   const db = getDb()
   const [row] = await db
-    .insert(newsImpressions)
+    .insert(slotImpressions)
     .values({
       userId: input.userId,
       deviceId: input.deviceId,
@@ -33,8 +33,7 @@ export async function recordSlotImpression(input: SlotImpressionInput) {
       result: input.result,
       openedUrl: input.openedUrl,
       saved: input.saved,
-      // kind threaded through; Batch 5 adds the column — insert will fail until then
-      // kind: input.kind,
+      kind: input.kind,
     })
     .returning()
   if (!row) throw new Error("slot impression insert returned no rows")

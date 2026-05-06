@@ -2,7 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm"
 import type { NewsSource } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { readingListItems } from "../db/schema/reading_list_items.js"
-import { newsImpressions } from "../db/schema/news_impressions.js"
+import { slotImpressions } from "../db/schema/slot_impressions.js"
 import { ConflictError, NotFoundError, pgErrorCode } from "../errors/index.js"
 
 export interface SaveReadingItemInput {
@@ -76,11 +76,11 @@ export async function countNewsImpressionsLastNDays(userId: string, days: number
   const db = getDb()
   const [row] = await db
     .select({ count: sql<number>`count(*)::int`.as("count") })
-    .from(newsImpressions)
+    .from(slotImpressions)
     .where(
       and(
-        eq(newsImpressions.userId, userId),
-        sql`${newsImpressions.createdAt} >= now() - interval ${sql.raw(`'${safeDays} days'`)}`
+        eq(slotImpressions.userId, userId),
+        sql`${slotImpressions.createdAt} >= now() - interval ${sql.raw(`'${safeDays} days'`)}`
       )
     )
   return row?.count ?? 0

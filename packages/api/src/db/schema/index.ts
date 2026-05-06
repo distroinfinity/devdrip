@@ -1,7 +1,7 @@
 export * from "./users.js"
 export * from "./devices.js"
 export * from "./preferences.js"
-export * from "./news_impressions.js" // renamed → slot_impressions in Batch 5 Task 20
+export * from "./slot_impressions.js"
 export * from "./reading_list_items.js"
 // M2: export * from "./auth_tokens.js"
 // M3: export * from "./channels.js" + "./news_items.js"
