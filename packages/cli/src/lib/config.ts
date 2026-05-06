@@ -4,10 +4,10 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
 
-export const CONFIG_VERSION = 5
+export const CONFIG_VERSION = 6
 
 export interface DevdripConfig {
-  version: 5
+  version: 6
   apiUrl: string
   // null for anon devices; populated post-M2 magic-link sign-in
   auth: {
@@ -81,6 +81,16 @@ interface RawConfigV4 {
   preferences?: Partial<DevdripPreferences>
 }
 
+interface RawConfigV5 {
+  version: 5
+  apiUrl: string
+  auth: DevdripConfig["auth"]
+  user: { id: string }
+  device?: { id: string | null; secret?: string }
+  cli?: DevdripConfig["cli"]
+  preferences?: Partial<DevdripPreferences>
+}
+
 export class UnsupportedConfigVersionError extends Error {
   constructor(version: unknown) {
     super(
@@ -101,15 +111,39 @@ function legacyAuthToV5(auth: LegacyAuth): DevdripConfig["auth"] {
   return { accessToken: auth.accessToken, accessTokenExpiresAt: auth.accessTokenExpiresAt }
 }
 
+// M2: ChannelMode values changed (earn|learn|both → news|markets|mix).
+// For any legacy value, default to mix.
+function migrateChannelMode(saved: Partial<DevdripPreferences> | undefined): DevdripPreferences {
+  const merged = mergePreferences(saved)
+  const validModes: readonly string[] = ["news", "markets", "mix"]
+  if (!validModes.includes(merged.channelMode as string)) {
+    merged.channelMode = "mix" as DevdripPreferences["channelMode"]
+  }
+  return merged
+}
+
 function migrate(parsed: Record<string, unknown>): DevdripConfig {
   const version = parsed["version"]
   if (version === CONFIG_VERSION) {
-    const v5 = parsed as unknown as DevdripConfig
+    const v6 = parsed as unknown as DevdripConfig
     return {
-      ...v5,
+      ...v6,
+      device: v6.device ?? { id: null },
+      cli: v6.cli ?? { binPath: "" },
+      preferences: mergePreferences(v6.preferences),
+    }
+  }
+  // v5: ChannelMode values changed (earn|learn → news|markets|mix)
+  if (version === 5) {
+    const v5 = parsed as unknown as RawConfigV5
+    return {
+      version: CONFIG_VERSION,
+      apiUrl: v5.apiUrl,
+      auth: v5.auth ?? null,
+      user: { id: v5.user.id },
       device: v5.device ?? { id: null },
       cli: v5.cli ?? { binPath: "" },
-      preferences: mergePreferences(v5.preferences),
+      preferences: migrateChannelMode(v5.preferences),
     }
   }
   // v1-v4: had full github/email user fields + refreshToken — reset to anon shape.

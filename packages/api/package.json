@@ -36,7 +36,9 @@
     "node-cron": "^4.2.1",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0",
-    "postgres": "^3.4.9"
+    "postgres": "^3.4.9",
+    "resend": "^6.9.3",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

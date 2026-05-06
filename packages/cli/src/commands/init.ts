@@ -1,4 +1,5 @@
 import { mkdir } from "node:fs/promises"
+import { spawn } from "node:child_process"
 import { homedir, hostname, platform } from "node:os"
 import { lstatSync, mkdirSync, realpathSync, statSync, symlinkSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
@@ -6,7 +7,12 @@ import { Command } from "commander"
 import { intro, outro, log, note } from "@clack/prompts"
 import type { AdCategory } from "@distrotv/shared"
 import { ChannelMode } from "@distrotv/shared"
-import { ApiError, NotAuthenticatedError, reportError } from "../lib/api-client.js"
+import {
+  ApiError,
+  NotAuthenticatedError,
+  reportError,
+  requestPairingCode,
+} from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { defaultDevdripPreferences } from "@distrotv/shared"
 import {
@@ -231,11 +237,34 @@ async function runHealthCheck(): Promise<boolean> {
   return probes.every((p) => p.ok)
 }
 
+async function openUrl(url: string): Promise<void> {
+  if (process.platform === "win32") {
+    // `start` is a shell builtin on Windows — must go through cmd.
+    // empty quoted "" is the window title arg (start uses first quoted arg as title).
+    spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore" }).unref()
+    return
+  }
+  const cmd = process.platform === "darwin" ? "open" : "xdg-open"
+  spawn(cmd, [url], { detached: true, stdio: "ignore" }).unref()
+}
+
+async function openSetupInBrowser(): Promise<void> {
+  try {
+    const { setupUrl } = await requestPairingCode()
+    log.success(`opening browser: ${setupUrl}`)
+    await openUrl(setupUrl)
+  } catch (err) {
+    log.warn(`skipping browser handoff (${err instanceof Error ? err.message : String(err)})`)
+    log.warn("you can re-run `distro init` to retry the browser handoff")
+  }
+}
+
 function printSummary(): void {
   note(
     [
-      "→ dashboard: https://distrotv.xyz/dashboard",
+      "→ browser opened to /setup — sign in with email for cross-device sync (optional)",
       "→ run `distro status` to see daemon + slot status",
+      "→ start coding in Claude Code; first slot appears in ~5s",
     ].join("\n"),
     "what's next"
   )
@@ -272,12 +301,11 @@ export async function runInit(): Promise<void> {
   // channel mode picker first — gates whether to ask about ad categories
   const channelMode = await pickChannelMode()
 
-  // learn-mode users skip the categories prompt entirely. do NOT auto-set
+  // news/markets-only modes skip the categories prompt entirely. do NOT auto-set
   // blocked = ALL_CATEGORIES — the mode itself is the gate (delivery checks
-  // channelMode), and a later flip back to earn/mix should preserve any
-  // category prefs the user set today.
+  // channelMode), and a later mode change should preserve any category prefs.
   let blocked: AdCategory[] = []
-  if (channelMode === ChannelMode.Earn || channelMode === ChannelMode.Mix) {
+  if (channelMode === ChannelMode.Mix) {
     blocked = await pickCategories([])
   }
 
@@ -286,6 +314,7 @@ export async function runInit(): Promise<void> {
   await installHooks()
   await ensureDaemonRunning()
   await previewSlot()
+  await openSetupInBrowser()
 
   const ok = await runHealthCheck()
   printSummary()

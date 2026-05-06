@@ -5,10 +5,10 @@ import { AppFooter } from "./app-footer"
 import { NavPill } from "./nav-pill"
 import { UserMenu } from "./user-menu"
 import { ModeToggle } from "./mode-toggle"
-import type { SessionUser } from "@/lib/auth"
+import type { SessionPayload } from "@/lib/session"
 
 interface AppShellProps {
-  user: SessionUser
+  user: Pick<SessionPayload, "email" | "userId">
   initialMode: ChannelMode
   children: React.ReactNode
 }
@@ -21,7 +21,7 @@ export function AppShell({ user, initialMode, children }: AppShellProps) {
       <NavPill href="/dashboard" label="Overview" exact />
       <NavPill href="/dashboard/reading" label="Reading" />
       <NavPill href="/dashboard/preferences" label="Preferences" />
-      {/* M6 adds: /dashboard/watchlists, /dashboard/portfolio, /dashboard/account */}
+      <NavPill href="/dashboard/account" label="Account" />
     </>
   )
 
