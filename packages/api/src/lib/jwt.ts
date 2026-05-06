@@ -53,7 +53,7 @@ export async function verifyAccessToken(token: string, secret: string): Promise<
   }
 }
 
-// dead in M1; M2 wires these into auth_tokens refresh rotation
+// dead exports — kept for potential future refresh-token rotation; remove if not picked up by M3
 export function generateRefreshToken(): string {
   return randomBytes(32).toString("hex")
 }

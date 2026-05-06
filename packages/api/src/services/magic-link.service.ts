@@ -11,6 +11,7 @@ import { users } from "../db/schema/users.js"
 import { devices } from "../db/schema/devices.js"
 import { signAccessToken, SESSION_TTL_SECONDS } from "../lib/jwt.js"
 import { magicLinkEmailHtml, magicLinkEmailText } from "../lib/email-templates/magic-link.js"
+import { exchangePairingCodeForDeviceId } from "./pairing.service.js"
 
 const TOKEN_TTL_MS = 15 * 60 * 1000
 
@@ -27,24 +28,35 @@ export interface SendMagicLinkInput {
   pairingCode?: string
 }
 
+const THROTTLE_SECONDS = 60
+
 export async function sendMagicLink(input: SendMagicLinkInput): Promise<void> {
   const email = input.email.trim().toLowerCase()
   if (!isValidEmail(email)) {
     throw new MagicLinkError("invalid_email", 400)
   }
 
+  const db = getDb()
+
+  // per-email throttle: 1 send per 60s for existing users
+  const [existingUser] = await db.select().from(users).where(eq(users.email, email)).limit(1)
+  if (existingUser?.magicLinkLastSentAt) {
+    const elapsedMs = Date.now() - existingUser.magicLinkLastSentAt.getTime()
+    if (elapsedMs < THROTTLE_SECONDS * 1000) {
+      throw new MagicLinkError("throttled", 429)
+    }
+  }
+
   const rawToken = randomBytes(32).toString("hex")
   const tokenHash = hashSecret(rawToken)
   const expiresAt = new Date(Date.now() + TOKEN_TTL_MS)
 
-  await getDb()
-    .insert(magicLinkTokens)
-    .values({
-      email,
-      tokenHash,
-      pairingCode: input.pairingCode ?? null,
-      expiresAt,
-    })
+  await db.insert(magicLinkTokens).values({
+    email,
+    tokenHash,
+    pairingCode: input.pairingCode ?? null,
+    expiresAt,
+  })
 
   const link = `${env.magicLinkBaseUrl}/auth/magic-link/verify?token=${rawToken}`
   const expiresInMinutes = Math.round(TOKEN_TTL_MS / 60_000)
@@ -83,6 +95,14 @@ export async function sendMagicLink(input: SendMagicLinkInput): Promise<void> {
     logger.error({ err: resp.error, email }, "resend email send failed")
     throw new MagicLinkError("email_send_failed", 502)
   }
+
+  // stamp last-sent time so the next send is throttled
+  if (existingUser) {
+    await db
+      .update(users)
+      .set({ magicLinkLastSentAt: new Date() })
+      .where(eq(users.id, existingUser.id))
+  }
 }
 
 export interface VerifyMagicLinkResult {
@@ -116,7 +136,12 @@ export async function verifyMagicLink(rawToken: string): Promise<VerifyMagicLink
   if (!user) {
     const [created] = await db
       .insert(users)
-      .values({ email, githubLogin: null, referralCode: generateReferralCode() })
+      .values({
+        email,
+        githubLogin: null,
+        signedUpAt: new Date(),
+        referralCode: generateReferralCode(),
+      })
       .returning()
     if (!created) throw new MagicLinkError("user_create_failed", 500)
     user = created
@@ -124,7 +149,6 @@ export async function verifyMagicLink(rawToken: string): Promise<VerifyMagicLink
 
   // if pairing code present, re-point the paired device to this user
   if (tokenRow.pairingCode) {
-    const { exchangePairingCodeForDeviceId } = await import("./pairing.service.js")
     const deviceId = await exchangePairingCodeForDeviceId(tokenRow.pairingCode)
     if (deviceId) {
       const [device] = await db.select().from(devices).where(eq(devices.id, deviceId)).limit(1)
