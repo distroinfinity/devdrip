@@ -22,7 +22,8 @@ const W_ENGAGEMENT = 0.2
 const W_CHANNEL_PRIORITY = 0.3
 const W_FRESHNESS = 0.05
 
-// mirrors SOURCE_BY_KEY_PREFIX in rss.ts — keep lockstep if new sources are added
+// must include every prefix in news-fetchers/rss.ts SOURCE_BY_KEY_PREFIX, plus hn- and reddit-
+// any new source added to rss.ts must also land here, or its payloads serve as NewsSource.Generic
 const SOURCE_BY_KEY_PREFIX: Record<string, NewsSource> = {
   "hn-": NewsSource.HackerNews,
   "reddit-": NewsSource.Reddit,
@@ -109,7 +110,9 @@ export async function nextPicksForDevice({
   const limit = Math.max(1, Math.min(n, 20))
 
   const cached = await redis.get<NewsPayload[]>(nextPicksKey(deviceId))
-  if (cached && cached.length >= limit) {
+  // sparse channels can produce caches shorter than `limit`; serving the partial
+  // beats hammering the db until the next worker tick refills news_items
+  if (cached && cached.length > 0) {
     return cached.slice(0, limit)
   }
 
@@ -178,9 +181,8 @@ export async function nextPicksForDevice({
 
   if (payloads.length > 0) {
     await redis.set(nextPicksKey(deviceId), payloads, { ex: NEXTPICKS_TTL_SEC })
-    for (const p of payloads) {
-      await redis.sadd(servedKey(deviceId), p.id)
-    }
+    const [first, ...rest] = payloads.map((p) => p.id)
+    if (first) await redis.sadd(servedKey(deviceId), first, ...rest)
     await redis.expire(servedKey(deviceId), SERVED_TTL_SEC)
   }
 
