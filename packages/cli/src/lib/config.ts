@@ -26,7 +26,7 @@ export interface DevdripConfig {
 }
 
 export function configDir(): string {
-  return join(homedir(), ".devdrip")
+  return join(homedir(), ".distro")
 }
 
 export function configPath(): string {
@@ -62,7 +62,7 @@ interface RawConfigV3 {
 export class UnsupportedConfigVersionError extends Error {
   constructor(version: unknown) {
     super(
-      `unsupported config version ${String(version)} in ${configPath()} — run \`devdrip auth --force\` to recreate it`
+      `unsupported config version ${String(version)} in ${configPath()} — run \`distro auth --force\` to recreate it`
     )
     this.name = "UnsupportedConfigVersionError"
   }
@@ -89,7 +89,7 @@ function migrate(parsed: Record<string, unknown>): DevdripConfig {
     const v3 = parsed as unknown as RawConfigV3
     // mergePreferences fills in channelMode (Mix) and newsTopics ([]) defaults
     // from defaultDevdripPreferences() — no user prompt needed. existing v3
-    // users get auto-migrated; they can flip mode via `devdrip preferences`.
+    // users get auto-migrated; they can flip mode via `distro preferences`.
     return {
       version: CONFIG_VERSION,
       apiUrl: v3.apiUrl,

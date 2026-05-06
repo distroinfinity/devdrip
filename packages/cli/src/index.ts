@@ -27,8 +27,8 @@ const { version = "0.0.0" } = require("../package.json") as {
 }
 
 export const program = new Command()
-  .name("devdrip")
-  .description("earn while your AI agent codes")
+  .name("distro")
+  .description("distro tv — your terminal's news + market feed, while the agent works")
   .version(version)
   .exitOverride()
 

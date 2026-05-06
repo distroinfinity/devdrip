@@ -30,11 +30,15 @@ function claudeSettingsPath(): string {
 }
 
 function claudeBackupPath(): string {
-  return `${claudeSettingsPath()}.devdrip-backup`
+  return `${claudeSettingsPath()}.distro-backup`
 }
 
-function devdripBinLinkPath(): string {
-  return join(homedir(), ".devdrip", "bin", "devdrip")
+function distroBinLinkPath(): string {
+  return join(homedir(), ".distro", "bin", "distro")
+}
+
+function dtvBinLinkPath(): string {
+  return join(homedir(), ".distro", "bin", "dtv")
 }
 
 function tryUnlink(p: string): void {
@@ -47,9 +51,9 @@ function tryUnlink(p: string): void {
   unlinkSync(p)
 }
 
-// returns a stable user-scoped path (~/.devdrip/bin/devdrip) that symlinks to
+// returns a stable user-scoped path (~/.distro/bin/distro) that symlinks to
 // the currently running binary. writing this into settings.json hooks means a
-// worktree deletion can be recovered by re-running `devdrip init` from any
+// worktree deletion can be recovered by re-running `distro init` from any
 // working build — the symlink retargets, the hook entries never change.
 function resolveBinPath(): string {
   const arg = process.argv[1]
@@ -63,11 +67,14 @@ function resolveBinPath(): string {
     return arg
   }
 
-  const linkPath = devdripBinLinkPath()
+  const linkPath = distroBinLinkPath()
+  const dtvPath = dtvBinLinkPath()
   try {
     mkdirSync(join(linkPath, ".."), { recursive: true, mode: 0o700 })
     tryUnlink(linkPath)
     symlinkSync(source, linkPath)
+    tryUnlink(dtvPath)
+    symlinkSync(source, dtvPath)
     return linkPath
   } catch {
     log.warn(`could not install ${linkPath} symlink — using direct binary path`)

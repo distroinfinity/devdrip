@@ -4,7 +4,8 @@
   "private": false,
   "type": "module",
   "bin": {
-    "devdrip": "./dist/index.js"
+    "distro": "./dist/index.js",
+    "dtv": "./dist/index.js"
   },
   "files": [
     "dist"
