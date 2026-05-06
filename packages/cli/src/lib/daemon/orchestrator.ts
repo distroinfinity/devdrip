@@ -126,8 +126,8 @@ interface Session {
   progressTimer: NodeJS.Timeout | null
   // the display handle for whatever ad is currently on THIS session's tty
   currentDisplay: DisplayHandleApi | null
-  // kind of the slot currently showing ("ad" | "news"), or null when idle
-  currentSlotKind: "ad" | "news" | null
+  // kind of the slot currently showing ("news"), or null when idle
+  currentSlotKind: "news" | null
   // per-session suppression bits
   sessionKilled: boolean
   adsInCurrentBusyWindow: number
@@ -400,7 +400,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             dispatch({ kind: "dismiss", now: now(), tty: session.tty })
           })
           deps.keyCapture.start(effect.tty)
-          const displayTimeMs = effect.ad.kind === "ad" ? effect.ad.payload.displayTimeMs : 0
+          const displayTimeMs = effect.ad.payload.displayTimeMs
           deps.log.info("showing slot", {
             payloadId,
             kind: effect.ad.kind,
@@ -599,14 +599,8 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     return null
   }
 
-  // silently picks the next slot to show, or returns null if:
-  //   - any user/global cap is hit (silent skip — caller emits a null-ad event
-  //     so the state machine goes back to IDLE/INTER_AD), or
-  //   - every candidate in the cache has already hit its per-campaign daily
-  //     cap. capped here at CAMPAIGN_CAP_RETRIES so one exhausted campaign can't
-  //     drain the entire cache in a hot loop.
+  // silently picks the next slot to show, or returns null if any cap is hit.
   // context: "grace" | "inter-ad" is used only for log correlation.
-  const CAMPAIGN_CAP_RETRIES = 5
   function pickNextSlot(
     session: Session,
     firedAt: number,
@@ -617,35 +611,12 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       deps.log.debug("slot suppressed", { context, reason, tty: session.tty })
       return null
     }
-    for (let attempt = 0; attempt < CAMPAIGN_CAP_RETRIES; attempt++) {
-      const slot = deps.slotCache.next()
-      if (!slot) {
-        if (attempt === 0) deps.log.debug("cache empty", { context })
-        return null
-      }
-      // campaign-cap check only applies to ad slots — news has no campaigns.
-      if (slot.kind === "ad") {
-        const ad = slot.payload
-        const cap = ad.campaignMaxImpressionsPerDay
-        if (typeof cap === "number" && cap > 0) {
-          // UTC day, not local — mirrors the backend's utcDate() Redis key so
-          // both sides agree at midnight. see ledger.ts for the full rationale.
-          const seen = deps.ledger.countImpressionsByCampaignOnUtcDay(ad.campaignId, firedAt)
-          if (seen >= cap) {
-            deps.log.debug("campaign-cap hit, trying next cached slot", {
-              campaignId: ad.campaignId,
-              cap,
-              seen,
-              attempt,
-            })
-            continue
-          }
-        }
-      }
-      return slot
+    const slot = deps.slotCache.next()
+    if (!slot) {
+      deps.log.debug("cache empty", { context })
+      return null
     }
-    deps.log.debug("every candidate hit a campaign cap", { context })
-    return null
+    return slot
   }
 
   function updatePreferences(next: DevdripPreferences): void {

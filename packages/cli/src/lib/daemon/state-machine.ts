@@ -185,7 +185,7 @@ function stepShowing(
     // discover opens the advertiser URL in the browser AND keeps rotation
     // going so the user doesn't lose the ad stream while Claude is still busy.
     const base = endShowing(state, event.now, ctx, "completed", /*goToInterAd*/ true)
-    const deliveryToken = state.ad.kind === "ad" ? state.ad.payload.deliveryToken : ""
+    const deliveryToken = ""
     return {
       state: base.state,
       effects: [{ kind: "openDiscover", ad: state.ad, deliveryToken }, ...base.effects],
@@ -268,27 +268,6 @@ function endShowing(
     { kind: "vanishDisplay" },
     { kind: "cancelVanishTimer" },
   ]
-  // only emit recordImpression for ad slots — news slots have no ledger row
-  if (slot.kind === "ad") {
-    const adPayload = slot.payload
-    const impression: LocalImpression = {
-      id: randomUUID(),
-      adId: adPayload.id,
-      campaignId: adPayload.campaignId,
-      surface: "terminal-tv",
-      source: slot.cacheSource,
-      deliveryToken: adPayload.deliveryToken,
-      startedAt: state.shownAt,
-      durationMs,
-      result,
-      deviceId: ctx.deviceId,
-      // carry the server-advertised CPM into the ledger row so today's running
-      // total stays accurate without an API round-trip. backend recomputes
-      // authoritative earnings at sync time.
-      cpmRate: slot.cacheSource === "api" ? (adPayload.cpmRate ?? 0) : null,
-    }
-    cleanup.push({ kind: "recordImpression", impression, ad: slot })
-  }
   if (slot.kind === "news") {
     const newsImpression: LocalNewsImpression = {
       id: randomUUID(),

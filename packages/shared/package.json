@@ -11,10 +11,6 @@
     "./format": {
       "types": "./dist/format.d.ts",
       "import": "./dist/format.js"
-    },
-    "./constants/chain": {
-      "types": "./dist/constants/chain.d.ts",
-      "import": "./dist/constants/chain.js"
     }
   },
   "main": "./dist/index.js",

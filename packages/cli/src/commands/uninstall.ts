@@ -4,7 +4,6 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { Command } from "commander"
 import { cancel, confirm, intro, isCancel, log, note, outro } from "@clack/prompts"
-import { MIN_PAYOUT_USDC } from "@distrotv/shared"
 import { ApiError, apiFetch, NotAuthenticatedError, reportError } from "../lib/api-client.js"
 import { readSettings, removeDevdripHooks, writeSettingsAtomic } from "../lib/claude-settings.js"
 import { configDir, readConfig, writeConfig } from "../lib/config.js"
@@ -111,11 +110,11 @@ function earningsBlock(
   }
   const cacheTag = fromCache ? " (cached)" : ""
   const balance = formatUsdc(summary.balance)
-  const threshold = formatUsdc(MIN_PAYOUT_USDC)
+  const threshold = formatUsdc(0.5)
   const eligibility =
-    summary.balance >= MIN_PAYOUT_USDC
+    summary.balance >= 0.5
       ? `ready to claim (min ${threshold})`
-      : `needs ${formatUsdc(Math.max(0, MIN_PAYOUT_USDC - summary.balance))} more to claim`
+      : `needs ${formatUsdc(Math.max(0, 0.5 - summary.balance))} more to claim`
   return [
     `pending:   ${balance}${cacheTag}`,
     `status:    ${eligibility}`,

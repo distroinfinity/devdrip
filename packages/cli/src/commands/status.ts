@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs"
 import { createRequire } from "node:module"
 import { Command } from "commander"
-import { MIN_PAYOUT_USDC } from "@distrotv/shared"
 import {
   ApiError,
   apiFetch,
@@ -226,7 +225,7 @@ async function fetchEarnings(cfg: DevdripConfig | null, localOnly: boolean): Pro
 
 function computePayout(earnings: EarningsSummaryResponse | null): StatusPayload["payout"] {
   if (!earnings) return null
-  const threshold = MIN_PAYOUT_USDC
+  const threshold = 0.5
   const eligible = earnings.balance >= threshold
   const shortfall = eligible ? 0 : Math.max(0, threshold - earnings.balance)
   return { eligible, threshold, shortfall }
