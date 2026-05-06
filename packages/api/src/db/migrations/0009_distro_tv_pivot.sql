@@ -44,26 +44,30 @@ DO $$ BEGIN
   END IF;
 END $$;
 --> statement-breakpoint
--- drop old FK constraints before renaming/recreating them
-ALTER TABLE "slot_impressions" DROP CONSTRAINT IF EXISTS "news_impressions_user_id_users_id_fk";
---> statement-breakpoint
-ALTER TABLE "slot_impressions" DROP CONSTRAINT IF EXISTS "news_impressions_device_id_devices_id_fk";
---> statement-breakpoint
-DROP INDEX IF EXISTS "news_impressions_user_id_idx";
---> statement-breakpoint
-DROP INDEX IF EXISTS "news_impressions_user_created_at_idx";
---> statement-breakpoint
--- add kind column to slot_impressions
-ALTER TABLE "slot_impressions" ADD COLUMN "kind" text DEFAULT 'news' NOT NULL;
---> statement-breakpoint
--- recreate FKs with new names
-ALTER TABLE "slot_impressions" ADD CONSTRAINT "slot_impressions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
---> statement-breakpoint
-ALTER TABLE "slot_impressions" ADD CONSTRAINT "slot_impressions_device_id_devices_id_fk" FOREIGN KEY ("device_id") REFERENCES "public"."devices"("id") ON DELETE cascade ON UPDATE no action;
---> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "slot_impressions_user_id_idx" ON "slot_impressions" USING btree ("user_id");
---> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "slot_impressions_user_created_at_idx" ON "slot_impressions" USING btree ("user_id","created_at");
+-- slot_impressions ALTER block — wrapped in EXISTS guard for partial-state safety:
+-- environments where neither news_impressions nor slot_impressions exist skip this block.
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='slot_impressions') THEN
+    -- drop old FK constraints before renaming/recreating them
+    ALTER TABLE "slot_impressions" DROP CONSTRAINT IF EXISTS "news_impressions_user_id_users_id_fk";
+    ALTER TABLE "slot_impressions" DROP CONSTRAINT IF EXISTS "news_impressions_device_id_devices_id_fk";
+    DROP INDEX IF EXISTS "news_impressions_user_id_idx";
+    DROP INDEX IF EXISTS "news_impressions_user_created_at_idx";
+    -- add kind column (idempotent via IF NOT EXISTS)
+    ALTER TABLE "slot_impressions" ADD COLUMN IF NOT EXISTS "kind" text DEFAULT 'news' NOT NULL;
+    -- recreate FKs with new names (idempotent via EXCEPTION handler)
+    BEGIN
+      ALTER TABLE "slot_impressions" ADD CONSTRAINT "slot_impressions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+      ALTER TABLE "slot_impressions" ADD CONSTRAINT "slot_impressions_device_id_devices_id_fk" FOREIGN KEY ("device_id") REFERENCES "public"."devices"("id") ON DELETE cascade ON UPDATE no action;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    CREATE INDEX IF NOT EXISTS "slot_impressions_user_id_idx" ON "slot_impressions" USING btree ("user_id");
+    CREATE INDEX IF NOT EXISTS "slot_impressions_user_created_at_idx" ON "slot_impressions" USING btree ("user_id","created_at");
+  END IF;
+END $$;
 --> statement-breakpoint
 -- users: drop world/wallet/nullifier columns (IF EXISTS for partial-migration safety)
 ALTER TABLE "users" DROP COLUMN IF EXISTS "wallet_address";
