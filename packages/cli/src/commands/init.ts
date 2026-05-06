@@ -5,7 +5,6 @@ import { lstatSync, mkdirSync, realpathSync, statSync, symlinkSync, unlinkSync }
 import { join } from "node:path"
 import { Command } from "commander"
 import { intro, outro, log, note } from "@clack/prompts"
-import type { AdCategory } from "@distrotv/shared"
 import { ChannelMode } from "@distrotv/shared"
 import {
   ApiError,
@@ -23,7 +22,7 @@ import {
 } from "../lib/claude-settings.js"
 import { putPreferences } from "../lib/preferences-client.js"
 import { getMyChannels, putMyChannels } from "../lib/channels-client.js"
-import { pickCategories, pickChannelMode } from "../lib/prompts/preferences.js"
+import { pickChannelMode } from "../lib/prompts/preferences.js"
 import { pickChannels } from "../lib/prompts/channels.js"
 import { runInitHealthCheck } from "../lib/health.js"
 import { runDemo } from "./demo.js"
@@ -146,9 +145,9 @@ async function ensureDevice(): Promise<{ deviceId: string }> {
   }
 }
 
-async function savePreferences(blocked: AdCategory[], channelMode: ChannelMode): Promise<void> {
+async function savePreferences(channelMode: ChannelMode): Promise<void> {
   const tzOffsetMinutes = -new Date().getTimezoneOffset()
-  const updated = await putPreferences({ blockedCategories: blocked, tzOffsetMinutes, channelMode })
+  const updated = await putPreferences({ tzOffsetMinutes, channelMode })
   // mirror to local config so daemon/demo/preferences see the new mode without
   // waiting on the next prefs-sync tick
   const cfg = await readConfig()
@@ -162,11 +161,7 @@ async function savePreferences(blocked: AdCategory[], channelMode: ChannelMode):
       preferences: { ...cfg.preferences, ...updated },
     })
   }
-  log.success(
-    blocked.length === 0
-      ? `preferences saved (mode: ${channelMode}, all categories allowed)`
-      : `preferences saved (mode: ${channelMode}, ${blocked.length} categor${blocked.length === 1 ? "y" : "ies"} blocked)`
-  )
+  log.success(`preferences saved (mode: ${channelMode})`)
 }
 
 async function installHooks(): Promise<void> {
@@ -300,18 +295,9 @@ export async function runInit(): Promise<void> {
   await ensureClaudeDir()
   await ensureDevice()
 
-  // channel mode picker first — gates whether to ask about ad categories
   const channelMode = await pickChannelMode()
 
-  // news/markets-only modes skip the categories prompt entirely. do NOT auto-set
-  // blocked = ALL_CATEGORIES — the mode itself is the gate (delivery checks
-  // channelMode), and a later mode change should preserve any category prefs.
-  let blocked: AdCategory[] = []
-  if (channelMode === ChannelMode.Mix) {
-    blocked = await pickCategories([])
-  }
-
-  await savePreferences(blocked, channelMode)
+  await savePreferences(channelMode)
 
   if (channelMode !== ChannelMode.Markets) {
     try {
