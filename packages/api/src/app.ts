@@ -10,6 +10,7 @@ import { errorHandler } from "./errors/error-handler.js"
 import { healthRouter } from "./routes/health.js"
 import { authRouter } from "./routes/auth.js"
 import { authMagicLinkRouter } from "./routes/auth-magic-link.js"
+import { devicesPairRouter, authExchangePairRouter } from "./routes/auth-pair.js"
 import { devicesRouter, devicesRegisterRouter } from "./routes/devices.js"
 import { mePreferencesRouter } from "./routes/me-preferences.js"
 import { meReadingRouter } from "./routes/me-reading.js"
@@ -57,10 +58,10 @@ app.use(globalLimiter)
 
 app.use("/auth", authRouter)
 app.use("/auth/magic-link", authLimiter, authMagicLinkRouter)
-// M2: re-mount /cli/pair when magic-link pairing flow is rebuilt
-// app.use("/cli/pair", cliPairRouter)
+app.use("/auth/exchange-pair", globalLimiter, authExchangePairRouter)
 // public — anon device registration (no auth required)
 app.use("/devices/register", devicesRegisterRouter)
+app.use("/devices/pair", devicesPairRouter)
 // authed — list, update, delete devices
 app.use("/devices", requireAuth, userLimiter, devicesRouter)
 
