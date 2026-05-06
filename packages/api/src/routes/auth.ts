@@ -1,18 +1,12 @@
 import { Router } from "express"
-import { randomBytes, randomUUID } from "node:crypto"
-import { eq, and, isNull } from "drizzle-orm"
+import { randomBytes } from "node:crypto"
+import { eq } from "drizzle-orm"
 import { env } from "../config/env.js"
 import { logger } from "../lib/logger.js"
 import { getDb } from "../db/index.js"
 import { getRedis } from "../lib/redis.js"
 import { users } from "../db/schema/users.js"
-import { refreshTokens } from "../db/schema/refresh_tokens.js"
-import {
-  signAccessToken,
-  generateRefreshToken,
-  hashRefreshToken,
-  refreshTokenExpiresAt,
-} from "../lib/jwt.js"
+import { signAccessToken } from "../lib/jwt.js"
 import {
   exchangeCodeForToken,
   fetchGitHubUser,
@@ -23,11 +17,11 @@ import { generateReferralCode } from "../lib/referral.js"
 import { requireAuth } from "../middleware/auth.js"
 import { authLimiter, refreshLimiter } from "../middleware/rate-limit.js"
 
+// M2: refresh_tokens schema dropped in Batch 5 (Task 19).
+// /auth/refresh and /auth/logout are stubs until M2 ships auth_tokens.
+
 export const authRouter: ReturnType<typeof Router> = Router()
 
-// CLI auth flow: the `devdrip auth` command passes cli_port so the browser
-// round-trip can land back on the user's machine. Port range is locked down to
-// prevent open-redirect abuse.
 const CLI_PORT_MIN = 54321
 const CLI_PORT_MAX = 54330
 const STATE_TTL_SECONDS = 600
@@ -41,7 +35,6 @@ function parseCliPort(raw: unknown): number | null {
 }
 
 async function consumeStateContext(state: string): Promise<{ cliPort?: number } | null> {
-  // upstash auto-parses JSON on get, so the stored object round-trips back as-is.
   const ctx = await getRedis().getdel<{ cliPort?: number }>(`auth:state:${state}`)
   return ctx ?? null
 }
@@ -85,12 +78,12 @@ authRouter.get("/github/redirect", authLimiter, async (req, res) => {
 })
 
 // ── GET /auth/github/callback ───────────────────────────────────────────────
+// M2: refresh token issuance removed; callback now stores only access token behind exchange code.
 authRouter.get("/github/callback", authLimiter, async (req, res) => {
   const { code, state, error: ghError } = req.query
   const cookieState = req.cookies["gh_oauth_state"] as string | undefined
 
   if (!state || typeof state !== "string" || !cookieState || state !== cookieState) {
-    // state invalid → can't look up cli_port safely; fall back to web redirect
     await res.redirect(`${env.clientRedirectUrl}?error=invalid_state`)
     return
   }
@@ -163,21 +156,13 @@ authRouter.get("/github/callback", authLimiter, async (req, res) => {
       { sub: user.id, github_login: ghUser.login },
       env.jwtSecret
     )
-    const rawRefresh = generateRefreshToken()
-    const family = randomUUID()
 
-    await db.insert(refreshTokens).values({
-      userId: user.id,
-      tokenHash: hashRefreshToken(rawRefresh),
-      family,
-      expiresAt: refreshTokenExpiresAt(),
-    })
-
-    // store tokens behind a one-time code in Redis (60s TTL)
+    // M2: refresh token issuance removed (refresh_tokens table dropped).
+    // store access token behind a one-time code in Redis (60s TTL)
     const exchangeCode = randomBytes(16).toString("hex")
     await getRedis().set(
       `auth:code:${exchangeCode}`,
-      JSON.stringify({ accessToken, refreshToken: rawRefresh }),
+      JSON.stringify({ accessToken, refreshToken: null }),
       { ex: 60 }
     )
 
@@ -197,7 +182,7 @@ authRouter.post("/exchange", authLimiter, async (req, res) => {
   }
 
   const key = `auth:code:${code}`
-  const tokens = await getRedis().getdel<{ accessToken: string; refreshToken: string }>(key)
+  const tokens = await getRedis().getdel<{ accessToken: string; refreshToken: string | null }>(key)
   if (!tokens) {
     await res.status(401).json({ error: "invalid_or_expired_code" })
     return
@@ -205,88 +190,31 @@ authRouter.post("/exchange", authLimiter, async (req, res) => {
   await res.json({ token: tokens.accessToken, refresh_token: tokens.refreshToken })
 })
 
-// ── POST /auth/refresh ──────────────────────────────────────────────────────
-authRouter.post("/refresh", refreshLimiter, async (req, res) => {
-  const { refresh_token } = req.body as { refresh_token?: string }
-  if (!refresh_token) {
-    await res.status(401).json({ error: "missing_refresh_token" })
-    return
-  }
-
-  const db = getDb()
-  const hash = hashRefreshToken(refresh_token)
-
-  // atomic revoke — only one concurrent request can succeed
-  const [revoked] = await db
-    .update(refreshTokens)
-    .set({ revokedAt: new Date() })
-    .where(and(eq(refreshTokens.tokenHash, hash), isNull(refreshTokens.revokedAt)))
-    .returning()
-
-  if (!revoked) {
-    // distinguish "not found" from "already revoked" (theft detection)
-    const [stale] = await db
-      .select()
-      .from(refreshTokens)
-      .where(eq(refreshTokens.tokenHash, hash))
-      .limit(1)
-
-    if (stale) {
-      // token exists but was already revoked → theft detected, revoke entire family
-      await db
-        .update(refreshTokens)
-        .set({ revokedAt: new Date() })
-        .where(and(eq(refreshTokens.family, stale.family), isNull(refreshTokens.revokedAt)))
-      await res.status(401).json({ error: "refresh_token_reuse_detected" })
-      return
-    }
-
-    await res.status(401).json({ error: "invalid_refresh_token" })
-    return
-  }
-
-  if (revoked.expiresAt < new Date()) {
-    await res.status(401).json({ error: "refresh_token_expired" })
-    return
-  }
-
-  // TODO: make revoke/reuse-detection/rotation fully transactional so a concurrent
-  // family revoke cannot race with successor insertion and leave a live descendant.
-  // issue new token in same family
-  const newRaw = generateRefreshToken()
-  const newHash = hashRefreshToken(newRaw)
-
-  await db.insert(refreshTokens).values({
-    userId: revoked.userId,
-    tokenHash: newHash,
-    family: revoked.family,
-    expiresAt: refreshTokenExpiresAt(),
-  })
-
-  const [user] = await db.select().from(users).where(eq(users.id, revoked.userId)).limit(1)
-
-  if (!user?.githubLogin) {
-    await res.status(500).json({ error: "internal_error" })
-    return
-  }
-
-  const accessToken = await signAccessToken(
-    { sub: user.id, github_login: user.githubLogin },
-    env.jwtSecret
-  )
-
-  await res.json({ token: accessToken, refresh_token: newRaw })
+// ── POST /auth/refresh — M2 stub ────────────────────────────────────────────
+// refresh_tokens table dropped in Batch 5; M2 ships auth_tokens with full rotation.
+authRouter.post("/refresh", refreshLimiter, async (_req, res) => {
+  await res.status(503).json({ error: "refresh_unavailable_until_m2" })
 })
 
 // ── POST /auth/logout ───────────────────────────────────────────────────────
+// M2 stub: no refresh_tokens table; best-effort — invalidation deferred to M2.
 authRouter.post("/logout", requireAuth, authLimiter, async (_req, res) => {
-  const userId = res.locals["userId"] as string
-  const db = getDb()
-
-  await db
-    .update(refreshTokens)
-    .set({ revokedAt: new Date() })
-    .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)))
-
+  // M2: revoke auth_tokens rows here
   await res.json({ ok: true })
+})
+
+// ── GET /auth/me ────────────────────────────────────────────────────────────
+// lightweight user lookup for CLI post-auth confirmation
+authRouter.get("/me", requireAuth, async (_req, res) => {
+  const userId = res.locals["userId"] as string
+  const [row] = await getDb()
+    .select({ id: users.id, githubLogin: users.githubLogin, email: users.email })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  if (!row) {
+    await res.status(404).json({ error: "user_not_found" })
+    return
+  }
+  await res.json(row)
 })
