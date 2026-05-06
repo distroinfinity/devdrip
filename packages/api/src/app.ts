@@ -65,8 +65,6 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
       githubLogin: users.githubLogin,
       email: users.email,
       avatarUrl: users.avatarUrl,
-      walletAddress: users.walletAddress,
-      verificationLevel: users.verificationLevel,
       signedUpAt: users.signedUpAt,
     })
     .from(users)
@@ -82,8 +80,6 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
     githubLogin: row.githubLogin,
     email: row.email,
     avatarUrl: row.avatarUrl,
-    walletAddress: row.walletAddress,
-    verificationLevel: row.verificationLevel,
     signedUpAt: row.signedUpAt?.toISOString() ?? null,
   })
 })
