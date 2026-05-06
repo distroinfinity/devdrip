@@ -1,4 +1,5 @@
 import { mkdir } from "node:fs/promises"
+import { spawn } from "node:child_process"
 import { homedir, hostname, platform } from "node:os"
 import { lstatSync, mkdirSync, realpathSync, statSync, symlinkSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
@@ -6,7 +7,12 @@ import { Command } from "commander"
 import { intro, outro, log, note } from "@clack/prompts"
 import type { AdCategory } from "@distrotv/shared"
 import { ChannelMode } from "@distrotv/shared"
-import { ApiError, NotAuthenticatedError, reportError } from "../lib/api-client.js"
+import {
+  ApiError,
+  NotAuthenticatedError,
+  reportError,
+  requestPairingCode,
+} from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { defaultDevdripPreferences } from "@distrotv/shared"
 import {
@@ -231,11 +237,50 @@ async function runHealthCheck(): Promise<boolean> {
   return probes.every((p) => p.ok)
 }
 
+function deriveSetupBaseUrl(apiUrl: string): string {
+  // production: API at api.devdrip.xyz → setup at devdrip.xyz
+  // local dev: API at http://localhost:3001 → setup at http://localhost:3000
+  try {
+    const parsed = new URL(apiUrl)
+    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+      return `http://${parsed.hostname}:3000`
+    }
+    if (parsed.hostname.startsWith("api.")) {
+      return `${parsed.protocol}//${parsed.hostname.slice(4)}`
+    }
+    return `${parsed.protocol}//${parsed.hostname}`
+  } catch {
+    return "https://devdrip.xyz"
+  }
+}
+
+async function openUrl(url: string): Promise<void> {
+  const cmd =
+    process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open"
+  spawn(cmd, [url], { detached: true, stdio: "ignore" }).unref()
+}
+
+async function openSetupInBrowser(): Promise<void> {
+  try {
+    const { pairingCode } = await requestPairingCode()
+    const cfg = await readConfig()
+    const apiUrl = cfg?.apiUrl ?? ""
+    const setupBaseUrl = deriveSetupBaseUrl(apiUrl)
+    const url = `${setupBaseUrl}/setup?pair=${pairingCode}`
+    log.success(`opening browser: ${url}`)
+    await openUrl(url)
+  } catch (err) {
+    log.warn(`skipping browser handoff (${err instanceof Error ? err.message : String(err)})`)
+    log.warn("you can open /setup later by running `distro auth pair` (M2.1)")
+  }
+}
+
 function printSummary(): void {
   note(
     [
-      "→ dashboard: https://distrotv.xyz/dashboard",
+      "→ browser opened to /setup — sign in with email for cross-device sync (optional)",
       "→ run `distro status` to see daemon + slot status",
+      "→ start coding in Claude Code; first slot appears in ~5s",
     ].join("\n"),
     "what's next"
   )
@@ -286,6 +331,7 @@ export async function runInit(): Promise<void> {
   await installHooks()
   await ensureDaemonRunning()
   await previewSlot()
+  await openSetupInBrowser()
 
   const ok = await runHealthCheck()
   printSummary()
