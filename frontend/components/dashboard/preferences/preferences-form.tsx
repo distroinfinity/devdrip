@@ -4,8 +4,6 @@ import { useState, useTransition } from "react"
 import type { SyncedPreferences } from "@distrotv/shared"
 import { cn } from "@distrotv/design-system/utils"
 import { savePreferences } from "@/app/dashboard/preferences/actions"
-import { BlockedCategoriesGrid } from "./blocked-categories-grid"
-import { FrequencySliders } from "./frequency-sliders"
 import { QuietHoursPicker } from "./quiet-hours-picker"
 import { AdvancedBlock } from "./advanced-block"
 
@@ -38,9 +36,6 @@ export function PreferencesForm({ initial }: PreferencesFormProps) {
     startTransition(async () => {
       setStatus({ kind: "saving" })
       const result = await savePreferences({
-        blockedCategories: snapshot.blockedCategories,
-        maxPerHour: snapshot.maxPerHour,
-        maxPerDay: snapshot.maxPerDay,
         quietHoursStart: snapshot.quietHoursStart,
         quietHoursEnd: snapshot.quietHoursEnd,
         tzOffsetMinutes: snapshot.tzOffsetMinutes,
@@ -65,24 +60,7 @@ export function PreferencesForm({ initial }: PreferencesFormProps) {
 
   return (
     <div className="flex flex-col gap-6 pb-32">
-      <Section title="Categories you block" subtitle="ads in these categories will never show">
-        <BlockedCategoriesGrid
-          blocked={prefs.blockedCategories}
-          onChange={(next) =>
-            patch({ blockedCategories: next as SyncedPreferences["blockedCategories"] })
-          }
-          disabled={pending}
-        />
-      </Section>
-
-      <Section title="Frequency" subtitle="hard caps on how often ads can appear">
-        <FrequencySliders
-          maxPerHour={prefs.maxPerHour}
-          maxPerDay={prefs.maxPerDay}
-          onChange={patch}
-          disabled={pending}
-        />
-      </Section>
+      {/* M2 adds: channel mode picker (news/markets/mix) */}
 
       <Section title="Quiet hours" subtitle="silence specific hours of the day">
         <QuietHoursPicker

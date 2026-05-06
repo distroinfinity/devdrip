@@ -1,8 +1,5 @@
-// Shared between Mini App pages and the dashboard /wallet page.
-// Mini App calls these from server components via /api/me/* (rewritten to backend
-// preserving the dd_miniapp cookie scope). Dashboard calls them via the existing
-// /me/* path with the dashboard's Bearer cookie. Both paths reach the same backend
-// endpoints; the same-origin rewrite is handled by next.config.mjs for /api/me/*.
+// deleted in M1 batch 6 — removed when /m and /dashboard/wallet were ripped.
+// file retained temporarily until app/m/ is deleted in Task 24.
 
 export interface Balance {
   availableUsdc: number
