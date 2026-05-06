@@ -317,12 +317,11 @@ export async function runInit(): Promise<void> {
   // channel mode picker first — gates whether to ask about ad categories
   const channelMode = await pickChannelMode()
 
-  // learn-mode users skip the categories prompt entirely. do NOT auto-set
+  // news/markets-only modes skip the categories prompt entirely. do NOT auto-set
   // blocked = ALL_CATEGORIES — the mode itself is the gate (delivery checks
-  // channelMode), and a later flip back to earn/mix should preserve any
-  // category prefs the user set today.
+  // channelMode), and a later mode change should preserve any category prefs.
   let blocked: AdCategory[] = []
-  if (channelMode === ChannelMode.Earn || channelMode === ChannelMode.Mix) {
+  if (channelMode === ChannelMode.Mix) {
     blocked = await pickCategories([])
   }
 

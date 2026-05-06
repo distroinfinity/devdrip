@@ -105,8 +105,8 @@ function readUnsyncedCount(): number {
 function resolveChannels(cfg: DevdripConfig | null): string[] {
   if (!cfg) return []
   const mode = cfg.preferences.channelMode
-  if (mode === "earn") return ["markets"]
-  if (mode === "learn") return ["news"]
+  if (mode === "markets") return ["markets"]
+  if (mode === "news") return ["news"]
   // mix or default
   return ["news", "markets"]
 }
