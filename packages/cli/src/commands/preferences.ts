@@ -5,10 +5,10 @@ import { reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { getPreferences, putPreferences } from "../lib/preferences-client.js"
 import { getMyChannels, putMyChannels } from "../lib/channels-client.js"
-import { pickChannelMode, pickCategories } from "../lib/prompts/preferences.js"
+import { pickChannelMode } from "../lib/prompts/preferences.js"
 import { pickChannels } from "../lib/prompts/channels.js"
 
-type Action = "mode" | "channels" | "categories" | "caps" | "topics" | "cancel"
+type Action = "mode" | "channels" | "caps" | "topics" | "cancel"
 
 async function mirrorToLocal(updated: SyncedPreferences): Promise<void> {
   const cfg = await readConfig()
@@ -29,7 +29,6 @@ async function showMenu(currentMode: ChannelMode): Promise<Action> {
     options: [
       { value: "mode", label: `channel mode (currently: ${currentMode})` },
       { value: "channels", label: "channels (tech / finance / crypto / …)" },
-      { value: "categories", label: "ad categories" },
       { value: "caps", label: "caps & quiet hours (coming soon)" },
       { value: "topics", label: "news topics (v1.1 — coming soon)" },
       { value: "cancel", label: "cancel" },
@@ -79,18 +78,6 @@ async function runPreferences(): Promise<void> {
       continue
     }
 
-    if (action === "categories") {
-      const blocked = await pickCategories(prefs.blockedCategories)
-      prefs = await putPreferences({ blockedCategories: blocked })
-      await mirrorToLocal(prefs)
-      log.success(
-        blocked.length === 0
-          ? "all categories allowed"
-          : `${blocked.length} categor${blocked.length === 1 ? "y" : "ies"} blocked`
-      )
-      continue
-    }
-
     if (action === "caps" || action === "topics") {
       log.info("not available in mvp — coming in a later release")
       continue
@@ -102,7 +89,7 @@ async function runPreferences(): Promise<void> {
 
 export const preferencesCmd = new Command("preferences")
   .alias("prefs")
-  .description("change channel mode, ad categories, and other settings")
+  .description("change channel mode, channels, and other settings")
   .action(async () => {
     try {
       await runPreferences()

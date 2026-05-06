@@ -290,7 +290,7 @@ async function ensureDaemonRunning(): Promise<void> {
 }
 
 export async function runInit(): Promise<void> {
-  intro("distro init — let's get you earning")
+  intro("distro init — let's get you set up")
 
   await ensureClaudeDir()
   await ensureDevice()
