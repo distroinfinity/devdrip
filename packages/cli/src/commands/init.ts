@@ -19,7 +19,6 @@ import { pickCategories, pickChannelMode } from "../lib/prompts/preferences.js"
 import { runInitHealthCheck } from "../lib/health.js"
 import { runDemo } from "./demo.js"
 import { registerDevice } from "../lib/device.js"
-import { runLogin } from "./login.js"
 
 function claudeDir(): string {
   return join(homedir(), ".claude")
@@ -80,18 +79,6 @@ function resolveBinPath(): string {
     log.warn(`could not install ${linkPath} symlink — using direct binary path`)
     return source
   }
-}
-
-async function ensureAuth(): Promise<void> {
-  const cfg = await readConfig()
-  if (cfg) {
-    log.success(`signed in as @${cfg.user.githubLogin || cfg.user.email}`)
-    return
-  }
-  log.info("no local session — starting GitHub sign-in…")
-  await runLogin(false)
-  const after = await readConfig()
-  if (!after) throw new NotAuthenticatedError("sign-in did not complete")
 }
 
 async function ensureClaudeDir(): Promise<void> {
@@ -251,7 +238,6 @@ async function ensureDaemonRunning(): Promise<void> {
 export async function runInit(): Promise<void> {
   intro("distro init — let's get you earning")
 
-  await ensureAuth()
   await ensureClaudeDir()
   await ensureDevice()
 
