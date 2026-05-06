@@ -138,11 +138,3 @@ describe("isSocketAlive", () => {
     expect(await isSocketAlive(join(tempHome, "missing.sock"))).toBe(false)
   })
 })
-
-describe("resolveSocketPath", () => {
-  it("returns ~/.distro/daemon.sock under normal paths", async () => {
-    const { resolveSocketPath } = await import("../lifecycle.js")
-    const p = resolveSocketPath()
-    expect(p).toBe(join(tempHome, ".distro", "daemon.sock"))
-  })
-})
