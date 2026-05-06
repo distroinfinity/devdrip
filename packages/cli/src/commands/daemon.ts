@@ -252,10 +252,6 @@ export async function runDaemon(): Promise<number> {
     }
   }
 
-  const fireBeacon = (url: string): void => {
-    fetch(url, { method: "GET" }).catch(() => {})
-  }
-
   const writePreferencesFn = async (next: typeof cfg.preferences): Promise<void> => {
     const current = await readConfig()
     if (!current) return
@@ -268,7 +264,6 @@ export async function runDaemon(): Promise<number> {
     display: { show: showAd },
     keyCapture,
     openUrl,
-    fireBeacon,
     writePreferences: writePreferencesFn,
     log,
     deviceId: cfg.device.id,

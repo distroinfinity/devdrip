@@ -18,25 +18,25 @@ async function sendAction(action: ActionKind): Promise<number> {
 }
 
 export const discoverCmd = new Command("discover")
-  .description("open the current ad's URL and advance to the next ad (fallback for [D])")
+  .description("open the current story or link (fallback for [D])")
   .action(async () => {
     process.exit(await sendAction("discover"))
   })
 
 export const skipCmd = new Command("skip")
-  .description("advance to the next cached ad (fallback for [S])")
+  .description("advance to the next slot (fallback for [S])")
   .action(async () => {
     process.exit(await sendAction("skip"))
   })
 
 export const killSessionCmd = new Command("kill-session")
-  .description("stop ads for the rest of this Claude session (fallback for [K])")
+  .description("stop feed for the rest of this Claude session (fallback for [K])")
   .action(async () => {
     process.exit(await sendAction("kill-session"))
   })
 
 export const muteCmd = new Command("mute")
-  .description("pause ads for 30 minutes (fallback for [M])")
+  .description("pause feed for 30 minutes (fallback for [M])")
   .action(async () => {
     process.exit(await sendAction("mute"))
   })

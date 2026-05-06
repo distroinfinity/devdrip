@@ -1,3 +1,4 @@
+// M1: ad slots ripped. M3 extends news; M4 adds "ticker" branch.
 import { randomUUID } from "node:crypto"
 import {
   MAX_ADS_PER_CONTINUOUS_SESSION,
@@ -6,22 +7,18 @@ import {
   PROGRESS_CAP,
   PROGRESS_SNAP_HOLD_MS,
   PROGRESS_TICK_MS,
-  REVENUE_SHARE_DEVELOPER,
-  TOAST_HOLD_MS,
-  VALID_IMPRESSION_FOR_TOAST_MS,
   type DevdripPreferences,
 } from "@distrotv/shared"
 import type { SlotCache, CachedSlot } from "../slot-cache.js"
-import type { Ledger, LocalImpression, LocalNewsImpression } from "../ledger.js"
+import type { Ledger, LocalNewsImpression } from "../ledger.js"
 import type { KeyCapture } from "./input.js"
-import type { EarningsPopup, PopupPhase } from "../render-box.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
 
 export interface DisplayHandleApi {
   vanish: () => { latencyMs: number }
   onResize: (cb: () => void) => void
   flash: () => void
-  updateProgress: (progress: number, elapsedMs: number, popup: EarningsPopup | null) => void
+  updateProgress: (progress: number, elapsedMs: number) => void
 }
 
 export interface DisplayApi {
@@ -40,7 +37,6 @@ export interface LoggerApi {
 }
 
 export type OpenUrl = (url: string) => void
-export type FireBeacon = (url: string) => void
 
 export interface OrchestratorDeps {
   slotCache: SlotCache
@@ -48,7 +44,6 @@ export interface OrchestratorDeps {
   display: DisplayApi
   keyCapture: KeyCapture
   openUrl: OpenUrl
-  fireBeacon: FireBeacon
   log: LoggerApi
   deviceId: string
   preferences: DevdripPreferences
@@ -107,26 +102,6 @@ function sigmoidProgress(elapsedMs: number, displayTimeMs: number): number {
   const k = 8
   const s = 1 / (1 + Math.exp(-k * (x - 0.5)))
   return Math.min(PROGRESS_CAP, s * PROGRESS_CAP)
-}
-
-// S3-05: earnings popup lives inside the TV box at the top-right and
-// pop-then-fades over TOAST_HOLD_MS. phase keys off how long since the popup
-// started showing (elapsedMs - VALID_IMPRESSION_FOR_TOAST_MS):
-//   [0, 500):        enter — bright + bold, reads as "pop"
-//   [500, hold-500): hold  — bright green
-//   [hold-500, hold): exit — dim, fading out
-//   after hold:      null  — gone, row goes back to blank padding
-function computePopup(elapsedMs: number, cpmRate: number, isApi: boolean): EarningsPopup | null {
-  if (!isApi || cpmRate <= 0) return null
-  if (elapsedMs < VALID_IMPRESSION_FOR_TOAST_MS) return null
-  const popupElapsed = elapsedMs - VALID_IMPRESSION_FOR_TOAST_MS
-  if (popupElapsed >= TOAST_HOLD_MS) return null
-  const deltaUsdc = (cpmRate / 1000) * REVENUE_SHARE_DEVELOPER
-  let phase: PopupPhase
-  if (popupElapsed < 500) phase = "enter"
-  else if (popupElapsed >= TOAST_HOLD_MS - 500) phase = "exit"
-  else phase = "hold"
-  return { deltaUsdc, phase }
 }
 
 // S3-14: sentinel key used when an event arrives without a tty (piped/CI
@@ -280,9 +255,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       if (eff.kind === "snapProgressToComplete") {
         if (session.currentDisplay) {
           try {
-            // elapsedMs value doesn't matter here — progress=1 pins to 100%;
-            // popup=null so the 100% frame is clean of any mid-animation state.
-            session.currentDisplay.updateProgress(1.0, 0, null)
+            session.currentDisplay.updateProgress(1.0, 0)
           } catch (err) {
             deps.log.warn("progress snap failed", { error: (err as Error).message })
           }
@@ -427,13 +400,6 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             dispatch({ kind: "dismiss", now: now(), tty: session.tty })
           })
           deps.keyCapture.start(effect.tty)
-          // caps are ad-fatigue guards, not slot-fatigue. news doesn't count.
-          if (effect.ad.kind === "ad") {
-            session.adsInCurrentBusyWindow += 1
-            const nowMs = now()
-            hourlyTimestamps.push(nowMs)
-            dailyTimestamps.push(nowMs)
-          }
           const displayTimeMs = effect.ad.kind === "ad" ? effect.ad.payload.displayTimeMs : 0
           deps.log.info("showing slot", {
             payloadId,
@@ -459,17 +425,12 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         if (session.progressTimer) clearInterval(session.progressTimer)
         const shownAt = effect.shownAt
         const displayTimeMs = effect.displayTimeMs
-        // snapshot ad identity fields for the tick closure so the popup
-        // decision doesn't depend on state-machine state that may shift.
-        const tickAdCpm = effect.ad?.kind === "ad" ? (effect.ad.payload.cpmRate ?? 0) : 0
-        const tickAdIsApi = effect.ad?.kind === "ad" && (effect.ad.cacheSource ?? "demo") === "api"
         session.progressTimer = setInterval(() => {
           if (!session.currentDisplay) return
           const elapsed = Math.max(0, now() - shownAt)
           const p = sigmoidProgress(elapsed, displayTimeMs)
-          const popup = computePopup(elapsed, tickAdCpm, tickAdIsApi)
           try {
-            session.currentDisplay.updateProgress(p, elapsed, popup)
+            session.currentDisplay.updateProgress(p, elapsed)
           } catch (err) {
             deps.log.warn("progress tick failed", { error: (err as Error).message })
           }
@@ -521,9 +482,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           } catch (err) {
             deps.log.warn("vanish failed", { error: (err as Error).message })
           }
-          // only count ad slots; news slots must not inflate the ads-shown metric.
-          // only count when something was actually rendered (null-tty paths skip this).
-          if (session.currentSlotKind === "ad") adsShownCount += 1
+          adsShownCount += 1
           session.currentDisplay = null
           session.currentSlotKind = null
         }
@@ -582,53 +541,17 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         } catch (err) {
           deps.log.warn("openUrl failed", { error: (err as Error).message })
         }
-        // ad-only: ledger click row + click-tracking beacon.
-        // news clicks are recorded server-side via the news impression's openedUrl flag (Task 22).
-        if (effect.ad.kind === "ad") {
-          try {
-            deps.ledger.recordClick({
-              id: randomUUID(),
-              deliveryToken: effect.deliveryToken,
-              createdAt: now(),
-            })
-          } catch (err) {
-            deps.log.warn("click ledger write failed", { error: (err as Error).message })
-          }
-          if (effect.ad.payload.clickTrackingUrl)
-            deps.fireBeacon(effect.ad.payload.clickTrackingUrl)
-        }
+        // news clicks recorded server-side via openedUrl flag on news impression
         return
       }
     }
   }
 
-  function handleRecord(imp: LocalImpression, slot: CachedSlot): void {
+  function handleRecord(_imp: unknown, slot: CachedSlot): void {
     if (slot.kind === "news") {
-      // news impressions are ledgered separately (Task 22 wires this).
+      // news impressions are ledgered separately via recordNewsImpression
       deps.log.debug("skipping ad-ledger write for news slot", { newsId: slot.payload.id })
       return
-    }
-    if (imp.source === "demo") {
-      deps.log.debug("skipping ledger write for demo ad", { adId: imp.adId })
-      return
-    }
-    try {
-      deps.ledger.record(imp)
-      deps.log.info("vanished ad", {
-        adId: imp.adId,
-        result: imp.result,
-        durationMs: imp.durationMs,
-      })
-    } catch (err) {
-      deps.log.warn("ledger write failed", {
-        adId: imp.adId,
-        error: (err as Error).message,
-      })
-    }
-    // Viewable-impression beacon: MRC desktop-display rule (≥1s on screen).
-    const impressionBeaconUrl = slot.payload.impressionBeaconUrl
-    if (imp.result !== "skipped" && imp.durationMs >= 1_000 && impressionBeaconUrl) {
-      deps.fireBeacon(impressionBeaconUrl)
     }
   }
 

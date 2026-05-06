@@ -1,12 +1,6 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
-import {
-  renderBox,
-  renderNewsBox,
-  type EarningsPopup,
-  type NewsRenderOpts,
-  type RenderBoxOpts,
-} from "../render-box.js"
+import { renderBox, renderNewsBox, type NewsRenderOpts, type RenderBoxOpts } from "../render-box.js"
 import type { CachedSlot } from "../slot-cache.js"
 
 const MAX_WRITE_ATTEMPTS = 3
@@ -56,10 +50,8 @@ export interface DisplayHandle {
   // keystroke was captured by Distro TV and not consumed by Claude. The
   // highlight stays until the orchestrator vanishes the box (~150ms later).
   flash(): void
-  // S3-04/05: redraw the box with a new progress value and optional earnings
-  // popup. cheap re-render — reuses the scroll region anchor. `popup` is the
-  // in-box earnings confirmation; null means "no popup this frame".
-  updateProgress(progress: number, elapsedMs: number, popup: EarningsPopup | null): void
+  // redraw the box with a new progress value. cheap re-render — reuses the scroll region anchor.
+  updateProgress(progress: number, elapsedMs: number): void
 }
 
 export function writeWithRetry(fd: number, data: string): void {
@@ -108,21 +100,11 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     return renderNewsBox(slot.payload, baseNewsOpts)
   }
 
-  function renderTick(progress: number, elapsedMs: number, popup: EarningsPopup | null): string {
+  function renderTick(progress: number, elapsedMs: number): string {
     if (slot.kind === "ad") {
-      return renderBox(slot.payload, {
-        ...baseAdOpts,
-        progress,
-        elapsedMs,
-        popup: popup ?? undefined,
-      })
+      return renderBox(slot.payload, { ...baseAdOpts, progress, elapsedMs })
     }
-    return renderNewsBox(slot.payload, {
-      ...baseNewsOpts,
-      progress,
-      elapsedMs,
-      // popup intentionally not passed — news has no earnings popup
-    })
+    return renderNewsBox(slot.payload, { ...baseNewsOpts, progress, elapsedMs })
   }
 
   try {
@@ -245,11 +227,9 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
       // later, so the green pulse stays on until vanish — no revert needed.
       rewriteBox("\x1b[1;92m")
     },
-    updateProgress(progress: number, elapsedMs: number, popup: EarningsPopup | null): void {
+    updateProgress(progress: number, elapsedMs: number): void {
       if (closed || resizeFired) return
-      // re-render with the new progress. keeps the slot layout identical so the
-      // pane height stays constant — no scroll region drift.
-      const text = renderTick(progress, elapsedMs, popup)
+      const text = renderTick(progress, elapsedMs)
       lastRenderedText = text
       writePane(text, "")
     },
