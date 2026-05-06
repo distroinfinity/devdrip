@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto"
 import { getRedis } from "../lib/redis.js"
 
-const PAIR_TTL_SECONDS = 10 * 60
+export const PAIR_TTL_SECONDS = 10 * 60
 const REMEMBER_TTL_SECONDS = 30 * 60
 const PAIR_PREFIX = "pair:"
 const REMEMBER_PREFIX = "pair-remember:"

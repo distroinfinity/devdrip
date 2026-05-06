@@ -2,13 +2,15 @@ import { Router } from "express"
 import { z } from "zod"
 import { eq } from "drizzle-orm"
 import { requireAuth } from "../middleware/auth.js"
-import { signAccessToken } from "../lib/jwt.js"
+import { signAccessToken, SESSION_TTL_SECONDS } from "../lib/jwt.js"
 import { env } from "../config/env.js"
 import { getDb } from "../db/index.js"
 import { devices } from "../db/schema/devices.js"
-import { createPairingCode, exchangePairingCode } from "../services/pairing.service.js"
-
-const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60
+import {
+  createPairingCode,
+  exchangePairingCode,
+  PAIR_TTL_SECONDS,
+} from "../services/pairing.service.js"
 
 export const devicesPairRouter: ReturnType<typeof Router> = Router()
 
@@ -20,7 +22,7 @@ devicesPairRouter.post("/", requireAuth, async (_req, res) => {
     return
   }
   const code = await createPairingCode({ deviceId, userId })
-  await res.status(200).json({ pairingCode: code, ttlSeconds: 600 })
+  await res.status(200).json({ pairingCode: code, ttlSeconds: PAIR_TTL_SECONDS })
 })
 
 export const authExchangePairRouter: ReturnType<typeof Router> = Router()

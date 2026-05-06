@@ -4,6 +4,8 @@ import { randomBytes, createHash } from "node:crypto"
 const ALG = "HS256"
 const DEFAULT_ACCESS_TTL_SECONDS = 3600
 const REFRESH_TTL_DAYS = 30
+
+export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60
 const ISSUER = "devdrip"
 const AUDIENCE = "devdrip"
 

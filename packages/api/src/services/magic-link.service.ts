@@ -9,11 +9,10 @@ import { getDb } from "../db/index.js"
 import { magicLinkTokens } from "../db/schema/magic_link_tokens.js"
 import { users } from "../db/schema/users.js"
 import { devices } from "../db/schema/devices.js"
-import { signAccessToken } from "../lib/jwt.js"
+import { signAccessToken, SESSION_TTL_SECONDS } from "../lib/jwt.js"
 import { magicLinkEmailHtml, magicLinkEmailText } from "../lib/email-templates/magic-link.js"
 
 const TOKEN_TTL_MS = 15 * 60 * 1000
-const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60
 
 let resendClient: Resend | null = null
 function getResend(): Resend {
