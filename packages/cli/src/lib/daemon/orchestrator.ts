@@ -299,7 +299,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             source: slot.source,
             headline: slot.headline,
             url: slot.url,
-            score: slot.score,
+            score: slot.score ?? 0,
             savedAt: now(),
           })
           session.savedNews = true

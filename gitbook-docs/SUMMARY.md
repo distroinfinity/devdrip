@@ -6,6 +6,7 @@
 - [Identity & Auth](architecture/identity.md)
 - [Channel Modes](architecture/channel-modes.md)
 - [Slot Content](architecture/slot-content.md)
+- [News Pipeline](architecture/news-pipeline.md)
 - [Backend API](backend/api.md)
 - [Data Model](backend/data-model.md)
 - [Landing And Waitlist](frontend/landing-and-waitlist.md)

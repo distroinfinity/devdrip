@@ -1,7 +1,11 @@
+import type { ChannelKey } from "./news.js"
+
 export interface ChannelDto {
   id: string
-  key: "tech" | "finance" | "crypto" | "ai-papers" | "design" | "gaming"
+  key: ChannelKey
   label: string
   defaultOn: boolean
-  sources: string[] // source IDs; admin manages
+  // user's current state (only present on /me/channels — null on the public /channels list)
+  subscribed?: boolean
+  priority?: number
 }

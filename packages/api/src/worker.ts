@@ -1,10 +1,12 @@
-// Worker process entry — settlement + disburse loops removed in M1 rip.
-// Placeholder until KeeperHub vault worker is wired in M2.
+// Worker process — runs the news fetcher coordinator on a 5-min tick.
+// M4 will add the ticker fetcher cron alongside this one.
 
 import "dotenv/config"
+import cron from "node-cron"
 import { env, assertEnvSafe } from "./config/env.js"
 import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
+import { runFetchTick } from "./services/news-fetchers/coordinator.js"
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("[worker] unhandledRejection at:", promise, "reason:", reason)
@@ -32,7 +34,18 @@ async function start(): Promise<void> {
     logger.warn({ err: redisResult.reason }, "redis connection failed (worker continues)")
   }
 
-  logger.info("worker idle — vault loop placeholder")
+  void runFetchTick(0).catch((err) => logger.error({ err }, "initial fetch tick failed"))
+
+  cron.schedule("*/5 * * * *", async () => {
+    const minuteBucket = new Date().getMinutes()
+    try {
+      await runFetchTick(minuteBucket)
+    } catch (err) {
+      logger.error({ err }, "fetch tick failed")
+    }
+  })
+
+  logger.info("worker running — news fetch every 5 min")
 }
 
 start().catch((err) => {

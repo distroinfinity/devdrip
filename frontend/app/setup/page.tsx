@@ -128,10 +128,10 @@ function SignedInState({ email }: { email: string }) {
         <h1 className="text-2xl font-semibold">Signed in as {email}</h1>
         <p className="text-sm text-muted-foreground">Your devices and prefs sync now.</p>
         <a
-          href="/dashboard"
+          href="/setup/channels"
           className="inline-block mt-4 px-4 py-2 bg-black text-white rounded text-sm"
         >
-          Open dashboard
+          Continue
         </a>
       </div>
     </main>
