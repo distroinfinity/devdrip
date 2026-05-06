@@ -19,9 +19,9 @@ const SUN_PATH_MAX = 104
 export function daemonSocketPath(
   uid: number = typeof process.getuid === "function" ? (process.getuid() as number) : 0
 ): string {
-  const preferred = join(homedir(), ".devdrip", "daemon.sock")
+  const preferred = join(homedir(), ".distro", "daemon.sock")
   if (preferred.length < SUN_PATH_MAX) return preferred
-  return `/tmp/devdrip-${uid}.sock`
+  return `/tmp/distro-${uid}.sock`
 }
 
 // ── idle detection ─────────────────────────────────────────────────────────
