@@ -35,10 +35,8 @@ export async function createPairSession(): Promise<CreatedPairSession> {
     status: "pending",
     expiresAt,
   })
-  // Mini App opens via World App: world.org/mini-app deep-link with our app_id
-  // and an internal path that includes the link code. Frontend's /m/signup page
-  // reads the ?link= query param and routes through cli-link/:code.
-  const linkUrl = `https://world.org/mini-app?app_id=${env.worldAppId}&path=${encodeURIComponent(`/m/signup?link=${code}`)}`
+  // M2 replaces with magic-link pairing URL; World App deep-link removed in Batch 4
+  const linkUrl = `${env.clientRedirectUrl}/m/signup?link=${code}`
   return { code, linkUrl, qrPayload: linkUrl, expiresAt }
 }
 
