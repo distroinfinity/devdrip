@@ -1,4 +1,4 @@
-import { inArray, sql } from "drizzle-orm"
+import { inArray, and, gt, eq, desc } from "drizzle-orm"
 import { NewsSource } from "@distrotv/shared"
 import type { NewsPayload, ChannelKey } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
@@ -123,8 +123,8 @@ export async function nextPicksForDevice({
       priority: channelSubscriptions.priority,
     })
     .from(channelSubscriptions)
-    .innerJoin(channels, sql`${channels.id} = ${channelSubscriptions.channelId}`)
-    .where(sql`${channelSubscriptions.userId} = ${userId}`)
+    .innerJoin(channels, eq(channels.id, channelSubscriptions.channelId))
+    .where(eq(channelSubscriptions.userId, userId))
   if (subs.length === 0) return []
 
   const channelIds = subs.map((s) => s.channelId)
@@ -145,11 +145,9 @@ export async function nextPicksForDevice({
       halfLifeHours: newsSources.halfLifeHours,
     })
     .from(newsItems)
-    .innerJoin(newsSources, sql`${newsSources.id} = ${newsItems.sourceId}`)
-    .where(
-      sql`${newsItems.channelId} IN ${inArray(newsItems.channelId, channelIds)} AND ${newsItems.publishedAt} > ${cutoff}`
-    )
-    .orderBy(sql`${newsItems.publishedAt} DESC`)
+    .innerJoin(newsSources, eq(newsSources.id, newsItems.sourceId))
+    .where(and(inArray(newsItems.channelId, channelIds), gt(newsItems.publishedAt, cutoff)))
+    .orderBy(desc(newsItems.publishedAt))
     .limit(CANDIDATE_LIMIT)
 
   if (rows.length === 0) return []
