@@ -26,6 +26,7 @@ export enum ChannelMode {
 }
 
 export { NewsSource, NewsTopic } from "./news.js"
+export type { ChannelKey } from "./news.js"
 import type { NewsTopic } from "./news.js"
 
 // ── types ───────────────────────────────────────────────────────────────────

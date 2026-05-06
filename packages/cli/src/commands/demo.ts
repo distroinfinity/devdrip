@@ -30,6 +30,8 @@ function fallbackNewsPayload(): NewsPayload {
     kind: "news",
     id: "demo-hn:1",
     source: NewsSource.HackerNews,
+    // legacy HN-only path; Batch 4 replaces this entire codepath
+    channelKey: "tech",
     headline: "Distro TV — news demo (offline)",
     url: "https://news.ycombinator.com",
     score: 0,

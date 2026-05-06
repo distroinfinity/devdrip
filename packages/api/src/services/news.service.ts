@@ -124,6 +124,8 @@ function toPayload(item: CachedNewsItem): NewsPayload {
     kind: "news",
     id: item.id,
     source: item.source,
+    // legacy HN-only path; Batch 4 replaces this entire codepath
+    channelKey: "tech",
     headline: item.headline,
     url: item.url,
     score: item.score,
