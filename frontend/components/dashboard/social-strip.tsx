@@ -11,7 +11,7 @@ export function SocialStrip({ className, variant = "header" }: SocialStripProps)
   const isHeader = variant === "header"
   return (
     <a
-      href="https://x.com/devdripdotxyz"
+      href="https://x.com/distrotvxyz"
       target="_blank"
       rel="noopener noreferrer"
       aria-label="X (Twitter)"

@@ -1,8 +1,7 @@
 import { ImageResponse } from "next/og"
 
 export const runtime = "edge"
-export const alt =
-  "Dev Drip — Earn USD while your AI agent codes. Opt-in developer content during idle time."
+export const alt = "Distro TV — your terminal's news + market feed, while the agent works."
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
@@ -41,20 +40,19 @@ export default async function OgImage() {
         position: "relative",
       }}
     >
-      {/* earnings display */}
+      {/* wordmark */}
       <div
         style={{
           display: "flex",
           alignItems: "baseline",
           fontFamily: "JetBrains Mono",
           fontWeight: 700,
-          fontSize: 96,
+          fontSize: 80,
           color: "#EDEDF0",
-          textShadow: "0 0 60px rgba(99,102,241,0.4), 0 0 120px rgba(99,102,241,0.15)",
           letterSpacing: "-2px",
         }}
       >
-        $14.72
+        Distro TV
       </div>
 
       {/* tagline */}
@@ -62,27 +60,13 @@ export default async function OgImage() {
         style={{
           display: "flex",
           fontFamily: "Space Mono",
-          fontSize: 30,
+          fontSize: 28,
           color: "#8B8B8E",
-          marginTop: 12,
+          marginTop: 16,
           letterSpacing: "-0.5px",
         }}
       >
-        earned this month while your agent coded.
-      </div>
-
-      {/* subline */}
-      <div
-        style={{
-          display: "flex",
-          fontFamily: "Space Mono",
-          fontSize: 20,
-          color: "#55555A",
-          marginTop: 24,
-          letterSpacing: "-0.3px",
-        }}
-      >
-        Opt-in developer content during AI idle time. Skip anything. Earn USD.
+        your terminal&apos;s news + market feed, while the agent works.
       </div>
 
       {/* bottom strip */}
@@ -101,8 +85,8 @@ export default async function OgImage() {
           letterSpacing: "2px",
         }}
       >
-        <span>DEV DRIP</span>
-        <span>devdrip.xyz</span>
+        <span>DISTRO TV</span>
+        <span>distrotv.xyz</span>
       </div>
     </div>,
     {
