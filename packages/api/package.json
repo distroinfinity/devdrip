@@ -14,8 +14,6 @@
     "start": "node dist/index.js",
     "worker:dev": "tsx watch src/worker.ts",
     "worker:start": "node dist/worker.js",
-    "worker:once-disburse": "tsx src/worker.ts --once-disburse",
-    "chain:check": "tsx src/scripts/check-hot-wallet.ts",
     "clean": "rm -rf dist",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -24,12 +22,10 @@
     "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
-    "@carbonads/sdk": "^0.2.2",
     "@distrotv/shared": "workspace:*",
     "@neondatabase/serverless": "^1.0.2",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
-    "@worldcoin/minikit-js": "^1.11.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -40,8 +36,7 @@
     "node-cron": "^4.2.1",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0",
-    "postgres": "^3.4.9",
-    "viem": "^2.48.4"
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

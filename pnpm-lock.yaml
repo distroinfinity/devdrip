@@ -141,9 +141,6 @@ importers:
 
   packages/api:
     dependencies:
-      '@carbonads/sdk':
-        specifier: ^0.2.2
-        version: 0.2.2(react@18.3.1)
       '@distrotv/shared':
         specifier: workspace:*
         version: link:../shared
@@ -156,9 +153,6 @@ importers:
       '@upstash/redis':
         specifier: ^1.37.0
         version: 1.37.0
-      '@worldcoin/minikit-js':
-        specifier: ^1.11.0
-        version: 1.11.0(@types/react@18.3.28)(react@18.3.1)(typescript@5.9.3)(viem@2.48.4(typescript@5.9.3))
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -192,9 +186,6 @@ importers:
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
-      viem:
-        specifier: ^2.48.4
-        version: 2.48.4(typescript@5.9.3)
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -358,18 +349,6 @@ packages:
   '@babel/runtime@7.29.2':
     resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
     engines: {node: '>=6.9.0'}
-
-  '@carbonads/sdk@0.2.2':
-    resolution: {integrity: sha512-+8tD1Ft5ewo5vKNMXYWmdQwhSnmuF+DEbu+qQ9x5bYJ/e4JKMCzZ823vdIoT1MMHPRF6XfRALlsY3dn6IJEanQ==}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      ink: '>=6.0.0'
-      react: '>=19.0.0'
-    peerDependenciesMeta:
-      ink:
-        optional: true
-      react:
-        optional: true
 
   '@clack/core@0.4.1':
     resolution: {integrity: sha512-Pxhij4UXg8KSr7rPek6Zowm+5M22rbd2g1nfojHJkxp5YkFqiZ2+YLEM/XGVIzvGOcM0nqjIFxrpDwWRZYWYjA==}
@@ -5218,10 +5197,6 @@ snapshots:
   '@alloc/quick-lru@5.2.0': {}
 
   '@babel/runtime@7.29.2': {}
-
-  '@carbonads/sdk@0.2.2(react@18.3.1)':
-    optionalDependencies:
-      react: 18.3.1
 
   '@clack/core@0.4.1':
     dependencies:
