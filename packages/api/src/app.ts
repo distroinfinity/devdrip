@@ -9,7 +9,7 @@ import { logger } from "./lib/logger.js"
 import { errorHandler } from "./errors/error-handler.js"
 import { healthRouter } from "./routes/health.js"
 import { authRouter } from "./routes/auth.js"
-import { devicesRouter } from "./routes/devices.js"
+import { devicesRouter, devicesRegisterRouter } from "./routes/devices.js"
 import { mePreferencesRouter } from "./routes/me-preferences.js"
 import { meReadingRouter } from "./routes/me-reading.js"
 import { cliPairRouter } from "./routes/cli-pair.js"
@@ -55,7 +55,10 @@ app.use(globalLimiter)
 
 app.use("/auth", authRouter)
 app.use("/cli/pair", cliPairRouter)
-app.use("/devices", requireAuth, devicesRouter)
+// public — anon device registration (no auth required)
+app.use("/devices/register", devicesRegisterRouter)
+// authed — list, update, delete devices
+app.use("/devices", requireAuth, userLimiter, devicesRouter)
 
 app.get("/me", requireAuth, userLimiter, async (_req, res) => {
   const userId = res.locals["userId"] as string
