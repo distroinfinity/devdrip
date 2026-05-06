@@ -1,203 +1,99 @@
 import { Router } from "express"
-import { ImpressionResult, MAX_AD_DURATION_MS, MIN_COMPLETED_DURATION_MS } from "@devdrip/shared"
-import { validateIngest, type IngestItem } from "../validators/ingest.validators.js"
-import * as impressionService from "../services/impression.service.js"
-import { recordNewsImpression } from "../services/news-impression.service.js"
-import {
-  peekDeliveryToken,
-  verifyDeliveryTokenForIngest,
-  verifyDeliveryTokenForClick,
-} from "../lib/ad-delivery.js"
-import { machineLimiter } from "../middleware/rate-limit.js"
+import type { ImpressionResult, NewsSource } from "@distrotv/shared"
+import { recordSlotImpression } from "../services/slot-impression.service.js"
 import { logger } from "../lib/logger.js"
-import { invalidateEarningsSummary } from "../services/earnings.service.js"
-import { ApiError } from "../errors/index.js"
+
+interface RawNewsImpression {
+  newsId?: unknown
+  source?: unknown
+  deviceId?: unknown
+  durationMs?: unknown
+  result?: unknown
+  openedUrl?: unknown
+  saved?: unknown
+}
+
+function parseNewsImpression(
+  raw: RawNewsImpression
+): {
+  newsId: string
+  source: string
+  deviceId: string
+  durationMs: number
+  result: string
+  openedUrl: boolean
+  saved: boolean
+} | null {
+  if (
+    typeof raw.newsId !== "string" ||
+    typeof raw.source !== "string" ||
+    typeof raw.deviceId !== "string" ||
+    typeof raw.durationMs !== "number" ||
+    typeof raw.result !== "string"
+  ) {
+    return null
+  }
+  return {
+    newsId: raw.newsId,
+    source: raw.source,
+    deviceId: raw.deviceId,
+    durationMs: raw.durationMs,
+    result: raw.result,
+    openedUrl: raw.openedUrl === true,
+    saved: raw.saved === true,
+  }
+}
 
 export const ingestRouter: ReturnType<typeof Router> = Router()
 
-// pre-handler: read deviceId off the first token for the machine limiter key.
-// never throws; bad tokens fall through to per-item verification which returns
-// proper per-item errors.
-ingestRouter.use(async (req, res, next) => {
-  try {
-    const body = req.body as { impressions?: unknown[]; clicks?: unknown[] } | undefined
-    const firstItem =
-      (Array.isArray(body?.impressions) && body?.impressions[0]) ||
-      (Array.isArray(body?.clicks) && body?.clicks[0]) ||
-      null
-    if (firstItem && typeof firstItem === "object") {
-      const token = (firstItem as Record<string, unknown>)["deliveryToken"]
-      if (typeof token === "string") {
-        const claims = await peekDeliveryToken(token)
-        res.locals["deviceId"] = claims.deviceId
-      }
-    }
-  } catch {
-    // silent — if peek fails, limiter gets no key and falls through.
+ingestRouter.post("/", async (req, res) => {
+  const userId = res.locals["userId"] as string
+  const body = req.body as {
+    newsImpressions?: unknown[]
+    impressions?: unknown[]
+    clicks?: unknown[]
   }
-  next()
-})
 
-ingestRouter.use(machineLimiter)
+  const rawNews = Array.isArray(body.newsImpressions) ? body.newsImpressions : []
+  const rawImpressions = Array.isArray(body.impressions) ? body.impressions : []
+  const rawClicks = Array.isArray(body.clicks) ? body.clicks : []
 
-interface ImpressionResultItem {
-  ok: boolean
-  deliveryToken: string
-  impressionId?: string
-  earnedAmount?: number
-  result?: ImpressionResult
-  error?: string
-}
+  const newsImpressionResults: { ok: boolean; newsId: string; error?: string }[] = []
 
-interface ClickResultItem {
-  ok: boolean
-  deliveryToken: string
-  clickId?: string
-  earningsDelta?: number
-  error?: string
-}
-
-function deriveOutcome(
-  issuedAt: number,
-  graceAccept: boolean,
-  nowMs = Date.now()
-): { durationMs: number; result: ImpressionResult } {
-  if (graceAccept) {
-    return { durationMs: MAX_AD_DURATION_MS, result: ImpressionResult.Expired }
-  }
-  const elapsedMs = Math.max(0, nowMs - issuedAt * 1000)
-  const durationMs = Math.min(elapsedMs, MAX_AD_DURATION_MS)
-  if (elapsedMs > MAX_AD_DURATION_MS) {
-    return { durationMs, result: ImpressionResult.Expired }
-  }
-  if (durationMs >= MIN_COMPLETED_DURATION_MS) {
-    return { durationMs, result: ImpressionResult.Completed }
-  }
-  return { durationMs, result: ImpressionResult.Skipped }
-}
-
-ingestRouter.post("/", async (req, res, next) => {
-  try {
-    const userId = res.locals["userId"] as string
-    const input = validateIngest(req.body)
-
-    const impressionResults: ImpressionResultItem[] = []
-    const jtiToImpressionId = new Map<string, string>()
-
-    for (const item of input.impressions) {
-      const out = await ingestOneImpression(item, userId, jtiToImpressionId)
-      impressionResults.push(out)
-    }
-
-    const clickResults: ClickResultItem[] = []
-    for (const item of input.clicks) {
-      const out = await ingestOneClick(item, userId, jtiToImpressionId)
-      clickResults.push(out)
-    }
-
-    interface NewsImpressionResultItem {
-      ok: boolean
-      newsId: string
-      error?: string
-    }
-
-    const newsResults: NewsImpressionResultItem[] = []
-    for (const item of input.newsImpressions) {
-      try {
-        await recordNewsImpression({
-          userId,
-          deviceId: item.deviceId,
-          newsId: item.newsId,
-          source: item.source,
-          durationMs: item.durationMs,
-          result: item.result,
-          openedUrl: item.openedUrl,
-          saved: item.saved,
-        })
-        newsResults.push({ ok: true, newsId: item.newsId })
-      } catch (err) {
-        newsResults.push({
-          ok: false,
-          newsId: item.newsId,
-          error: err instanceof Error ? err.message : "internal_error",
-        })
-      }
-    }
-
-    // best-effort: only bust earnings cache when ad impressions are present.
-    // news-only batches must not invalidate earnings (spec §11 structural isolation).
-    if (input.impressions.length > 0) {
-      invalidateEarningsSummary(userId).catch((err) => {
-        logger.warn({ err, userId }, "earnings summary invalidation failed")
+  for (const raw of rawNews) {
+    const ni = parseNewsImpression(raw as RawNewsImpression)
+    if (!ni) {
+      newsImpressionResults.push({
+        ok: false,
+        newsId: String((raw as RawNewsImpression).newsId ?? ""),
+        error: "invalid_payload",
       })
+      continue
     }
-
-    res.status(200).json({
-      impressions: impressionResults,
-      clicks: clickResults,
-      newsImpressions: newsResults,
-    })
-  } catch (err) {
-    next(err)
+    try {
+      await recordSlotImpression({
+        userId,
+        kind: "news",
+        newsId: ni.newsId,
+        source: ni.source as NewsSource,
+        deviceId: ni.deviceId,
+        durationMs: ni.durationMs,
+        result: ni.result as ImpressionResult,
+        openedUrl: ni.openedUrl,
+        saved: ni.saved,
+      })
+      newsImpressionResults.push({ ok: true, newsId: ni.newsId })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      logger.warn({ err, newsId: ni.newsId }, "ingest: recordSlotImpression failed")
+      newsImpressionResults.push({ ok: false, newsId: ni.newsId, error: msg })
+    }
   }
+
+  // return legacy empty arrays so CLI's applyResults loop doesn't throw on index access
+  res.json({
+    impressions: rawImpressions.map(() => ({ ok: false, deliveryToken: "" })),
+    clicks: rawClicks.map(() => ({ ok: false, deliveryToken: "" })),
+    newsImpressions: newsImpressionResults,
+  })
 })
-
-async function ingestOneImpression(
-  item: IngestItem,
-  userId: string,
-  jtiMap: Map<string, string>
-): Promise<ImpressionResultItem> {
-  try {
-    const { claims, graceAccept } = await verifyDeliveryTokenForIngest(item.deliveryToken, userId)
-    const outcome = deriveOutcome(claims.issuedAt, graceAccept)
-
-    const impression = await impressionService.recordImpression({
-      creativeId: claims.creativeId,
-      deviceId: claims.deviceId,
-      userId: claims.userId,
-      surface: claims.surface,
-      durationMs: outcome.durationMs,
-      result: outcome.result,
-      deliveryJti: claims.jti,
-    })
-    jtiMap.set(claims.jti, impression.id)
-    return {
-      ok: true,
-      deliveryToken: item.deliveryToken,
-      impressionId: impression.id,
-      earnedAmount: impression.earnedAmount,
-      result: outcome.result,
-    }
-  } catch (err) {
-    return { ok: false, deliveryToken: item.deliveryToken, error: errorCode(err) }
-  }
-}
-
-async function ingestOneClick(
-  item: IngestItem,
-  userId: string,
-  jtiMap: Map<string, string>
-): Promise<ClickResultItem> {
-  try {
-    const claims = await verifyDeliveryTokenForClick(item.deliveryToken, userId)
-    const resolvedImpressionId = jtiMap.get(claims.jti)
-    const result = await impressionService.recordClickByJti(
-      claims.jti,
-      userId,
-      resolvedImpressionId
-    )
-    return {
-      ok: true,
-      deliveryToken: item.deliveryToken,
-      clickId: result.clickId,
-      earningsDelta: result.earningsDelta,
-    }
-  } catch (err) {
-    return { ok: false, deliveryToken: item.deliveryToken, error: errorCode(err) }
-  }
-}
-
-function errorCode(err: unknown): string {
-  if (err instanceof ApiError) return err.errorCode
-  return "internal_error"
-}

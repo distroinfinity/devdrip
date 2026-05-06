@@ -1,17 +1,13 @@
 # Summary
 
-- [DevDrip Engineering Docs](README.md)
-- [Agent Treasury Pivot](architecture/agent-treasury-pivot.md)
+- [Distro TV Engineering Docs](README.md)
 - [Architecture Overview](architecture/overview.md)
 - [Monorepo Layout](architecture/monorepo.md)
-- [World Chain Stack (deprecated)](architecture/chain.md)
-- [World Identity (deprecated)](architecture/identity.md)
 - [Channel Modes](architecture/channel-modes.md)
 - [Slot Content](architecture/slot-content.md)
 - [Backend API](backend/api.md)
 - [Data Model](backend/data-model.md)
 - [Landing And Waitlist](frontend/landing-and-waitlist.md)
-- [Mini App (deprecated)](frontend/mini-app.md)
 - [CLI Current State](cli/current-state.md)
 - [Daemon + Hook IPC](cli/daemon-and-hooks.md)
 - [News and Reading (CLI)](cli/news-and-reading.md)

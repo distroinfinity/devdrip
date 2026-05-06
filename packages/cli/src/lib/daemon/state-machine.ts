@@ -5,7 +5,7 @@ import {
   MAX_AD_DURATION_MS,
   MIN_COMPLETED_DURATION_MS,
   MUTE_DURATION_MS,
-} from "@devdrip/shared"
+} from "@distrotv/shared"
 import type { CachedSlot } from "../slot-cache.js"
 import type { ImpressionResult, LocalImpression, LocalNewsImpression } from "../ledger.js"
 
@@ -126,7 +126,7 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
   }
   if (event.kind === "grace-elapsed") {
     if (!event.ad) return { state: { kind: "IDLE" }, effects: [] }
-    const displayTimeMs = event.ad.payload.displayTimeMs
+    const displayTimeMs = event.ad.kind === "news" ? event.ad.displayTimeMs : MAX_AD_DURATION_MS
     const ms = Math.min(displayTimeMs, MAX_AD_DURATION_MS)
     return {
       state: { kind: "SHOWING", tty: state.tty, ad: event.ad, shownAt: event.now },
@@ -185,7 +185,7 @@ function stepShowing(
     // discover opens the advertiser URL in the browser AND keeps rotation
     // going so the user doesn't lose the ad stream while Claude is still busy.
     const base = endShowing(state, event.now, ctx, "completed", /*goToInterAd*/ true)
-    const deliveryToken = state.ad.kind === "ad" ? state.ad.payload.deliveryToken : ""
+    const deliveryToken = ""
     return {
       state: base.state,
       effects: [{ kind: "openDiscover", ad: state.ad, deliveryToken }, ...base.effects],
@@ -233,7 +233,7 @@ function stepInterAd(state: Extract<State, { kind: "INTER_AD" }>, event: Event):
     if (!event.ad) {
       return { state: { kind: "IDLE" }, effects: [] }
     }
-    const displayTimeMs = event.ad.payload.displayTimeMs
+    const displayTimeMs = event.ad.kind === "news" ? event.ad.displayTimeMs : MAX_AD_DURATION_MS
     const ms = Math.min(displayTimeMs, MAX_AD_DURATION_MS)
     return {
       state: { kind: "SHOWING", tty: state.tty, ad: event.ad, shownAt: event.now },
@@ -268,32 +268,11 @@ function endShowing(
     { kind: "vanishDisplay" },
     { kind: "cancelVanishTimer" },
   ]
-  // only emit recordImpression for ad slots — news slots have no ledger row
-  if (slot.kind === "ad") {
-    const adPayload = slot.payload
-    const impression: LocalImpression = {
-      id: randomUUID(),
-      adId: adPayload.id,
-      campaignId: adPayload.campaignId,
-      surface: "terminal-tv",
-      source: slot.cacheSource,
-      deliveryToken: adPayload.deliveryToken,
-      startedAt: state.shownAt,
-      durationMs,
-      result,
-      deviceId: ctx.deviceId,
-      // carry the server-advertised CPM into the ledger row so today's running
-      // total stays accurate without an API round-trip. backend recomputes
-      // authoritative earnings at sync time.
-      cpmRate: slot.cacheSource === "api" ? (adPayload.cpmRate ?? 0) : null,
-    }
-    cleanup.push({ kind: "recordImpression", impression, ad: slot })
-  }
   if (slot.kind === "news") {
     const newsImpression: LocalNewsImpression = {
       id: randomUUID(),
-      newsId: slot.payload.id,
-      source: slot.payload.source,
+      newsId: slot.id,
+      source: slot.source,
       deviceId: ctx.deviceId,
       durationMs,
       result,

@@ -27,7 +27,7 @@ const RATE_WINDOW_MS = 60 * 60 * 1000 // 1 hour
 const VALID_SOURCES: WaitlistSource[] = ["hero", "nav", "bottom"]
 
 async function hashIp(ip: string): Promise<string> {
-  const salt = process.env.IP_HASH_SALT || "devdrip"
+  const salt = process.env.IP_HASH_SALT || "distrotv"
   const data = new TextEncoder().encode(ip + salt)
   const hash = await crypto.subtle.digest("SHA-256", data)
   return Array.from(new Uint8Array(hash))
@@ -157,7 +157,7 @@ async function sendConfirmationEmail(email: string, position: number) {
   const result = await getResend().emails.send({
     from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
     to: email,
-    subject: "Request for Beta Access - Dev Drip",
+    subject: "Request for Beta Access - Distro TV",
     html,
   })
   console.log("email sent:", result)

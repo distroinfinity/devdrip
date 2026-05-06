@@ -3,69 +3,15 @@ import { apiFetch, ApiError, NotAuthenticatedError, reportError } from "../lib/a
 import { detectColor, dim, green, yellow } from "../lib/ansi.js"
 import { readConfig } from "../lib/config.js"
 import { processByteChunk, type KeyAction } from "../lib/daemon/input.js"
-import { DEMO_SLOTS } from "../lib/slot-cache-fixtures.js"
-import { renderBox, renderNewsBox } from "../lib/render-box.js"
-import { ChannelMode, type SlotContent, type NewsPayload } from "@devdrip/shared"
-
-interface AdNextResponse {
-  ad: {
-    id: string
-    campaign_id: string
-    format: "text" | "banner" | "sponsored-link"
-    headline: string
-    body?: string
-    url: string
-    display_time_ms: number
-    delivery_token: string
-  }
-}
-
-interface DemoAd {
-  headline: string
-  body?: string
-  url: string
-}
-
-async function pickAd(deviceId: string): Promise<DemoAd> {
-  try {
-    const body = await apiFetch<AdNextResponse | Record<string, unknown>>("/ads/next", {
-      query: { surface: "terminal-tv", deviceId },
-    })
-    if ("ad" in body && body.ad) {
-      const a = (body as AdNextResponse).ad
-      return { headline: a.headline, body: a.body, url: a.url }
-    }
-  } catch (err) {
-    // network / auth issues: fall through to the bundled fixture so the
-    // preview is still useful offline. NotAuthenticatedError is re-thrown so
-    // demo still behaves like init's pre-auth guard.
-    if (err instanceof NotAuthenticatedError) throw err
-    if (err instanceof ApiError) {
-      // 4xx/5xx: fall through
-    } else if (err instanceof TypeError && /fetch/i.test(err.message)) {
-      // connection refused: fall through
-    } else {
-      throw err
-    }
-  }
-  const fixture = DEMO_SLOTS[0]
-  if (!fixture) {
-    // unreachable — DEMO_SLOTS is a non-empty constant at module scope
-    return { headline: "DevDrip demo", body: undefined, url: "https://devdrip.sh" }
-  }
-  const p = fixture.kind === "ad" ? fixture.payload : null
-  return {
-    headline: p?.headline ?? "DevDrip demo",
-    body: p?.body,
-    url: p?.url ?? "https://devdrip.sh",
-  }
-}
+import { renderNewsBox } from "../lib/render-box.js"
+import { NewsSource } from "@distrotv/shared"
+import type { SlotPayload, NewsPayload } from "@distrotv/shared"
 
 interface ContentResponse {
-  items?: SlotContent[]
+  items?: SlotPayload[]
 }
 
-async function fetchOneSlot(deviceId: string): Promise<SlotContent | null> {
+async function fetchOneSlot(deviceId: string): Promise<SlotPayload | null> {
   try {
     const resp = await apiFetch<ContentResponse>("/me/content/next", {
       query: { deviceId, n: 1 },
@@ -81,9 +27,10 @@ async function fetchOneSlot(deviceId: string): Promise<SlotContent | null> {
 
 function fallbackNewsPayload(): NewsPayload {
   return {
+    kind: "news",
     id: "demo-hn:1",
-    source: "hn" as never, // matches NewsSource.HackerNews enum value
-    headline: "DevDrip TV — news demo (offline)",
+    source: NewsSource.HackerNews,
+    headline: "Distro TV — news demo (offline)",
     url: "https://news.ycombinator.com",
     score: 0,
     ageSeconds: 0,
@@ -139,39 +86,9 @@ function runKeyPractice(onAction: (a: KeyAction) => void): Promise<PracticeOutco
   })
 }
 
-async function runAdDemoOnce(deviceId: string, opts: { ascii?: boolean }): Promise<void> {
-  const ad = await pickAd(deviceId)
-  const color = detectColor()
-  const ascii = opts.ascii ?? false
-
-  console.log(
-    renderBox(ad, { includeUrl: true, demoBadge: true, ...(ascii ? { ascii: true } : {}) })
-  )
-  console.log(`  ${dim("[D] discover · [S] skip · [K] kill · [M] mute · [Enter] dismiss", color)}`)
-
-  // non-tty (CI, piped) — just print the box and exit, no key loop to hang on
-  if (!process.stdin.isTTY || ascii) {
-    console.log(`  ${dim("(run in an interactive terminal to practice keys)", color)}`)
-    return
-  }
-
-  const outcome = await runKeyPractice((action) => {
-    const msg =
-      action === "discover" ? `would open: ${ad.url}` : `${action} (demo — no real effect)`
-    process.stdout.write(`  ${yellow("✓", color)} ${msg}\n`)
-  })
-
-  const hitTarget = outcome.vanishMs < 200
-  const mark = hitTarget ? green("✓", color) : yellow("!", color)
-  console.log(`\n${mark} dismiss → vanish: ${outcome.vanishMs} ms (target <200 ms)`)
-  if (outcome.actions.length > 0) {
-    console.log(dim(`  practiced: ${outcome.actions.join(", ")}`, color))
-  }
-}
-
 async function runNewsDemoOnce(deviceId: string, opts: { ascii?: boolean }): Promise<void> {
   const slot = await fetchOneSlot(deviceId)
-  const payload: NewsPayload = slot && slot.kind === "news" ? slot.payload : fallbackNewsPayload()
+  const payload: NewsPayload = slot && slot.kind === "news" ? slot : fallbackNewsPayload()
 
   const color = detectColor()
   const ascii = opts.ascii ?? false
@@ -206,32 +123,18 @@ async function runNewsDemoOnce(deviceId: string, opts: { ascii?: boolean }): Pro
 
 export async function runDemo(opts: { ascii?: boolean } = {}): Promise<void> {
   const cfg = await readConfig()
-  if (!cfg) throw new NotAuthenticatedError("not signed in — run `devdrip auth` or `devdrip init`")
+  if (!cfg) throw new NotAuthenticatedError("not signed in — run `distro auth` or `distro init`")
 
   const deviceId = cfg.device?.id
   if (!deviceId) {
-    throw new Error("device not registered — run `devdrip init`")
+    throw new Error("device not registered — run `distro init`")
   }
 
-  const mode = cfg.preferences?.channelMode ?? ChannelMode.Mix
-
-  if (mode === ChannelMode.Earn) {
-    await runAdDemoOnce(deviceId, opts)
-    return
-  }
-  if (mode === ChannelMode.Learn) {
-    await runNewsDemoOnce(deviceId, opts)
-    return
-  }
-  // mix: two slots in sequence — show both content types so user sees what to expect
-  await runAdDemoOnce(deviceId, opts)
-  console.log("")
-  await new Promise((r) => setTimeout(r, 2000))
   await runNewsDemoOnce(deviceId, opts)
 }
 
 export const demoCmd = new Command("demo")
-  .description("fire a demo ad immediately")
+  .description("preview a news slot in your terminal")
   .option("--ascii", "force ASCII rendering + skip key practice (CI-friendly)")
   .action(async (opts: { ascii?: boolean }) => {
     try {

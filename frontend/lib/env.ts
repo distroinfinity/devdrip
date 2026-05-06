@@ -6,6 +6,6 @@ export const API_URL =
 export const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
 
 // marketing site URL — sign-in page links "new here? join waitlist" to this.
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://devdrip.xyz"
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://distrotv.xyz"
 
 export const IS_PROD = process.env.NODE_ENV === "production"

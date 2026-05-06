@@ -1,34 +1,33 @@
+// M1: ad slots ripped. M3 extends news; M4 adds "ticker" branch.
 import { randomUUID } from "node:crypto"
 import {
+  MAX_AD_DURATION_MS,
   MAX_ADS_PER_CONTINUOUS_SESSION,
   NIGHT_MODE_DEFAULT_START_HOUR,
   NIGHT_MODE_DEFAULT_END_HOUR,
   PROGRESS_CAP,
   PROGRESS_SNAP_HOLD_MS,
   PROGRESS_TICK_MS,
-  REVENUE_SHARE_DEVELOPER,
-  TOAST_HOLD_MS,
-  VALID_IMPRESSION_FOR_TOAST_MS,
   type DevdripPreferences,
-} from "@devdrip/shared"
+  type SlotKind,
+} from "@distrotv/shared"
 import type { SlotCache, CachedSlot } from "../slot-cache.js"
-import type { Ledger, LocalImpression, LocalNewsImpression } from "../ledger.js"
+import type { Ledger, LocalNewsImpression } from "../ledger.js"
 import type { KeyCapture } from "./input.js"
-import type { EarningsPopup, PopupPhase } from "../render-box.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
 
 export interface DisplayHandleApi {
   vanish: () => { latencyMs: number }
   onResize: (cb: () => void) => void
   flash: () => void
-  updateProgress: (progress: number, elapsedMs: number, popup: EarningsPopup | null) => void
+  updateProgress: (progress: number, elapsedMs: number) => void
 }
 
 export interface DisplayApi {
   show(
     ttyPath: string,
     slot: CachedSlot,
-    ctx: { earningsUsdc?: number; source?: string; width?: number }
+    ctx: { source?: string; width?: number }
   ): DisplayHandleApi
 }
 
@@ -40,7 +39,6 @@ export interface LoggerApi {
 }
 
 export type OpenUrl = (url: string) => void
-export type FireBeacon = (url: string) => void
 
 export interface OrchestratorDeps {
   slotCache: SlotCache
@@ -48,7 +46,6 @@ export interface OrchestratorDeps {
   display: DisplayApi
   keyCapture: KeyCapture
   openUrl: OpenUrl
-  fireBeacon: FireBeacon
   log: LoggerApi
   deviceId: string
   preferences: DevdripPreferences
@@ -109,26 +106,6 @@ function sigmoidProgress(elapsedMs: number, displayTimeMs: number): number {
   return Math.min(PROGRESS_CAP, s * PROGRESS_CAP)
 }
 
-// S3-05: earnings popup lives inside the TV box at the top-right and
-// pop-then-fades over TOAST_HOLD_MS. phase keys off how long since the popup
-// started showing (elapsedMs - VALID_IMPRESSION_FOR_TOAST_MS):
-//   [0, 500):        enter — bright + bold, reads as "pop"
-//   [500, hold-500): hold  — bright green
-//   [hold-500, hold): exit — dim, fading out
-//   after hold:      null  — gone, row goes back to blank padding
-function computePopup(elapsedMs: number, cpmRate: number, isApi: boolean): EarningsPopup | null {
-  if (!isApi || cpmRate <= 0) return null
-  if (elapsedMs < VALID_IMPRESSION_FOR_TOAST_MS) return null
-  const popupElapsed = elapsedMs - VALID_IMPRESSION_FOR_TOAST_MS
-  if (popupElapsed >= TOAST_HOLD_MS) return null
-  const deltaUsdc = (cpmRate / 1000) * REVENUE_SHARE_DEVELOPER
-  let phase: PopupPhase
-  if (popupElapsed < 500) phase = "enter"
-  else if (popupElapsed >= TOAST_HOLD_MS - 500) phase = "exit"
-  else phase = "hold"
-  return { deltaUsdc, phase }
-}
-
 // S3-14: sentinel key used when an event arrives without a tty (piped/CI
 // contexts, or single-terminal legacy clients). All such events route to one
 // dedicated session so behavior stays identical to the single-tty daemon.
@@ -151,8 +128,8 @@ interface Session {
   progressTimer: NodeJS.Timeout | null
   // the display handle for whatever ad is currently on THIS session's tty
   currentDisplay: DisplayHandleApi | null
-  // kind of the slot currently showing ("ad" | "news"), or null when idle
-  currentSlotKind: "ad" | "news" | null
+  // kind of the slot currently showing, or null when idle
+  currentSlotKind: SlotKind | null
   // per-session suppression bits
   sessionKilled: boolean
   adsInCurrentBusyWindow: number
@@ -280,9 +257,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       if (eff.kind === "snapProgressToComplete") {
         if (session.currentDisplay) {
           try {
-            // elapsedMs value doesn't matter here — progress=1 pins to 100%;
-            // popup=null so the 100% frame is clean of any mid-animation state.
-            session.currentDisplay.updateProgress(1.0, 0, null)
+            session.currentDisplay.updateProgress(1.0, 0)
           } catch (err) {
             deps.log.warn("progress snap failed", { error: (err as Error).message })
           }
@@ -297,7 +272,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
 
   function dispatch(event: Event): void {
     // count only socket-originated events (hooks), not internal timer callbacks.
-    // this lets `devdrip daemon status` answer "are hooks reaching the daemon?".
+    // this lets `distro daemon status` answer "are hooks reaching the daemon?".
     if (event.kind === "idle-start" || event.kind === "idle-end" || event.kind === "dismiss") {
       hooksReceivedCount += 1
     }
@@ -320,15 +295,15 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         try {
           deps.ledger.recordReadingPending({
             id: randomUUID(),
-            newsId: slot.payload.id,
-            source: slot.payload.source,
-            headline: slot.payload.headline,
-            url: slot.payload.url,
-            score: slot.payload.score,
+            newsId: slot.id,
+            source: slot.source,
+            headline: slot.headline,
+            url: slot.url,
+            score: slot.score,
             savedAt: now(),
           })
           session.savedNews = true
-          deps.log.info("news saved", { newsId: slot.payload.id })
+          deps.log.info("news saved", { newsId: slot.id })
           if (session.currentDisplay) {
             try {
               session.currentDisplay.flash()
@@ -406,7 +381,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         }
         return
       case "displayAd": {
-        const payloadId = effect.ad.payload.id
+        const payloadId = effect.ad.kind === "news" ? effect.ad.id : effect.ad.symbol
         if (!effect.tty) {
           deps.log.warn("display skipped: no tty path", { payloadId })
           queueMicrotask(() => dispatch({ kind: "dismiss", now: now(), tty: session.tty }))
@@ -427,14 +402,8 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             dispatch({ kind: "dismiss", now: now(), tty: session.tty })
           })
           deps.keyCapture.start(effect.tty)
-          // caps are ad-fatigue guards, not slot-fatigue. news doesn't count.
-          if (effect.ad.kind === "ad") {
-            session.adsInCurrentBusyWindow += 1
-            const nowMs = now()
-            hourlyTimestamps.push(nowMs)
-            dailyTimestamps.push(nowMs)
-          }
-          const displayTimeMs = effect.ad.kind === "ad" ? effect.ad.payload.displayTimeMs : 0
+          const displayTimeMs =
+            effect.ad.kind === "news" ? effect.ad.displayTimeMs : MAX_AD_DURATION_MS
           deps.log.info("showing slot", {
             payloadId,
             kind: effect.ad.kind,
@@ -459,17 +428,12 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         if (session.progressTimer) clearInterval(session.progressTimer)
         const shownAt = effect.shownAt
         const displayTimeMs = effect.displayTimeMs
-        // snapshot ad identity fields for the tick closure so the popup
-        // decision doesn't depend on state-machine state that may shift.
-        const tickAdCpm = effect.ad?.kind === "ad" ? (effect.ad.payload.cpmRate ?? 0) : 0
-        const tickAdIsApi = effect.ad?.kind === "ad" && (effect.ad.cacheSource ?? "demo") === "api"
         session.progressTimer = setInterval(() => {
           if (!session.currentDisplay) return
           const elapsed = Math.max(0, now() - shownAt)
           const p = sigmoidProgress(elapsed, displayTimeMs)
-          const popup = computePopup(elapsed, tickAdCpm, tickAdIsApi)
           try {
-            session.currentDisplay.updateProgress(p, elapsed, popup)
+            session.currentDisplay.updateProgress(p, elapsed)
           } catch (err) {
             deps.log.warn("progress tick failed", { error: (err as Error).message })
           }
@@ -521,9 +485,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           } catch (err) {
             deps.log.warn("vanish failed", { error: (err as Error).message })
           }
-          // only count ad slots; news slots must not inflate the ads-shown metric.
-          // only count when something was actually rendered (null-tty paths skip this).
-          if (session.currentSlotKind === "ad") adsShownCount += 1
+          adsShownCount += 1
           session.currentDisplay = null
           session.currentSlotKind = null
         }
@@ -578,57 +540,21 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         return
       case "openDiscover": {
         try {
-          deps.openUrl(effect.ad.payload.url)
+          if (effect.ad.kind === "news") deps.openUrl(effect.ad.url)
         } catch (err) {
           deps.log.warn("openUrl failed", { error: (err as Error).message })
         }
-        // ad-only: ledger click row + click-tracking beacon.
-        // news clicks are recorded server-side via the news impression's openedUrl flag (Task 22).
-        if (effect.ad.kind === "ad") {
-          try {
-            deps.ledger.recordClick({
-              id: randomUUID(),
-              deliveryToken: effect.deliveryToken,
-              createdAt: now(),
-            })
-          } catch (err) {
-            deps.log.warn("click ledger write failed", { error: (err as Error).message })
-          }
-          if (effect.ad.payload.clickTrackingUrl)
-            deps.fireBeacon(effect.ad.payload.clickTrackingUrl)
-        }
+        // news clicks recorded server-side via openedUrl flag on news impression
         return
       }
     }
   }
 
-  function handleRecord(imp: LocalImpression, slot: CachedSlot): void {
+  function handleRecord(_imp: unknown, slot: CachedSlot): void {
     if (slot.kind === "news") {
-      // news impressions are ledgered separately (Task 22 wires this).
-      deps.log.debug("skipping ad-ledger write for news slot", { newsId: slot.payload.id })
+      // news impressions are ledgered separately via recordNewsImpression
+      deps.log.debug("skipping ad-ledger write for news slot", { newsId: slot.id })
       return
-    }
-    if (imp.source === "demo") {
-      deps.log.debug("skipping ledger write for demo ad", { adId: imp.adId })
-      return
-    }
-    try {
-      deps.ledger.record(imp)
-      deps.log.info("vanished ad", {
-        adId: imp.adId,
-        result: imp.result,
-        durationMs: imp.durationMs,
-      })
-    } catch (err) {
-      deps.log.warn("ledger write failed", {
-        adId: imp.adId,
-        error: (err as Error).message,
-      })
-    }
-    // Viewable-impression beacon: MRC desktop-display rule (≥1s on screen).
-    const impressionBeaconUrl = slot.payload.impressionBeaconUrl
-    if (imp.result !== "skipped" && imp.durationMs >= 1_000 && impressionBeaconUrl) {
-      deps.fireBeacon(impressionBeaconUrl)
     }
   }
 
@@ -676,14 +602,8 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     return null
   }
 
-  // silently picks the next slot to show, or returns null if:
-  //   - any user/global cap is hit (silent skip — caller emits a null-ad event
-  //     so the state machine goes back to IDLE/INTER_AD), or
-  //   - every candidate in the cache has already hit its per-campaign daily
-  //     cap. capped here at CAMPAIGN_CAP_RETRIES so one exhausted campaign can't
-  //     drain the entire cache in a hot loop.
+  // silently picks the next slot to show, or returns null if any cap is hit.
   // context: "grace" | "inter-ad" is used only for log correlation.
-  const CAMPAIGN_CAP_RETRIES = 5
   function pickNextSlot(
     session: Session,
     firedAt: number,
@@ -694,35 +614,12 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       deps.log.debug("slot suppressed", { context, reason, tty: session.tty })
       return null
     }
-    for (let attempt = 0; attempt < CAMPAIGN_CAP_RETRIES; attempt++) {
-      const slot = deps.slotCache.next()
-      if (!slot) {
-        if (attempt === 0) deps.log.debug("cache empty", { context })
-        return null
-      }
-      // campaign-cap check only applies to ad slots — news has no campaigns.
-      if (slot.kind === "ad") {
-        const ad = slot.payload
-        const cap = ad.campaignMaxImpressionsPerDay
-        if (typeof cap === "number" && cap > 0) {
-          // UTC day, not local — mirrors the backend's utcDate() Redis key so
-          // both sides agree at midnight. see ledger.ts for the full rationale.
-          const seen = deps.ledger.countImpressionsByCampaignOnUtcDay(ad.campaignId, firedAt)
-          if (seen >= cap) {
-            deps.log.debug("campaign-cap hit, trying next cached slot", {
-              campaignId: ad.campaignId,
-              cap,
-              seen,
-              attempt,
-            })
-            continue
-          }
-        }
-      }
-      return slot
+    const slot = deps.slotCache.next()
+    if (!slot) {
+      deps.log.debug("cache empty", { context })
+      return null
     }
-    deps.log.debug("every candidate hit a campaign cap", { context })
-    return null
+    return slot
   }
 
   function updatePreferences(next: DevdripPreferences): void {

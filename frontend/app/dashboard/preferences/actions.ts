@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation"
 import { putPreferences, type UpdatePreferencesBody } from "@/lib/dashboard-api"
 import { ApiError, UnauthenticatedError } from "@/lib/api"
-import type { SyncedPreferences } from "@devdrip/shared"
+import type { SyncedPreferences } from "@distrotv/shared"
 
 export interface SaveResult {
   ok: boolean

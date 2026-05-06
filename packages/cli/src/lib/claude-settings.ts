@@ -23,8 +23,8 @@ export interface Settings {
   [k: string]: unknown
 }
 
-const DEVDRIP_BIN_RE = /^devdrip(?:\.js|\.mjs|\.cjs|\.exe)?$/i
-const DEVDRIP_COMMAND_RE =
+const DISTRO_BIN_RE = /^(?:distro|dtv)(?:\.js|\.mjs|\.cjs|\.exe)?$/i
+const DISTRO_COMMAND_RE =
   /^\s*(?:"((?:\\.|[^"])*)"|'([^']*)'|(\S+))\s+hook\s+(pre-tool|stop|prompt-submit|session-start)(?:\s|$)/
 
 export type HookEvent = "PreToolUse" | "Stop" | "UserPromptSubmit" | "SessionStart"
@@ -48,7 +48,7 @@ function unescapeDoubleQuoted(value: string): string {
 }
 
 function parseDevdripCommand(command: string): { binPath: string; sub: Sub } | null {
-  const match = DEVDRIP_COMMAND_RE.exec(command)
+  const match = DISTRO_COMMAND_RE.exec(command)
   if (!match) return null
 
   const quotedDouble = match[1]
@@ -58,7 +58,7 @@ function parseDevdripCommand(command: string): { binPath: string; sub: Sub } | n
   const binPath =
     quotedDouble !== undefined ? unescapeDoubleQuoted(quotedDouble) : (quotedSingle ?? bare ?? "")
 
-  if (!DEVDRIP_BIN_RE.test(basename(binPath))) return null
+  if (!DISTRO_BIN_RE.test(basename(binPath))) return null
   return { binPath, sub }
 }
 

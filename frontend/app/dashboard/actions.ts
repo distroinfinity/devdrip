@@ -1,7 +1,7 @@
 "use server"
 
 import { redirect } from "next/navigation"
-import { ChannelMode } from "@devdrip/shared"
+import type { ChannelMode } from "@distrotv/shared"
 import { putPreferences, deleteReadingItem as apiDeleteReadingItem } from "@/lib/dashboard-api"
 import { ApiError, UnauthenticatedError } from "@/lib/api"
 

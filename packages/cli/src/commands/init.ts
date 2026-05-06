@@ -4,10 +4,11 @@ import { lstatSync, mkdirSync, realpathSync, statSync, symlinkSync, unlinkSync }
 import { join } from "node:path"
 import { Command } from "commander"
 import { intro, outro, log, note } from "@clack/prompts"
-import type { AdCategory } from "@devdrip/shared"
-import { ChannelMode } from "@devdrip/shared"
+import type { AdCategory } from "@distrotv/shared"
+import { ChannelMode } from "@distrotv/shared"
 import { ApiError, NotAuthenticatedError, reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
+import { defaultDevdripPreferences } from "@distrotv/shared"
 import {
   readSettings,
   writeSettingsAtomic,
@@ -18,8 +19,7 @@ import { putPreferences } from "../lib/preferences-client.js"
 import { pickCategories, pickChannelMode } from "../lib/prompts/preferences.js"
 import { runInitHealthCheck } from "../lib/health.js"
 import { runDemo } from "./demo.js"
-import { registerDevice } from "../lib/device.js"
-import { runLogin } from "./login.js"
+import { registerAnonDevice, refreshDeviceMetadata } from "../lib/device.js"
 
 function claudeDir(): string {
   return join(homedir(), ".claude")
@@ -30,11 +30,15 @@ function claudeSettingsPath(): string {
 }
 
 function claudeBackupPath(): string {
-  return `${claudeSettingsPath()}.devdrip-backup`
+  return `${claudeSettingsPath()}.distro-backup`
 }
 
-function devdripBinLinkPath(): string {
-  return join(homedir(), ".devdrip", "bin", "devdrip")
+function distroBinLinkPath(): string {
+  return join(homedir(), ".distro", "bin", "distro")
+}
+
+function dtvBinLinkPath(): string {
+  return join(homedir(), ".distro", "bin", "dtv")
 }
 
 function tryUnlink(p: string): void {
@@ -47,9 +51,9 @@ function tryUnlink(p: string): void {
   unlinkSync(p)
 }
 
-// returns a stable user-scoped path (~/.devdrip/bin/devdrip) that symlinks to
+// returns a stable user-scoped path (~/.distro/bin/distro) that symlinks to
 // the currently running binary. writing this into settings.json hooks means a
-// worktree deletion can be recovered by re-running `devdrip init` from any
+// worktree deletion can be recovered by re-running `distro init` from any
 // working build — the symlink retargets, the hook entries never change.
 function resolveBinPath(): string {
   const arg = process.argv[1]
@@ -63,28 +67,19 @@ function resolveBinPath(): string {
     return arg
   }
 
-  const linkPath = devdripBinLinkPath()
+  const linkPath = distroBinLinkPath()
+  const dtvPath = dtvBinLinkPath()
   try {
     mkdirSync(join(linkPath, ".."), { recursive: true, mode: 0o700 })
     tryUnlink(linkPath)
     symlinkSync(source, linkPath)
+    tryUnlink(dtvPath)
+    symlinkSync(source, dtvPath)
     return linkPath
   } catch {
     log.warn(`could not install ${linkPath} symlink — using direct binary path`)
     return source
   }
-}
-
-async function ensureAuth(): Promise<void> {
-  const cfg = await readConfig()
-  if (cfg) {
-    log.success(`signed in as @${cfg.user.githubLogin || cfg.user.email}`)
-    return
-  }
-  log.info("no local session — starting GitHub sign-in…")
-  await runLogin(false)
-  const after = await readConfig()
-  if (!after) throw new NotAuthenticatedError("sign-in did not complete")
 }
 
 async function ensureClaudeDir(): Promise<void> {
@@ -99,21 +94,48 @@ async function ensureClaudeDir(): Promise<void> {
 
 async function ensureDevice(): Promise<{ deviceId: string }> {
   const cfg = await readConfig()
-  if (!cfg) throw new NotAuthenticatedError()
 
-  const previousId = cfg.device?.id
-  const device = await registerDevice()
-  await writeConfig({
-    apiUrl: cfg.apiUrl,
-    auth: cfg.auth,
-    user: cfg.user,
-    device: { id: device.id },
-    cli: cfg.cli,
-    preferences: cfg.preferences,
-  })
-  const status = previousId && previousId === device.id ? "confirmed" : "registered"
-  log.success(`device ${status}: ${hostname()} (${platform()}/${device.ideType})`)
-  return { deviceId: device.id }
+  if (!cfg || (!cfg.device.id && !cfg.device.secret)) {
+    // fresh machine — anon registration; no auth needed
+    const { userId, deviceId, deviceSecret } = await registerAnonDevice()
+    await writeConfig({
+      apiUrl: process.env["DISTRO_API_URL"] ?? "https://distrotv-api-production.up.railway.app",
+      auth: null,
+      user: { id: userId },
+      device: { id: deviceId, secret: deviceSecret },
+      cli: { binPath: "" },
+      preferences: defaultDevdripPreferences(),
+    })
+    log.success(`device registered (anon): ${hostname()} (${platform()})`)
+    return { deviceId }
+  }
+
+  // existing config: refresh device metadata via authed re-registration
+  // gracefully skip if the device bearer is present but /devices POST fails
+  // (e.g. machineIdHash already registered under this user)
+  try {
+    const device = await refreshDeviceMetadata()
+    await writeConfig({
+      apiUrl: cfg.apiUrl,
+      auth: cfg.auth,
+      user: cfg.user,
+      device: { id: device.id, secret: cfg.device.secret },
+      cli: cfg.cli,
+      preferences: cfg.preferences,
+    })
+    const status = cfg.device.id && cfg.device.id === device.id ? "confirmed" : "registered"
+    log.success(`device ${status}: ${hostname()} (${platform()}/${device.ideType})`)
+    return { deviceId: device.id }
+  } catch (err) {
+    // if re-registration fails (network down, conflict), fall back to existing id
+    if (cfg.device.id) {
+      log.warn(
+        `device refresh skipped (${err instanceof Error ? err.message : String(err)}) — using cached id`
+      )
+      return { deviceId: cfg.device.id }
+    }
+    throw err
+  }
 }
 
 async function savePreferences(blocked: AdCategory[], channelMode: ChannelMode): Promise<void> {
@@ -144,7 +166,7 @@ async function installHooks(): Promise<void> {
   const backupPath = claudeBackupPath()
   const binPath = resolveBinPath()
   if (!binPath.trim()) {
-    throw new Error("unable to resolve the devdrip binary path for Claude hooks")
+    throw new Error("unable to resolve the distro binary path for Claude hooks")
   }
 
   await writeBackupOnce(settingsPath, backupPath)
@@ -173,21 +195,21 @@ async function installHooks(): Promise<void> {
   log.success(`hooks installed in ${settingsPath}`)
 }
 
-async function previewAd(): Promise<void> {
-  log.step("preview ad from the real pipeline")
+async function previewSlot(): Promise<void> {
+  log.step("previewing first slot")
   try {
     await runDemo()
   } catch (err) {
     if (err instanceof ApiError || err instanceof NotAuthenticatedError) {
-      log.warn("preview unavailable — run `devdrip demo` after your next Claude session")
+      log.warn("preview unavailable — run `distro demo` after your next Claude session")
       return
     }
-    if (err instanceof Error && err.message === "device not registered — run `devdrip init`") {
-      log.warn("preview unavailable — run `devdrip demo` after your next Claude session")
+    if (err instanceof Error && err.message === "device not registered — run `distro init`") {
+      log.warn("preview unavailable — run `distro demo` after your next Claude session")
       return
     }
     if (err instanceof TypeError && /fetch/i.test(err.message)) {
-      log.warn("preview unavailable — run `devdrip demo` after your next Claude session")
+      log.warn("preview unavailable — run `distro demo` after your next Claude session")
       return
     }
     throw err
@@ -212,8 +234,8 @@ async function runHealthCheck(): Promise<boolean> {
 function printSummary(): void {
   note(
     [
-      "→ dashboard: https://devdrip.xyz/dashboard",
-      "→ run `devdrip status` to see your earnings",
+      "→ dashboard: https://distrotv.xyz/dashboard",
+      "→ run `distro status` to see daemon + slot status",
     ].join("\n"),
     "what's next"
   )
@@ -230,21 +252,20 @@ async function ensureDaemonRunning(): Promise<void> {
     const { runStart } = await import("./daemon.js")
     const code = await runStart()
     if (code !== 0) {
-      log.warn("daemon failed to start — run `devdrip daemon start` manually")
+      log.warn("daemon failed to start — run `distro daemon start` manually")
     } else {
       log.success("daemon started")
     }
   } catch (err) {
     log.warn(
-      `daemon start skipped (${err instanceof Error ? err.message : String(err)}) — run \`devdrip daemon start\` manually`
+      `daemon start skipped (${err instanceof Error ? err.message : String(err)}) — run \`distro daemon start\` manually`
     )
   }
 }
 
 export async function runInit(): Promise<void> {
-  intro("devdrip init — let's get you earning")
+  intro("distro init — let's get you earning")
 
-  await ensureAuth()
   await ensureClaudeDir()
   await ensureDevice()
 
@@ -264,7 +285,7 @@ export async function runInit(): Promise<void> {
 
   await installHooks()
   await ensureDaemonRunning()
-  await previewAd()
+  await previewSlot()
 
   const ok = await runHealthCheck()
   printSummary()

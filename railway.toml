@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "pnpm install --frozen-lockfile && pnpm turbo run build --filter=@devdrip/api"
+buildCommand = "pnpm install --frozen-lockfile && pnpm turbo run build --filter=@distrotv/api"
 watchPatterns = ["packages/api/**", "packages/shared/**"]
 
 [deploy]

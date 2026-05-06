@@ -7,7 +7,7 @@ const binPath = join(__dirname, "..", "..", "..", "dist", "index.js")
 
 beforeAll(() => {
   if (!existsSync(binPath)) {
-    throw new Error(`CLI not built at ${binPath} — run \`pnpm --filter @devdrip/cli build\` first`)
+    throw new Error(`CLI not built at ${binPath} — run \`pnpm --filter @distrotv/cli build\` first`)
   }
 })
 

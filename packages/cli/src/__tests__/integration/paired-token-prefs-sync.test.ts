@@ -9,7 +9,7 @@ import { join } from "node:path"
 // byte-equivalent to today's /auth/exchange token shape — meaning the existing
 // daemon prefs-sync code path keeps working with zero changes.
 
-const API_URL = process.env["DEVDRIP_INTEGRATION_API_URL"] ?? "http://127.0.0.1:3401"
+const API_URL = process.env["DISTRO_INTEGRATION_API_URL"] ?? "http://127.0.0.1:3401"
 
 // Resolve the API entry + package dir relative to this test file so it works
 // regardless of the cwd vitest is launched from. Spawning with cwd=apiPkgDir
@@ -44,10 +44,10 @@ async function waitForApi(url: string, timeoutMs: number): Promise<void> {
   throw new Error(`API did not become healthy at ${url} within ${timeoutMs}ms`)
 }
 
-// Skip by default — only runs when DEVDRIP_INTEGRATION_RUN=1 is set, since it
+// Skip by default — only runs when DISTRO_INTEGRATION_RUN=1 is set, since it
 // requires a live Postgres + the API entry to be runnable. CI gates this via a
 // dedicated job (see PR description).
-const RUN = process.env["DEVDRIP_INTEGRATION_RUN"] === "1"
+const RUN = process.env["DISTRO_INTEGRATION_RUN"] === "1"
 
 describe.skipIf(!RUN)("paired token prefs-sync compat", () => {
   beforeAll(async () => {

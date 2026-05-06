@@ -1,7 +1,7 @@
 import { chmodSync, mkdirSync, renameSync } from "node:fs"
 import { join } from "node:path"
 import Database, { type Statement } from "better-sqlite3"
-import { REVENUE_SHARE_DEVELOPER } from "@devdrip/shared"
+import { REVENUE_SHARE_DEVELOPER } from "@distrotv/shared"
 import { configDir } from "./config.js"
 
 export type ImpressionResult = "completed" | "skipped" | "expired" | "interrupted"
@@ -258,7 +258,7 @@ export function openLedger(): Ledger {
 
   db.pragma("journal_mode = WAL")
   db.pragma("synchronous = NORMAL")
-  // prevents SQLITE_BUSY errors when the daemon and `devdrip sync --force` write concurrently
+  // prevents SQLITE_BUSY errors when the daemon and `distro sync --force` write concurrently
   db.pragma("busy_timeout = 5000")
   runMigrations(db)
 

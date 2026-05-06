@@ -1,8 +1,8 @@
 import { and, desc, eq, sql } from "drizzle-orm"
-import type { NewsSource } from "@devdrip/shared"
+import type { NewsSource } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { readingListItems } from "../db/schema/reading_list_items.js"
-import { newsImpressions } from "../db/schema/news_impressions.js"
+import { slotImpressions } from "../db/schema/slot_impressions.js"
 import { ConflictError, NotFoundError, pgErrorCode } from "../errors/index.js"
 
 export interface SaveReadingItemInput {
@@ -70,17 +70,19 @@ export async function deleteReadingItem(userId: string, id: string) {
 }
 
 // utility: count news impressions in last N days (used by stories-read card)
+// kind='news' filter: slot_impressions now also holds ticker/sponsored rows
 export async function countNewsImpressionsLastNDays(userId: string, days: number): Promise<number> {
   // bound the spliced interval so callers can't pass NaN, Infinity, or huge values
   const safeDays = Number.isFinite(days) && days > 0 ? Math.min(Math.floor(days), 365) : 1
   const db = getDb()
   const [row] = await db
     .select({ count: sql<number>`count(*)::int`.as("count") })
-    .from(newsImpressions)
+    .from(slotImpressions)
     .where(
       and(
-        eq(newsImpressions.userId, userId),
-        sql`${newsImpressions.createdAt} >= now() - interval ${sql.raw(`'${safeDays} days'`)}`
+        eq(slotImpressions.userId, userId),
+        eq(slotImpressions.kind, "news"),
+        sql`${slotImpressions.createdAt} >= now() - interval ${sql.raw(`'${safeDays} days'`)}`
       )
     )
   return row?.count ?? 0

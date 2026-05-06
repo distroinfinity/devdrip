@@ -10,49 +10,6 @@ export enum AdCategory {
   SaasProducts = "saas-products",
 }
 
-export enum AdSource {
-  Direct = "direct",
-  Carbon = "carbon",
-  EthicalAds = "ethicalads",
-  Google = "google",
-  Amazon = "amazon",
-  X402 = "x402",
-}
-
-export enum AdSurface {
-  TerminalTv = "terminal-tv",
-  CompanionTab = "companion-tab",
-  IdleDashboard = "idle-dashboard",
-  Digest = "digest",
-  Challenge = "challenge",
-  Audio = "audio",
-}
-
-export enum IdleState {
-  Active = "active",
-  Warming = "warming",
-  Idle = "idle",
-}
-
-export enum CampaignStatus {
-  Draft = "draft",
-  Active = "active",
-  Paused = "paused",
-  Completed = "completed",
-}
-
-export enum EarningStatus {
-  Pending = "pending",
-  Confirmed = "confirmed",
-}
-
-export enum PayoutStatus {
-  Pending = "pending",
-  Processing = "processing",
-  Confirmed = "confirmed",
-  Failed = "failed",
-}
-
 export enum ImpressionResult {
   Completed = "completed",
   Skipped = "skipped",
@@ -68,55 +25,14 @@ export enum ChannelMode {
   Mix = "mix", // alternates 1:1 (default)
 }
 
-export enum NewsSource {
-  HackerNews = "hn",
-}
-
-// MVP placeholder so the field validates. v1.1 adds Ai/Devtools/Startups/Career.
-export enum NewsTopic {
-  General = "general",
-}
-
-// ── billing ─────────────────────────────────────────────────────────────────
-
-export interface BillingInfo {
-  method: "stripe" | "crypto" | "invoice"
-  stripeCustomerId?: string
-  walletAddress?: string
-  billingEmail?: string
-  taxId?: string
-}
-
-// ── targeting ───────────────────────────────────────────────────────────────
-
-export interface TargetingRules {
-  geoAllow?: string[]
-  geoDeny?: string[]
-  osAllow?: string[]
-  ideAllow?: IdeType[]
-  minIdleMs?: number
-  maxImpressions?: number
-}
+export { NewsSource, NewsTopic } from "./news.js"
+import type { NewsTopic } from "./news.js"
 
 // ── types ───────────────────────────────────────────────────────────────────
-
-export type AdFormat = "text" | "banner" | "sponsored-link"
 
 export type IdeType = "terminal" | "vscode" | "cursor"
 
 // ── interfaces ──────────────────────────────────────────────────────────────
-
-export interface UserPreferences {
-  maxAdsPerHour: number
-  maxAdsPerDay: number
-  blockedCategories: AdCategory[]
-  enabledSurfaces: AdSurface[]
-  quietHoursStart?: number
-  quietHoursEnd?: number
-  tzOffsetMinutes: number
-  idleSensitivityMs: number
-  dataSharingConsent: boolean
-}
 
 // Synced preferences — round-tripped via GET/PUT /me/preferences. Server is
 // source of truth; updatedAt drives last-write-wins between dashboard + CLI.
@@ -148,18 +64,6 @@ export interface LocalPreferences {
 
 export type DevdripPreferences = SyncedPreferences & LocalPreferences
 
-export interface User {
-  id: string
-  email: string
-  walletAddress?: string
-  preferences: UserPreferences
-  balance: number
-  monthlyEarnings: number
-  streakDays: number
-  createdAt: string
-  updatedAt: string
-}
-
 export interface Device {
   id: string
   userId: string
@@ -170,200 +74,11 @@ export interface Device {
   createdAt: string
 }
 
-export interface Ad {
-  id: string
-  campaignId: string
-  format: AdFormat
-  headline: string
-  body?: string
-  url: string
-  displayTimeMs: number
-  cpmRate: number
-  surface: AdSurface
-  source: AdSource
-  category: AdCategory
-  createdAt: string
-}
+// ── slot payload types ─────────────────────────────────────────────────────
 
-export interface AdPayload {
-  id: string
-  campaignId: string
-  format: AdFormat
-  headline: string
-  body?: string
-  url: string
-  displayTimeMs: number
-  // cpmRate propagates server→client so the CLI can render an optimistic
-  // "+$0.XX earned" toast without a round-trip. Backend remains the source of
-  // truth at sync time; this is a display hint only.
-  cpmRate: number
-  impressionBeaconUrl?: string
-  clickTrackingUrl?: string
-  // per-campaign daily cap hint from `targeting_rules.maxImpressions`. daemon
-  // counts today's local-day impressions for this campaignId in the ledger and
-  // silently skips if the count is already ≥ this. omitted when the campaign
-  // has no cap set. the backend enforces the same cap authoritatively (in
-  // Redis, per UTC day); this is a secondary client-side guard that protects
-  // users against cached ads over-firing when offline or between sync windows.
-  campaignMaxImpressionsPerDay?: number
-}
-
-export interface ServedAdPayload extends AdPayload {
-  deliveryToken: string
-}
-
-export interface Advertiser {
-  id: string
-  name: string
-  email: string
-  companyName: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface Campaign {
-  id: string
-  advertiserId: string
-  name: string
-  budget: number
-  spent: number
-  cpmRate: number
-  dailyCap: number
-  startDate: string
-  endDate: string
-  status: CampaignStatus
-  targetCategories: AdCategory[]
-  targetSurfaces: AdSurface[]
-  createdAt: string
-  updatedAt: string
-}
-
-export interface Impression {
-  id: string
-  userId: string
-  adId: string
-  campaignId: string
-  surface: AdSurface
-  result: ImpressionResult
-  displayDurationMs: number
-  cpmRate: number
-  earnedAmount: number
-  createdAt: string
-}
-
-export interface Earning {
-  id: string
-  userId: string
-  impressionId: string
-  amount: number
-  surface: AdSurface
-  adCategory: AdCategory
-  status: EarningStatus
-  createdAt: string
-}
-
-export interface Payout {
-  id: string
-  userId: string
-  amount: number
-  txHash?: string
-  walletAddress: string
-  status: PayoutStatus
-  createdAt: string
-  confirmedAt?: string
-}
-
-// ── earnings api ────────────────────────────────────────────────────────────
-
-export interface EarningsSummary {
-  balance: number
-  today: number
-  week: number
-  month: number
-  allTime: number
-  streakDays: number
-  totalImpressions: number
-  totalClicks: number
-  topCategories: { category: AdCategory; amountUsdc: number }[]
-}
-
-export interface EarningsTimeseriesPoint {
-  // YYYY-MM-DD in the user's tz
-  date: string
-  amount: number
-}
-
-export interface EarningsTimeseries {
-  days: number
-  granularity: "day"
-  points: EarningsTimeseriesPoint[]
-}
-
-// ── admin ───────────────────────────────────────────────────────────────────
-
-export interface AdminStatsBlock {
-  impressionsCount: number
-  spendUsdc: number
-  earningsUsdc: number
-}
-
-export interface AdminStats {
-  today: AdminStatsBlock
-  lifetime: AdminStatsBlock
-  // live snapshot — not date-filtered, so lives outside the today/lifetime blocks
-  activeCampaignsCount: number
-}
-
-export interface InviteCode {
-  id: string
-  code: string
-  usedBy: string | null
-  usedAt: string | null
-  createdAt: string
-}
-
-export interface AdminUser {
-  id: string
-  githubLogin: string | null
-  email: string
-  hasWallet: boolean
-  lifetimeEarningsUsdc: number
-  createdAt: string
-}
-
-// ── slot content union ─────────────────────────────────────────────────────
-
-// content-agnostic slot envelope. adding a new content type means a new variant
-// here + a new render branch in cli daemon display.ts (exhaustiveness-checked).
-export interface AdSlot {
-  kind: "ad"
-  payload: ServedAdPayload
-}
-
-export interface NewsSlot {
-  kind: "news"
-  payload: NewsPayload
-}
-
-export type SlotContent = AdSlot | NewsSlot
-
-export interface NewsPayload {
-  // namespaced id: "hn:38291043" — keeps the dedup set source-agnostic
-  id: string
-  source: NewsSource
-  headline: string
-  url: string
-  score: number
-  commentsUrl?: string
-  // server computes at fetch time; daemon renders "1h" / "3d"
-  ageSeconds: number
-  // server-set, default ~10s. lives on the payload so different content types
-  // can carry different defaults.
-  displayTimeMs: number
-}
-
-// ── ad provider ────────────────────────────────────────────────────────────
-
-export { type AdRequest, type AdProvider } from "./ad-provider.js"
-
-export * from "./chain.js"
+export type { NewsPayload } from "./NewsPayload.js"
+export type { TickerPayload, TickerStats } from "./TickerPayload.js"
+export type { SlotPayload, SlotKind, SlotLayout } from "./SlotPayload.js"
+export type { WatchlistDto } from "./WatchlistDto.js"
+export type { AlertDto } from "./AlertDto.js"
+export type { ChannelDto } from "./ChannelDto.js"

@@ -29,7 +29,7 @@ async function probeAuth(): Promise<Probe> {
       name: "auth valid (GET /me)",
       ok: false,
       detail: errDetail(err),
-      fix: "run `devdrip auth`",
+      fix: "run `distro auth`",
     }
   }
 }
@@ -41,7 +41,7 @@ async function probeDevice(cfg: DevdripConfig): Promise<Probe> {
       name: "device registered",
       ok: false,
       detail: "no device.id in config",
-      fix: "run `devdrip init`",
+      fix: "run `distro init`",
     }
   }
   return { name: "device registered", ok: true, detail: `id: ${id.slice(0, 8)}…` }
@@ -60,14 +60,14 @@ async function probeHooks(settingsPath: string, binPath: string): Promise<Probe>
           : binPath.length === 0
             ? "no cli.binPath in config"
             : `missing events: ${missing.join(", ")}`,
-      ...(missing.length === 0 ? {} : { fix: "run `devdrip init`" }),
+      ...(missing.length === 0 ? {} : { fix: "run `distro init`" }),
     }
   } catch (err) {
     return {
       name: "hooks installed in ~/.claude/settings.json",
       ok: false,
       detail: errDetail(err),
-      fix: "run `devdrip init`",
+      fix: "run `distro init`",
     }
   }
 }
@@ -93,7 +93,7 @@ async function probeDaemon(): Promise<Probe> {
       name: "daemon running",
       ok: false,
       detail: "not running",
-      fix: "run `devdrip daemon start`",
+      fix: "run `distro daemon start`",
     }
   }
   const age = s.lastHeartbeatAgeMs ?? 0
@@ -103,7 +103,7 @@ async function probeDaemon(): Promise<Probe> {
       name: "daemon running",
       ok: false,
       detail: `stale heartbeat (${ageSec}s ago, pid ${s.pid ?? "?"})`,
-      fix: "run `devdrip daemon stop && devdrip daemon start`",
+      fix: "run `distro daemon stop && distro daemon start`",
     }
   }
   return {
@@ -129,7 +129,7 @@ async function probeSlotCache(now: number = Date.now()): Promise<Probe> {
         name: "slot cache populated",
         ok: false,
         detail: "0 slots cached",
-        fix: "run `devdrip daemon start` to warm the cache",
+        fix: "run `distro daemon start` to warm the cache",
       }
     }
     if (expiresAt <= now) {
@@ -148,14 +148,14 @@ async function probeSlotCache(now: number = Date.now()): Promise<Probe> {
         name: "slot cache populated",
         ok: false,
         detail: "cache file missing",
-        fix: "run `devdrip daemon start` to warm the cache",
+        fix: "run `distro daemon start` to warm the cache",
       }
     }
     return {
       name: "slot cache populated",
       ok: false,
       detail: errDetail(err),
-      fix: "inspect ~/.devdrip/slot-cache.json",
+      fix: "inspect ~/.distro/slot-cache.json",
     }
   }
 }
@@ -206,7 +206,7 @@ async function probeLedgerDisk(): Promise<Probe> {
       return {
         name: "disk space for ledger",
         ok: false,
-        detail: `only ${availMb} MB free on ~/.devdrip partition`,
+        detail: `only ${availMb} MB free on ~/.distro partition`,
         fix: "free up disk space",
       }
     }

@@ -8,7 +8,7 @@ let tempHome = ""
 beforeEach(() => {
   tempHome = mkdtempSync(join(tmpdir(), "devdrip-daemon-cmd-"))
   process.env["HOME"] = tempHome
-  mkdirSync(join(tempHome, ".devdrip"), { recursive: true, mode: 0o700 })
+  mkdirSync(join(tempHome, ".distro"), { recursive: true, mode: 0o700 })
 })
 
 afterEach(() => {
@@ -32,7 +32,7 @@ describe("daemon status", () => {
       adsShownThisSession: 2,
       hooksReceivedThisSession: 17,
     }
-    writeFileSync(join(tempHome, ".devdrip", "daemon.heartbeat"), JSON.stringify(hb), {
+    writeFileSync(join(tempHome, ".distro", "daemon.heartbeat"), JSON.stringify(hb), {
       mode: 0o600,
     })
     const { runStatus } = await import("../daemon.js")
@@ -53,7 +53,7 @@ describe("daemon status", () => {
       adsShownThisSession: 0,
       hooksReceivedThisSession: 0,
     }
-    writeFileSync(join(tempHome, ".devdrip", "daemon.heartbeat"), JSON.stringify(hb), {
+    writeFileSync(join(tempHome, ".distro", "daemon.heartbeat"), JSON.stringify(hb), {
       mode: 0o600,
     })
     const { runStatus } = await import("../daemon.js")

@@ -1,4 +1,5 @@
-import { chmodSync } from "node:fs"
+import { chmodSync, mkdirSync } from "node:fs"
+import { dirname } from "node:path"
 import { createServer } from "node:net"
 import {
   parseWireEvent,
@@ -53,6 +54,9 @@ export async function startDaemonServer(opts: StartDaemonServerOpts): Promise<Da
       opts.log.warn("socket error", { message: err.message })
     })
   })
+
+  // ensure parent dir exists before listen — covers the /tmp fallback path too
+  mkdirSync(dirname(opts.socketPath), { recursive: true, mode: 0o700 })
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject)
