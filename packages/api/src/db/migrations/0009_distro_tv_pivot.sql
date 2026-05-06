@@ -38,7 +38,11 @@ DROP TABLE IF EXISTS "keeperhub_links" CASCADE;
 DROP TABLE IF EXISTS "wallet_connections" CASCADE;
 --> statement-breakpoint
 -- rename news_impressions → slot_impressions (RENAME preserves rows + indexes)
-ALTER TABLE "news_impressions" RENAME TO "slot_impressions";
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='news_impressions') THEN
+    ALTER TABLE "news_impressions" RENAME TO "slot_impressions";
+  END IF;
+END $$;
 --> statement-breakpoint
 -- drop old FK constraints before renaming/recreating them
 ALTER TABLE "slot_impressions" DROP CONSTRAINT IF EXISTS "news_impressions_user_id_users_id_fk";
@@ -57,9 +61,9 @@ ALTER TABLE "slot_impressions" ADD CONSTRAINT "slot_impressions_user_id_users_id
 --> statement-breakpoint
 ALTER TABLE "slot_impressions" ADD CONSTRAINT "slot_impressions_device_id_devices_id_fk" FOREIGN KEY ("device_id") REFERENCES "public"."devices"("id") ON DELETE cascade ON UPDATE no action;
 --> statement-breakpoint
-CREATE INDEX "slot_impressions_user_id_idx" ON "slot_impressions" USING btree ("user_id");
+CREATE INDEX IF NOT EXISTS "slot_impressions_user_id_idx" ON "slot_impressions" USING btree ("user_id");
 --> statement-breakpoint
-CREATE INDEX "slot_impressions_user_created_at_idx" ON "slot_impressions" USING btree ("user_id","created_at");
+CREATE INDEX IF NOT EXISTS "slot_impressions_user_created_at_idx" ON "slot_impressions" USING btree ("user_id","created_at");
 --> statement-breakpoint
 -- users: drop world/wallet/nullifier columns (IF EXISTS for partial-migration safety)
 ALTER TABLE "users" DROP COLUMN IF EXISTS "wallet_address";
