@@ -237,41 +237,25 @@ async function runHealthCheck(): Promise<boolean> {
   return probes.every((p) => p.ok)
 }
 
-function deriveSetupBaseUrl(apiUrl: string): string {
-  // production: API at api.devdrip.xyz → setup at devdrip.xyz
-  // local dev: API at http://localhost:3001 → setup at http://localhost:3000
-  try {
-    const parsed = new URL(apiUrl)
-    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
-      return `http://${parsed.hostname}:3000`
-    }
-    if (parsed.hostname.startsWith("api.")) {
-      return `${parsed.protocol}//${parsed.hostname.slice(4)}`
-    }
-    return `${parsed.protocol}//${parsed.hostname}`
-  } catch {
-    return "https://devdrip.xyz"
-  }
-}
-
 async function openUrl(url: string): Promise<void> {
-  const cmd =
-    process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open"
+  if (process.platform === "win32") {
+    // `start` is a shell builtin on Windows — must go through cmd.
+    // empty quoted "" is the window title arg (start uses first quoted arg as title).
+    spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore" }).unref()
+    return
+  }
+  const cmd = process.platform === "darwin" ? "open" : "xdg-open"
   spawn(cmd, [url], { detached: true, stdio: "ignore" }).unref()
 }
 
 async function openSetupInBrowser(): Promise<void> {
   try {
-    const { pairingCode } = await requestPairingCode()
-    const cfg = await readConfig()
-    const apiUrl = cfg?.apiUrl ?? ""
-    const setupBaseUrl = deriveSetupBaseUrl(apiUrl)
-    const url = `${setupBaseUrl}/setup?pair=${pairingCode}`
-    log.success(`opening browser: ${url}`)
-    await openUrl(url)
+    const { setupUrl } = await requestPairingCode()
+    log.success(`opening browser: ${setupUrl}`)
+    await openUrl(setupUrl)
   } catch (err) {
     log.warn(`skipping browser handoff (${err instanceof Error ? err.message : String(err)})`)
-    log.warn("you can open /setup later by running `distro auth pair` (M2.1)")
+    log.warn("you can re-run `distro init` to retry the browser handoff")
   }
 }
 

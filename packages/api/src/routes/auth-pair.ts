@@ -22,7 +22,8 @@ devicesPairRouter.post("/", requireAuth, async (_req, res) => {
     return
   }
   const code = await createPairingCode({ deviceId, userId })
-  await res.status(200).json({ pairingCode: code, ttlSeconds: PAIR_TTL_SECONDS })
+  const setupUrl = `${env.magicLinkBaseUrl}/setup?pair=${code}`
+  await res.status(200).json({ pairingCode: code, ttlSeconds: PAIR_TTL_SECONDS, setupUrl })
 })
 
 export const authExchangePairRouter: ReturnType<typeof Router> = Router()
