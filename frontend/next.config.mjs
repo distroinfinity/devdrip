@@ -2,7 +2,7 @@
 const nextConfig = {
   poweredByHeader: false,
 
-  transpilePackages: ["@devdrip/design-system", "@devdrip/shared"],
+  transpilePackages: ["@distrotv/design-system", "@distrotv/shared"],
 
   images: {
     formats: ["image/avif", "image/webp"],
@@ -18,7 +18,7 @@ const nextConfig = {
   // a single origin (Vercel + Railway split would otherwise force CORS +
   // SameSite=None).
   async rewrites() {
-    const apiBase = process.env.DEVDRIP_API_BASE_URL || "http://localhost:3001"
+    const apiBase = process.env.DISTRO_API_BASE_URL || "http://localhost:3001"
     return [
       { source: "/api/miniapp/:path*", destination: `${apiBase}/miniapp/:path*` },
       { source: "/api/me", destination: `${apiBase}/me` },

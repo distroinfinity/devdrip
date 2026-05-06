@@ -141,7 +141,7 @@ describe("devdrip init", () => {
 
     expect(existsSync(join(tempHome, ".claude"))).toBe(true)
 
-    const linkPath = join(tempHome, ".distro", "bin", "devdrip")
+    const linkPath = join(tempHome, ".distro", "bin", "distro")
 
     // settings.json contains all three events with our bin path
     const settings = JSON.parse(
@@ -207,11 +207,11 @@ describe("devdrip init", () => {
     expect(readFileSync(backupPath, "utf8")).toContain("/other/tool foo")
   })
 
-  it("installs a stable ~/.distro/bin/devdrip symlink pointing at the realpath of argv[1]", async () => {
+  it("installs a stable ~/.distro/bin/distro symlink pointing at the realpath of argv[1]", async () => {
     const { runInit } = await import("../init.js")
     await runInit()
 
-    const linkPath = join(tempHome, ".distro", "bin", "devdrip")
+    const linkPath = join(tempHome, ".distro", "bin", "distro")
     expect(lstatSync(linkPath).isSymbolicLink()).toBe(true)
     // argv[1] is tempBinDir/devdrip (symlink) → tempBinDir/index.js (real file).
     // the canonical symlink must point at the realpath, not the invocation path,
@@ -221,8 +221,8 @@ describe("devdrip init", () => {
     expect(readlinkSync(linkPath)).toBe(realpathSync(join(tempBinDir, "index.js")))
   })
 
-  it("retargets a stale ~/.distro/bin/devdrip symlink on init", async () => {
-    const linkPath = join(tempHome, ".distro", "bin", "devdrip")
+  it("retargets a stale ~/.distro/bin/distro symlink on init", async () => {
+    const linkPath = join(tempHome, ".distro", "bin", "distro")
     mkdirSync(join(tempHome, ".distro", "bin"), { recursive: true, mode: 0o700 })
     const staleTarget = join(tempBinDir, "stale-target.js")
     writeFileSync(staleTarget, "")
@@ -234,9 +234,9 @@ describe("devdrip init", () => {
     expect(readlinkSync(linkPath)).toBe(realpathSync(join(tempBinDir, "index.js")))
   })
 
-  it("fails fast when the devdrip binary path cannot be resolved", async () => {
+  it("fails fast when the distro binary path cannot be resolved", async () => {
     delete process.argv[1]
     const { runInit } = await import("../init.js")
-    await expect(runInit()).rejects.toThrow(/unable to resolve the devdrip binary path/)
+    await expect(runInit()).rejects.toThrow(/unable to resolve the distro binary path/)
   })
 })
