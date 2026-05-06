@@ -133,6 +133,44 @@ function toPayload(item: CachedNewsItem): NewsPayload {
   }
 }
 
+// returns up to `limit` unseen items for the user (de-duped via redis seen-set).
+// resurfacing fallback: when the pool is fully seen, re-serves from the top of
+// the pool. per-device suppression deferred to M3.
+export async function fetchNewsForDevice({
+  userId,
+  limit,
+}: {
+  userId: string
+  deviceId?: string
+  limit: number
+}): Promise<NewsPayload[]> {
+  const redis = getRedis()
+  const pool = await getNewsPool()
+  if (pool.length === 0) return []
+
+  const seenKey = `news:seen:${userId}`
+  const seen = await redis.smembers(seenKey)
+  const seenSet = new Set(seen)
+  const unseen = pool.filter((p) => !seenSet.has(p.id))
+
+  // if fully seen, resurface from pool top
+  const source = unseen.length >= limit ? unseen : pool
+  const picked = source.slice(0, limit)
+
+  // mark all picked as seen (sadd one at a time to satisfy upstash type constraints)
+  for (const p of picked) {
+    await redis.sadd(seenKey, p.id)
+  }
+  if (picked.length > 0) {
+    await redis.expire(seenKey, SEEN_TTL_SEC)
+  }
+  logger.debug(
+    { userIdHash: userId.slice(0, 8), count: picked.length, dedupSize: seen.length },
+    "news.fetch"
+  )
+  return picked.map(toPayload)
+}
+
 export async function pickNewsForUser(userId: string): Promise<NewsPayload | null> {
   const redis = getRedis()
   const pool = await getNewsPool()

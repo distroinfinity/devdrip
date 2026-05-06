@@ -12,6 +12,8 @@ import { authRouter } from "./routes/auth.js"
 import { devicesRouter, devicesRegisterRouter } from "./routes/devices.js"
 import { mePreferencesRouter } from "./routes/me-preferences.js"
 import { meReadingRouter } from "./routes/me-reading.js"
+import { meContentRouter } from "./routes/me-content.js"
+import { ingestRouter } from "./routes/ingest.js"
 import { cliPairRouter } from "./routes/cli-pair.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
@@ -89,5 +91,7 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
 
 app.use("/me", requireAuth, userLimiter, mePreferencesRouter)
 app.use("/me/reading", requireAuth, userLimiter, meReadingRouter)
+app.use("/me/content", requireAuth, userLimiter, meContentRouter)
+app.use("/ingest", requireAuth, userLimiter, ingestRouter)
 
 app.use(errorHandler)
