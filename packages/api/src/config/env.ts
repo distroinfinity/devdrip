@@ -18,21 +18,9 @@ export const env = {
     return val
   },
 
-  // lazy — only throws when auth routes are hit, not at startup
-  get githubClientId() {
-    return requireEnv("GITHUB_CLIENT_ID")
-  },
-  get githubClientSecret() {
-    return requireEnv("GITHUB_CLIENT_SECRET")
-  },
-  get githubCallbackUrl() {
-    return requireEnv("GITHUB_CALLBACK_URL")
-  },
+  // M2: MAGIC_LINK_FROM, RESEND_API_KEY, MAGIC_LINK_BASE_URL added here
   get jwtSecret() {
     return requireEnv("JWT_SECRET")
-  },
-  get clientRedirectUrl() {
-    return requireEnv("CLIENT_REDIRECT_URL")
   },
   get upstashRedisRestUrl() {
     return requireEnv("UPSTASH_REDIS_REST_URL")
