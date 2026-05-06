@@ -18,7 +18,15 @@ export const env = {
     return val
   },
 
-  // M2: MAGIC_LINK_FROM, RESEND_API_KEY, MAGIC_LINK_BASE_URL added here
+  get resendApiKey() {
+    return optionalEnv("RESEND_API_KEY", "re_dev_placeholder")
+  },
+  get magicLinkFromEmail() {
+    return optionalEnv("MAGIC_LINK_FROM_EMAIL", "auth@devdrip.xyz")
+  },
+  get magicLinkBaseUrl() {
+    return optionalEnv("MAGIC_LINK_BASE_URL", "https://devdrip.xyz")
+  },
   get jwtSecret() {
     return requireEnv("JWT_SECRET")
   },
