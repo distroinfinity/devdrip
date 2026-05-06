@@ -8,7 +8,7 @@ const CHANNEL_KEYS: ChannelKey[] = ["tech", "finance", "crypto", "ai-papers", "d
 
 export async function listChannels(): Promise<ChannelDto[]> {
   const db = getDb()
-  const rows = await db.select().from(channels)
+  const rows = await db.select().from(channels).orderBy(channels.key)
   return rows.map((r) => ({
     id: r.id,
     key: r.key as ChannelKey,
@@ -77,7 +77,7 @@ export async function setSubscriptions(
 
   for (const u of updates) {
     const ch = byKey.get(u.key)
-    if (!ch) continue
+    if (!ch) throw new Error(`unknown channel key: ${u.key}`)
     if (u.subscribed) {
       await db
         .insert(channelSubscriptions)
