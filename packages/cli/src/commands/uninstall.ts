@@ -4,10 +4,9 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { Command } from "commander"
 import { cancel, confirm, intro, isCancel, log, note, outro } from "@clack/prompts"
-import { ApiError, apiFetch, NotAuthenticatedError, reportError } from "../lib/api-client.js"
+import { reportError } from "../lib/api-client.js"
 import { readSettings, removeDevdripHooks, writeSettingsAtomic } from "../lib/claude-settings.js"
 import { configDir, readConfig, writeConfig } from "../lib/config.js"
-import { readStatusCache, type CachedEarningsSummary } from "../lib/status-cache.js"
 import { readDaemonStatus } from "../lib/daemon/lifecycle.js"
 import { runStop } from "./daemon.js"
 
@@ -23,25 +22,6 @@ function claudeBackupPath(): string {
 
 function distroBinLinkPath(): string {
   return join(homedir(), ".distro", "bin", "distro")
-}
-
-async function fetchEarnings(): Promise<{
-  summary: CachedEarningsSummary | null
-  fromCache: boolean
-  reason: string | null
-}> {
-  try {
-    const fresh = await apiFetch<CachedEarningsSummary>("/me/earnings/summary")
-    return { summary: fresh, fromCache: false, reason: null }
-  } catch (err) {
-    if (err instanceof NotAuthenticatedError) {
-      return { summary: null, fromCache: false, reason: "not-signed-in" }
-    }
-    const cached = readStatusCache()
-    if (cached) return { summary: cached.summary, fromCache: true, reason: "cached" }
-    const reason = err instanceof ApiError ? `api ${err.status}` : "network"
-    return { summary: null, fromCache: false, reason }
-  }
 }
 
 async function restoreOrStripHooks(): Promise<{ restored: boolean; stripped: boolean }> {
@@ -93,42 +73,12 @@ function removeBinSymlink(): boolean {
   }
 }
 
-function formatUsdc(n: number): string {
-  return `$${n.toFixed(2)}`
-}
-
-function earningsBlock(
-  summary: CachedEarningsSummary | null,
-  fromCache: boolean,
-  reason: string | null
-): string {
-  if (!summary) {
-    if (reason === "not-signed-in") {
-      return "earnings: not signed in — nothing to claim"
-    }
-    return `earnings: unavailable (${reason ?? "offline"})`
-  }
-  const cacheTag = fromCache ? " (cached)" : ""
-  const balance = formatUsdc(summary.balance)
-  const threshold = formatUsdc(0.5)
-  const eligibility =
-    summary.balance >= 0.5
-      ? `ready to claim (min ${threshold})`
-      : `needs ${formatUsdc(Math.max(0, 0.5 - summary.balance))} more to claim`
-  return [
-    `pending:   ${balance}${cacheTag}`,
-    `status:    ${eligibility}`,
-    `claim at:  ${DASHBOARD_URL}`,
-    "earnings preserved 90 days — re-run `distro init` anytime to restore",
-  ].join("\n")
-}
-
 export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Promise<number> {
   intro("distro uninstall")
 
   if (!opts.yes) {
     const ok = await confirm({
-      message: "remove distro tv? claude code keeps working, earnings stay claimable.",
+      message: "remove distro tv? claude code keeps working normally.",
       initialValue: false,
     })
     if (isCancel(ok) || !ok) {
@@ -138,8 +88,7 @@ export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Pr
   }
 
   // 1. stop daemon — must happen before any config/settings write so the
-  // daemon's prefs-sync loop (S4-06) can't race us. runStop() logs its own
-  // outcome ("daemon stopped" / "daemon not running") directly to console.
+  // daemon's prefs-sync loop can't race us. runStop() logs its own outcome.
   await runStop()
   const after = readDaemonStatus()
   if (after.health === "running") {
@@ -162,10 +111,15 @@ export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Pr
   // ~/.distro/bin/. harmless if missing.
   if (removeBinSymlink()) log.success("removed ~/.distro/bin/distro symlink")
 
-  // 4. print earnings + claim instructions BEFORE any purge, so `--purge` +
-  // `--yes` users still see the claim URL in stdout.
-  const { summary, fromCache, reason } = await fetchEarnings()
-  note(earningsBlock(summary, fromCache, reason), "earnings")
+  // 4. print data retention note BEFORE any purge.
+  note(
+    [
+      "your reading history + preferences are preserved in ~/.distro/",
+      `dashboard: ${DASHBOARD_URL}`,
+      "re-run `distro init` anytime to reconnect",
+    ].join("\n"),
+    "data"
+  )
 
   // 5. either keep local state (default) or purge it.
   if (opts.purge) {
@@ -176,7 +130,7 @@ export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Pr
       log.warn(`purge failed: ${(err as Error).message}`)
     }
   } else {
-    // we keep the ledger + config, but clear cfg.cli.binPath so a fresh
+    // keep the ledger + config, but clear cfg.cli.binPath so a fresh
     // `distro init` starts from a clean hook path (the old symlink is gone).
     const cfg = await readConfig()
     if (cfg && cfg.cli?.binPath) {

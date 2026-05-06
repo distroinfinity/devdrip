@@ -235,7 +235,7 @@ function printSummary(): void {
   note(
     [
       "→ dashboard: https://distrotv.xyz/dashboard",
-      "→ run `distro status` to see your earnings",
+      "→ run `distro status` to see daemon + slot status",
     ].join("\n"),
     "what's next"
   )

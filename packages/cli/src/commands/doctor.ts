@@ -61,13 +61,13 @@ export const doctorCmd = new Command("doctor")
                 name: "signed in",
                 ok: false,
                 detail: "not signed in",
-                fix: "run `distro auth`",
+                fix: "run `distro init` to register an anonymous device",
               },
             ],
           }
           process.stdout.write(`${JSON.stringify(payload)}\n`)
         } else {
-          console.log("not signed in — run `distro auth`")
+          console.log("not signed in — run `distro init` to register an anonymous device")
         }
         process.exit(1)
       }
