@@ -1,6 +1,6 @@
 import { Command } from "commander"
 import { intro, outro, select, log, isCancel, cancel } from "@clack/prompts"
-import type { ChannelMode, SyncedPreferences } from "@distrotv/shared"
+import { ChannelMode, type SyncedPreferences } from "@distrotv/shared"
 import { reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { getPreferences, putPreferences } from "../lib/preferences-client.js"
@@ -64,6 +64,9 @@ async function runPreferences(): Promise<void> {
     }
 
     if (action === "channels") {
+      if (prefs.channelMode === ChannelMode.Markets) {
+        log.warn("channels are unused in markets mode — switch mode first if you want news")
+      }
       const current = await getMyChannels()
       const next = await pickChannels(current)
       await putMyChannels(

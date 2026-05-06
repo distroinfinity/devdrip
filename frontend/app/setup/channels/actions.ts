@@ -1,6 +1,7 @@
 "use server"
 
-import { apiFetchOrRefresh } from "@/lib/api"
+import { redirect } from "next/navigation"
+import { apiFetchOrRefresh, ApiError, UnauthenticatedError } from "@/lib/api"
 import type { ChannelDto } from "@distrotv/shared"
 
 export async function saveChannelsFromSetup(
@@ -14,6 +15,14 @@ export async function saveChannelsFromSetup(
     })
     return { ok: true }
   } catch (err) {
+    if (err instanceof UnauthenticatedError) {
+      // session expired between page load and submit — bounce back to /setup to re-pair
+      redirect("/setup")
+    }
+    if (err instanceof ApiError) {
+      const body = err.body as { error?: string } | null
+      return { ok: false, error: body?.error ?? `api_error_${err.status}` }
+    }
     return { ok: false, error: err instanceof Error ? err.message : "save_failed" }
   }
 }

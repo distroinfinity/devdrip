@@ -27,9 +27,11 @@ export function PreferencesForm({ initial, initialChannels }: PreferencesFormPro
   const [status, setStatus] = useState<Status>({ kind: "idle" })
   const [pending, startTransition] = useTransition()
 
-  const dirty =
-    JSON.stringify(prefs) !== JSON.stringify(savedSnapshot) ||
-    JSON.stringify(channels) !== JSON.stringify(savedChannels)
+  const channelsDirty = channels.some((c, i) => {
+    const s = savedChannels[i]
+    return c.key !== s?.key || c.subscribed !== s?.subscribed || c.priority !== s?.priority
+  })
+  const dirty = JSON.stringify(prefs) !== JSON.stringify(savedSnapshot) || channelsDirty
 
   function patch(p: Partial<SyncedPreferences>): void {
     setPrefs((cur) => ({ ...cur, ...p }))
