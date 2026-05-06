@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify, errors as joseErrors } from "jose"
 import { randomBytes, createHash } from "node:crypto"
 
 const ALG = "HS256"
-const ACCESS_TTL = "1h"
+const DEFAULT_ACCESS_TTL_SECONDS = 3600
 const REFRESH_TTL_DAYS = 30
 const ISSUER = "devdrip"
 const AUDIENCE = "devdrip"
@@ -13,15 +13,25 @@ function encodeSecret(secret: string) {
 
 export interface JwtPayload {
   sub: string
-  github_login: string
+  github_login?: string
+  email?: string
+  deviceId?: string
 }
 
-export async function signAccessToken(payload: JwtPayload, secret: string): Promise<string> {
-  return new SignJWT({ github_login: payload.github_login })
+export async function signAccessToken(
+  payload: JwtPayload,
+  secret: string,
+  ttlSeconds = DEFAULT_ACCESS_TTL_SECONDS
+): Promise<string> {
+  const claims: Record<string, unknown> = {}
+  if (payload.github_login !== undefined) claims["github_login"] = payload.github_login
+  if (payload.email !== undefined) claims["email"] = payload.email
+  if (payload.deviceId !== undefined) claims["deviceId"] = payload.deviceId
+  return new SignJWT(claims)
     .setProtectedHeader({ alg: ALG })
     .setSubject(payload.sub)
     .setIssuedAt()
-    .setExpirationTime(ACCESS_TTL)
+    .setExpirationTime(`${ttlSeconds}s`)
     .setIssuer(ISSUER)
     .setAudience(AUDIENCE)
     .sign(encodeSecret(secret))
@@ -33,7 +43,12 @@ export async function verifyAccessToken(token: string, secret: string): Promise<
     issuer: ISSUER,
     audience: AUDIENCE,
   })
-  return { sub: payload.sub as string, github_login: payload["github_login"] as string }
+  return {
+    sub: payload.sub as string,
+    github_login: payload["github_login"] as string | undefined,
+    email: payload["email"] as string | undefined,
+    deviceId: payload["deviceId"] as string | undefined,
+  }
 }
 
 // dead in M1; M2 wires these into auth_tokens refresh rotation
