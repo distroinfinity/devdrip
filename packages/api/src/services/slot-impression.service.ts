@@ -5,8 +5,6 @@ import { slotImpressions } from "../db/schema/slot_impressions.js"
 // hard guarantee: no imports from earnings.service / budget / frequency / beacon.
 // the absence of those imports IS the structural earnings-isolation guarantee.
 
-export type SlotImpressionKind = SlotKind
-
 export interface SlotImpressionInput {
   userId: string
   deviceId: string
@@ -16,7 +14,7 @@ export interface SlotImpressionInput {
   result: ImpressionResult
   openedUrl: boolean
   saved: boolean
-  kind: SlotImpressionKind // default "news"
+  kind: SlotKind // default "news"
 }
 
 export async function recordSlotImpression(input: SlotImpressionInput) {

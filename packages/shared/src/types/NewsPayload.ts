@@ -1,4 +1,4 @@
-import type { NewsSource } from "./index.js"
+import type { NewsSource } from "./news.js"
 
 export interface NewsPayload {
   kind: "news"

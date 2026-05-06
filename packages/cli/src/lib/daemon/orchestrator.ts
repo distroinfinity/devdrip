@@ -8,6 +8,7 @@ import {
   PROGRESS_SNAP_HOLD_MS,
   PROGRESS_TICK_MS,
   type DevdripPreferences,
+  type SlotKind,
 } from "@distrotv/shared"
 import type { SlotCache, CachedSlot } from "../slot-cache.js"
 import type { Ledger, LocalNewsImpression } from "../ledger.js"
@@ -127,7 +128,7 @@ interface Session {
   // the display handle for whatever ad is currently on THIS session's tty
   currentDisplay: DisplayHandleApi | null
   // kind of the slot currently showing, or null when idle
-  currentSlotKind: string | null
+  currentSlotKind: SlotKind | null
   // per-session suppression bits
   sessionKilled: boolean
   adsInCurrentBusyWindow: number

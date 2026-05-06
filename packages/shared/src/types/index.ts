@@ -25,14 +25,8 @@ export enum ChannelMode {
   Mix = "mix", // alternates 1:1 (default)
 }
 
-export enum NewsSource {
-  HackerNews = "hn",
-}
-
-// MVP placeholder so the field validates. v1.1 adds Ai/Devtools/Startups/Career.
-export enum NewsTopic {
-  General = "general",
-}
+export { NewsSource, NewsTopic } from "./news.js"
+import type { NewsTopic } from "./news.js"
 
 // ── types ───────────────────────────────────────────────────────────────────
 
