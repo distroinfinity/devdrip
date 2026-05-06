@@ -16,6 +16,7 @@ interface RedditChild {
 export const redditFetcher: SourceFetcher = async (ctx) => {
   const res = await fetch(ctx.url, {
     headers: { "User-Agent": "DistroTV/1.0 (by /u/distrotv)" },
+    signal: AbortSignal.timeout(15_000),
   })
   if (!res.ok) throw new Error(`reddit ${ctx.sourceKey} ${res.status}`)
   const body = (await res.json()) as { data?: { children?: RedditChild[] } }

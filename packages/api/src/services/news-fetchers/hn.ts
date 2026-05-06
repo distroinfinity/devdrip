@@ -17,13 +17,13 @@ interface HnItem {
 }
 
 async function fetchItem(id: number): Promise<HnItem | null> {
-  const res = await fetch(HN_ITEM_URL(id))
+  const res = await fetch(HN_ITEM_URL(id), { signal: AbortSignal.timeout(15_000) })
   if (!res.ok) return null
   return (await res.json()) as HnItem | null
 }
 
 export const hnFetcher: SourceFetcher = async (ctx) => {
-  const idsRes = await fetch(ctx.url)
+  const idsRes = await fetch(ctx.url, { signal: AbortSignal.timeout(15_000) })
   if (!idsRes.ok) throw new Error(`hn topstories ${idsRes.status}`)
   const ids = ((await idsRes.json()) as number[]).slice(0, POOL_SIZE)
 
@@ -37,6 +37,8 @@ export const hnFetcher: SourceFetcher = async (ctx) => {
   const out: RawNewsItem[] = []
   for (const it of items) {
     if (!it.title || typeof it.score !== "number" || typeof it.time !== "number") continue
+    // top-stories endpoint mixes story/ask/job/poll; only stories belong in the news slot
+    if (it.type !== undefined && it.type !== "story") continue
     if (it.score < MIN_SCORE) continue
     out.push({
       id: `hn:${it.id}`,

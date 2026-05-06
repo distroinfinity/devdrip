@@ -59,6 +59,7 @@ function sourceForKey(sourceKey: string): NewsSource {
 export const rssFetcher: SourceFetcher = async (ctx) => {
   const res = await fetch(ctx.url, {
     headers: { "User-Agent": "DistroTV/1.0 (+https://devdrip.xyz)" },
+    signal: AbortSignal.timeout(15_000),
   })
   if (!res.ok) throw new Error(`rss ${ctx.sourceKey} ${res.status}`)
   const xml = await res.text()
@@ -87,7 +88,8 @@ export const rssFetcher: SourceFetcher = async (ctx) => {
     if (!title || !link || !dateStr) continue
     const ts = new Date(dateStr)
     if (Number.isNaN(ts.getTime())) continue
-    const idTail = guid.replace(/[^a-zA-Z0-9]/g, "").slice(0, 64) || String(ts.getTime())
+    // do not truncate — long URL-based guids share prefixes; truncation collapses distinct articles into one PK
+    const idTail = guid.replace(/[^a-zA-Z0-9]/g, "") || String(ts.getTime())
     out.push({
       id: `rss:${ctx.sourceKey}:${idTail}`,
       source,
