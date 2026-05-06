@@ -4,23 +4,21 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
 
-export const CONFIG_VERSION = 4
+export const CONFIG_VERSION = 5
 
 export interface DevdripConfig {
-  version: 4
+  version: 5
   apiUrl: string
+  // null for anon devices; populated post-M2 magic-link sign-in
   auth: {
     accessToken: string
-    refreshToken: string
     accessTokenExpiresAt: string
-  }
+  } | null
   user: {
     id: string
-    githubLogin: string
-    email: string
-    avatarUrl: string | null
   }
-  device: { id: string | null }
+  // secret is present for anon-registered devices; cleared post-M2 if we swap to JWT-only
+  device: { id: string | null; secret?: string }
   cli: { binPath: string }
   preferences: DevdripPreferences
 }
@@ -33,28 +31,52 @@ export function configPath(): string {
   return join(configDir(), "config.json")
 }
 
+// legacy v1-v4 auth shape (had refreshToken + full user fields)
+interface LegacyAuth {
+  accessToken: string
+  refreshToken?: string
+  accessTokenExpiresAt: string
+}
+
+interface LegacyUser {
+  id: string
+  githubLogin?: string
+  email?: string
+  avatarUrl?: string | null
+}
+
 interface RawConfigV1 {
   version: 1
   apiUrl: string
-  auth: DevdripConfig["auth"]
-  user: DevdripConfig["user"]
+  auth: LegacyAuth
+  user: LegacyUser
 }
 
 interface RawConfigV2 {
   version: 2
   apiUrl: string
-  auth: DevdripConfig["auth"]
-  user: DevdripConfig["user"]
-  device?: DevdripConfig["device"]
+  auth: LegacyAuth
+  user: LegacyUser
+  device?: { id: string | null }
   cli?: DevdripConfig["cli"]
 }
 
 interface RawConfigV3 {
   version: 3
   apiUrl: string
-  auth: DevdripConfig["auth"]
-  user: DevdripConfig["user"]
-  device?: DevdripConfig["device"]
+  auth: LegacyAuth
+  user: LegacyUser
+  device?: { id: string | null }
+  cli?: DevdripConfig["cli"]
+  preferences?: Partial<DevdripPreferences>
+}
+
+interface RawConfigV4 {
+  version: 4
+  apiUrl: string
+  auth: LegacyAuth
+  user: LegacyUser
+  device?: { id: string | null }
   cli?: DevdripConfig["cli"]
   preferences?: Partial<DevdripPreferences>
 }
@@ -62,7 +84,7 @@ interface RawConfigV3 {
 export class UnsupportedConfigVersionError extends Error {
   constructor(version: unknown) {
     super(
-      `unsupported config version ${String(version)} in ${configPath()} — run \`distro auth --force\` to recreate it`
+      `unsupported config version ${String(version)} in ${configPath()} — run \`distro init\` to recreate it`
     )
     this.name = "UnsupportedConfigVersionError"
   }
@@ -74,12 +96,31 @@ function mergePreferences(saved: Partial<DevdripPreferences> | undefined): Devdr
   return { ...defaults, ...saved }
 }
 
+function legacyAuthToV5(auth: LegacyAuth): DevdripConfig["auth"] {
+  // keep JWT path alive for M2; strip refreshToken (no longer needed by CLI)
+  return { accessToken: auth.accessToken, accessTokenExpiresAt: auth.accessTokenExpiresAt }
+}
+
 function migrate(parsed: Record<string, unknown>): DevdripConfig {
   const version = parsed["version"]
   if (version === CONFIG_VERSION) {
-    const v4 = parsed as unknown as DevdripConfig
+    const v5 = parsed as unknown as DevdripConfig
     return {
-      ...v4,
+      ...v5,
+      device: v5.device ?? { id: null },
+      cli: v5.cli ?? { binPath: "" },
+      preferences: mergePreferences(v5.preferences),
+    }
+  }
+  // v1-v4: had full github/email user fields + refreshToken — reset to anon shape.
+  // no real users on these versions (pre-launch); safe to drop legacy auth.
+  if (version === 4) {
+    const v4 = parsed as unknown as RawConfigV4
+    return {
+      version: CONFIG_VERSION,
+      apiUrl: v4.apiUrl,
+      auth: v4.auth ? legacyAuthToV5(v4.auth) : null,
+      user: { id: v4.user.id },
       device: v4.device ?? { id: null },
       cli: v4.cli ?? { binPath: "" },
       preferences: mergePreferences(v4.preferences),
@@ -87,14 +128,11 @@ function migrate(parsed: Record<string, unknown>): DevdripConfig {
   }
   if (version === 3) {
     const v3 = parsed as unknown as RawConfigV3
-    // mergePreferences fills in channelMode (Mix) and newsTopics ([]) defaults
-    // from defaultDevdripPreferences() — no user prompt needed. existing v3
-    // users get auto-migrated; they can flip mode via `distro preferences`.
     return {
       version: CONFIG_VERSION,
       apiUrl: v3.apiUrl,
-      auth: v3.auth,
-      user: v3.user,
+      auth: v3.auth ? legacyAuthToV5(v3.auth) : null,
+      user: { id: v3.user.id },
       device: v3.device ?? { id: null },
       cli: v3.cli ?? { binPath: "" },
       preferences: mergePreferences(v3.preferences),
@@ -105,8 +143,8 @@ function migrate(parsed: Record<string, unknown>): DevdripConfig {
     return {
       version: CONFIG_VERSION,
       apiUrl: v2.apiUrl,
-      auth: v2.auth,
-      user: v2.user,
+      auth: v2.auth ? legacyAuthToV5(v2.auth) : null,
+      user: { id: v2.user.id },
       device: v2.device ?? { id: null },
       cli: v2.cli ?? { binPath: "" },
       preferences: defaultDevdripPreferences(),
@@ -117,8 +155,8 @@ function migrate(parsed: Record<string, unknown>): DevdripConfig {
     return {
       version: CONFIG_VERSION,
       apiUrl: v1.apiUrl,
-      auth: v1.auth,
-      user: v1.user,
+      auth: v1.auth ? legacyAuthToV5(v1.auth) : null,
+      user: { id: v1.user.id },
       device: { id: null },
       cli: { binPath: "" },
       preferences: defaultDevdripPreferences(),

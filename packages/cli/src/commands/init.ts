@@ -8,6 +8,7 @@ import type { AdCategory } from "@distrotv/shared"
 import { ChannelMode } from "@distrotv/shared"
 import { ApiError, NotAuthenticatedError, reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
+import { defaultDevdripPreferences } from "@distrotv/shared"
 import {
   readSettings,
   writeSettingsAtomic,
@@ -18,7 +19,7 @@ import { putPreferences } from "../lib/preferences-client.js"
 import { pickCategories, pickChannelMode } from "../lib/prompts/preferences.js"
 import { runInitHealthCheck } from "../lib/health.js"
 import { runDemo } from "./demo.js"
-import { registerDevice } from "../lib/device.js"
+import { registerAnonDevice, refreshDeviceMetadata } from "../lib/device.js"
 
 function claudeDir(): string {
   return join(homedir(), ".claude")
@@ -93,21 +94,48 @@ async function ensureClaudeDir(): Promise<void> {
 
 async function ensureDevice(): Promise<{ deviceId: string }> {
   const cfg = await readConfig()
-  if (!cfg) throw new NotAuthenticatedError()
 
-  const previousId = cfg.device?.id
-  const device = await registerDevice()
-  await writeConfig({
-    apiUrl: cfg.apiUrl,
-    auth: cfg.auth,
-    user: cfg.user,
-    device: { id: device.id },
-    cli: cfg.cli,
-    preferences: cfg.preferences,
-  })
-  const status = previousId && previousId === device.id ? "confirmed" : "registered"
-  log.success(`device ${status}: ${hostname()} (${platform()}/${device.ideType})`)
-  return { deviceId: device.id }
+  if (!cfg || (!cfg.device.id && !cfg.device.secret)) {
+    // fresh machine — anon registration; no auth needed
+    const { userId, deviceId, deviceSecret } = await registerAnonDevice()
+    await writeConfig({
+      apiUrl: process.env["DISTRO_API_URL"] ?? "https://distrotv-api-production.up.railway.app",
+      auth: null,
+      user: { id: userId },
+      device: { id: deviceId, secret: deviceSecret },
+      cli: { binPath: "" },
+      preferences: defaultDevdripPreferences(),
+    })
+    log.success(`device registered (anon): ${hostname()} (${platform()})`)
+    return { deviceId }
+  }
+
+  // existing config: refresh device metadata via authed re-registration
+  // gracefully skip if the device bearer is present but /devices POST fails
+  // (e.g. machineIdHash already registered under this user)
+  try {
+    const device = await refreshDeviceMetadata()
+    await writeConfig({
+      apiUrl: cfg.apiUrl,
+      auth: cfg.auth,
+      user: cfg.user,
+      device: { id: device.id, secret: cfg.device.secret },
+      cli: cfg.cli,
+      preferences: cfg.preferences,
+    })
+    const status = cfg.device.id && cfg.device.id === device.id ? "confirmed" : "registered"
+    log.success(`device ${status}: ${hostname()} (${platform()}/${device.ideType})`)
+    return { deviceId: device.id }
+  } catch (err) {
+    // if re-registration fails (network down, conflict), fall back to existing id
+    if (cfg.device.id) {
+      log.warn(
+        `device refresh skipped (${err instanceof Error ? err.message : String(err)}) — using cached id`
+      )
+      return { deviceId: cfg.device.id }
+    }
+    throw err
+  }
 }
 
 async function savePreferences(blocked: AdCategory[], channelMode: ChannelMode): Promise<void> {

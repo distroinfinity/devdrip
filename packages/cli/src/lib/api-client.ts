@@ -1,10 +1,8 @@
 import {
-  accessTokenExpiresAt,
   CONFIG_VERSION,
   configPath,
   deleteConfig,
   readConfig,
-  writeConfig,
   type DevdripConfig,
 } from "./config.js"
 
@@ -20,7 +18,6 @@ export interface MeResponse {
   githubLogin: string | null
   email: string
   avatarUrl: string | null
-  // World identity (nullable until Mini App signup completes — added in PR4)
   walletAddress?: string | null
   verificationLevel?: "device" | "orb" | null
   signedUpAt?: string | null
@@ -38,7 +35,7 @@ export class ApiError extends Error {
 }
 
 export class NotAuthenticatedError extends Error {
-  constructor(message = "session expired — run `distro auth`") {
+  constructor(message = "device not registered — run `distro init`") {
     super(message)
     this.name = "NotAuthenticatedError"
   }
@@ -55,6 +52,16 @@ export function resolveApiUrl(cfg?: DevdripConfig | null): string {
   const fromEnv = process.env["DISTRO_API_URL"]
   const fromCfg = cfg?.apiUrl
   return (fromEnv ?? fromCfg ?? DEFAULT_BASE_URL).replace(/\/$/, "")
+}
+
+// resolve the Authorization header to send for a given config:
+// 1. device bearer (device.secret) — M1 primary path for all anon devices
+// 2. JWT (auth.accessToken) — M2 magic-link sign-in (not yet live)
+// 3. undefined — no auth header (only valid for /devices/register)
+function resolveAuthHeader(cfg: DevdripConfig): string | undefined {
+  if (cfg.device.secret) return `Bearer device.${cfg.device.secret}`
+  if (cfg.auth?.accessToken) return `Bearer ${cfg.auth.accessToken}`
+  return undefined
 }
 
 async function rawFetch<T>(
@@ -104,7 +111,7 @@ async function rawFetch<T>(
 }
 
 /**
- * Unauthenticated request — use for /auth/exchange, /auth/refresh, etc.
+ * Unauthenticated request — use for /devices/register, /auth/exchange, etc.
  * Prefers DISTRO_API_URL, then the caller-supplied baseUrl, then the default.
  */
 export async function apiFetchPublic<T>(
@@ -117,23 +124,35 @@ export async function apiFetchPublic<T>(
 }
 
 /**
- * Authenticated request backed by ~/.distro/config.json. On 401 with
- * token_expired, transparently rotates via /auth/refresh and retries once.
- * On terminal auth failure the config is cleared and NotAuthenticatedError is
- * thrown so callers can tell the user to re-auth.
+ * Authenticated request backed by ~/.distro/config.json.
+ * Sends device bearer (device.secret) when present, JWT otherwise.
+ * On JWT 401/token_expired: transparently rotates via /auth/refresh and retries once.
+ * On terminal auth failure: config is cleared and NotAuthenticatedError is thrown.
  */
 export async function apiFetch<T>(path: string, init: FetchInit = {}): Promise<T> {
   const cfg = await readConfig()
-  if (!cfg) throw new NotAuthenticatedError("not signed in — run `distro auth`")
+  if (!cfg) throw new NotAuthenticatedError()
 
   const baseUrl = resolveApiUrl(cfg)
+  const authHeader = resolveAuthHeader(cfg)
 
+  if (!authHeader) {
+    throw new NotAuthenticatedError()
+  }
+
+  // device bearer path — no refresh rotation; device secrets are long-lived
+  if (cfg.device.secret) {
+    return rawFetch<T>(baseUrl, path, init, authHeader)
+  }
+
+  // JWT path (M2) — attempt + refresh on expiry
   try {
-    return await rawFetch<T>(baseUrl, path, init, `Bearer ${cfg.auth.accessToken}`)
+    return await rawFetch<T>(baseUrl, path, init, authHeader)
   } catch (err) {
     if (!isExpiredAuth(err)) throw err
     const refreshed = await tryRefresh(cfg, baseUrl)
-    return rawFetch<T>(baseUrl, path, init, `Bearer ${refreshed.auth.accessToken}`)
+    const refreshedHeader = resolveAuthHeader(refreshed)
+    return rawFetch<T>(baseUrl, path, init, refreshedHeader)
   }
 }
 
@@ -146,51 +165,19 @@ function isExpiredAuth(err: unknown): err is ApiError {
 }
 
 async function tryRefresh(cfg: DevdripConfig, baseUrl: string): Promise<DevdripConfig> {
-  try {
-    const tokens = await rawFetch<{ token: string; refresh_token: string }>(
-      baseUrl,
-      "/auth/refresh",
-      { method: "POST", body: { refresh_token: cfg.auth.refreshToken } }
-    )
-    const next: Omit<DevdripConfig, "version"> = {
-      apiUrl: cfg.apiUrl,
-      auth: {
-        accessToken: tokens.token,
-        refreshToken: tokens.refresh_token,
-        accessTokenExpiresAt: accessTokenExpiresAt(),
-      },
-      user: cfg.user,
-      device: cfg.device,
-      cli: cfg.cli,
-      preferences: cfg.preferences,
-    }
-    await writeConfig(next)
-    return { ...next, version: CONFIG_VERSION }
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401) {
-      await deleteConfig().catch(() => {})
-      throw new NotAuthenticatedError(
-        `session expired — run \`distro auth\` (cleared ${configPath()})`
-      )
-    }
-    throw err
-  }
+  // M2: refresh token is no longer stored in config. if we ever add it back,
+  // wire it here. for now, on JWT expiry, force re-auth.
+  await deleteConfig().catch(() => {})
+  throw new NotAuthenticatedError(`session expired — run \`distro init\` (cleared ${configPath()})`)
+  void cfg
+  void baseUrl
+  // unreachable; satisfies TS return type
+  return cfg
 }
 
-export interface IngestItemResultImpression {
+export interface IngestItemResultNewsImpression {
   ok: boolean
-  deliveryToken: string
-  impressionId?: string
-  earnedAmount?: number
-  result?: string
-  error?: string
-}
-
-export interface IngestItemResultClick {
-  ok: boolean
-  deliveryToken: string
-  clickId?: string
-  earningsDelta?: number
+  newsId: string
   error?: string
 }
 
@@ -204,19 +191,16 @@ export interface IngestNewsImpressionItem {
   saved: boolean
 }
 
-export interface IngestItemResultNewsImpression {
-  ok: boolean
-  newsId: string
-  error?: string
-}
-
 export interface IngestResponse {
-  impressions: IngestItemResultImpression[]
-  clicks: IngestItemResultClick[]
+  // post-pivot: only newsImpressions are real. impressions/clicks kept as empty
+  // arrays so existing sync.ts applyResults loop doesn't break on index access.
+  impressions: { ok: boolean; deliveryToken: string; error?: string }[]
+  clicks: { ok: boolean; deliveryToken: string; error?: string }[]
   newsImpressions?: IngestItemResultNewsImpression[]
 }
 
 export interface IngestRequest {
+  // legacy ad/click fields: CLI sends empty arrays; API accepts + ignores them
   impressions: { deliveryToken: string }[]
   clicks: { deliveryToken: string }[]
   newsImpressions?: IngestNewsImpressionItem[]
@@ -255,3 +239,6 @@ export function reportError(err: unknown): never {
   }
   process.exit(1)
 }
+
+// keep CONFIG_VERSION re-export to avoid import churn in callers that imported it from here
+export { CONFIG_VERSION }

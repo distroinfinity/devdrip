@@ -3,7 +3,7 @@ import { execSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { hostname, platform } from "node:os"
 import type { Device, IdeType } from "@distrotv/shared"
-import { apiFetch } from "./api-client.js"
+import { apiFetch, apiFetchPublic } from "./api-client.js"
 
 // platform-specific stable machine ID — survives hostname changes and is
 // unique per physical/virtual machine, unlike hostname+platform+arch
@@ -45,7 +45,32 @@ function detectIdeType(): IdeType {
   return "terminal"
 }
 
-export async function registerDevice(): Promise<Device> {
+export interface AnonRegistrationResult {
+  userId: string
+  deviceId: string
+  deviceSecret: string
+}
+
+// fresh-machine path: no auth required. server creates anon user + device,
+// returns the raw secret (only time it's visible — caller must persist it).
+export async function registerAnonDevice(): Promise<AnonRegistrationResult> {
+  const result = await apiFetchPublic<{ userId: string; deviceId: string; deviceSecret: string }>(
+    "/devices/register",
+    {
+      method: "POST",
+      timeoutMs: 10_000,
+      body: {
+        name: hostname(),
+        platform: platform(),
+        ideType: detectIdeType(),
+      },
+    }
+  )
+  return { userId: result.userId, deviceId: result.deviceId, deviceSecret: result.deviceSecret }
+}
+
+// existing-device path: caller holds a device bearer; POST /devices refreshes metadata.
+export async function refreshDeviceMetadata(): Promise<Device> {
   const { device } = await apiFetch<{ device: Device }>("/devices", {
     method: "POST",
     timeoutMs: 5_000,
@@ -57,4 +82,9 @@ export async function registerDevice(): Promise<Device> {
     },
   })
   return device
+}
+
+// kept for backward-compat with any remaining callers (auth-flow, etc.)
+export async function registerDevice(): Promise<Device> {
+  return refreshDeviceMetadata()
 }
