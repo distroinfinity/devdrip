@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import { eq, sql } from "drizzle-orm"
 import { getDb } from "../../db/index.js"
 import { newsSources } from "../../db/schema/news_sources.js"
@@ -9,6 +10,18 @@ import type { RawNewsItem, SourceContext, SourceFetcher } from "./types.js"
 import { hnFetcher } from "./hn.js"
 import { rssFetcher } from "./rss.js"
 import { redditFetcher } from "./reddit.js"
+
+// Atomic compare-and-delete: only release the lock if our token still owns it.
+// Without this, a fetch that runs longer than LOCK_TTL_SEC can have its lock
+// expire, allow worker B to acquire, then have worker A's finally block delete
+// worker B's lock — re-opening the source to overlapping fetches.
+const CAS_DEL_SCRIPT = `
+if redis.call("GET", KEYS[1]) == ARGV[1] then
+  return redis.call("DEL", KEYS[1])
+else
+  return 0
+end
+`
 
 const FETCHERS: Record<string, SourceFetcher> = {
   hn: hnFetcher,
@@ -85,12 +98,21 @@ async function runOne(
 
 async function withLock(sourceId: string, fn: () => Promise<void>): Promise<void> {
   const redis = getRedis()
-  const got = await redis.set(fetcherLockKey(sourceId), "1", { nx: true, ex: LOCK_TTL_SEC })
+  const key = fetcherLockKey(sourceId)
+  const token = randomUUID()
+  const got = await redis.set(key, token, { nx: true, ex: LOCK_TTL_SEC })
   if (!got) return
   try {
     await fn()
   } finally {
-    await redis.del(fetcherLockKey(sourceId))
+    try {
+      await redis.eval(CAS_DEL_SCRIPT, [key], [token])
+    } catch (err) {
+      // TestRedis (in-memory dev/test fallback) does not implement eval. Single-process
+      // dev has no lock contention, so a missed cleanup just leaves a stale key that
+      // expires after LOCK_TTL_SEC. Production (Upstash REST) supports eval natively.
+      logger.debug({ err: String(err) }, "fetcher lock cas-delete unsupported (TestRedis)")
+    }
   }
 }
 
