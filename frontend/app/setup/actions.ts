@@ -1,7 +1,7 @@
 "use server"
 
 import { API_URL } from "@/lib/env"
-import { setSessionCookie } from "@/lib/session"
+import { setSessionCookie, setPairCookie } from "@/lib/session"
 
 interface ExchangePairResponse {
   userId: string
@@ -25,6 +25,7 @@ export async function exchangePairCode(
     }
     const body = (await resp.json()) as ExchangePairResponse
     await setSessionCookie(body.accessToken)
+    await setPairCookie(pairingCode)
     return { ok: true }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "network_error" }

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { exchangePairCode, sendMagicLink } from "./actions"
-import { getSession } from "@/lib/session"
+import { getSession, getPairCookie } from "@/lib/session"
 
 interface PageProps {
   searchParams: Promise<{ pair?: string; sent?: string; email?: string; error?: string }>
@@ -25,8 +25,10 @@ export default async function SetupPage({ searchParams }: PageProps) {
   }
 
   // authed (post-pair-exchange) but not signed in via email → show optional sign-in
+  // params.pair is empty after the redirect from exchange; read pair from cookie instead
   if (session && !session.email) {
-    return <ChooseSignInState pairingCode={params.pair ?? ""} error={params.error} />
+    const pair = await getPairCookie()
+    return <ChooseSignInState pairingCode={pair ?? ""} error={params.error} />
   }
 
   // signed in via email → done state

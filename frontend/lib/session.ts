@@ -2,7 +2,9 @@ import { cookies } from "next/headers"
 import { jwtVerify } from "jose"
 
 export const COOKIE_NAME = "distrotv_session"
+export const PAIR_COOKIE_NAME = "distrotv_pair"
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60
+const PAIR_TTL_SECONDS = 30 * 60 // matches API pair-remember:<code> Redis TTL
 
 export interface SessionPayload {
   userId: string
@@ -22,6 +24,29 @@ export async function setSessionCookie(accessToken: string): Promise<void> {
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   })
+}
+
+export async function setPairCookie(pairingCode: string): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set({
+    name: PAIR_COOKIE_NAME,
+    value: pairingCode,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: PAIR_TTL_SECONDS,
+  })
+}
+
+export async function getPairCookie(): Promise<string | null> {
+  const cookieStore = await cookies()
+  return cookieStore.get(PAIR_COOKIE_NAME)?.value ?? null
+}
+
+export async function clearPairCookie(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.delete(PAIR_COOKIE_NAME)
 }
 
 export async function clearSessionCookie(): Promise<void> {

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { API_URL } from "@/lib/env"
-import { COOKIE_NAME } from "@/lib/session"
+import { COOKIE_NAME, PAIR_COOKIE_NAME } from "@/lib/session"
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
@@ -37,6 +37,8 @@ export async function GET(req: NextRequest) {
       path: "/",
       maxAge: 7 * 24 * 60 * 60,
     })
+    // pair cookie is superseded by the session cookie — clear it
+    response.cookies.delete(PAIR_COOKIE_NAME)
     return response
   } catch {
     return NextResponse.redirect(
