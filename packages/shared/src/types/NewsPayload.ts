@@ -8,7 +8,8 @@ export interface NewsPayload {
   channelKey: ChannelKey
   headline: string
   url: string
-  score: number
+  // optional: HN/Reddit have engagement scores; plain RSS sources (TechCrunch, Bloomberg, …) don't.
+  score?: number
   commentsUrl?: string
   // server computes at fetch time; daemon renders "1h" / "3d"
   ageSeconds: number

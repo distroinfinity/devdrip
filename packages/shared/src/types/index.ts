@@ -25,9 +25,9 @@ export enum ChannelMode {
   Mix = "mix", // alternates news + markets (recommended; default)
 }
 
+import type { NewsTopic } from "./news.js"
 export { NewsSource, NewsTopic } from "./news.js"
 export type { ChannelKey } from "./news.js"
-import type { NewsTopic } from "./news.js"
 
 // ── types ───────────────────────────────────────────────────────────────────
 
