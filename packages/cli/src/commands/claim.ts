@@ -49,7 +49,7 @@ async function runClaim(skipConfirm: boolean): Promise<void> {
     balance = await apiFetch<Balance>("/me/balance")
   } catch (err) {
     if (err instanceof NotAuthenticatedError) {
-      console.error("not signed in. run `devdrip login` first.")
+      console.error("not signed in. run `distro login` first.")
       process.exit(1)
     }
     throw err
@@ -108,5 +108,5 @@ async function runClaim(skipConfirm: boolean): Promise<void> {
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
   }
 
-  console.log("\npolling timed out. check `devdrip status` later for the final state.")
+  console.log("\npolling timed out. check `distro status` later for the final state.")
 }

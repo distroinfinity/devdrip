@@ -17,7 +17,7 @@ const ALL_CATEGORIES = Object.values(AdCategory) as AdCategory[]
 export async function pickChannelMode(current?: ChannelMode): Promise<ChannelMode> {
   const initialValue = current ?? ChannelMode.Mix
   const choice = await select<ChannelMode>({
-    message: "how would you like to use devdrip?",
+    message: "how would you like to use distro tv?",
     options: [
       { value: ChannelMode.Learn, label: "📰 learn — tech news only, no ads, no earnings" },
       { value: ChannelMode.Earn, label: "💰 earn — ads only, full usdc earnings" },

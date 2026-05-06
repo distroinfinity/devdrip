@@ -8,7 +8,7 @@ import { userCmd } from "./admin/user.js"
 import { payoutCmd } from "./admin/payout.js"
 
 export const adminCmd: Command = new Command("admin")
-  .description("admin subcommands (requires DEVDRIP_ADMIN_SECRET)")
+  .description("admin subcommands (requires DISTRO_ADMIN_SECRET)")
   .addCommand(advertiserCmd)
   .addCommand(campaignCmd)
   .addCommand(creativeCmd)

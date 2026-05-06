@@ -19,7 +19,7 @@ let devdripDir = ""
 beforeEach(() => {
   tempHome = mkdtempSync(join(tmpdir(), "devdrip-lifecycle-"))
   process.env["HOME"] = tempHome
-  devdripDir = join(tempHome, ".devdrip")
+  devdripDir = join(tempHome, ".distro")
   mkdirSync(devdripDir, { recursive: true, mode: 0o700 })
 })
 
@@ -140,9 +140,9 @@ describe("isSocketAlive", () => {
 })
 
 describe("resolveSocketPath", () => {
-  it("returns ~/.devdrip/daemon.sock under normal paths", async () => {
+  it("returns ~/.distro/daemon.sock under normal paths", async () => {
     const { resolveSocketPath } = await import("../lifecycle.js")
     const p = resolveSocketPath()
-    expect(p).toBe(join(tempHome, ".devdrip", "daemon.sock"))
+    expect(p).toBe(join(tempHome, ".distro", "daemon.sock"))
   })
 })

@@ -13,7 +13,7 @@ let child: ChildProcess | null = null
 
 beforeEach(() => {
   tempHome = mkdtempSync(join(tmpdir(), "devdrip-e2e-"))
-  devdripDir = join(tempHome, ".devdrip")
+  devdripDir = join(tempHome, ".distro")
   mkdirSync(devdripDir, { recursive: true, mode: 0o700 })
   sockPath = join(devdripDir, "daemon.sock")
 

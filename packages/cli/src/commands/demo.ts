@@ -51,13 +51,13 @@ async function pickAd(deviceId: string): Promise<DemoAd> {
   const fixture = DEMO_SLOTS[0]
   if (!fixture) {
     // unreachable — DEMO_SLOTS is a non-empty constant at module scope
-    return { headline: "DevDrip demo", body: undefined, url: "https://devdrip.sh" }
+    return { headline: "Distro TV demo", body: undefined, url: "https://distrotv.sh" }
   }
   const p = fixture.kind === "ad" ? fixture.payload : null
   return {
-    headline: p?.headline ?? "DevDrip demo",
+    headline: p?.headline ?? "Distro TV demo",
     body: p?.body,
-    url: p?.url ?? "https://devdrip.sh",
+    url: p?.url ?? "https://distrotv.sh",
   }
 }
 
@@ -83,7 +83,7 @@ function fallbackNewsPayload(): NewsPayload {
   return {
     id: "demo-hn:1",
     source: "hn" as never, // matches NewsSource.HackerNews enum value
-    headline: "DevDrip TV — news demo (offline)",
+    headline: "Distro TV — news demo (offline)",
     url: "https://news.ycombinator.com",
     score: 0,
     ageSeconds: 0,
@@ -206,11 +206,11 @@ async function runNewsDemoOnce(deviceId: string, opts: { ascii?: boolean }): Pro
 
 export async function runDemo(opts: { ascii?: boolean } = {}): Promise<void> {
   const cfg = await readConfig()
-  if (!cfg) throw new NotAuthenticatedError("not signed in — run `devdrip auth` or `devdrip init`")
+  if (!cfg) throw new NotAuthenticatedError("not signed in — run `distro auth` or `distro init`")
 
   const deviceId = cfg.device?.id
   if (!deviceId) {
-    throw new Error("device not registered — run `devdrip init`")
+    throw new Error("device not registered — run `distro init`")
   }
 
   const mode = cfg.preferences?.channelMode ?? ChannelMode.Mix

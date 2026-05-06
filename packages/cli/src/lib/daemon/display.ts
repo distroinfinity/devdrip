@@ -53,7 +53,7 @@ export interface DisplayHandle {
   // rotation re-anchors with fresh dimensions.
   onResize(cb: () => void): void
   // visually highlight the box border to confirm to the user that their
-  // keystroke was captured by DevDrip and not consumed by Claude. The
+  // keystroke was captured by Distro TV and not consumed by Claude. The
   // highlight stays until the orchestrator vanishes the box (~150ms later).
   flash(): void
   // S3-04/05: redraw the box with a new progress value and optional earnings
@@ -241,7 +241,7 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     },
     flash(): void {
       // bright green highlight to confirm the keystroke was captured by
-      // DevDrip TV, not Claude. the orchestrator vanishes the box ~150ms
+      // Distro TV, not Claude. the orchestrator vanishes the box ~150ms
       // later, so the green pulse stays on until vanish — no revert needed.
       rewriteBox("\x1b[1;92m")
     },

@@ -12,18 +12,18 @@ import { readStatusCache, type CachedEarningsSummary } from "../lib/status-cache
 import { readDaemonStatus } from "../lib/daemon/lifecycle.js"
 import { runStop } from "./daemon.js"
 
-const DASHBOARD_URL = "https://devdrip.xyz/dashboard"
+const DASHBOARD_URL = "https://distrotv.xyz/dashboard"
 
 function claudeSettingsPath(): string {
   return join(homedir(), ".claude", "settings.json")
 }
 
 function claudeBackupPath(): string {
-  return `${claudeSettingsPath()}.devdrip-backup`
+  return `${claudeSettingsPath()}.distro-backup`
 }
 
-function devdripBinLinkPath(): string {
-  return join(homedir(), ".devdrip", "bin", "devdrip")
+function distroBinLinkPath(): string {
+  return join(homedir(), ".distro", "bin", "distro")
 }
 
 async function fetchEarnings(): Promise<{
@@ -80,7 +80,7 @@ async function restoreOrStripHooks(): Promise<{ restored: boolean; stripped: boo
 }
 
 function removeBinSymlink(): boolean {
-  const p = devdripBinLinkPath()
+  const p = distroBinLinkPath()
   try {
     lstatSync(p)
   } catch {
@@ -120,16 +120,16 @@ function earningsBlock(
     `pending:   ${balance}${cacheTag}`,
     `status:    ${eligibility}`,
     `claim at:  ${DASHBOARD_URL}`,
-    "earnings preserved 90 days — re-run `devdrip init` anytime to restore",
+    "earnings preserved 90 days — re-run `distro init` anytime to restore",
   ].join("\n")
 }
 
 export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Promise<number> {
-  intro("devdrip uninstall")
+  intro("distro uninstall")
 
   if (!opts.yes) {
     const ok = await confirm({
-      message: "remove devdrip? claude code keeps working, earnings stay claimable.",
+      message: "remove distro tv? claude code keeps working, earnings stay claimable.",
       initialValue: false,
     })
     if (isCancel(ok) || !ok) {
@@ -153,15 +153,15 @@ export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Pr
   try {
     const { restored, stripped } = await restoreOrStripHooks()
     if (restored) log.success("restored ~/.claude/settings.json from backup")
-    else if (stripped) log.success("removed devdrip hooks from ~/.claude/settings.json")
-    else log.info("no devdrip hooks found in settings.json")
+    else if (stripped) log.success("removed distro hooks from ~/.claude/settings.json")
+    else log.info("no distro hooks found in settings.json")
   } catch (err) {
     log.warn(`hook removal failed: ${(err as Error).message}`)
   }
 
-  // 3. drop the cli symlink so a future `which devdrip` can't dead-link into
-  // ~/.devdrip/bin/. harmless if missing.
-  if (removeBinSymlink()) log.success("removed ~/.devdrip/bin/devdrip symlink")
+  // 3. drop the cli symlink so a future `which distro` can't dead-link into
+  // ~/.distro/bin/. harmless if missing.
+  if (removeBinSymlink()) log.success("removed ~/.distro/bin/distro symlink")
 
   // 4. print earnings + claim instructions BEFORE any purge, so `--purge` +
   // `--yes` users still see the claim URL in stdout.
@@ -178,7 +178,7 @@ export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Pr
     }
   } else {
     // we keep the ledger + config, but clear cfg.cli.binPath so a fresh
-    // `devdrip init` starts from a clean hook path (the old symlink is gone).
+    // `distro init` starts from a clean hook path (the old symlink is gone).
     const cfg = await readConfig()
     if (cfg && cfg.cli?.binPath) {
       await writeConfig({ ...cfg, cli: { binPath: "" } })
@@ -193,7 +193,7 @@ export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Pr
 export const uninstallCmd = new Command("uninstall")
   .description("clean removal of hooks, daemon, and data")
   .option("-y, --yes", "skip confirmation prompt")
-  .option("--purge", "also delete ~/.devdrip/ (ledger + cache + config)")
+  .option("--purge", "also delete ~/.distro/ (ledger + cache + config)")
   .action(async (opts: { yes?: boolean; purge?: boolean }) => {
     try {
       const code = await runUninstall(opts)

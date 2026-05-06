@@ -217,14 +217,14 @@ export interface RenderBoxOpts {
   // (a) the anchored daemon pane has fixed height; an unexpected-width URL
   // wraps past the pane bottom and scrolls the terminal, stacking boxes.
   // (b) [D]iscover is the canonical way to visit the advertiser anyway.
-  // Left on for the `devdrip demo` preview path where there's no scroll
+  // Left on for the `distro demo` preview path where there's no scroll
   // region to worry about.
   includeUrl?: boolean
   // in-box earnings popup (S3-05, moved from post-vanish toast). rendered
   // right-aligned on the first body row with a brief pop-then-fade animation
   // driven by the orchestrator tick.
   popup?: EarningsPopup
-  // render a [DEMO] tag in the header next to the title. used by `devdrip
+  // render a [DEMO] tag in the header next to the title. used by `distro
   // demo` so a user can't mistake a practice ad for a real one being logged.
   demoBadge?: boolean
 }
@@ -247,7 +247,7 @@ export function renderBox(
   const c = ascii ? ASCII : UNI
   // no color when ASCII fallback is on — NO_COLOR/non-TTY imply monochrome.
   const color: ColorMode = ascii ? "none" : (opts.color ?? detectColor())
-  const title = "DEV DRIP TV"
+  const title = "DISTRO TV"
   const earningsSegment =
     opts.earningsUsdc !== undefined ? `$${opts.earningsUsdc.toFixed(4)} earned` : ""
   const sourceSegment = opts.source ? `via ${opts.source}` : ""
@@ -360,7 +360,7 @@ export function renderNewsBox(
   const c = ascii ? ASCII : UNI
   const color: ColorMode = ascii ? "none" : (opts.color ?? detectColor())
 
-  const title = "DEV DRIP TV"
+  const title = "DISTRO TV"
   const sourceSegment = opts.source ? `via ${opts.source}` : ""
 
   const dot = liveDot(opts.elapsedMs ?? 0, ascii, color)

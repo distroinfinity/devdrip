@@ -151,7 +151,7 @@ async function installHooks(): Promise<void> {
   const backupPath = claudeBackupPath()
   const binPath = resolveBinPath()
   if (!binPath.trim()) {
-    throw new Error("unable to resolve the devdrip binary path for Claude hooks")
+    throw new Error("unable to resolve the distro binary path for Claude hooks")
   }
 
   await writeBackupOnce(settingsPath, backupPath)
@@ -186,15 +186,15 @@ async function previewAd(): Promise<void> {
     await runDemo()
   } catch (err) {
     if (err instanceof ApiError || err instanceof NotAuthenticatedError) {
-      log.warn("preview unavailable — run `devdrip demo` after your next Claude session")
+      log.warn("preview unavailable — run `distro demo` after your next Claude session")
       return
     }
-    if (err instanceof Error && err.message === "device not registered — run `devdrip init`") {
-      log.warn("preview unavailable — run `devdrip demo` after your next Claude session")
+    if (err instanceof Error && err.message === "device not registered — run `distro init`") {
+      log.warn("preview unavailable — run `distro demo` after your next Claude session")
       return
     }
     if (err instanceof TypeError && /fetch/i.test(err.message)) {
-      log.warn("preview unavailable — run `devdrip demo` after your next Claude session")
+      log.warn("preview unavailable — run `distro demo` after your next Claude session")
       return
     }
     throw err
@@ -219,8 +219,8 @@ async function runHealthCheck(): Promise<boolean> {
 function printSummary(): void {
   note(
     [
-      "→ dashboard: https://devdrip.xyz/dashboard",
-      "→ run `devdrip status` to see your earnings",
+      "→ dashboard: https://distrotv.xyz/dashboard",
+      "→ run `distro status` to see your earnings",
     ].join("\n"),
     "what's next"
   )
@@ -237,19 +237,19 @@ async function ensureDaemonRunning(): Promise<void> {
     const { runStart } = await import("./daemon.js")
     const code = await runStart()
     if (code !== 0) {
-      log.warn("daemon failed to start — run `devdrip daemon start` manually")
+      log.warn("daemon failed to start — run `distro daemon start` manually")
     } else {
       log.success("daemon started")
     }
   } catch (err) {
     log.warn(
-      `daemon start skipped (${err instanceof Error ? err.message : String(err)}) — run \`devdrip daemon start\` manually`
+      `daemon start skipped (${err instanceof Error ? err.message : String(err)}) — run \`distro daemon start\` manually`
     )
   }
 }
 
 export async function runInit(): Promise<void> {
-  intro("devdrip init — let's get you earning")
+  intro("distro init — let's get you earning")
 
   await ensureAuth()
   await ensureClaudeDir()

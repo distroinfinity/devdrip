@@ -7,7 +7,7 @@ import { configExists, deleteConfig, readConfig } from "../lib/config.js"
 // removed in the next major version. Existing users running `devdrip auth` see
 // the warning + the new flow.
 export const authCmd = new Command("auth")
-  .description("(deprecated) use `devdrip login` instead")
+  .description("(deprecated) use `distro login` instead")
   .option("--logout", "sign out and clear the local session")
   .option("-f, --force", "skip the re-auth confirmation prompt")
   .action(async (opts: { logout?: boolean; force?: boolean }) => {
@@ -16,7 +16,7 @@ export const authCmd = new Command("auth")
         await runLogout()
         return
       }
-      console.error("⚠ `devdrip auth` is deprecated — use `devdrip login` instead")
+      console.error("⚠ `distro auth` is deprecated — use `distro login` instead")
       await runLogin(opts.force === true)
     } catch (err) {
       reportError(err)

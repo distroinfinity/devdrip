@@ -55,9 +55,9 @@ vi.mock("@clack/prompts", () => ({
 }))
 
 function seedV3Config(home: string, overrides: Record<string, unknown> = {}): void {
-  mkdirSync(join(home, ".devdrip"), { recursive: true, mode: 0o700 })
+  mkdirSync(join(home, ".distro"), { recursive: true, mode: 0o700 })
   writeFileSync(
-    join(home, ".devdrip", "config.json"),
+    join(home, ".distro", "config.json"),
     JSON.stringify({
       version: 3,
       apiUrl: "http://localhost:3000",
@@ -82,7 +82,7 @@ function seedV3Config(home: string, overrides: Record<string, unknown> = {}): vo
 }
 
 function readPersistedPrefs(home: string): Record<string, unknown> {
-  const raw = readFileSync(join(home, ".devdrip", "config.json"), "utf8")
+  const raw = readFileSync(join(home, ".distro", "config.json"), "utf8")
   const cfg = JSON.parse(raw) as { preferences: Record<string, unknown> }
   return cfg.preferences
 }
@@ -236,7 +236,7 @@ describe("devdrip config --reset", () => {
 })
 
 describe("devdrip config (no config)", () => {
-  it("errors clearly when ~/.devdrip/config.json does not exist", async () => {
+  it("errors clearly when ~/.distro/config.json does not exist", async () => {
     await expect(runConfig(["--list"])).rejects.toThrow(/not initialized/)
   })
 })

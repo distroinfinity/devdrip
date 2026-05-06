@@ -40,7 +40,7 @@ async function showMenu(currentMode: ChannelMode): Promise<Action> {
 }
 
 async function runPreferences(): Promise<void> {
-  intro("devdrip preferences")
+  intro("distro preferences")
   let prefs = await getPreferences()
 
   // loop until cancel so multi-edit in one session works

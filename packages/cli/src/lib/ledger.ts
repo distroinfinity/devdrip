@@ -258,7 +258,7 @@ export function openLedger(): Ledger {
 
   db.pragma("journal_mode = WAL")
   db.pragma("synchronous = NORMAL")
-  // prevents SQLITE_BUSY errors when the daemon and `devdrip sync --force` write concurrently
+  // prevents SQLITE_BUSY errors when the daemon and `distro sync --force` write concurrently
   db.pragma("busy_timeout = 5000")
   runMigrations(db)
 

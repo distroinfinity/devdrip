@@ -20,7 +20,7 @@ const POLL_INTERVAL_MS = 1_000
 const TOTAL_BUDGET_MS = 5 * 60 * 1000
 
 export const loginCmd = new Command("login")
-  .description("link this CLI to your DevDrip account via QR pairing")
+  .description("link this CLI to your Distro TV account via QR pairing")
   .option("-f, --force", "skip the re-auth confirmation prompt")
   .action(async (opts: { force?: boolean }) => {
     try {
@@ -57,7 +57,7 @@ export async function runLogin(force: boolean): Promise<void> {
   while (Date.now() - startedAt < TOTAL_BUDGET_MS) {
     const r = await fetch(`${baseUrl}/cli/pair/${pair.code}`)
     if (r.status === 410) {
-      console.error("pair session expired. re-run `devdrip login`.")
+      console.error("pair session expired. re-run `distro login`.")
       process.exit(1)
     }
     if (r.status === 200) {
@@ -72,7 +72,7 @@ export async function runLogin(force: boolean): Promise<void> {
     await sleep(POLL_INTERVAL_MS)
   }
 
-  console.error("login timed out after 5 minutes. re-run `devdrip login`.")
+  console.error("login timed out after 5 minutes. re-run `distro login`.")
   process.exit(1)
 }
 

@@ -297,7 +297,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
 
   function dispatch(event: Event): void {
     // count only socket-originated events (hooks), not internal timer callbacks.
-    // this lets `devdrip daemon status` answer "are hooks reaching the daemon?".
+    // this lets `distro daemon status` answer "are hooks reaching the daemon?".
     if (event.kind === "idle-start" || event.kind === "idle-end" || event.kind === "dismiss") {
       hooksReceivedCount += 1
     }

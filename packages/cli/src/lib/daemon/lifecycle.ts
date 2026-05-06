@@ -135,7 +135,7 @@ export function removeHeartbeat(): void {
 }
 
 // single source of truth for "is the daemon healthy right now?". consumed by
-// both `devdrip daemon status` and `devdrip status`, so they can't drift.
+// both `distro daemon status` and `distro status`, so they can't drift.
 export const HEARTBEAT_STALE_AFTER_MS = 30_000
 
 export type DaemonHealth = "running" | "stale" | "not-running"

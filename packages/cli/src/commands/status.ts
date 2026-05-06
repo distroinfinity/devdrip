@@ -122,7 +122,7 @@ export const statusCmd = new Command("status")
       printHuman(payload)
       const upgrade = await upgradePromise
       if (upgrade?.outdated) {
-        console.log(`upgrade:  ${upgrade.latest} available (run \`devdrip upgrade\`)`)
+        console.log(`upgrade:  ${upgrade.latest} available (run \`distro upgrade\`)`)
       }
     } catch (err) {
       reportError(err)
@@ -248,7 +248,7 @@ function formatUptime(ms: number): string {
 
 function printHuman(p: StatusPayload): void {
   if (!p.user) {
-    console.log("auth:     not signed in (run `devdrip auth`)")
+    console.log("auth:     not signed in (run `distro auth`)")
     // still show daemon + unsynced even when not signed in — useful for support
     printDaemon(p.daemon)
     printUnsynced(p.unsynced)
@@ -311,7 +311,7 @@ function printUnsynced(u: StatusPayload["unsynced"]): void {
 
 function printDaemon(d: DaemonStatus): void {
   if (d.health === "not-running") {
-    console.log("daemon:   stopped (run `devdrip daemon start`)")
+    console.log("daemon:   stopped (run `distro daemon start`)")
     return
   }
   if (d.health === "stale") {

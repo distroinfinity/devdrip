@@ -28,7 +28,7 @@ function isPortFree(port: number): Promise<boolean> {
 }
 
 const SUCCESS_HTML = `<!doctype html>
-<html><head><meta charset="utf-8"><title>devdrip</title>
+<html><head><meta charset="utf-8"><title>distro tv</title>
 <style>body{font:16px system-ui;margin:40px;color:#111}h1{font-weight:600}</style>
 </head><body>
 <h1>you're signed in.</h1>
@@ -36,7 +36,7 @@ const SUCCESS_HTML = `<!doctype html>
 </body></html>`
 
 const ERROR_HTML = (msg: string) => `<!doctype html>
-<html><head><meta charset="utf-8"><title>devdrip</title>
+<html><head><meta charset="utf-8"><title>distro tv</title>
 <style>body{font:16px system-ui;margin:40px;color:#111}h1{font-weight:600;color:#b00020}</style>
 </head><body>
 <h1>sign-in failed</h1>

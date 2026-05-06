@@ -13,7 +13,7 @@ export type KillEvent = { type: "kill" }
 export type ReloadConfigEvent = { type: "reload-config" }
 export type SessionStartEvent = { type: "session-start"; tty?: string | null }
 
-// User-initiated actions dispatched from CLI subcommands (`devdrip tv skip`,
+// User-initiated actions dispatched from CLI subcommands (`distro skip`,
 // etc.). Separate from the raw-mode key path in `input.ts` so users can
 // reliably interact even when their keystrokes lose the tty race with Claude.
 export type ActionKind = "discover" | "skip" | "kill-session" | "mute" | "dismiss"

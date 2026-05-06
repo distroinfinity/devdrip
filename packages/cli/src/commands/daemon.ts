@@ -34,11 +34,11 @@ const START_POLL_DEADLINE_MS = 2_000
 export async function runStart(): Promise<number> {
   const cfg = await readConfig()
   if (!cfg || !cfg.user?.id || !cfg.device?.id) {
-    console.error("not initialized — run `devdrip init` first")
+    console.error("not initialized — run `distro init` first")
     return 1
   }
   if (!cfg.cli?.binPath) {
-    console.error("cli.binPath missing from config — run `devdrip init` again")
+    console.error("cli.binPath missing from config — run `distro init` again")
     return 1
   }
 
@@ -83,13 +83,13 @@ export async function runStart(): Promise<number> {
     }
     if (child.exitCode !== null) {
       console.error(
-        `daemon crashed on startup (exit code ${child.exitCode}) — check ~/.devdrip/daemon.log`
+        `daemon crashed on startup (exit code ${child.exitCode}) — check ~/.distro/daemon.log`
       )
       return 1
     }
     await sleep(50)
   }
-  console.error("daemon did not write heartbeat within 2s — check ~/.devdrip/daemon.log")
+  console.error("daemon did not write heartbeat within 2s — check ~/.distro/daemon.log")
   return 1
 }
 

@@ -183,7 +183,7 @@ async function syncCategoriesToBackend(prefs: DevdripPreferences): Promise<void>
 async function persist(next: DevdripPreferences): Promise<void> {
   const cfg = await readConfig()
   if (!cfg) {
-    throw new NotAuthenticatedError("not initialized — run `devdrip init` first")
+    throw new NotAuthenticatedError("not initialized — run `distro init` first")
   }
   await writeConfig({
     apiUrl: cfg.apiUrl,
@@ -199,7 +199,7 @@ async function persist(next: DevdripPreferences): Promise<void> {
 
 async function runList(): Promise<void> {
   const cfg = await readConfig()
-  if (!cfg) throw new NotAuthenticatedError("not initialized — run `devdrip init` first")
+  if (!cfg) throw new NotAuthenticatedError("not initialized — run `distro init` first")
   console.log(JSON.stringify(prefsSummary(cfg.preferences), null, 2))
 }
 
@@ -208,14 +208,14 @@ async function runGet(key: string): Promise<void> {
     throw new Error(`unknown key "${key}" — valid: ${EDITABLE_KEYS.join(", ")}`)
   }
   const cfg = await readConfig()
-  if (!cfg) throw new NotAuthenticatedError("not initialized — run `devdrip init` first")
+  if (!cfg) throw new NotAuthenticatedError("not initialized — run `distro init` first")
   const v = cfg.preferences[key]
   console.log(typeof v === "string" ? v : JSON.stringify(v))
 }
 
 async function runSet(pairs: string[]): Promise<void> {
   const cfg = await readConfig()
-  if (!cfg) throw new NotAuthenticatedError("not initialized — run `devdrip init` first")
+  if (!cfg) throw new NotAuthenticatedError("not initialized — run `distro init` first")
   let next = cfg.preferences
   for (const pair of pairs) {
     const { key, value } = splitSetPair(pair)
@@ -232,7 +232,7 @@ async function runSet(pairs: string[]): Promise<void> {
 
 async function runReset(): Promise<void> {
   const cfg = await readConfig()
-  if (!cfg) throw new NotAuthenticatedError("not initialized — run `devdrip init` first")
+  if (!cfg) throw new NotAuthenticatedError("not initialized — run `distro init` first")
   const next = defaultDevdripPreferences()
   await persist(next)
   if (categoriesChanged(cfg.preferences, next)) {
@@ -370,9 +370,9 @@ async function editWarmup(prefs: DevdripPreferences): Promise<DevdripPreferences
 
 async function runInteractive(): Promise<void> {
   const cfg = await readConfig()
-  if (!cfg) throw new NotAuthenticatedError("not initialized — run `devdrip init` first")
+  if (!cfg) throw new NotAuthenticatedError("not initialized — run `distro init` first")
 
-  intro("devdrip config")
+  intro("distro config")
   note(JSON.stringify(prefsSummary(cfg.preferences), null, 2), "current settings")
 
   let working = cfg.preferences

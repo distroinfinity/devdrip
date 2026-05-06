@@ -138,7 +138,7 @@ describe("mergeDevdripHooks", () => {
   })
 
   it("merges SessionStart hook", () => {
-    const { next } = mergeDevdripHooks({}, "/Users/x/.devdrip/bin/devdrip")
+    const { next } = mergeDevdripHooks({}, "/Users/x/.distro/bin/devdrip")
     expect(next.hooks?.SessionStart).toBeDefined()
     expect(next.hooks?.SessionStart?.[0]?.hooks[0]?.command).toContain("hook session-start")
   })
@@ -201,7 +201,7 @@ describe("readSettings / writeSettingsAtomic / writeBackupOnce", () => {
 
   it("writeBackupOnce copies src to backup only on first call", async () => {
     const src = join(tempDir, "settings.json")
-    const backup = join(tempDir, "settings.json.devdrip-backup")
+    const backup = join(tempDir, "settings.json.distro-backup")
     writeFileSync(src, '{"a":1}')
     await writeBackupOnce(src, backup)
     expect(readFileSync(backup, "utf8")).toBe('{"a":1}')
@@ -214,7 +214,7 @@ describe("readSettings / writeSettingsAtomic / writeBackupOnce", () => {
 
   it("writeBackupOnce writes {} when source is missing", async () => {
     const src = join(tempDir, "missing.json")
-    const backup = join(tempDir, "missing.json.devdrip-backup")
+    const backup = join(tempDir, "missing.json.distro-backup")
     await writeBackupOnce(src, backup)
     expect(existsSync(backup)).toBe(true)
     expect(readFileSync(backup, "utf8")).toBe("{}\n")

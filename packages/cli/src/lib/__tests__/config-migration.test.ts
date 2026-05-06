@@ -16,7 +16,7 @@ afterEach(() => {
 
 describe("config migration", () => {
   it("reads a v1 config and upgrades to v3 with default device/cli/preferences", async () => {
-    const dir = join(tempHome, ".devdrip")
+    const dir = join(tempHome, ".distro")
     mkdirSync(dir, { recursive: true })
     writeFileSync(
       join(dir, "config.json"),
@@ -42,7 +42,7 @@ describe("config migration", () => {
   })
 
   it("reads a v2 config and upgrades to v3 preserving device/cli, filling default prefs", async () => {
-    const dir = join(tempHome, ".devdrip")
+    const dir = join(tempHome, ".distro")
     mkdirSync(dir, { recursive: true })
     writeFileSync(
       join(dir, "config.json"),
@@ -66,7 +66,7 @@ describe("config migration", () => {
   })
 
   it("reads a v3 config unchanged (round-trip)", async () => {
-    const dir = join(tempHome, ".devdrip")
+    const dir = join(tempHome, ".distro")
     mkdirSync(dir, { recursive: true })
     writeFileSync(
       join(dir, "config.json"),
@@ -98,7 +98,7 @@ describe("config migration", () => {
   })
 
   it("throws for unknown versions", async () => {
-    const dir = join(tempHome, ".devdrip")
+    const dir = join(tempHome, ".distro")
     mkdirSync(dir, { recursive: true })
     writeFileSync(join(dir, "config.json"), JSON.stringify({ version: 99, apiUrl: "x" }))
     const { readConfig } = await import("../config.js")

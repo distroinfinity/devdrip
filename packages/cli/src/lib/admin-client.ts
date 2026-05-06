@@ -1,10 +1,10 @@
-const DEFAULT_BASE_URL = "https://devdrip-api-production.up.railway.app"
+const DEFAULT_BASE_URL = "https://distrotv-api-production.up.railway.app"
 
 function readSecret(): string {
-  const secret = process.env["DEVDRIP_ADMIN_SECRET"] ?? process.env["ADMIN_SECRET"]
+  const secret = process.env["DISTRO_ADMIN_SECRET"] ?? process.env["ADMIN_SECRET"]
   if (!secret) {
     console.error(
-      "admin secret missing — set DEVDRIP_ADMIN_SECRET (or ADMIN_SECRET) in your environment"
+      "admin secret missing — set DISTRO_ADMIN_SECRET (or ADMIN_SECRET) in your environment"
     )
     process.exit(1)
   }
@@ -12,7 +12,7 @@ function readSecret(): string {
 }
 
 function readBaseUrl(): string {
-  return (process.env["DEVDRIP_API_URL"] ?? DEFAULT_BASE_URL).replace(/\/$/, "")
+  return (process.env["DISTRO_API_URL"] ?? DEFAULT_BASE_URL).replace(/\/$/, "")
 }
 
 type FetchInit = Omit<RequestInit, "body" | "headers"> & {

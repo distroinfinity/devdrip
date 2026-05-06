@@ -97,9 +97,9 @@ beforeEach(() => {
   symlinkSync(realEntry, linkEntry)
   process.argv[1] = linkEntry
   // seed a v2 config so auth step is a no-op
-  mkdirSync(join(tempHome, ".devdrip"), { recursive: true, mode: 0o700 })
+  mkdirSync(join(tempHome, ".distro"), { recursive: true, mode: 0o700 })
   writeFileSync(
-    join(tempHome, ".devdrip", "config.json"),
+    join(tempHome, ".distro", "config.json"),
     JSON.stringify({
       version: 2,
       apiUrl: "http://localhost:3000",
@@ -141,7 +141,7 @@ describe("devdrip init", () => {
 
     expect(existsSync(join(tempHome, ".claude"))).toBe(true)
 
-    const linkPath = join(tempHome, ".devdrip", "bin", "devdrip")
+    const linkPath = join(tempHome, ".distro", "bin", "devdrip")
 
     // settings.json contains all three events with our bin path
     const settings = JSON.parse(
@@ -154,10 +154,10 @@ describe("devdrip init", () => {
     )
 
     // backup written
-    expect(existsSync(join(tempHome, ".claude", "settings.json.devdrip-backup"))).toBe(true)
+    expect(existsSync(join(tempHome, ".claude", "settings.json.distro-backup"))).toBe(true)
 
     // config updated with device.id and a non-empty binPath
-    const cfgRaw = readFileSync(join(tempHome, ".devdrip", "config.json"), "utf8")
+    const cfgRaw = readFileSync(join(tempHome, ".distro", "config.json"), "utf8")
     const cfg = JSON.parse(cfgRaw) as {
       device: { id: string | null }
       cli: { binPath: string }
@@ -189,7 +189,7 @@ describe("devdrip init", () => {
 
   it("preserves a pre-existing backup untouched on re-run", async () => {
     const settingsPath = join(tempHome, ".claude", "settings.json")
-    const backupPath = `${settingsPath}.devdrip-backup`
+    const backupPath = `${settingsPath}.distro-backup`
     mkdirSync(join(tempHome, ".claude"), { recursive: true })
     writeFileSync(
       settingsPath,
@@ -207,11 +207,11 @@ describe("devdrip init", () => {
     expect(readFileSync(backupPath, "utf8")).toContain("/other/tool foo")
   })
 
-  it("installs a stable ~/.devdrip/bin/devdrip symlink pointing at the realpath of argv[1]", async () => {
+  it("installs a stable ~/.distro/bin/devdrip symlink pointing at the realpath of argv[1]", async () => {
     const { runInit } = await import("../init.js")
     await runInit()
 
-    const linkPath = join(tempHome, ".devdrip", "bin", "devdrip")
+    const linkPath = join(tempHome, ".distro", "bin", "devdrip")
     expect(lstatSync(linkPath).isSymbolicLink()).toBe(true)
     // argv[1] is tempBinDir/devdrip (symlink) → tempBinDir/index.js (real file).
     // the canonical symlink must point at the realpath, not the invocation path,
@@ -221,9 +221,9 @@ describe("devdrip init", () => {
     expect(readlinkSync(linkPath)).toBe(realpathSync(join(tempBinDir, "index.js")))
   })
 
-  it("retargets a stale ~/.devdrip/bin/devdrip symlink on init", async () => {
-    const linkPath = join(tempHome, ".devdrip", "bin", "devdrip")
-    mkdirSync(join(tempHome, ".devdrip", "bin"), { recursive: true, mode: 0o700 })
+  it("retargets a stale ~/.distro/bin/devdrip symlink on init", async () => {
+    const linkPath = join(tempHome, ".distro", "bin", "devdrip")
+    mkdirSync(join(tempHome, ".distro", "bin"), { recursive: true, mode: 0o700 })
     const staleTarget = join(tempBinDir, "stale-target.js")
     writeFileSync(staleTarget, "")
     symlinkSync(staleTarget, linkPath)

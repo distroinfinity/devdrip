@@ -73,7 +73,7 @@ describe("ledger", () => {
     }
 
     if (process.platform !== "win32") {
-      expect(statSync(join(tempHome, ".devdrip")).mode & 0o777).toBe(0o700)
+      expect(statSync(join(tempHome, ".distro")).mode & 0o777).toBe(0o700)
       expect(statSync(path).mode & 0o777).toBe(0o600)
       // WAL sidecars carry the same rows between checkpoints — must be 0600 too
       for (const suffix of ["-wal", "-shm"]) {
@@ -169,7 +169,7 @@ describe("ledger", () => {
   it("rotates a corrupt DB file and opens fresh", async () => {
     // create a fake devdrip dir + corrupt DB by writing garbage bytes
     const { ledgerPath } = await import("../ledger.js")
-    const devdripDir = join(tempHome, ".devdrip")
+    const devdripDir = join(tempHome, ".distro")
     const { mkdirSync } = await import("node:fs")
     mkdirSync(devdripDir, { recursive: true, mode: 0o700 })
     writeFileSync(ledgerPath(), Buffer.from("not a sqlite database at all"))
@@ -199,7 +199,7 @@ describe("v2 clicks table", () => {
     const Database = (await import("better-sqlite3")).default
 
     // build a v1 schema manually and insert an impression row
-    const devdripDir = join(tempHome, ".devdrip")
+    const devdripDir = join(tempHome, ".distro")
     const { mkdirSync } = await import("node:fs")
     mkdirSync(devdripDir, { recursive: true, mode: 0o700 })
     const dbPath = ledgerPath()

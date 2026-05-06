@@ -8,9 +8,9 @@ import {
   type DevdripConfig,
 } from "./config.js"
 
-// railway-hosted prod api. override with DEVDRIP_API_URL for local/staging.
-// note: api.devdrip.sh is the eventual public hostname but dns isn't wired yet.
-const DEFAULT_BASE_URL = "https://devdrip-api-production.up.railway.app"
+// railway-hosted prod api. override with DISTRO_API_URL for local/staging.
+// note: api.distro.sh is the eventual public hostname but dns isn't wired yet.
+const DEFAULT_BASE_URL = "https://distrotv-api-production.up.railway.app"
 const DEFAULT_TIMEOUT_MS = 10_000
 
 // Mirrors the backend `/me` response. Commands that call /me should import this
@@ -38,7 +38,7 @@ export class ApiError extends Error {
 }
 
 export class NotAuthenticatedError extends Error {
-  constructor(message = "session expired — run `devdrip auth`") {
+  constructor(message = "session expired — run `distro auth`") {
     super(message)
     this.name = "NotAuthenticatedError"
   }
@@ -52,7 +52,7 @@ type FetchInit = Omit<RequestInit, "body" | "headers"> & {
 }
 
 export function resolveApiUrl(cfg?: DevdripConfig | null): string {
-  const fromEnv = process.env["DEVDRIP_API_URL"]
+  const fromEnv = process.env["DISTRO_API_URL"]
   const fromCfg = cfg?.apiUrl
   return (fromEnv ?? fromCfg ?? DEFAULT_BASE_URL).replace(/\/$/, "")
 }
@@ -105,26 +105,26 @@ async function rawFetch<T>(
 
 /**
  * Unauthenticated request — use for /auth/exchange, /auth/refresh, etc.
- * Prefers DEVDRIP_API_URL, then the caller-supplied baseUrl, then the default.
+ * Prefers DISTRO_API_URL, then the caller-supplied baseUrl, then the default.
  */
 export async function apiFetchPublic<T>(
   path: string,
   init: FetchInit = {},
   baseUrl?: string
 ): Promise<T> {
-  const url = (process.env["DEVDRIP_API_URL"] ?? baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "")
+  const url = (process.env["DISTRO_API_URL"] ?? baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "")
   return rawFetch<T>(url, path, init)
 }
 
 /**
- * Authenticated request backed by ~/.devdrip/config.json. On 401 with
+ * Authenticated request backed by ~/.distro/config.json. On 401 with
  * token_expired, transparently rotates via /auth/refresh and retries once.
  * On terminal auth failure the config is cleared and NotAuthenticatedError is
  * thrown so callers can tell the user to re-auth.
  */
 export async function apiFetch<T>(path: string, init: FetchInit = {}): Promise<T> {
   const cfg = await readConfig()
-  if (!cfg) throw new NotAuthenticatedError("not signed in — run `devdrip auth`")
+  if (!cfg) throw new NotAuthenticatedError("not signed in — run `distro auth`")
 
   const baseUrl = resolveApiUrl(cfg)
 
@@ -170,7 +170,7 @@ async function tryRefresh(cfg: DevdripConfig, baseUrl: string): Promise<DevdripC
     if (err instanceof ApiError && err.status === 401) {
       await deleteConfig().catch(() => {})
       throw new NotAuthenticatedError(
-        `session expired — run \`devdrip auth\` (cleared ${configPath()})`
+        `session expired — run \`distro auth\` (cleared ${configPath()})`
       )
     }
     throw err

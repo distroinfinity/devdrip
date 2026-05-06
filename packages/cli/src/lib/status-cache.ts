@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { configDir } from "./config.js"
 
 // cached copy of the last successful /me/earnings/summary response, so
-// `devdrip status` can render today/week/month/streak when the backend is
+// `distro status` can render today/week/month/streak when the backend is
 // unreachable. marked stale after ~24h — older than that is worse than showing
 // "—" because it misleads about recent earnings.
 const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000
