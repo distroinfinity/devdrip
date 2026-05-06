@@ -1,6 +1,7 @@
 // M1: ad slots ripped. M3 extends news; M4 adds "ticker" branch.
 import { randomUUID } from "node:crypto"
 import {
+  MAX_AD_DURATION_MS,
   MAX_ADS_PER_CONTINUOUS_SESSION,
   NIGHT_MODE_DEFAULT_START_HOUR,
   NIGHT_MODE_DEFAULT_END_HOUR,
@@ -401,7 +402,8 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             dispatch({ kind: "dismiss", now: now(), tty: session.tty })
           })
           deps.keyCapture.start(effect.tty)
-          const displayTimeMs = effect.ad.kind === "news" ? effect.ad.displayTimeMs : 0
+          const displayTimeMs =
+            effect.ad.kind === "news" ? effect.ad.displayTimeMs : MAX_AD_DURATION_MS
           deps.log.info("showing slot", {
             payloadId,
             kind: effect.ad.kind,

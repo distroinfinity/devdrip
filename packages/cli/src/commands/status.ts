@@ -1,117 +1,52 @@
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { Command } from "commander"
-import {
-  ApiError,
-  apiFetch,
-  type MeResponse,
-  NotAuthenticatedError,
-  reportError,
-} from "../lib/api-client.js"
+import { reportError } from "../lib/api-client.js"
 import { readConfig, type DevdripConfig } from "../lib/config.js"
 import { readDaemonStatus, type DaemonStatus } from "../lib/daemon/lifecycle.js"
 import { ledgerPath, openLedger } from "../lib/ledger.js"
-import {
-  readStatusCache,
-  writeStatusCache,
-  type CachedEarningsSummary,
-} from "../lib/status-cache.js"
+import { slotCachePath } from "../lib/slot-cache.js"
 import { maybeCheck } from "../lib/upgrade-check.js"
 
 const require = createRequire(import.meta.url)
 
-// Mirrors the backend `EarningsSummary` shape (packages/api/src/services/earnings.service.ts).
-// Re-declared locally so this command doesn't take a dependency on the API package.
-interface EarningsSummaryResponse {
-  balance: number
-  today: number
-  week: number
-  month: number
-  allTime: number
-  streakDays: number
-  totalImpressions: number
-  totalClicks: number
-  topCategories: { category: string; amountUsdc: number }[]
-}
-
-interface LocalLedgerState {
-  unsyncedImpressions: number
-  unsyncedClicks: number
-  todayOptimistic: number
-}
-
-interface StatusUser {
-  githubLogin: string | null
-  email: string
-  // World identity fields (populated from /me response when signed in; null
-  // until Mini App signup completes).
-  walletAddress: string | null
-  verificationLevel: "device" | "orb" | null
-  signedUpAt: string | null
-  miniAppComplete: boolean
+interface SlotCacheInfo {
+  count: number
+  ageMs: number | null
+  expiresAt: number | null
 }
 
 interface StatusPayload {
-  user: StatusUser | null
-  earnings: EarningsSummaryResponse | null
-  earningsFromCache: boolean
-  earningsCacheAgeMs: number | null
-  payout: { eligible: boolean; threshold: number; shortfall: number } | null
-  unsynced: { impressions: number; clicks: number }
-  localTodayOptimistic: number
+  installed: boolean
+  mode: string | null
+  channels: string[]
   daemon: DaemonStatus
+  slotCache: SlotCacheInfo
+  unsyncedImpressions: number
   offline: boolean
-  offlineReason: string | null
 }
 
 export const statusCmd = new Command("status")
-  .description("show earnings, daemon, and sync status")
+  .description("show daemon, slot cache, and sync status")
   .option("--json", "emit a single JSON object (stable shape for scripting)")
-  .option("--local", "skip backend call; show local ledger + daemon only")
+  .option("--local", "skip backend call; show local state only")
   .action(async (opts: { json?: boolean; local?: boolean }) => {
     try {
       const cfg = await readConfig()
-      // use the persisted preference tz when signed in (matches the daemon +
-      // earnings toast + config layer). fall back to the host tz only for the
-      // not-signed-in path, where no preference exists yet.
-      const tzOffsetMinutes = cfg?.preferences.tzOffsetMinutes ?? -new Date().getTimezoneOffset()
-      const ledger = readLocalLedger(tzOffsetMinutes)
       const daemon = readDaemonStatus()
+      const slotCache = readSlotCacheInfo()
+      const unsynced = readUnsyncedCount()
 
-      // passive upgrade check — 500ms cap, errors swallowed, never gates the
-      // main flow. --json skips it so scripts see a stable shape.
       const upgradePromise = opts.json ? Promise.resolve(null) : runPassiveUpgradeCheck()
 
-      const { earnings, earningsFromCache, earningsCacheAgeMs, offline, offlineReason } =
-        await fetchEarnings(cfg, opts.local ?? false)
-
-      // Fetch /me only when signed in + online — the new World identity fields
-      // (walletAddress, verificationLevel, signedUpAt) live there. On failure
-      // fall back to the cached config user fields (no World identity in that path).
-      const me = cfg && !opts.local ? await fetchMeSafe() : null
-
-      const user: StatusUser | null = cfg
-        ? {
-            githubLogin: me?.githubLogin ?? cfg.user.githubLogin ?? null,
-            email: me?.email ?? cfg.user.email,
-            walletAddress: me?.walletAddress ?? null,
-            verificationLevel: me?.verificationLevel ?? null,
-            signedUpAt: me?.signedUpAt ?? null,
-            miniAppComplete: !!me?.signedUpAt,
-          }
-        : null
-
       const payload: StatusPayload = {
-        user,
-        earnings,
-        earningsFromCache,
-        earningsCacheAgeMs,
-        payout: computePayout(earnings),
-        unsynced: { impressions: ledger.unsyncedImpressions, clicks: ledger.unsyncedClicks },
-        localTodayOptimistic: ledger.todayOptimistic,
+        installed: cfg !== null,
+        mode: cfg?.preferences.channelMode ?? null,
+        channels: resolveChannels(cfg),
         daemon,
-        offline,
-        offlineReason,
+        slotCache,
+        unsyncedImpressions: unsynced,
+        offline: opts.local ?? false,
       }
 
       if (opts.json) {
@@ -119,6 +54,7 @@ export const statusCmd = new Command("status")
         return
       }
       printHuman(payload)
+
       const upgrade = await upgradePromise
       if (upgrade?.outdated) {
         console.log(`upgrade:  ${upgrade.latest} available (run \`distro upgrade\`)`)
@@ -128,111 +64,51 @@ export const statusCmd = new Command("status")
     }
   })
 
-// Passive check for `status`: 500 ms budget, cached result preferred, any
-// error = silent null. The main status output never waits on this beyond
-// the half-second.
 async function runPassiveUpgradeCheck(): Promise<{ latest: string; outdated: boolean } | null> {
   try {
-    // path relative to the bundled dist/index.js, matching src/index.ts
     const { version = "0.0.0" } = require("../package.json") as { version?: string }
-    const result = await maybeCheck(version, { timeoutMs: 500 })
-    return result
+    return await maybeCheck(version, { timeoutMs: 500 })
   } catch {
     return null
   }
 }
 
-function readLocalLedger(tzOffsetMinutes: number): LocalLedgerState {
-  // ledger file is created lazily on first impression write. avoid creating it
-  // just to read zeroes — that would leave an empty ledger.db for dev boxes
-  // that have never seen an ad.
-  if (!existsSync(ledgerPath())) {
-    return { unsyncedImpressions: 0, unsyncedClicks: 0, todayOptimistic: 0 }
+function readSlotCacheInfo(): SlotCacheInfo {
+  try {
+    const raw = readFileSync(slotCachePath(), "utf8")
+    const parsed = JSON.parse(raw) as {
+      version?: number
+      slots?: unknown[]
+      fetchedAt?: number
+      expiresAt?: number
+    }
+    const count = Array.isArray(parsed.slots) ? parsed.slots.length : 0
+    const fetchedAt = typeof parsed.fetchedAt === "number" ? parsed.fetchedAt : null
+    const expiresAt = typeof parsed.expiresAt === "number" ? parsed.expiresAt : null
+    const ageMs = fetchedAt !== null ? Date.now() - fetchedAt : null
+    return { count, ageMs, expiresAt }
+  } catch {
+    return { count: 0, ageMs: null, expiresAt: null }
   }
+}
+
+function readUnsyncedCount(): number {
+  if (!existsSync(ledgerPath())) return 0
   const ledger = openLedger()
   try {
-    return {
-      unsyncedImpressions: ledger.unsyncedCount(),
-      unsyncedClicks: ledger.unsyncedClickCount(),
-      todayOptimistic: ledger.sumTodayOptimistic(tzOffsetMinutes),
-    }
+    return ledger.unsyncedCount()
   } finally {
     ledger.close()
   }
 }
 
-interface FetchResult {
-  earnings: EarningsSummaryResponse | null
-  earningsFromCache: boolean
-  earningsCacheAgeMs: number | null
-  offline: boolean
-  offlineReason: string | null
-}
-
-async function fetchMeSafe(): Promise<MeResponse | null> {
-  try {
-    return await apiFetch<MeResponse>("/me")
-  } catch {
-    // /me failure is non-fatal here — the earnings fetch already gates the
-    // online/offline narrative; the World identity section just gets skipped.
-    return null
-  }
-}
-
-async function fetchEarnings(cfg: DevdripConfig | null, localOnly: boolean): Promise<FetchResult> {
-  if (!cfg) {
-    return {
-      earnings: null,
-      earningsFromCache: false,
-      earningsCacheAgeMs: null,
-      offline: false,
-      offlineReason: "not-signed-in",
-    }
-  }
-  if (localOnly) {
-    return {
-      earnings: null,
-      earningsFromCache: false,
-      earningsCacheAgeMs: null,
-      offline: true,
-      offlineReason: "local-only",
-    }
-  }
-  try {
-    const fresh = await apiFetch<EarningsSummaryResponse>("/me/earnings/summary")
-    writeStatusCache(fresh as CachedEarningsSummary)
-    return {
-      earnings: fresh,
-      earningsFromCache: false,
-      earningsCacheAgeMs: null,
-      offline: false,
-      offlineReason: null,
-    }
-  } catch (err) {
-    // expired auth surfaces through the normal reportError path; retries won't help here.
-    if (err instanceof NotAuthenticatedError) throw err
-    const reason = err instanceof ApiError ? `api ${err.status}` : "network"
-    const cached = readStatusCache()
-    return {
-      earnings: cached?.summary ?? null,
-      earningsFromCache: cached !== null,
-      earningsCacheAgeMs: cached?.ageMs ?? null,
-      offline: true,
-      offlineReason: reason,
-    }
-  }
-}
-
-function computePayout(earnings: EarningsSummaryResponse | null): StatusPayload["payout"] {
-  if (!earnings) return null
-  const threshold = 0.5
-  const eligible = earnings.balance >= threshold
-  const shortfall = eligible ? 0 : Math.max(0, threshold - earnings.balance)
-  return { eligible, threshold, shortfall }
-}
-
-function formatUsdc(n: number): string {
-  return `$${n.toFixed(2)}`
+function resolveChannels(cfg: DevdripConfig | null): string[] {
+  if (!cfg) return []
+  const mode = cfg.preferences.channelMode
+  if (mode === "earn") return ["markets"]
+  if (mode === "learn") return ["news"]
+  // mix or default
+  return ["news", "markets"]
 }
 
 function formatUptime(ms: number): string {
@@ -245,67 +121,37 @@ function formatUptime(ms: number): string {
   return `${s}s`
 }
 
+function formatAge(ms: number): string {
+  const mins = Math.round(ms / 60_000)
+  if (mins < 1) return "<1 min ago"
+  if (mins < 60) return `${mins} min ago`
+  const hours = Math.round(mins / 60)
+  return `${hours}h ago`
+}
+
 function printHuman(p: StatusPayload): void {
-  if (!p.user) {
-    console.log("auth:     not signed in (run `distro auth`)")
-    // still show daemon + unsynced even when not signed in — useful for support
+  if (!p.installed) {
+    console.log("distro:   not initialized (run `distro init`)")
     printDaemon(p.daemon)
-    printUnsynced(p.unsynced)
     return
   }
 
-  const handle = p.user.githubLogin ? `@${p.user.githubLogin}` : p.user.email
-  console.log(`user:     ${handle} (${p.user.email})`)
-  printWorldIdentity(p.user)
+  console.log(`mode:     ${p.mode ?? "unknown"}`)
+  console.log(`channels: ${p.channels.length > 0 ? p.channels.join(", ") : "none"}`)
+  console.log(`watchlist: (lands in M4)`)
 
-  if (p.earnings) {
-    const e = p.earnings
-    const marker = p.earningsFromCache ? ` (cached, ${formatCacheAge(p.earningsCacheAgeMs)})` : ""
-    console.log(
-      `earnings: ${formatUsdc(e.today)} today · ${formatUsdc(e.week)} week · ${formatUsdc(e.month)} month${marker}`
-    )
-    console.log(`streak:   ${e.streakDays} day${e.streakDays === 1 ? "" : "s"}`)
-    if (p.payout) {
-      const payoutLine = p.payout.eligible
-        ? `balance:  ${formatUsdc(e.balance)} → payout eligible (min ${formatUsdc(p.payout.threshold)})`
-        : `balance:  ${formatUsdc(e.balance)} → needs ${formatUsdc(p.payout.shortfall)} more to claim`
-      console.log(payoutLine)
-    }
-  } else {
-    // no earnings data — could be offline with no cache, or --local
-    const reason = p.offlineReason ?? "unavailable"
-    console.log(
-      `earnings: unavailable (${reason}) · local today ≈ ${formatUsdc(p.localTodayOptimistic)}`
-    )
-  }
-
-  printUnsynced(p.unsynced)
+  printSlotCache(p.slotCache)
   printDaemon(p.daemon)
 
-  if (p.offline && p.earningsFromCache) {
-    console.log(`offline:  backend unreachable (${p.offlineReason}) — showing cached earnings`)
-  } else if (p.offline && p.offlineReason !== "local-only") {
-    console.log(`offline:  backend unreachable (${p.offlineReason})`)
+  if (p.unsyncedImpressions > 0) {
+    console.log(`unsynced: ${p.unsyncedImpressions} impressions`)
   }
 }
 
-function printWorldIdentity(u: StatusUser): void {
-  const wallet = u.walletAddress
-    ? `${u.walletAddress.slice(0, 6)}…${u.walletAddress.slice(-4)}`
-    : "not bound"
-  const worldId = u.verificationLevel ?? "not verified"
-  const miniApp = u.miniAppComplete ? "complete" : "incomplete"
-  console.log(`wallet:   ${wallet}`)
-  console.log(`world id: ${worldId}`)
-  console.log(`mini app: ${miniApp}`)
-}
-
-function printUnsynced(u: StatusPayload["unsynced"]): void {
-  if (u.impressions === 0 && u.clicks === 0) {
-    console.log("unsynced: 0 impressions, 0 clicks")
-  } else {
-    console.log(`unsynced: ${u.impressions} impressions, ${u.clicks} clicks`)
-  }
+function printSlotCache(c: SlotCacheInfo): void {
+  const age = c.ageMs !== null ? formatAge(c.ageMs) : "never"
+  const expired = c.expiresAt !== null && c.expiresAt < Date.now() ? " (expired)" : ""
+  console.log(`slot cache: ${c.count} slots, fetched ${age}${expired}`)
 }
 
 function printDaemon(d: DaemonStatus): void {
@@ -319,15 +165,6 @@ function printDaemon(d: DaemonStatus): void {
     return
   }
   console.log(`daemon:   running (uptime ${formatUptime(d.uptimeMs ?? 0)}, pid ${d.pid})`)
-}
-
-function formatCacheAge(ageMs: number | null): string {
-  if (ageMs === null) return "cached"
-  const mins = Math.round(ageMs / 60_000)
-  if (mins < 1) return "<1 min old"
-  if (mins < 60) return `${mins} min old`
-  const hours = Math.round(mins / 60)
-  return `${hours}h old`
 }
 
 export type { StatusPayload }

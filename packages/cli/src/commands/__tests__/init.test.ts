@@ -85,14 +85,14 @@ vi.mock("../demo.js", () => ({
 }))
 
 beforeEach(() => {
-  tempHome = mkdtempSync(join(tmpdir(), "devdrip-init-"))
-  tempBinDir = mkdtempSync(join(tmpdir(), "devdrip-bin-"))
+  tempHome = mkdtempSync(join(tmpdir(), "distro-init-"))
+  tempBinDir = mkdtempSync(join(tmpdir(), "distro-bin-"))
   process.env["HOME"] = tempHome
   // use a real symlink so init preserves the invoked `devdrip` path instead of
   // resolving to its target file.
   origArgv1 = process.argv[1]
   const realEntry = join(tempBinDir, "index.js")
-  const linkEntry = join(tempBinDir, "devdrip")
+  const linkEntry = join(tempBinDir, "distro")
   writeFileSync(realEntry, "")
   symlinkSync(realEntry, linkEntry)
   process.argv[1] = linkEntry

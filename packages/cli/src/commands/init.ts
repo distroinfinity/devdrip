@@ -167,8 +167,8 @@ async function installHooks(): Promise<void> {
   log.success(`hooks installed in ${settingsPath}`)
 }
 
-async function previewAd(): Promise<void> {
-  log.step("preview ad from the real pipeline")
+async function previewSlot(): Promise<void> {
+  log.step("previewing first slot")
   try {
     await runDemo()
   } catch (err) {
@@ -257,7 +257,7 @@ export async function runInit(): Promise<void> {
 
   await installHooks()
   await ensureDaemonRunning()
-  await previewAd()
+  await previewSlot()
 
   const ok = await runHealthCheck()
   printSummary()

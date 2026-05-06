@@ -4,6 +4,7 @@ import { detectColor, dim, green, yellow } from "../lib/ansi.js"
 import { readConfig } from "../lib/config.js"
 import { processByteChunk, type KeyAction } from "../lib/daemon/input.js"
 import { renderNewsBox } from "../lib/render-box.js"
+import { NewsSource } from "@distrotv/shared"
 import type { SlotPayload, NewsPayload } from "@distrotv/shared"
 
 interface ContentResponse {
@@ -28,7 +29,7 @@ function fallbackNewsPayload(): NewsPayload {
   return {
     kind: "news",
     id: "demo-hn:1",
-    source: "hn" as never, // matches NewsSource.HackerNews enum value
+    source: NewsSource.HackerNews,
     headline: "Distro TV — news demo (offline)",
     url: "https://news.ycombinator.com",
     score: 0,
