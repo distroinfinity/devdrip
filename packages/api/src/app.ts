@@ -16,6 +16,7 @@ import { mePreferencesRouter } from "./routes/me-preferences.js"
 import { meReadingRouter } from "./routes/me-reading.js"
 import { meContentRouter } from "./routes/me-content.js"
 import { channelsPublicRouter, meChannelsRouter } from "./routes/news-channels.js"
+import { tickersRouter } from "./routes/tickers.js"
 import { meWatchlistsRouter } from "./routes/me-watchlists.js"
 import { ingestRouter } from "./routes/ingest.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
@@ -59,6 +60,7 @@ if (env.nodeEnv !== "production") {
 app.use(globalLimiter)
 
 app.use("/channels", channelsPublicRouter)
+app.use("/tickers", tickersRouter)
 
 app.use("/auth", authRouter)
 app.use("/auth/magic-link", authLimiter, authMagicLinkRouter)
