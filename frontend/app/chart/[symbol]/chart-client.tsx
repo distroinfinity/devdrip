@@ -21,19 +21,29 @@ const RANGES = ["1d", "1w", "1m", "3m", "1y"] as const
 export function ChartClient({ initial }: { initial: CandlesData }) {
   const [data, setData] = useState<CandlesData>(initial)
   const [pending, start] = useTransition()
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const params = useSearchParams()
 
   function setRange(r: (typeof RANGES)[number]) {
     if (r === data.range) return
     start(async () => {
+      setError(null)
       const next = new URLSearchParams(params.toString())
       next.set("range", r)
       router.replace(`?${next.toString()}`)
-      const resp = await fetch(`/api/chart/${encodeURIComponent(data.symbol)}?range=${r}`).then(
-        (r) => r.json()
-      )
-      if (resp?.candles) setData(resp)
+      try {
+        const httpResp = await fetch(`/api/chart/${encodeURIComponent(data.symbol)}?range=${r}`)
+        if (!httpResp.ok) {
+          setError(`couldn't load ${r} (${httpResp.status})`)
+          return
+        }
+        const resp = await httpResp.json()
+        if (resp?.candles) setData(resp)
+        else setError("no candles returned")
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "network error")
+      }
     })
   }
 
@@ -56,6 +66,7 @@ export function ChartClient({ initial }: { initial: CandlesData }) {
           </button>
         ))}
       </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="h-80 rounded-lg border border-[var(--rule-default)] bg-[var(--bg-surface)] p-4">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data.candles}>

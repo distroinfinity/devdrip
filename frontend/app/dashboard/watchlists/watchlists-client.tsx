@@ -39,22 +39,27 @@ export function WatchlistsClient({ initial }: { initial: WatchlistDto[] }) {
       setError("invalid symbol")
       return
     }
+    const target = lists.find((l) => l.id === listId)
+    if (target?.tickers.some((t) => t.symbol === raw)) {
+      // already present — clear the draft input but skip the redundant PUT
+      setDraft((d) => ({ ...d, [listId]: "" }))
+      setError(`${raw} already in ${target.name}`)
+      return
+    }
     const next = lists.map((l) =>
       l.id !== listId
         ? l
         : {
             ...l,
-            tickers: l.tickers.some((t) => t.symbol === raw)
-              ? l.tickers
-              : [
-                  ...l.tickers,
-                  {
-                    symbol: raw,
-                    assetClass: inferAssetClass(raw),
-                    priority: l.tickers.length,
-                    addedAt: new Date().toISOString(),
-                  },
-                ],
+            tickers: [
+              ...l.tickers,
+              {
+                symbol: raw,
+                assetClass: inferAssetClass(raw),
+                priority: l.tickers.length,
+                addedAt: new Date().toISOString(),
+              },
+            ],
           }
     )
     setDraft((d) => ({ ...d, [listId]: "" }))

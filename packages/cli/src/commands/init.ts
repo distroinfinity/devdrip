@@ -331,7 +331,13 @@ export async function runInit(): Promise<void> {
       } else {
         const lists = await getMyWatchlists()
         const primaryName = lists[0]?.name ?? "Default"
-        await putMyWatchlists([{ name: primaryName, tickers }])
+        // preserve any secondary lists verbatim — schema supports up to 3 lists/user
+        // and a future multi-list ux must not silently drop them on init re-run.
+        const trailing = lists.slice(1).map((l) => ({
+          name: l.name,
+          tickers: l.tickers.map((t) => ({ symbol: t.symbol, assetClass: t.assetClass })),
+        }))
+        await putMyWatchlists([{ name: primaryName, tickers }, ...trailing])
         log.success(`watchlist saved (${tickers.map((t) => t.symbol).join(", ")})`)
       }
     } catch (err) {

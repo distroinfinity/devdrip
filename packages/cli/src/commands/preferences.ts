@@ -89,7 +89,12 @@ async function runPreferences(): Promise<void> {
       }
       const lists = await getMyWatchlists()
       const primaryName = lists[0]?.name ?? "Default"
-      await putMyWatchlists([{ name: primaryName, tickers }])
+      // preserve secondary lists verbatim (multi-list schema; future ux will use)
+      const trailing = lists.slice(1).map((l) => ({
+        name: l.name,
+        tickers: l.tickers.map((t) => ({ symbol: t.symbol, assetClass: t.assetClass })),
+      }))
+      await putMyWatchlists([{ name: primaryName, tickers }, ...trailing])
       log.success(tickers.map((t) => t.symbol).join(", "))
       continue
     }
