@@ -20,6 +20,7 @@ export function AppShell({ user, initialMode, children }: AppShellProps) {
     <>
       <NavPill href="/dashboard" label="Overview" exact />
       <NavPill href="/dashboard/reading" label="Reading" />
+      <NavPill href="/dashboard/watchlists" label="Watchlists" />
       <NavPill href="/dashboard/preferences" label="Preferences" />
       <NavPill href="/dashboard/account" label="Account" />
     </>
