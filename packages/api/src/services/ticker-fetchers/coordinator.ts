@@ -9,6 +9,7 @@ import { distinctActiveSymbols } from "../watchlist.service.js"
 import { fetchFinnhubQuote } from "./finnhub.js"
 import { fetchCoinGeckoPrices } from "./coingecko.js"
 import type { RawTickerQuote } from "./types.js"
+import { runAlertEvaluation } from "../alert-evaluator.service.js"
 
 const LOCK_TTL_SEC = 90
 const PRICE_CACHE_TTL_SEC = 60
@@ -128,5 +129,10 @@ export async function runTickerTick(): Promise<void> {
       { cryptoOk, equityOk, equityFailed: equityFailed.length },
       "ticker.fetch tick complete"
     )
+    try {
+      await runAlertEvaluation()
+    } catch (err) {
+      logger.error({ err: String(err) }, "alert evaluator failed — quotes still upserted")
+    }
   })
 }
