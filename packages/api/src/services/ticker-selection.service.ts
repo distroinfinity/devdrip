@@ -1,13 +1,11 @@
 import { eq, and, gte, desc, asc } from "drizzle-orm"
-import type { TickerPayload, TickerStats, AssetClass } from "@distrotv/shared"
+import type { TickerPayload, TickerStats } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { watchlists } from "../db/schema/watchlists.js"
 import { watchlistTickers } from "../db/schema/watchlist_tickers.js"
 import { tickerQuotes } from "../db/schema/ticker_quotes.js"
 import { tickerHistory } from "../db/schema/ticker_history.js"
 import { ensureDefaultWatchlist } from "./watchlist.service.js"
-
-const DISPLAY_TIME_MS = 12_000
 
 export interface NextTickerArgs {
   userId: string
@@ -64,17 +62,20 @@ export async function nextTickerForDevice(args: NextTickerArgs): Promise<TickerP
     .orderBy(desc(tickerHistory.date))
     .limit(14)
 
-  const sparklinePts = candles.map((c) => c.close).reverse()
+  // build the fallback sparkline first so stats and the rendered series stay in sync;
+  // ticker_history is empty until the candle backfill cron lands (M5+).
+  const sparklinePts =
+    candles.length > 0 ? candles.map((c) => c.close).reverse() : [quote.prevClose, quote.price]
   const stats = computeStats(quote.price, quote.prevClose, sparklinePts)
 
   return {
     kind: "ticker",
     symbol: quote.symbol,
-    assetClass: pick.assetClass as AssetClass,
+    assetClass: pick.assetClass === "crypto" ? "crypto" : "equity",
     name: null,
     price: quote.price,
     changePct: quote.changePct,
-    sparkline: sparklinePts.length > 0 ? sparklinePts : [quote.prevClose, quote.price],
+    sparkline: sparklinePts,
     stats,
     layout: "single",
     stale: quote.stale,
@@ -119,6 +120,3 @@ function pctChange(series: number[], n: number): number {
 function round1(n: number): number {
   return Math.round(n * 10) / 10
 }
-
-// re-export display time for /me/content/next
-export const TICKER_DISPLAY_TIME_MS = DISPLAY_TIME_MS

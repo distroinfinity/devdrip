@@ -55,26 +55,30 @@ async function getMode(userId: string): Promise<"news" | "markets" | "mix"> {
   return "mix"
 }
 
-async function onlyTicker(userId: string, deviceId: string, n: number): Promise<SlotPayload[]> {
+// fetch up to `n` tickers, skipping rotation indices that return null (missing quote
+// during fetcher warm-up). bounded at 2*n attempts so a fully empty quote table
+// still terminates instead of looping forever.
+async function fetchTickers(userId: string, deviceId: string, n: number): Promise<TickerPayload[]> {
   const out: TickerPayload[] = []
-  for (let i = 0; i < n; i++) {
-    const t = await nextTickerForDevice({ userId, deviceId, rotationIndex: i })
-    if (!t) break
-    out.push(t)
+  let attempts = 0
+  const maxAttempts = n * 2
+  while (out.length < n && attempts < maxAttempts) {
+    const t = await nextTickerForDevice({ userId, deviceId, rotationIndex: attempts })
+    attempts++
+    if (t) out.push(t)
   }
   return out
+}
+
+async function onlyTicker(userId: string, deviceId: string, n: number): Promise<SlotPayload[]> {
+  return fetchTickers(userId, deviceId, n)
 }
 
 async function interleave(userId: string, deviceId: string, n: number): Promise<SlotPayload[]> {
   const halfNews = Math.ceil(n / 2)
   const halfTicker = n - halfNews
   const news = await nextPicksForDevice({ userId, deviceId, n: halfNews })
-  const tickers: TickerPayload[] = []
-  for (let i = 0; i < halfTicker; i++) {
-    const t = await nextTickerForDevice({ userId, deviceId, rotationIndex: i })
-    if (!t) break
-    tickers.push(t)
-  }
+  const tickers = await fetchTickers(userId, deviceId, halfTicker)
   // round-robin merge starting with news
   const out: SlotPayload[] = []
   for (let i = 0; i < n; i++) {
