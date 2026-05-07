@@ -11,14 +11,13 @@ export function sparkline(values: number[], width: number): string {
   const flat = BLOCKS[3] ?? "▄"
   if (values.length === 1) return flat.repeat(width)
 
+  // resample to exactly `width` points by nearest-neighbor index lookup.
+  // safe: width > 0 + values.length > 1 + idx ∈ [0, values.length-1] ⇒ v is always defined.
   const sampled: number[] = []
   for (let i = 0; i < width; i++) {
     const idx = Math.floor((i * values.length) / width)
-    const v = values[idx]
-    if (typeof v === "number") sampled.push(v)
+    sampled.push(values[idx] as number)
   }
-
-  if (sampled.length === 0) return " ".repeat(width)
 
   let min = sampled[0] as number
   let max = sampled[0] as number

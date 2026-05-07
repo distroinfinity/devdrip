@@ -90,14 +90,14 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
 
   function renderInitial(): string {
     if (slot.kind === "ticker") {
-      return renderTickerBox(slot, { width: ctx.width })
+      return renderTickerBox(slot, { width: ctx.width ?? initialCols })
     }
     return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], baseNewsOpts)
   }
 
   function renderTick(progress: number, elapsedMs: number): string {
     if (slot.kind === "ticker") {
-      return renderTickerBox(slot, { width: ctx.width, progress, elapsedMs })
+      return renderTickerBox(slot, { width: ctx.width ?? initialCols, progress, elapsedMs })
     }
     return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], {
       ...baseNewsOpts,
