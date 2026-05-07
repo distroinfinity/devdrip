@@ -58,7 +58,7 @@ function sourceForKey(sourceKey: string): NewsSource {
 
 export const rssFetcher: SourceFetcher = async (ctx) => {
   const res = await fetch(ctx.url, {
-    headers: { "User-Agent": "DistroTV/1.0 (+https://devdrip.xyz)" },
+    headers: { "User-Agent": "DistroTV/1.0" },
     signal: AbortSignal.timeout(15_000),
   })
   if (!res.ok) throw new Error(`rss ${ctx.sourceKey} ${res.status}`)

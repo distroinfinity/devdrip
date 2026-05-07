@@ -9,6 +9,11 @@ import { ensureDefaultWatchlist } from "./watchlist.service.js"
 import { getRedis } from "../lib/redis.js"
 import { pendingAlertsKey } from "../lib/alert-keys.js"
 
+// guard against the worker silently dying: even if quote.stale=false in the DB,
+// any quote older than this is treated as stale on serve. ticker fetcher runs
+// every 1 min, so 5 min is generous (allows transient provider hiccups).
+const STALE_AFTER_MS = 5 * 60 * 1000
+
 export interface NextTickerArgs {
   userId: string
   deviceId: string
@@ -101,6 +106,9 @@ async function buildTickerPayload(
     candles.length > 0 ? candles.map((c) => c.close).reverse() : [quote.prevClose, quote.price]
   const stats = computeStats(quote.price, quote.prevClose, sparklinePts)
 
+  const ageMs = Date.now() - quote.fetchedAt.getTime()
+  const stale = quote.stale || ageMs > STALE_AFTER_MS
+
   return {
     kind: "ticker",
     symbol: quote.symbol,
@@ -111,7 +119,7 @@ async function buildTickerPayload(
     sparkline: sparklinePts,
     stats,
     layout: "single",
-    stale: quote.stale,
+    stale,
     asOf: quote.fetchedAt.toISOString(),
     ...(alert ? { alert } : {}),
   }
