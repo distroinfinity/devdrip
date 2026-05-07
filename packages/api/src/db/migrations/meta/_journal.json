@@ -113,6 +113,13 @@
       "when": 1778171733454,
       "tag": "0015_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1778172101695,
+      "tag": "0016_alerts_partial_uq_and_desc_indexes",
+      "breakpoints": true
     }
   ]
 }

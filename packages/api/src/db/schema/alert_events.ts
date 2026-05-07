@@ -1,3 +1,4 @@
+import { desc } from "drizzle-orm"
 import { pgTable, uuid, text, real, timestamp, index } from "drizzle-orm/pg-core"
 import { users } from "./users.js"
 import { devices } from "./devices.js"
@@ -18,7 +19,8 @@ export const alertEvents = pgTable(
     firedAt: timestamp("fired_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("alert_events_device_symbol_fired_idx").on(t.deviceId, t.symbol, t.firedAt),
-    index("alert_events_user_fired_idx").on(t.userId, t.firedAt),
+    // descending on fired_at — debounce query reads newest fire first.
+    index("alert_events_device_symbol_fired_idx").on(t.deviceId, t.symbol, desc(t.firedAt)),
+    index("alert_events_user_fired_idx").on(t.userId, desc(t.firedAt)),
   ]
 )
