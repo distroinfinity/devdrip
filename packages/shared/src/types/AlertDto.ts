@@ -17,3 +17,11 @@ export interface PendingAlert {
   thresholdPct: number
   firedAt: string
 }
+
+// PUT /me/alerts body item — same shape on api, cli, and frontend.
+// keep this in sync with PutAlertsInput.alerts in alerts.validators.ts.
+export interface AlertReplacement {
+  scope: AlertScope
+  symbol: string | null
+  thresholdPct: number
+}

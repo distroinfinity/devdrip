@@ -1,11 +1,7 @@
-import type { AlertDto, AlertScope } from "@distrotv/shared"
+import type { AlertDto, AlertReplacement } from "@distrotv/shared"
 import { apiFetch } from "./api-client.js"
 
-export interface AlertReplacement {
-  scope: AlertScope
-  symbol: string | null
-  thresholdPct: number
-}
+export type { AlertReplacement }
 
 export async function getMyAlerts(): Promise<AlertDto[]> {
   const resp = await apiFetch<{ alerts: AlertDto[] }>("/me/alerts")

@@ -1,7 +1,9 @@
 import { eq, sql } from "drizzle-orm"
-import type { AlertDto, AlertScope } from "@distrotv/shared"
+import type { AlertDto, AlertScope, AlertReplacement } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { alerts } from "../db/schema/alerts.js"
+
+export type { AlertReplacement }
 
 const DEFAULT_GLOBAL_THRESHOLD_PCT = 5
 const PER_TICKER_OVERRIDES_MAX = 25
@@ -55,12 +57,6 @@ export async function listAlertsForUser(userId: string): Promise<AlertDto[]> {
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   }))
-}
-
-export interface AlertReplacement {
-  scope: AlertScope
-  symbol: string | null
-  thresholdPct: number
 }
 
 export async function setAlerts(userId: string, replacement: AlertReplacement[]): Promise<void> {
