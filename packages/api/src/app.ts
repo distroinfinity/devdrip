@@ -18,6 +18,7 @@ import { meContentRouter } from "./routes/me-content.js"
 import { channelsPublicRouter, meChannelsRouter } from "./routes/news-channels.js"
 import { tickersRouter } from "./routes/tickers.js"
 import { meWatchlistsRouter } from "./routes/me-watchlists.js"
+import { meAlertsRouter } from "./routes/me-alerts.js"
 import { ingestRouter } from "./routes/ingest.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
@@ -103,6 +104,7 @@ app.use("/me/reading", requireAuth, userLimiter, meReadingRouter)
 app.use("/me/content", requireAuth, userLimiter, meContentRouter)
 app.use("/me/channels", requireAuth, userLimiter, meChannelsRouter)
 app.use("/me/watchlists", requireAuth, userLimiter, meWatchlistsRouter)
+app.use("/me/alerts", requireAuth, userLimiter, meAlertsRouter)
 app.use("/ingest", requireAuth, userLimiter, ingestRouter)
 
 app.use(errorHandler)
