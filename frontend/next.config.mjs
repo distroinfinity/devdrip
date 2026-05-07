@@ -12,14 +12,18 @@ const nextConfig = {
   },
 
   async rewrites() {
-    // resolve from the same bundle the rest of the app uses, so dev/staging/prod
-    // are driven by DISTRO_ENV alone. ad-hoc override via API_URL still wins.
-    const { resolveEnv } = await import("@distrotv/shared")
-    const { apiUrl } = resolveEnv({
-      distroEnv: process.env.DISTRO_ENV,
-      apiUrl: process.env.API_URL,
-      nodeEnv: process.env.NODE_ENV,
-    })
+    // mirrors packages/shared/src/env-bundle.ts. inlined instead of imported
+    // because next.config.mjs runs before transpilePackages kicks in, and a
+    // dynamic import here hits ESM/CJS interop edges. keep these URLs in sync
+    // with the bundle (this is a small file, easy to grep).
+    const BUNDLES = {
+      local: "http://localhost:3011",
+      staging: "https://devdrip-api-staging.up.railway.app",
+      prod: "https://devdrip-api-production.up.railway.app",
+    }
+    const e = (process.env.DISTRO_ENV ?? "").toLowerCase()
+    const env = BUNDLES[e] ? e : process.env.NODE_ENV === "production" ? "prod" : "local"
+    const apiUrl = (process.env.API_URL ?? BUNDLES[env]).replace(/\/$/, "")
     return [
       { source: "/api/me", destination: `${apiUrl}/me` },
       { source: "/api/me/:path*", destination: `${apiUrl}/me/:path*` },
