@@ -24,6 +24,11 @@ export const env = {
       ? requireEnv("RESEND_API_KEY")
       : optionalEnv("RESEND_API_KEY", "re_dev_placeholder")
   },
+  get finnhubApiKey(): string {
+    return env.nodeEnv === "production"
+      ? requireEnv("FINNHUB_API_KEY")
+      : optionalEnv("FINNHUB_API_KEY", "dev_placeholder")
+  },
   get magicLinkFromEmail() {
     return optionalEnv("MAGIC_LINK_FROM_EMAIL", "auth@devdrip.xyz")
   },
