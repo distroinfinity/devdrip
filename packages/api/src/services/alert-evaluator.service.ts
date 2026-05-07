@@ -100,6 +100,7 @@ async function loadCandidates(): Promise<AlertCandidate[]> {
 // returns the count of devices the alert was successfully fanned out to.
 async function fireForUser(c: AlertCandidate): Promise<number> {
   const db = getDb()
+  const redis = getRedis()
   const userDevices = await db
     .select({ id: devices.id })
     .from(devices)
@@ -121,9 +122,21 @@ async function fireForUser(c: AlertCandidate): Promise<number> {
           )
         )
         .limit(1)
-      if (recent.length > 0) continue // 60-min per-(device, symbol) debounce
+      if (recent.length > 0) continue // 60-min per-(device, symbol) debounce; lenient at boundary (re-fires at 60:00)
 
       const firedAt = new Date()
+      const pending: PendingAlert = {
+        symbol: c.symbol,
+        changePct: c.changePct,
+        thresholdPct: c.thresholdPct,
+        firedAt: firedAt.toISOString(),
+      }
+      // lpush + expire FIRST so a failed redis call does not consume the debounce window.
+      // worst case if insert below fails: payload sits in redis for the user (delivered),
+      // debounce row missing → next tick may re-fire if condition persists (acceptable).
+      // alternative ordering would silently swallow alerts when redis flakes.
+      await redis.lpush(pendingAlertsKey(d.id), pending)
+      await redis.expire(pendingAlertsKey(d.id), PENDING_TTL_SEC)
       await db.insert(alertEvents).values({
         userId: c.userId,
         deviceId: d.id,
@@ -132,16 +145,6 @@ async function fireForUser(c: AlertCandidate): Promise<number> {
         thresholdPct: c.thresholdPct,
         firedAt,
       })
-
-      const pending: PendingAlert = {
-        symbol: c.symbol,
-        changePct: c.changePct,
-        thresholdPct: c.thresholdPct,
-        firedAt: firedAt.toISOString(),
-      }
-      const redis = getRedis()
-      await redis.lpush(pendingAlertsKey(d.id), pending)
-      await redis.expire(pendingAlertsKey(d.id), PENDING_TTL_SEC)
       fanned++
     } catch (err) {
       logger.error(
