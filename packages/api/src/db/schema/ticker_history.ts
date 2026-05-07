@@ -1,5 +1,8 @@
-import { pgTable, text, real, integer, date, primaryKey, index } from "drizzle-orm/pg-core"
+import { pgTable, text, real, date, primaryKey, index } from "drizzle-orm/pg-core"
+import { desc } from "drizzle-orm"
 
+// volume is `real` not `integer`: crypto USD-denominated volume routinely
+// exceeds int32 max (~2.1B). real avoids silent overflow at the fetcher boundary.
 export const tickerHistory = pgTable(
   "ticker_history",
   {
@@ -9,10 +12,11 @@ export const tickerHistory = pgTable(
     high: real("high").notNull(),
     low: real("low").notNull(),
     close: real("close").notNull(),
-    volume: integer("volume"),
+    volume: real("volume"),
   },
   (t) => [
     primaryKey({ columns: [t.symbol, t.date] }),
-    index("ticker_history_symbol_date_idx").on(t.symbol, t.date),
+    // descending on date — chart query reads newest-first
+    index("ticker_history_symbol_date_idx").on(t.symbol, desc(t.date)),
   ]
 )

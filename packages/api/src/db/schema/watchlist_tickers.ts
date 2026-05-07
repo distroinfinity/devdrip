@@ -13,6 +13,10 @@ export const watchlistTickers = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    // PK on (watchlist_id, symbol) — accepts the rare collision where a user
+    // has both an equity AAPL and a crypto AAPL in the same list (last write wins).
+    // Adding asset_class to the PK was considered and dropped: callers always
+    // know the asset_class from the symbol map, so the collision is theoretical.
     primaryKey({ columns: [t.watchlistId, t.symbol] }),
     index("watchlist_tickers_symbol_idx").on(t.symbol),
   ]
