@@ -54,7 +54,11 @@ export function validatePutAlerts(body: unknown): PutAlertsInput {
     }
   }
 
-  if (out.length > ALERT_LIMITS.PER_TICKER_OVERRIDES_MAX + 1) {
+  // cap per_ticker independently — using `out.length > 26` would let 26 per_ticker
+  // entries with no global slip through (only the service-side throw would catch it,
+  // surfacing as 500 instead of a structured 400).
+  const perTickerCount = out.filter((a) => a.scope === "per_ticker").length
+  if (perTickerCount > ALERT_LIMITS.PER_TICKER_OVERRIDES_MAX) {
     throw new ValidationError("too_many_alerts")
   }
   return { alerts: out }
