@@ -27,21 +27,37 @@ export async function ensureDefaultWatchlist(userId: string): Promise<void> {
     .limit(1)
   if (existing) return
 
-  await db.transaction(async (tx) => {
-    const [created] = await tx
-      .insert(watchlists)
-      .values({ userId, name: DEFAULT_NAME, priority: 0 })
-      .returning()
-    if (!created) throw new Error("ensureDefaultWatchlist: insert returned no row")
-    await tx.insert(watchlistTickers).values(
-      DEFAULT_SEED.map((t, i) => ({
-        watchlistId: created.id,
-        symbol: t.symbol,
-        assetClass: t.assetClass,
-        priority: i,
-      }))
-    )
-  })
+  try {
+    await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(watchlists)
+        .values({ userId, name: DEFAULT_NAME, priority: 0 })
+        .returning()
+      if (!created) throw new Error("ensureDefaultWatchlist: insert returned no row")
+      await tx.insert(watchlistTickers).values(
+        DEFAULT_SEED.map((t, i) => ({
+          watchlistId: created.id,
+          symbol: t.symbol,
+          assetClass: t.assetClass,
+          priority: i,
+        }))
+      )
+    })
+  } catch (err) {
+    // race: two concurrent first-GETs for the same user both saw zero rows;
+    // the loser hits watchlists_user_name_uq. swallow — the winner wrote the seed.
+    if (isUniqueViolation(err)) return
+    throw err
+  }
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false
+  const code = (err as { code?: unknown }).code
+  if (code === "23505") return true
+  const cause = (err as { cause?: unknown }).cause
+  if (cause) return isUniqueViolation(cause)
+  return false
 }
 
 export async function getWatchlistsForUser(userId: string): Promise<WatchlistDto[]> {
@@ -120,9 +136,8 @@ export async function setWatchlists(
     // at 100-user scale, this is trivial and avoids the diff-merge bug surface.
     await tx.delete(watchlists).where(eq(watchlists.userId, userId))
 
-    for (let i = 0; i < replacement.length; i++) {
-      const w = replacement[i]
-      if (!w) continue
+    let i = 0
+    for (const w of replacement) {
       const [created] = await tx
         .insert(watchlists)
         .values({ userId, name: w.name, priority: i, updatedAt: new Date() })
@@ -137,6 +152,7 @@ export async function setWatchlists(
           priority: j,
         }))
       )
+      i++
     }
   })
 }
