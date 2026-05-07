@@ -1,3 +1,4 @@
+import { resolveEnv } from "@distrotv/shared"
 import {
   CONFIG_VERSION,
   configPath,
@@ -6,10 +7,15 @@ import {
   type DevdripConfig,
 } from "./config.js"
 
-// railway-hosted prod api. override with DISTRO_API_URL for local/staging.
-// note: api.distro.sh is the eventual public hostname but dns isn't wired yet.
-const DEFAULT_BASE_URL = "https://distrotv-api-production.up.railway.app"
 const DEFAULT_TIMEOUT_MS = 10_000
+
+// CLI defaults to prod (`DISTRO_ENV=local|staging` overrides). DISTRO_API_URL
+// remains a per-call override for ad-hoc testing without writing config.
+function defaultApiUrl(): string {
+  return resolveEnv({
+    distroEnv: process.env["DISTRO_ENV"] ?? "prod",
+  }).apiUrl
+}
 
 // Mirrors the backend `/me` response. Commands that call /me should import this
 // instead of redeclaring it.
@@ -51,7 +57,7 @@ type FetchInit = Omit<RequestInit, "body" | "headers"> & {
 export function resolveApiUrl(cfg?: DevdripConfig | null): string {
   const fromEnv = process.env["DISTRO_API_URL"]
   const fromCfg = cfg?.apiUrl
-  return (fromEnv ?? fromCfg ?? DEFAULT_BASE_URL).replace(/\/$/, "")
+  return (fromEnv ?? fromCfg ?? defaultApiUrl()).replace(/\/$/, "")
 }
 
 // resolve the Authorization header to send for a given config:
@@ -119,7 +125,7 @@ export async function apiFetchPublic<T>(
   init: FetchInit = {},
   baseUrl?: string
 ): Promise<T> {
-  const url = (process.env["DISTRO_API_URL"] ?? baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "")
+  const url = (process.env["DISTRO_API_URL"] ?? baseUrl ?? defaultApiUrl()).replace(/\/$/, "")
   return rawFetch<T>(url, path, init)
 }
 

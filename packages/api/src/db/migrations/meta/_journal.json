@@ -120,6 +120,13 @@
       "when": 1778172101695,
       "tag": "0016_alerts_partial_uq_and_desc_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1778216400000,
+      "tag": "0017_drop_reuters_source",
+      "breakpoints": true
     }
   ]
 }

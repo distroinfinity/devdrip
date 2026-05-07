@@ -1,10 +1,10 @@
 [build]
 builder = "nixpacks"
-buildCommand = "pnpm install --frozen-lockfile && pnpm turbo run build --filter=@distrotv/api"
-watchPatterns = ["packages/api/**", "packages/shared/**"]
+# install/build/start phases live in nixpacks.toml so we can override the
+# default whole-monorepo install (which pulls CLI's better-sqlite3 and fails).
+watchPatterns = ["packages/api/**", "packages/shared/**", "nixpacks.toml"]
 
 [deploy]
-startCommand = "node packages/api/dist/index.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 healthcheckPath = "/health"
