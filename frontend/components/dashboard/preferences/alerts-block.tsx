@@ -18,15 +18,21 @@ interface Props {
 
 export function AlertsBlock({ alerts, onChange, disabled }: Props) {
   const globalRule = alerts.find((a) => a.scope === "global")
+  // sort display alphabetically — matches the server's NULLS FIRST + symbol ASC ordering
+  // so adding an out-of-order override doesn't silently re-shuffle on save.
   const overrides: Override[] = alerts
     .filter((a) => a.scope === "per_ticker" && a.symbol)
     .map((a) => ({ symbol: a.symbol as string, thresholdPct: a.thresholdPct }))
+    .sort((a, b) => a.symbol.localeCompare(b.symbol))
 
   const [draftSymbol, setDraftSymbol] = useState("")
   const [draftThreshold, setDraftThreshold] = useState("5")
   const [error, setError] = useState<string | null>(null)
 
   function setGlobalThreshold(n: number) {
+    // ignore out-of-range typings (e.g. mid-edit "0" or "100"); api validator caps 0.5..50
+    // and we'd rather no-op than surface a 422 on save.
+    if (!Number.isFinite(n) || n < 0.5 || n > 50) return
     const next: AlertDto[] = [
       {
         id: globalRule?.id ?? "",
