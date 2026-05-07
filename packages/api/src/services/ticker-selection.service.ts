@@ -73,16 +73,17 @@ async function buildTickerPayload(
   if (!quote) return null
 
   // determine asset_class — preferred from the user's watchlist row; falls back to the quote.
-  const [pick] = await db
+  // (named wlPick to avoid shadowing the rotation `pick` var in nextTickerForDevice.)
+  const [wlPick] = await db
     .select({ assetClass: watchlistTickers.assetClass })
     .from(watchlistTickers)
     .innerJoin(watchlists, eq(watchlists.id, watchlistTickers.watchlistId))
     .where(and(eq(watchlists.userId, userId), eq(watchlistTickers.symbol, symbol)))
     .limit(1)
   const assetClass: "equity" | "crypto" =
-    pick?.assetClass === "crypto"
+    wlPick?.assetClass === "crypto"
       ? "crypto"
-      : pick?.assetClass === "equity"
+      : wlPick?.assetClass === "equity"
         ? "equity"
         : quote.assetClass === "crypto"
           ? "crypto"

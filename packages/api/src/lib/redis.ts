@@ -102,9 +102,24 @@ class TestRedis {
       this.store.set(key, { ...entry, expiresAt: Date.now() + seconds * 1000 })
       return 1
     }
-    // stub: TTLs on sets are not actually tracked, but acknowledge the key exists
-    if (this.setStore?.has(key)) return Promise.resolve(1)
+    // sets + lists have no TTL store — record an expiry timestamp so lpop/lrange can prune.
+    // (sadd/smembers don't honor it yet; lpop does, since pending alerts have a real ttl.)
+    if (this.setStore?.has(key)) {
+      this.listExpiresAt.set(key, Date.now() + seconds * 1000)
+      return 1
+    }
+    if (this.listStore.has(key)) {
+      this.listExpiresAt.set(key, Date.now() + seconds * 1000)
+      return 1
+    }
     return 0
+  }
+
+  private listExpiresAt = new Map<string, number>()
+
+  private isListExpired(key: string): boolean {
+    const at = this.listExpiresAt.get(key)
+    return at !== undefined && at <= Date.now()
   }
 
   private setStore = new Map<string, Set<string>>()
@@ -134,6 +149,10 @@ class TestRedis {
   private listStore = new Map<string, unknown[]>()
 
   async lpush(key: string, ...values: unknown[]): Promise<number> {
+    if (this.isListExpired(key)) {
+      this.listStore.delete(key)
+      this.listExpiresAt.delete(key)
+    }
     let list = this.listStore.get(key)
     if (!list) {
       list = []
@@ -145,6 +164,11 @@ class TestRedis {
   }
 
   async lpop<T = unknown>(key: string): Promise<T | null> {
+    if (this.isListExpired(key)) {
+      this.listStore.delete(key)
+      this.listExpiresAt.delete(key)
+      return null
+    }
     const list = this.listStore.get(key)
     if (!list || list.length === 0) return null
     return list.shift() as T
