@@ -22,6 +22,10 @@ const ASCII_BOX: BoxChars = { tl: "+", tr: "+", bl: "+", br: "+", h: "-", v: "|"
 
 const ASCII_FALLBACK = !process.stdout.isTTY
 
+const ANSI_RED = "\x1b[31m"
+const ANSI_BOLD = "\x1b[1m"
+const ANSI_RESET = "\x1b[0m"
+
 function padLine(s: string, w: number): string {
   if (s.length > w) return s.slice(0, w)
   return s + " ".repeat(w - s.length)
@@ -36,11 +40,13 @@ export function renderTickerBox(payload: TickerPayload, opts: RenderOpts = {}): 
   const width = Math.max(40, Math.min(opts.width ?? 80, 120))
   const c = ASCII_FALLBACK ? ASCII_BOX : UNICODE_BOX
   const inner = width - 2
+  const isAlert = payload.alert != null
   const arrow = payload.changePct >= 0 ? "▲" : "▼"
   const sign = payload.changePct >= 0 ? "+" : ""
 
   // header: "═ ● DISTRO TV · 📈 AAPL ═══════════════════════ EQUITY ═"
-  const headerLeft = ` ● DISTRO TV · 📈 ${payload.symbol} `
+  const symbolBadge = isAlert ? `🔔 ${payload.symbol} ALERT` : `📈 ${payload.symbol}`
+  const headerLeft = ` ● DISTRO TV · ${symbolBadge} `
   const headerRight = ` ${payload.assetClass.toUpperCase()} `
   const fillLen = Math.max(2, inner - headerLeft.length - headerRight.length - 2)
   const headerMid = c.h.repeat(fillLen)
@@ -68,5 +74,8 @@ export function renderTickerBox(payload: TickerPayload, opts: RenderOpts = {}): 
     `${c.v}${footer}${c.v}`,
     `${c.bl}${c.h.repeat(inner)}${c.br}`,
   ]
+  if (isAlert && !ASCII_FALLBACK) {
+    return lines.map((l) => `${ANSI_RED}${ANSI_BOLD}${l}${ANSI_RESET}`).join("\n")
+  }
   return lines.join("\n")
 }

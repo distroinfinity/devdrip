@@ -1,16 +1,17 @@
 import { Command } from "commander"
-import { intro, outro, select, log, isCancel, cancel } from "@clack/prompts"
+import { intro, outro, select, text, log, isCancel, cancel } from "@clack/prompts"
 import { ChannelMode, type SyncedPreferences } from "@distrotv/shared"
 import { reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { getPreferences, putPreferences } from "../lib/preferences-client.js"
 import { getMyChannels, putMyChannels } from "../lib/channels-client.js"
 import { getMyWatchlists, putMyWatchlists } from "../lib/watchlists-client.js"
+import { getMyAlerts, putMyAlerts } from "../lib/alerts-client.js"
 import { pickChannelMode } from "../lib/prompts/preferences.js"
 import { pickChannels } from "../lib/prompts/channels.js"
 import { pickWatchlistTickers } from "../lib/prompts/watchlist.js"
 
-type Action = "mode" | "channels" | "watchlist" | "caps" | "topics" | "cancel"
+type Action = "mode" | "channels" | "watchlist" | "alerts" | "caps" | "topics" | "cancel"
 
 async function mirrorToLocal(updated: SyncedPreferences): Promise<void> {
   const cfg = await readConfig()
@@ -32,6 +33,7 @@ async function showMenu(currentMode: ChannelMode): Promise<Action> {
       { value: "mode", label: `channel mode (currently: ${currentMode})` },
       { value: "channels", label: "channels (tech / finance / crypto / …)" },
       { value: "watchlist", label: "watchlist (add / remove tickers)" },
+      { value: "alerts", label: "alerts (global threshold)" },
       { value: "caps", label: "caps & quiet hours (coming soon)" },
       { value: "topics", label: "news topics (v1.1 — coming soon)" },
       { value: "cancel", label: "cancel" },
@@ -96,6 +98,38 @@ async function runPreferences(): Promise<void> {
       }))
       await putMyWatchlists([{ name: primaryName, tickers }, ...trailing])
       log.success(tickers.map((t) => t.symbol).join(", "))
+      continue
+    }
+
+    if (action === "alerts") {
+      const current = await getMyAlerts()
+      const globalRule = current.find((a) => a.scope === "global")
+      const currentThreshold = globalRule?.thresholdPct ?? 5
+      const input = await text({
+        message: `global threshold (% daily move) — current: ${currentThreshold}`,
+        placeholder: String(currentThreshold),
+        validate: (v) => {
+          if (v.length === 0) return undefined // empty = keep current
+          const n = Number(v)
+          if (!Number.isFinite(n) || n < 0.5 || n > 50) return "must be a number 0.5..50"
+          return undefined
+        },
+      })
+      if (isCancel(input)) continue
+      const next = typeof input === "string" && input.length > 0 ? Number(input) : currentThreshold
+      // preserve per-ticker overrides verbatim, replace just the global rule
+      const replacement = [
+        { scope: "global" as const, symbol: null, thresholdPct: next },
+        ...current
+          .filter((a) => a.scope === "per_ticker")
+          .map((a) => ({
+            scope: "per_ticker" as const,
+            symbol: a.symbol,
+            thresholdPct: a.thresholdPct,
+          })),
+      ]
+      await putMyAlerts(replacement)
+      log.success(`global threshold → ${next}%`)
       continue
     }
 

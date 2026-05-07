@@ -2,14 +2,15 @@ import { BlurFade } from "@distrotv/design-system/components/blur-fade"
 import { apiFetchOrRefresh } from "@/lib/api"
 import { PreferencesForm } from "@/components/dashboard/preferences/preferences-form"
 import type { PreferencesPayload } from "@/lib/dashboard-api"
-import type { ChannelDto } from "@distrotv/shared"
+import type { AlertDto, ChannelDto } from "@distrotv/shared"
 
 export const dynamic = "force-dynamic"
 
 export default async function PreferencesPage() {
-  const [{ preferences }, { channels }] = await Promise.all([
+  const [{ preferences }, { channels }, { alerts }] = await Promise.all([
     apiFetchOrRefresh<PreferencesPayload>("/me/preferences", "/dashboard/preferences"),
     apiFetchOrRefresh<{ channels: ChannelDto[] }>("/me/channels", "/dashboard/preferences"),
+    apiFetchOrRefresh<{ alerts: AlertDto[] }>("/me/alerts", "/dashboard/preferences"),
   ])
 
   return (
@@ -30,7 +31,7 @@ export default async function PreferencesPage() {
       </BlurFade>
 
       <BlurFade delay={0.04} direction="up" offset={6}>
-        <PreferencesForm initial={preferences} initialChannels={channels} />
+        <PreferencesForm initial={preferences} initialChannels={channels} initialAlerts={alerts} />
       </BlurFade>
     </div>
   )
