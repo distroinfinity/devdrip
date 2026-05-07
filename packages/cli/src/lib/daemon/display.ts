@@ -1,6 +1,7 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
 import { renderNewsBox, type NewsRenderOpts } from "../render-box.js"
+import { renderTickerBox } from "../render-ticker.js"
 import type { CachedSlot } from "../slot-cache.js"
 
 const MAX_WRITE_ATTEMPTS = 3
@@ -88,10 +89,16 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
   }
 
   function renderInitial(): string {
+    if (slot.kind === "ticker") {
+      return renderTickerBox(slot, { width: ctx.width ?? initialCols })
+    }
     return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], baseNewsOpts)
   }
 
   function renderTick(progress: number, elapsedMs: number): string {
+    if (slot.kind === "ticker") {
+      return renderTickerBox(slot, { width: ctx.width ?? initialCols, progress, elapsedMs })
+    }
     return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], {
       ...baseNewsOpts,
       progress,

@@ -22,8 +22,10 @@ import {
 } from "../lib/claude-settings.js"
 import { putPreferences } from "../lib/preferences-client.js"
 import { getMyChannels, putMyChannels } from "../lib/channels-client.js"
+import { getMyWatchlists, putMyWatchlists } from "../lib/watchlists-client.js"
 import { pickChannelMode } from "../lib/prompts/preferences.js"
 import { pickChannels } from "../lib/prompts/channels.js"
+import { pickWatchlistTickers } from "../lib/prompts/watchlist.js"
 import { runInitHealthCheck } from "../lib/health.js"
 import { runDemo } from "./demo.js"
 import { registerAnonDevice, refreshDeviceMetadata } from "../lib/device.js"
@@ -315,6 +317,32 @@ export async function runInit(): Promise<void> {
     } catch (err) {
       log.warn(
         `channel picker skipped (${err instanceof Error ? err.message : String(err)}) — change later via /dashboard/preferences`
+      )
+    }
+  }
+
+  if (channelMode !== ChannelMode.News) {
+    try {
+      const tickers = await pickWatchlistTickers()
+      if (tickers.length === 0) {
+        log.warn(
+          "no tickers selected — markets/mix slots will be empty. add later via `distro watchlist add <SYMBOL>`."
+        )
+      } else {
+        const lists = await getMyWatchlists()
+        const primaryName = lists[0]?.name ?? "Default"
+        // preserve any secondary lists verbatim — schema supports up to 3 lists/user
+        // and a future multi-list ux must not silently drop them on init re-run.
+        const trailing = lists.slice(1).map((l) => ({
+          name: l.name,
+          tickers: l.tickers.map((t) => ({ symbol: t.symbol, assetClass: t.assetClass })),
+        }))
+        await putMyWatchlists([{ name: primaryName, tickers }, ...trailing])
+        log.success(`watchlist saved (${tickers.map((t) => t.symbol).join(", ")})`)
+      }
+    } catch (err) {
+      log.warn(
+        `watchlist picker skipped (${err instanceof Error ? err.message : String(err)}) — change later via /dashboard/watchlists`
       )
     }
   }

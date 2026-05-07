@@ -24,6 +24,11 @@ export const env = {
       ? requireEnv("RESEND_API_KEY")
       : optionalEnv("RESEND_API_KEY", "re_dev_placeholder")
   },
+  get finnhubApiKey(): string {
+    return env.nodeEnv === "production"
+      ? requireEnv("FINNHUB_API_KEY")
+      : optionalEnv("FINNHUB_API_KEY", "dev_placeholder")
+  },
   get magicLinkFromEmail() {
     return optionalEnv("MAGIC_LINK_FROM_EMAIL", "auth@devdrip.xyz")
   },
@@ -52,8 +57,6 @@ export const env = {
   },
 }
 
-// M3 may add NEWS_FETCH_INTERVAL_MS.
-// M4 will add FINNHUB_API_KEY, COINGECKO_API_KEY (optional), TICKER_FETCH_INTERVAL_MS.
 // M7 will add ADMIN_EMAILS, POSTHOG_API_KEY, SLACK_WEBHOOK_URL.
 
 /**
