@@ -92,6 +92,13 @@
       "when": 1778065867973,
       "tag": "0012_channels_and_news_pipeline",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1778121884084,
+      "tag": "0013_watchlists_and_ticker_pipeline",
+      "breakpoints": true
     }
   ]
 }
