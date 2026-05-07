@@ -102,8 +102,8 @@ function computeStats(price: number, prevClose: number, sparkline: number[]): Ti
     d1Pct: round1(d1),
     w1Pct: round1(w1),
     m1Pct: round1(m1),
-    w52Hi: hi,
-    w52Lo: lo,
+    w52Hi: round1(hi),
+    w52Lo: round1(lo),
     prevClose,
   }
 }
