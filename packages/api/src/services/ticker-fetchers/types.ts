@@ -18,8 +18,3 @@ export interface RawCandle {
   close: number
   volume: number | null
 }
-
-export interface FetchContext {
-  symbol: string
-  assetClass: AssetClass
-}

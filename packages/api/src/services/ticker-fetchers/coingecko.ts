@@ -41,6 +41,9 @@ export async function fetchCoinGeckoPrices(symbols: string[]): Promise<RawTicker
     if (!row || typeof row.usd !== "number") continue
     const changePct = typeof row.usd_24h_change === "number" ? row.usd_24h_change : 0
     const price = row.usd
+    // coingecko's simple/price has no prev_close — back-calculate from 24h change.
+    // floating-point imprecision is acceptable; selection only uses prev_close to derive d1Pct,
+    // which we already get directly from changePct.
     const prevClose = price / (1 + changePct / 100)
     out.push({
       symbol: sym,

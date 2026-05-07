@@ -65,7 +65,7 @@ async function upsertQuote(q: RawTickerQuote): Promise<void> {
         lastProvider: sql`EXCLUDED.last_provider`,
         fetchedAt: sql`EXCLUDED.fetched_at`,
         assetClass: sql`EXCLUDED.asset_class`,
-        stale: sql`false`,
+        stale: false,
       },
     })
 }

@@ -57,8 +57,6 @@ export const env = {
   },
 }
 
-// M3 may add NEWS_FETCH_INTERVAL_MS.
-// M4 will add FINNHUB_API_KEY, COINGECKO_API_KEY (optional), TICKER_FETCH_INTERVAL_MS.
 // M7 will add ADMIN_EMAILS, POSTHOG_API_KEY, SLACK_WEBHOOK_URL.
 
 /**
