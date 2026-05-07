@@ -131,6 +131,25 @@ class TestRedis {
     return Array.from(this.setStore.get(key) ?? [])
   }
 
+  private listStore = new Map<string, unknown[]>()
+
+  async lpush(key: string, ...values: unknown[]): Promise<number> {
+    let list = this.listStore.get(key)
+    if (!list) {
+      list = []
+      this.listStore.set(key, list)
+    }
+    // lpush prepends — newest at head
+    list.unshift(...values)
+    return list.length
+  }
+
+  async lpop<T = unknown>(key: string): Promise<T | null> {
+    const list = this.listStore.get(key)
+    if (!list || list.length === 0) return null
+    return list.shift() as T
+  }
+
   pipeline() {
     const ops: Array<() => Promise<unknown>> = []
     const pipeline = {
