@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import type { ChannelDto } from "@distrotv/shared"
 import { ChannelsGrid } from "@/components/dashboard/preferences/channels-grid"
+import { SharpButton } from "@/components/v5/sharp-button"
 import { saveChannelsFromSetup } from "./actions"
 
 export function ChannelsClientImpl({ initial }: { initial: ChannelDto[] }) {
@@ -32,15 +33,18 @@ export function ChannelsClientImpl({ initial }: { initial: ChannelDto[] }) {
   return (
     <div className="space-y-4">
       <ChannelsGrid channels={channels} onChange={setChannels} disabled={pending} />
-      {error && <p className="text-sm text-red-600">save failed: {error}</p>}
-      <button
+      {error && (
+        <p className="font-[var(--font-data)] text-[11px] text-[var(--status-negative)]">{error}</p>
+      )}
+      <SharpButton
         type="button"
+        variant="primary"
         onClick={onSave}
         disabled={pending}
-        className="w-full px-4 py-2 bg-black text-white rounded text-sm disabled:opacity-50"
+        className="w-full"
       >
         {pending ? "saving…" : "Save and continue"}
-      </button>
+      </SharpButton>
     </div>
   )
 }

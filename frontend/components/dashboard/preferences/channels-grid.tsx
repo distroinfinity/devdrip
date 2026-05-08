@@ -25,16 +25,16 @@ export function ChannelsGrid({ channels, onChange, disabled }: ChannelsGridProps
           onClick={() => toggle(c.key)}
           disabled={disabled}
           className={cn(
-            "flex items-center gap-2 rounded-md border px-3 py-2 text-left transition-colors",
+            "flex items-center gap-2 rounded-none border px-3 py-2 text-left transition-colors",
             c.subscribed
-              ? "border-[var(--accent-color)] bg-[var(--accent-color)]/10"
-              : "border-[var(--rule-default)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)]",
+              ? "border-[var(--accent-color)] bg-[var(--accent-surface)]"
+              : "border-[var(--rule-default)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)]",
             disabled && "opacity-50 cursor-not-allowed"
           )}
         >
           <span
             className={cn(
-              "inline-flex h-4 w-4 items-center justify-center rounded border",
+              "inline-flex h-4 w-4 items-center justify-center rounded-none border",
               c.subscribed
                 ? "border-[var(--accent-color)] bg-[var(--accent-color)]"
                 : "border-[var(--rule-default)]"
