@@ -6,6 +6,8 @@ import * as tickers from "../services/admin/ticker-symbols.service.js"
 import * as usersService from "../services/admin/users.service.js"
 import { getSystemHealth } from "../services/admin/system-health.service.js"
 import { getOverview } from "../services/admin/overview.service.js"
+import { getMetrics } from "../services/admin/metrics.service.js"
+import { getAuditEvents } from "../services/admin/audit.service.js"
 import { sendSlackAlert } from "../lib/slack.js"
 
 const router: ExpressRouter = Router()
@@ -107,6 +109,27 @@ router.get("/system-health", async (_req, res, next) => {
 router.get("/overview", async (_req, res, next) => {
   try {
     res.json(await getOverview())
+  } catch (e) {
+    next(e)
+  }
+})
+
+// aggregate metrics
+router.get("/metrics", async (req, res, next) => {
+  try {
+    const days = Math.min(90, Math.max(1, Number(req.query.days ?? 30)))
+    res.json(await getMetrics(days))
+  } catch (e) {
+    next(e)
+  }
+})
+
+// cross-user alert audit log
+router.get("/alert-events", async (req, res, next) => {
+  try {
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit ?? 100)))
+    const since = typeof req.query.since === "string" ? req.query.since : null
+    res.json({ events: await getAuditEvents(limit, since) })
   } catch (e) {
     next(e)
   }
