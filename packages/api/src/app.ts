@@ -19,6 +19,9 @@ import { channelsPublicRouter, meChannelsRouter } from "./routes/news-channels.j
 import { tickersRouter } from "./routes/tickers.js"
 import { meWatchlistsRouter } from "./routes/me-watchlists.js"
 import { meAlertsRouter } from "./routes/me-alerts.js"
+import { meActivitySummaryRouter } from "./routes/me-activity-summary.js"
+import { meWatchlistSparklinesRouter } from "./routes/me-watchlist-sparklines.js"
+import { meNowPlayingRouter } from "./routes/me-now-playing.js"
 import { ingestRouter } from "./routes/ingest.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
@@ -105,6 +108,9 @@ app.use("/me/content", requireAuth, userLimiter, meContentRouter)
 app.use("/me/channels", requireAuth, userLimiter, meChannelsRouter)
 app.use("/me/watchlists", requireAuth, userLimiter, meWatchlistsRouter)
 app.use("/me/alerts", requireAuth, userLimiter, meAlertsRouter)
+app.use("/me/activity-summary", requireAuth, userLimiter, meActivitySummaryRouter)
+app.use("/me/watchlist/sparklines", requireAuth, userLimiter, meWatchlistSparklinesRouter)
+app.use("/me/devices/:id/now", requireAuth, userLimiter, meNowPlayingRouter)
 app.use("/ingest", requireAuth, userLimiter, ingestRouter)
 
 app.use(errorHandler)

@@ -85,3 +85,37 @@ export type { SlotPayload, SlotKind, SlotLayout } from "./SlotPayload.js"
 export type { WatchlistDto, WatchlistTickerDto, AssetClass } from "./WatchlistDto.js"
 export type { AlertDto, AlertScope, PendingAlert, AlertReplacement } from "./AlertDto.js"
 export type { ChannelDto } from "./ChannelDto.js"
+
+// ── M6 dashboard surfaces ─────────────────────────────────────────────────
+
+export interface ActivitySummaryEvent {
+  ts: string // ISO 8601
+  kind: "news" | "ticker" | "alert"
+  weight: 1 | 2 | 3
+}
+
+export interface ActivitySummaryDto {
+  windowSec: number
+  events: ActivitySummaryEvent[]
+  totals: { news: number; ticker: number; alert: number; uptime_days: number }
+}
+
+export interface SparklinePoint {
+  ts: string
+  price: number
+}
+
+export interface SparklineDto {
+  symbol: string
+  points: SparklinePoint[]
+}
+
+export interface NowPlayingDto {
+  active: {
+    kind: "news" | "ticker" | "alert"
+    payload: unknown
+    startedAt: string
+    endsAt: string
+  } | null
+  next: { kind: "news" | "ticker" | "alert"; preview: string } | null
+}
