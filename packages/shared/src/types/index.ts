@@ -110,6 +110,14 @@ export interface SparklineDto {
   points: SparklinePoint[]
 }
 
+export interface AlertEventDto {
+  id: string
+  symbol: string
+  changePct: number
+  thresholdPct: number
+  firedAt: string
+}
+
 export interface NowPlayingDto {
   active: {
     kind: "news" | "ticker" | "alert"

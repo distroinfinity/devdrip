@@ -8,6 +8,7 @@ import type {
   ActivitySummaryDto,
   SparklineDto,
   NowPlayingDto,
+  AlertEventDto,
 } from "@distrotv/shared"
 import { ChannelMode } from "@distrotv/shared"
 import type { SessionPayload } from "@/lib/session"
@@ -33,6 +34,7 @@ interface Props {
   summary: ActivitySummaryDto
   sparklines: SparklineDto[]
   recentNews: NewsRowData[]
+  alertEvents: AlertEventDto[]
   savedCount: number
 }
 
@@ -70,6 +72,7 @@ export function OverviewClient({
   summary,
   sparklines,
   recentNews,
+  alertEvents,
   savedCount,
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>(defaultTab(preferences.channelMode))
@@ -134,7 +137,7 @@ export function OverviewClient({
         {activeTab === "watchlist" && (
           <WatchlistTab watchlists={watchlists} sparklines={sparklines} />
         )}
-        {activeTab === "alerts" && <AlertsTab />}
+        {activeTab === "alerts" && <AlertsTab events={alertEvents} />}
         {activeTab === "all" && <AllTab events={summary.events} />}
       </div>
 

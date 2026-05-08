@@ -1,7 +1,13 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import type { WatchlistDto, AssetClass } from "@distrotv/shared"
+import { useState, useTransition, useId } from "react"
+import type { WatchlistDto, WatchlistTickerDto, SparklineDto, AssetClass } from "@distrotv/shared"
+import { SortableList } from "@/components/dashboard/dnd/sortable-list"
+import { Sparkline } from "@/components/dashboard/watchlists/sparkline"
+import { EmptyState } from "@/components/v5/empty-state"
+import { SectionRule } from "@/components/v5/section-rule"
+import { SharpInput } from "@/components/v5/sharp-input"
+import { SharpButton } from "@/components/v5/sharp-button"
 import { saveWatchlists } from "./actions"
 
 const KNOWN_CRYPTO = new Set(["BTC", "ETH", "SOL", "ADA", "XRP", "DOGE", "MATIC", "AVAX"])
@@ -11,21 +17,49 @@ function inferAssetClass(s: string): AssetClass {
   return KNOWN_CRYPTO.has(s.toUpperCase()) ? "crypto" : "equity"
 }
 
-export function WatchlistsClient({ initial }: { initial: WatchlistDto[] }) {
-  const [lists, setLists] = useState(initial)
+// sparklines keyed by symbol
+function buildSparkMap(sparklines: SparklineDto[]): Map<string, SparklineDto> {
+  const m = new Map<string, SparklineDto>()
+  for (const s of sparklines) m.set(s.symbol, s)
+  return m
+}
+
+interface TickerRowItem extends WatchlistTickerDto {
+  id: string // required by SortableList — mirrors symbol
+}
+
+function pctColor(pct: number): string {
+  if (pct > 0) return "var(--color-forest, #2F8F4E)"
+  if (pct < 0) return "var(--color-oxblood, #C13438)"
+  return "var(--ink-tertiary)"
+}
+
+interface Props {
+  initial: WatchlistDto[]
+  sparklines: SparklineDto[]
+}
+
+export function WatchlistsClient({ initial, sparklines }: Props) {
+  // flat ticker list from the default watchlist (single-watchlist architecture)
+  const defaultList = initial[0]
+  const [tickers, setTickers] = useState<TickerRowItem[]>(
+    (defaultList?.tickers ?? []).map((t) => ({ ...t, id: t.symbol }))
+  )
   const [pending, start] = useTransition()
   const [error, setError] = useState<string | null>(null)
-  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [draft, setDraft] = useState("")
+  const inputId = useId()
 
-  function persist(next: WatchlistDto[]) {
-    const replacement = next.map((l) => ({
-      name: l.name,
-      tickers: l.tickers.map((t) => ({ symbol: t.symbol, assetClass: t.assetClass })),
-    }))
+  const sparkMap = buildSparkMap(sparklines)
+
+  function persist(next: TickerRowItem[]) {
     start(async () => {
-      const result = await saveWatchlists(replacement)
+      const result = await saveWatchlists(
+        next.map((t) => ({ symbol: t.symbol, assetClass: t.assetClass }))
+      )
       if (result.ok && result.watchlists) {
-        setLists(result.watchlists)
+        const fresh = result.watchlists[0]?.tickers ?? []
+        setTickers(fresh.map((t) => ({ ...t, id: t.symbol })))
         setError(null)
       } else {
         setError(result.error ?? "save failed")
@@ -33,100 +67,143 @@ export function WatchlistsClient({ initial }: { initial: WatchlistDto[] }) {
     })
   }
 
-  function addTicker(listId: string) {
-    const raw = (draft[listId] ?? "").trim().toUpperCase()
+  function addTicker() {
+    const raw = draft.trim().toUpperCase()
     if (!SYMBOL_RE.test(raw)) {
       setError("invalid symbol")
       return
     }
-    const target = lists.find((l) => l.id === listId)
-    if (target?.tickers.some((t) => t.symbol === raw)) {
-      // already present — clear the draft input but skip the redundant PUT
-      setDraft((d) => ({ ...d, [listId]: "" }))
-      setError(`${raw} already in ${target.name}`)
+    if (tickers.some((t) => t.symbol === raw)) {
+      setDraft("")
+      setError(`${raw} already in list`)
       return
     }
-    const next = lists.map((l) =>
-      l.id !== listId
-        ? l
-        : {
-            ...l,
-            tickers: [
-              ...l.tickers,
-              {
-                symbol: raw,
-                assetClass: inferAssetClass(raw),
-                priority: l.tickers.length,
-                addedAt: new Date().toISOString(),
-              },
-            ],
-          }
-    )
-    setDraft((d) => ({ ...d, [listId]: "" }))
+    const next: TickerRowItem[] = [
+      ...tickers,
+      {
+        symbol: raw,
+        assetClass: inferAssetClass(raw),
+        priority: tickers.length,
+        addedAt: new Date().toISOString(),
+        id: raw,
+      },
+    ]
+    setDraft("")
     persist(next)
   }
 
-  function removeTicker(listId: string, symbol: string) {
-    const next = lists.map((l) =>
-      l.id !== listId ? l : { ...l, tickers: l.tickers.filter((t) => t.symbol !== symbol) }
-    )
-    const target = next.find((l) => l.id === listId)
-    if (target && target.tickers.length === 0) {
-      setError("at least one ticker must stay in each watchlist")
-      return
-    }
+  function removeTicker(symbol: string) {
+    const next = tickers.filter((t) => t.symbol !== symbol)
     persist(next)
   }
+
+  function onReorder(next: TickerRowItem[]) {
+    setTickers(next)
+    persist(next)
+  }
+
+  const addForm = (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        addTicker()
+      }}
+      className="flex gap-2 mt-4"
+    >
+      <SharpInput
+        id={inputId}
+        type="text"
+        placeholder="symbol — AAPL, BTC…"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        disabled={pending}
+        className="flex-1 text-[12px] font-[var(--font-data)]"
+      />
+      <SharpButton type="submit" disabled={pending || !draft.trim()} className="text-[12px]">
+        add
+      </SharpButton>
+    </form>
+  )
 
   return (
-    <div className="space-y-6">
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {lists.map((l) => (
-        <section
-          key={l.id}
-          className="rounded-lg border border-[var(--rule-default)] bg-[var(--bg-surface)] px-5 py-5"
-        >
-          <h2 className="font-display text-[14px] font-bold text-[var(--ink-primary)]">
-            {l.name} <span className="text-[var(--ink-tertiary)]">· {l.tickers.length}</span>
-          </h2>
-          <ul className="mt-3 divide-y divide-[var(--rule-default)]">
-            {l.tickers.map((t) => (
-              <li key={t.symbol} className="flex items-center justify-between py-2">
-                <span className="font-mono text-[13px]">
-                  {t.symbol}{" "}
-                  <span className="text-[var(--ink-tertiary)] text-[11px]">{t.assetClass}</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeTicker(l.id, t.symbol)}
-                  disabled={pending}
-                  className="text-[11px] text-[var(--ink-tertiary)] hover:text-red-600 disabled:opacity-50"
-                >
-                  remove
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 flex gap-2">
-            <input
-              type="text"
-              placeholder="symbol (e.g. AAPL, BTC)"
-              value={draft[l.id] ?? ""}
-              onChange={(e) => setDraft((d) => ({ ...d, [l.id]: e.target.value }))}
-              className="flex-1 px-3 py-2 border border-[var(--rule-default)] rounded text-sm font-mono"
-              disabled={pending}
-            />
-            <button
-              type="button"
-              onClick={() => addTicker(l.id)}
-              disabled={pending}
-              className="px-3 py-2 bg-[var(--accent-color)] text-white rounded text-sm disabled:opacity-50"
-            >
-              add
-            </button>
-          </div>
-        </section>
-      ))}
+    <div>
+      {error && (
+        <p className="mb-3 font-[var(--font-data)] text-[11px] text-[var(--color-oxblood,#C13438)]">
+          {error}
+        </p>
+      )}
+
+      {tickers.length === 0 ? (
+        <EmptyState
+          title="no tickers yet"
+          body="add your first ticker to start seeing prices in your terminal"
+          action={addForm}
+        />
+      ) : (
+        <>
+          <SortableList
+            items={tickers}
+            onReorder={onReorder}
+            renderItem={(item, dragHandle) => {
+              const spark = sparkMap.get(item.symbol)
+              // compute day pct from sparkline first/last if available
+              const pts = spark?.points ?? []
+              let dayPct: number | null = null
+              if (pts.length >= 2) {
+                const first = pts[0]?.price ?? 0
+                const last = pts[pts.length - 1]?.price ?? 0
+                dayPct = first !== 0 ? ((last - first) / first) * 100 : null
+              }
+
+              return (
+                <div className="flex items-center gap-3 py-2.5 px-1">
+                  {/* drag handle */}
+                  <div className="shrink-0">{dragHandle}</div>
+
+                  {/* symbol */}
+                  <span className="w-[72px] shrink-0 font-[var(--font-data)] text-[12px] font-bold tracking-[0.04em] text-[var(--ink-primary)]">
+                    {item.symbol}
+                  </span>
+
+                  {/* asset class badge */}
+                  <span className="w-[40px] shrink-0 font-[var(--font-data)] text-[10px] text-[var(--ink-faint,var(--ink-tertiary))]">
+                    {item.assetClass}
+                  </span>
+
+                  {/* sparkline */}
+                  <div className="shrink-0">
+                    <Sparkline points={pts} />
+                  </div>
+
+                  {/* day pct */}
+                  <span
+                    className="w-[52px] shrink-0 font-[var(--font-data)] text-[11px] tabular-nums text-right"
+                    style={{ color: dayPct !== null ? pctColor(dayPct) : "var(--ink-tertiary)" }}
+                  >
+                    {dayPct !== null ? `${dayPct >= 0 ? "+" : ""}${dayPct.toFixed(2)}%` : "—"}
+                  </span>
+
+                  {/* spacer */}
+                  <div className="flex-1" />
+
+                  {/* remove */}
+                  <button
+                    type="button"
+                    onClick={() => removeTicker(item.symbol)}
+                    disabled={pending}
+                    className="opacity-0 group-hover:opacity-100 font-[var(--font-data)] text-[10px] text-[var(--ink-tertiary)] border border-[var(--rule-default)] px-2 py-0.5 hover:border-[var(--color-oxblood,#C13438)] hover:text-[var(--color-oxblood,#C13438)] transition-all disabled:opacity-30"
+                  >
+                    remove
+                  </button>
+                </div>
+              )
+            }}
+          />
+
+          <SectionRule />
+          {addForm}
+        </>
+      )}
     </div>
   )
 }

@@ -8,6 +8,7 @@ import type {
   AlertDto,
   ActivitySummaryDto,
   SparklineDto,
+  AlertEventDto,
 } from "@distrotv/shared"
 import { OverviewClient } from "@/components/dashboard/overview/overview-client"
 import type { NewsRowData } from "@/components/dashboard/overview/news-row"
@@ -27,7 +28,7 @@ export default async function DashboardOverview() {
 
   if (!session || !token) redirect("/sign-in?next=/dashboard")
 
-  const [prefs, channels, watchlists, , summary, sparklines, recentNews, reading] =
+  const [prefs, channels, watchlists, , summary, sparklines, recentNews, reading, alertEvents] =
     await Promise.all([
       apiFetchOrRefresh<PrefsPayload>("/me/preferences", "/dashboard").catch(
         (): PrefsPayload => ({ preferences: {} as SyncedPreferences })
@@ -62,6 +63,10 @@ export default async function DashboardOverview() {
         items: [],
         hasMore: false,
       })),
+      apiFetchOrRefresh<{ events: AlertEventDto[] }>(
+        "/me/alerts/events?limit=25",
+        "/dashboard"
+      ).catch(() => ({ events: [] as AlertEventDto[] })),
     ])
 
   return (
@@ -74,6 +79,7 @@ export default async function DashboardOverview() {
       summary={summary}
       sparklines={sparklines.sparklines}
       recentNews={recentNews.items}
+      alertEvents={alertEvents.events}
       savedCount={reading.items.length}
     />
   )
