@@ -69,6 +69,18 @@ export const env = {
         .filter(Boolean)
     )
   },
+  get slackWebhookUrl(): string | undefined {
+    const v = process.env["SLACK_WEBHOOK_URL"]
+    return v && v.length > 0 ? v : undefined
+  },
+  get commitSha(): string | undefined {
+    return (
+      process.env["RAILWAY_GIT_COMMIT_SHA"] ??
+      process.env["VERCEL_GIT_COMMIT_SHA"] ??
+      process.env["COMMIT_SHA"] ??
+      undefined
+    )
+  },
   get allowedOrigins(): string[] {
     const origins = requireEnv("ALLOWED_ORIGINS")
       .split(",")
@@ -79,7 +91,6 @@ export const env = {
   },
 }
 
-// SLACK_WEBHOOK_URL added in M7 Task 4.
 // PostHog deferred.
 
 /**
