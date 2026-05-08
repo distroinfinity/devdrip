@@ -1,5 +1,5 @@
 import { Command } from "commander"
-import { daemonSocketPath } from "@distrotv/shared"
+import { daemonSocketPath } from "@distrotv/shared/daemon-socket"
 import { sendHookEvent } from "../lib/daemon/hook-client.js"
 import type { ActionKind } from "../lib/daemon/protocol.js"
 import { resolveTty } from "../lib/daemon/tty.js"
