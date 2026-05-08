@@ -20,9 +20,11 @@ export enum ImpressionResult {
 // ── channel mode + news ────────────────────────────────────────────────────
 
 export enum ChannelMode {
-  News = "news", // news only (default once markets is wired in M3)
-  Markets = "markets", // markets only (M4)
-  Mix = "mix", // alternates news + markets (recommended; default)
+  NewsOnly = "news_only",
+  NewsHeavy = "news_heavy", // 3:1 news:ticker
+  Balanced = "balanced", // 1:1 news:ticker (default; replaces "mix")
+  TickerHeavy = "ticker_heavy", // 1:3 news:ticker
+  TickerOnly = "ticker_only",
 }
 
 import type { NewsTopic } from "./news.js"

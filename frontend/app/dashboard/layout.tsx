@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   // fetch prefs server-side so the mode toggle's initial state matches the
   // user's saved value without a client-side waterfall.
-  let initialMode: ChannelMode = ChannelMode.Mix
+  let initialMode: ChannelMode = ChannelMode.Balanced
   try {
     const { preferences } = await apiFetchOrRefresh<PreferencesPayload>(
       "/me/preferences",

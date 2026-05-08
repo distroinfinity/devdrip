@@ -7,9 +7,9 @@ import { updateChannelMode } from "@/app/dashboard/actions"
 // string literals match the ChannelMode enum values in @distrotv/shared
 // (kept inline to avoid bundling shared's node:path import into the client)
 const OPTIONS: { value: ChannelMode; label: string; emoji: string }[] = [
-  { value: "learn" as ChannelMode, label: "learn", emoji: "📰" },
-  { value: "earn" as ChannelMode, label: "earn", emoji: "💰" },
-  { value: "mix" as ChannelMode, label: "both", emoji: "🎭" },
+  { value: "news_only" as ChannelMode, label: "news", emoji: "📰" },
+  { value: "ticker_only" as ChannelMode, label: "ticker", emoji: "💰" },
+  { value: "balanced" as ChannelMode, label: "both", emoji: "🎭" },
 ]
 
 export function ModeToggle({ initial }: { initial: ChannelMode }) {

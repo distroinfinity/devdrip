@@ -68,7 +68,7 @@ async function runPreferences(): Promise<void> {
     }
 
     if (action === "channels") {
-      if (prefs.channelMode === ChannelMode.Markets) {
+      if (prefs.channelMode === ChannelMode.TickerOnly) {
         log.warn("channels are unused in markets mode — switch mode first if you want news")
       }
       const current = await getMyChannels()

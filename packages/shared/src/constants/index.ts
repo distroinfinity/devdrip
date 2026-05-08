@@ -86,7 +86,7 @@ export function defaultPreferences(): DevdripPreferences {
     quietHoursStart: null,
     quietHoursEnd: null,
     nightMode: false,
-    channelMode: ChannelMode.Mix,
+    channelMode: ChannelMode.Balanced,
     newsTopics: [],
     tzOffsetMinutes: -new Date().getTimezoneOffset(),
     idleSensitivityMs: IDLE_SENSITIVITY_MS,
