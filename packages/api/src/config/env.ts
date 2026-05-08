@@ -60,8 +60,14 @@ export const env = {
   get upstashRedisRestToken() {
     return requireEnv("UPSTASH_REDIS_REST_TOKEN")
   },
-  get adminSecret() {
-    return requireEnv("ADMIN_SECRET")
+  get adminEmails(): Set<string> {
+    const raw = process.env["ADMIN_EMAILS"] ?? ""
+    return new Set(
+      raw
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    )
   },
   get allowedOrigins(): string[] {
     const origins = requireEnv("ALLOWED_ORIGINS")
@@ -73,7 +79,8 @@ export const env = {
   },
 }
 
-// M7 will add ADMIN_EMAILS, POSTHOG_API_KEY, SLACK_WEBHOOK_URL.
+// SLACK_WEBHOOK_URL added in M7 Task 4.
+// PostHog deferred.
 
 /**
  * Refuses to boot if we'd be pointing a dev process at the deployed Neon DB.
