@@ -1,15 +1,18 @@
 import { BlurFade } from "@distrotv/design-system/components/blur-fade"
 import { apiFetchOrRefresh } from "@/lib/api"
-import type { WatchlistDto } from "@distrotv/shared"
+import type { WatchlistDto, SparklineDto } from "@distrotv/shared"
 import { WatchlistsClient } from "./watchlists-client"
 
 export const dynamic = "force-dynamic"
 
 export default async function WatchlistsPage() {
-  const { watchlists } = await apiFetchOrRefresh<{ watchlists: WatchlistDto[] }>(
-    "/me/watchlists",
-    "/dashboard/watchlists"
-  )
+  const [{ watchlists }, { sparklines }] = await Promise.all([
+    apiFetchOrRefresh<{ watchlists: WatchlistDto[] }>("/me/watchlists", "/dashboard/watchlists"),
+    apiFetchOrRefresh<{ sparklines: SparklineDto[] }>(
+      "/me/watchlist/sparklines?windowSec=86400",
+      "/dashboard/watchlists"
+    ).catch(() => ({ sparklines: [] as SparklineDto[] })),
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,7 +32,7 @@ export default async function WatchlistsPage() {
       </BlurFade>
 
       <BlurFade delay={0.04} direction="up" offset={6}>
-        <WatchlistsClient initial={watchlists} />
+        <WatchlistsClient initial={watchlists} sparklines={sparklines} />
       </BlurFade>
     </div>
   )

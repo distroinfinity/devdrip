@@ -20,9 +20,11 @@ export enum ImpressionResult {
 // ── channel mode + news ────────────────────────────────────────────────────
 
 export enum ChannelMode {
-  News = "news", // news only (default once markets is wired in M3)
-  Markets = "markets", // markets only (M4)
-  Mix = "mix", // alternates news + markets (recommended; default)
+  NewsOnly = "news_only",
+  NewsHeavy = "news_heavy", // 3:1 news:ticker
+  Balanced = "balanced", // 1:1 news:ticker (default; replaces "mix")
+  TickerHeavy = "ticker_heavy", // 1:3 news:ticker
+  TickerOnly = "ticker_only",
 }
 
 import type { NewsTopic } from "./news.js"
@@ -83,3 +85,45 @@ export type { SlotPayload, SlotKind, SlotLayout } from "./SlotPayload.js"
 export type { WatchlistDto, WatchlistTickerDto, AssetClass } from "./WatchlistDto.js"
 export type { AlertDto, AlertScope, PendingAlert, AlertReplacement } from "./AlertDto.js"
 export type { ChannelDto } from "./ChannelDto.js"
+
+// ── M6 dashboard surfaces ─────────────────────────────────────────────────
+
+export interface ActivitySummaryEvent {
+  ts: string // ISO 8601
+  kind: "news" | "ticker" | "alert"
+  weight: 1 | 2 | 3
+}
+
+export interface ActivitySummaryDto {
+  windowSec: number
+  events: ActivitySummaryEvent[]
+  totals: { news: number; ticker: number; alert: number; uptime_days: number }
+}
+
+export interface SparklinePoint {
+  ts: string
+  price: number
+}
+
+export interface SparklineDto {
+  symbol: string
+  points: SparklinePoint[]
+}
+
+export interface AlertEventDto {
+  id: string
+  symbol: string
+  changePct: number
+  thresholdPct: number
+  firedAt: string
+}
+
+export interface NowPlayingDto {
+  active: {
+    kind: "news" | "ticker" | "alert"
+    payload: unknown
+    startedAt: string
+    endsAt: string
+  } | null
+  next: { kind: "news" | "ticker" | "alert"; preview: string } | null
+}

@@ -302,7 +302,7 @@ export async function runInit(): Promise<void> {
 
   await savePreferences(channelMode)
 
-  if (channelMode !== ChannelMode.Markets) {
+  if (channelMode !== ChannelMode.TickerOnly) {
     try {
       const current = await getMyChannels()
       const next = await pickChannels(current)
@@ -322,7 +322,7 @@ export async function runInit(): Promise<void> {
     }
   }
 
-  if (channelMode !== ChannelMode.News) {
+  if (channelMode !== ChannelMode.NewsOnly) {
     try {
       const tickers = await pickWatchlistTickers()
       if (tickers.length === 0) {

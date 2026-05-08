@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import type { AssetClass } from "@distrotv/shared"
+import { SharpInput } from "@/components/v5/sharp-input"
+import { SharpButton } from "@/components/v5/sharp-button"
 import { saveWatchlistFromSetup } from "./actions"
 
 const SEED: { symbol: string; assetClass: AssetClass }[] = [
@@ -59,7 +61,7 @@ export function WatchlistClient() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         {SEED.map((t) => {
           const on = picks.some((p) => p.symbol === t.symbol)
           return (
@@ -69,8 +71,8 @@ export function WatchlistClient() {
               onClick={() => toggle(t.symbol)}
               className={
                 on
-                  ? "px-3 py-2 rounded-md border border-black bg-black text-white text-sm font-mono"
-                  : "px-3 py-2 rounded-md border border-gray-300 text-sm font-mono"
+                  ? "px-3 py-2 border border-[var(--accent-color)] bg-[var(--accent-surface)] font-[var(--font-data)] text-[12px] text-[var(--ink-primary)] transition-colors"
+                  : "px-3 py-2 border border-[var(--rule-default)] bg-[var(--bg-surface)] font-[var(--font-data)] text-[12px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
               }
             >
               {t.symbol}
@@ -80,36 +82,43 @@ export function WatchlistClient() {
       </div>
 
       <div className="flex gap-2">
-        <input
+        <SharpInput
           type="text"
           placeholder="add a symbol (AAPL, BTC, …)"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm font-mono"
+          onKeyDown={(e) => e.key === "Enter" && addCustom()}
+          className="flex-1 font-[var(--font-data)]"
         />
-        <button type="button" onClick={addCustom} className="px-3 py-2 bg-gray-200 rounded text-sm">
+        <SharpButton type="button" variant="secondary" onClick={addCustom}>
           add
-        </button>
+        </SharpButton>
       </div>
 
-      <ul className="text-xs text-gray-600">
-        {picks.map((p) => (
-          <li key={p.symbol}>
-            {p.symbol} <span className="text-gray-400">({p.assetClass})</span>
-          </li>
-        ))}
-      </ul>
+      {picks.length > 0 && (
+        <ul className="font-[var(--font-data)] text-[11px] text-[var(--ink-secondary)] space-y-0.5">
+          {picks.map((p) => (
+            <li key={p.symbol} className="flex items-center gap-2">
+              <span className="text-[var(--ink-primary)]">{p.symbol}</span>
+              <span className="text-[var(--ink-tertiary)]">{p.assetClass}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="font-[var(--font-data)] text-[11px] text-[var(--status-negative)]">{error}</p>
+      )}
 
-      <button
+      <SharpButton
         type="button"
+        variant="primary"
         onClick={onSave}
         disabled={pending}
-        className="w-full px-4 py-2 bg-black text-white rounded text-sm disabled:opacity-50"
+        className="w-full"
       >
         {pending ? "saving…" : "Save and continue"}
-      </button>
+      </SharpButton>
     </div>
   )
 }

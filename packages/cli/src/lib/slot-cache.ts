@@ -1,10 +1,35 @@
 import { randomBytes } from "node:crypto"
 import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import type { SlotPayload } from "@distrotv/shared"
+import { ChannelMode, type SlotPayload } from "@distrotv/shared"
 import { apiFetch as defaultApiFetch } from "./api-client.js"
 import { DEMO_SLOTS } from "./slot-cache-fixtures.js"
 import { configDir } from "./config.js"
+
+const RATIO_PATTERNS: Record<ChannelMode, ("news" | "ticker")[]> = {
+  [ChannelMode.NewsOnly]: ["news"],
+  [ChannelMode.NewsHeavy]: ["news", "news", "news", "ticker"],
+  [ChannelMode.Balanced]: ["news", "ticker"],
+  [ChannelMode.TickerHeavy]: ["news", "ticker", "ticker", "ticker"],
+  [ChannelMode.TickerOnly]: ["ticker"],
+}
+
+export function pickKind(mode: ChannelMode, slotIndex: number): "news" | "ticker" {
+  const pattern = RATIO_PATTERNS[mode]
+  return pattern[slotIndex % pattern.length] ?? "news"
+}
+
+// in-memory slot counter — resets on daemon restart (acceptable for v1).
+// persisting to ledger is deferred; ledger schema would need a kv_store table.
+let _slotIndex = 0
+
+export function nextSlotIndex(): number {
+  return _slotIndex++
+}
+
+export function resetSlotIndex(): void {
+  _slotIndex = 0
+}
 
 const CACHE_TTL_MS = 8 * 60 * 1000
 const REFRESH_THRESHOLD = 3

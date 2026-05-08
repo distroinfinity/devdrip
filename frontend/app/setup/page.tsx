@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation"
 import { exchangePairCode, sendMagicLink } from "./actions"
 import { getSession, getPairCookie } from "@/lib/session"
+import { SharpInput } from "@/components/v5/sharp-input"
+import { SharpButton } from "@/components/v5/sharp-button"
+import { SectionRule } from "@/components/v5/section-rule"
 
 interface PageProps {
   searchParams: Promise<{ pair?: string; sent?: string; email?: string; error?: string }>
@@ -42,18 +45,20 @@ export default async function SetupPage({ searchParams }: PageProps) {
 
 function ChooseSignInState({ pairingCode, error }: { pairingCode: string; error?: string }) {
   return (
-    <main className="min-h-screen flex items-center justify-center p-8">
+    <main className="min-h-screen flex items-center justify-center p-8 bg-[var(--bg-primary)]">
       <div className="max-w-md w-full space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold">Distro TV — Setup</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <h1 className="font-[var(--font-display)] text-[22px] font-bold tracking-[-0.02em] text-[var(--ink-primary)]">
+            Distro TV — Setup
+          </h1>
+          <p className="mt-2 text-[13px] font-[var(--font-body)] text-[var(--ink-secondary)]">
             Your device is registered. Sign in with email to sync prefs across devices and access
             the dashboard, or skip and use anonymously.
           </p>
         </div>
 
         {error && (
-          <div className="px-3 py-2 bg-red-50 border border-red-200 text-red-800 rounded text-sm">
+          <div className="px-3 py-2 bg-[var(--status-negative-surface)] border border-[var(--status-negative)] text-[var(--status-negative)] text-[13px] font-[var(--font-body)]">
             {describeError(error)}
           </div>
         )}
@@ -71,30 +76,28 @@ function ChooseSignInState({ pairingCode, error }: { pairingCode: string; error?
           }}
           className="space-y-3"
         >
-          <input
+          <SharpInput
             type="email"
             name="email"
             placeholder="you@email.com"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+            className="w-full"
           />
-          <button type="submit" className="w-full px-4 py-2 bg-black text-white rounded text-sm">
+          <SharpButton type="submit" variant="primary" className="w-full">
             Send sign-in link
-          </button>
+          </SharpButton>
         </form>
 
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground">
-            You&apos;re already using Distro TV anonymously. Sign-in is optional but enables
-            dashboard access.
-          </p>
-        </div>
+        <p className="text-[13px] font-[var(--font-body)] text-center text-[var(--ink-tertiary)]">
+          You&apos;re already using Distro TV anonymously. Sign-in is optional but enables dashboard
+          access.
+        </p>
 
-        <div className="border-t pt-4">
-          <p className="text-xs text-muted-foreground">
-            Need richer config? Channels + watchlist editing land in M3 + M4.
-          </p>
-        </div>
+        <SectionRule />
+
+        <p className="font-[var(--font-data)] text-[10px] uppercase tracking-wider text-[var(--ink-tertiary)]">
+          Need richer config? Channels + watchlist editing land in M3 + M4.
+        </p>
       </div>
     </main>
   )
@@ -102,16 +105,18 @@ function ChooseSignInState({ pairingCode, error }: { pairingCode: string; error?
 
 function CheckEmailState({ email }: { email: string }) {
   return (
-    <main className="min-h-screen flex items-center justify-center p-8">
+    <main className="min-h-screen flex items-center justify-center p-8 bg-[var(--bg-primary)]">
       <div className="max-w-md text-center space-y-3">
-        <h1 className="text-2xl font-semibold">Check your email</h1>
-        <p className="text-sm text-muted-foreground">
-          We sent a sign-in link to <strong>{email}</strong>. Click the link to complete sign-in.
-          The link expires in 15 minutes.
+        <h1 className="font-[var(--font-display)] text-[22px] font-bold tracking-[-0.02em] text-[var(--ink-primary)]">
+          Check your email
+        </h1>
+        <p className="text-[13px] font-[var(--font-body)] text-[var(--ink-secondary)]">
+          We sent a sign-in link to <strong className="text-[var(--ink-primary)]">{email}</strong>.
+          Click the link to complete sign-in. The link expires in 15 minutes.
         </p>
-        <p className="text-xs text-muted-foreground pt-4">
+        <p className="font-[var(--font-data)] text-[10px] uppercase tracking-wider text-[var(--ink-tertiary)] pt-4">
           Didn&apos;t get it? Check your spam folder, or{" "}
-          <a href="/setup" className="underline">
+          <a href="/setup" className="text-[var(--accent-color)] hover:underline">
             try again
           </a>
           .
@@ -123,13 +128,17 @@ function CheckEmailState({ email }: { email: string }) {
 
 function SignedInState({ email }: { email: string }) {
   return (
-    <main className="min-h-screen flex items-center justify-center p-8">
-      <div className="max-w-md text-center space-y-3">
-        <h1 className="text-2xl font-semibold">Signed in as {email}</h1>
-        <p className="text-sm text-muted-foreground">Your devices and prefs sync now.</p>
+    <main className="min-h-screen flex items-center justify-center p-8 bg-[var(--bg-primary)]">
+      <div className="max-w-md text-center space-y-4">
+        <h1 className="font-[var(--font-display)] text-[22px] font-bold tracking-[-0.02em] text-[var(--ink-primary)]">
+          Signed in as {email}
+        </h1>
+        <p className="text-[13px] font-[var(--font-body)] text-[var(--ink-secondary)]">
+          Your devices and prefs sync now.
+        </p>
         <a
           href="/setup/channels"
-          className="inline-block mt-4 px-4 py-2 bg-black text-white rounded text-sm"
+          className="inline-block mt-4 px-4 py-2 text-[13px] font-medium font-[var(--font-body)] bg-[var(--ink-primary)] text-[var(--bg-primary)] hover:bg-[var(--em-hover)] transition-colors duration-150"
         >
           Continue
         </a>
@@ -140,12 +149,17 @@ function SignedInState({ email }: { email: string }) {
 
 function SetupErrorState({ error }: { error: string }) {
   return (
-    <main className="min-h-screen flex items-center justify-center p-8">
+    <main className="min-h-screen flex items-center justify-center p-8 bg-[var(--bg-primary)]">
       <div className="max-w-md text-center space-y-3">
-        <h1 className="text-2xl font-semibold">Setup error</h1>
-        <p className="text-sm text-muted-foreground">{describeError(error)}</p>
-        <p className="text-xs text-muted-foreground pt-2">
-          Try running <code>distro init</code> again from your terminal.
+        <h1 className="font-[var(--font-display)] text-[22px] font-bold tracking-[-0.02em] text-[var(--ink-primary)]">
+          Setup error
+        </h1>
+        <p className="text-[13px] font-[var(--font-body)] text-[var(--ink-secondary)]">
+          {describeError(error)}
+        </p>
+        <p className="font-[var(--font-data)] text-[10px] uppercase tracking-wider text-[var(--ink-tertiary)] pt-2">
+          Try running <code className="font-[var(--font-data)]">distro init</code> again from your
+          terminal.
         </p>
       </div>
     </main>

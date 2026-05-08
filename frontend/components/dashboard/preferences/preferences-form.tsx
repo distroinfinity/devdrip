@@ -1,13 +1,18 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import Link from "next/link"
 import type { AlertDto, AlertReplacement, ChannelDto, SyncedPreferences } from "@distrotv/shared"
+import { ChannelMode } from "@distrotv/shared"
 import { cn } from "@distrotv/design-system/utils"
 import { savePreferences, saveChannels, saveAlerts } from "@/app/dashboard/preferences/actions"
-import { QuietHoursPicker } from "./quiet-hours-picker"
-import { AdvancedBlock } from "./advanced-block"
-import { ChannelsGrid } from "./channels-grid"
+import { SortableList } from "@/components/dashboard/dnd/sortable-list"
+import { ChannelRow } from "./channels-grid"
 import { AlertsBlock } from "./alerts-block"
+import { QuietHoursBlock } from "./quiet-hours-block"
+import { ModePill } from "@/components/dashboard/mode-pill"
+import { SectionRule } from "@/components/v5/section-rule"
+import { InlineHelp } from "@/components/v5/inline-help"
 
 interface PreferencesFormProps {
   initial: SyncedPreferences
@@ -21,37 +26,53 @@ type Status =
   | { kind: "saved"; at: number }
   | { kind: "error"; message: string }
 
+type QuietHoursState = { startMinutes: number | null; endMinutes: number | null }
+
+const MODE_DESCRIPTIONS: Record<ChannelMode, string> = {
+  [ChannelMode.NewsOnly]: "news only — no ticker slots in your rotation",
+  [ChannelMode.NewsHeavy]: "3:1 — three news slots for every ticker slot",
+  [ChannelMode.Balanced]: "1:1 — news and ticker alternate evenly",
+  [ChannelMode.TickerHeavy]: "1:3 — three ticker slots for every news slot",
+  [ChannelMode.TickerOnly]: "ticker only — no news slots in your rotation",
+}
+
 export function PreferencesForm({ initial, initialChannels, initialAlerts }: PreferencesFormProps) {
-  const [prefs, setPrefs] = useState<SyncedPreferences>(initial)
-  const [savedSnapshot, setSavedSnapshot] = useState<SyncedPreferences>(initial)
   const [channels, setChannels] = useState<ChannelDto[]>(initialChannels)
   const [savedChannels, setSavedChannels] = useState<ChannelDto[]>(initialChannels)
   const [alerts, setAlerts] = useState<AlertDto[]>(initialAlerts)
   const [savedAlerts, setSavedAlerts] = useState<AlertDto[]>(initialAlerts)
+  const [quietHours, setQuietHours] = useState<QuietHoursState>({
+    startMinutes: initial.quietHoursStart,
+    endMinutes: initial.quietHoursEnd,
+  })
+  const [savedQuietHours, setSavedQuietHours] = useState<QuietHoursState>({
+    startMinutes: initial.quietHoursStart,
+    endMinutes: initial.quietHoursEnd,
+  })
+  const [prefs, setPrefs] = useState<SyncedPreferences>(initial)
+  const [savedSnapshot, setSavedSnapshot] = useState<SyncedPreferences>(initial)
   const [status, setStatus] = useState<Status>({ kind: "idle" })
   const [pending, startTransition] = useTransition()
 
-  const channelsDirty = channels.some((c, i) => {
-    const s = savedChannels[i]
-    return c.key !== s?.key || c.subscribed !== s?.subscribed || c.priority !== s?.priority
-  })
+  const channelsDirty =
+    channels.some((c, i) => {
+      const s = savedChannels[i]
+      return c.key !== s?.key || c.subscribed !== s?.subscribed || c.priority !== s?.priority
+    }) || channels.length !== savedChannels.length
   const alertsDirty =
     alerts.length !== savedAlerts.length ||
     alerts.some((a, i) => {
       const s = savedAlerts[i]
       return !s || a.scope !== s.scope || a.symbol !== s.symbol || a.thresholdPct !== s.thresholdPct
     })
-  const dirty =
-    JSON.stringify(prefs) !== JSON.stringify(savedSnapshot) || channelsDirty || alertsDirty
-
-  function patch(p: Partial<SyncedPreferences>): void {
-    setPrefs((cur) => ({ ...cur, ...p }))
-    if (status.kind === "error") setStatus({ kind: "idle" })
-  }
+  const quietHoursDirty =
+    quietHours.startMinutes !== savedQuietHours.startMinutes ||
+    quietHours.endMinutes !== savedQuietHours.endMinutes
+  const prefsDirty = JSON.stringify(prefs) !== JSON.stringify(savedSnapshot)
+  const dirty = prefsDirty || channelsDirty || alertsDirty || quietHoursDirty
 
   function save(): void {
     if (!dirty || pending) return
-    const snapshot = prefs
     const subscribedKeys = channels.filter((c) => c.subscribed).map((c) => c.key)
     if (subscribedKeys.length === 0) {
       setStatus({ kind: "error", message: "pick at least one channel before saving" })
@@ -60,16 +81,20 @@ export function PreferencesForm({ initial, initialChannels, initialAlerts }: Pre
     startTransition(async () => {
       setStatus({ kind: "saving" })
       const result = await savePreferences({
-        quietHoursStart: snapshot.quietHoursStart,
-        quietHoursEnd: snapshot.quietHoursEnd,
-        tzOffsetMinutes: snapshot.tzOffsetMinutes,
-        idleSensitivityMs: snapshot.idleSensitivityMs,
-        sessionWarmupMs: snapshot.sessionWarmupMs,
-        nightMode: snapshot.nightMode,
+        quietHoursStart: quietHours.startMinutes,
+        quietHoursEnd: quietHours.endMinutes,
+        tzOffsetMinutes: prefs.tzOffsetMinutes,
+        idleSensitivityMs: prefs.idleSensitivityMs,
+        sessionWarmupMs: prefs.sessionWarmupMs,
+        nightMode: prefs.nightMode,
       })
       if (result.ok && result.preferences) {
         setSavedSnapshot(result.preferences)
         setPrefs(result.preferences)
+        setSavedQuietHours({
+          startMinutes: result.preferences.quietHoursStart,
+          endMinutes: result.preferences.quietHoursEnd,
+        })
       } else {
         setStatus({ kind: "error", message: result.error ?? "save failed" })
         return
@@ -100,41 +125,97 @@ export function PreferencesForm({ initial, initialChannels, initialAlerts }: Pre
   }
 
   function reset(): void {
-    setPrefs(savedSnapshot)
     setChannels(savedChannels)
     setAlerts(savedAlerts)
+    setQuietHours(savedQuietHours)
+    setPrefs(savedSnapshot)
     setStatus({ kind: "idle" })
   }
 
+  // use channel.key as the sortable id (overrides channel.id to ensure uniqueness as stable key)
+  type SortableChannel = ChannelDto & { id: string }
+
+  function handleChannelReorder(items: SortableChannel[]) {
+    setChannels(items)
+  }
+
+  const sortableChannels: SortableChannel[] = channels.map((c) => ({ ...c, id: c.key }))
+
   return (
-    <div className="flex flex-col gap-6 pb-32">
-      <Section title="Channels" subtitle="which feeds appear in your slot rotation">
-        <ChannelsGrid channels={channels} onChange={setChannels} disabled={pending} />
-      </Section>
+    <div className="flex flex-col pb-32">
+      {/* Mode */}
+      <PrefsSection eyebrow="mode" subtitle="bias your feed toward news or ticker">
+        <ModePill initial={initial.channelMode} />
+        <p className="mt-2 text-[11px] text-[var(--ink-tertiary)] font-[var(--font-body)]">
+          {MODE_DESCRIPTIONS[initial.channelMode]}
+        </p>
+      </PrefsSection>
 
-      <Section title="Alerts" subtitle="fire when |daily move| ≥ threshold; bumps the next slot">
+      <SectionRule />
+
+      {/* Channels */}
+      <PrefsSection
+        eyebrow="channels"
+        subtitle="which feeds appear in your slot rotation — drag to set priority"
+        help={
+          <InlineHelp>
+            drag rows to reorder. higher channels are picked first when news rotates.
+          </InlineHelp>
+        }
+      >
+        <SortableList
+          items={sortableChannels}
+          onReorder={handleChannelReorder}
+          renderItem={(item, dragHandle) => (
+            <ChannelRow
+              channel={item}
+              dragHandle={dragHandle}
+              disabled={pending}
+              onToggle={() => {
+                if (pending) return
+                setChannels((prev) =>
+                  prev.map((c) => (c.key === item.key ? { ...c, subscribed: !c.subscribed } : c))
+                )
+              }}
+            />
+          )}
+        />
+      </PrefsSection>
+
+      <SectionRule />
+
+      {/* Watchlist link */}
+      <PrefsSection eyebrow="watchlist" subtitle="tickers tracked in your slot rotation">
+        <Link
+          href="/dashboard/watchlists"
+          className="inline-flex items-center gap-1.5 text-[13px] text-[var(--ink-primary)] hover:text-[var(--accent-color)] font-[var(--font-body)] transition-colors"
+        >
+          Manage tickers <span aria-hidden="true">→</span>
+        </Link>
+      </PrefsSection>
+
+      <SectionRule />
+
+      {/* Alerts */}
+      <PrefsSection
+        eyebrow="alerts"
+        subtitle="fire when |daily move| ≥ threshold; bumps the next slot"
+      >
         <AlertsBlock alerts={alerts} onChange={setAlerts} disabled={pending} />
-      </Section>
+      </PrefsSection>
 
-      <Section title="Quiet hours" subtitle="silence specific hours of the day">
-        <QuietHoursPicker
-          start={prefs.quietHoursStart}
-          end={prefs.quietHoursEnd}
+      <SectionRule />
+
+      {/* Quiet hours */}
+      <PrefsSection eyebrow="quiet hours" subtitle="silence alerts during a daily window">
+        <QuietHoursBlock
+          startMinutes={quietHours.startMinutes}
+          endMinutes={quietHours.endMinutes}
           tzOffsetMinutes={prefs.tzOffsetMinutes}
-          onChange={patch}
+          onChange={setQuietHours}
           disabled={pending}
         />
-      </Section>
-
-      <Section title="Advanced" subtitle="defaults usually work; tune only if you know why">
-        <AdvancedBlock
-          idleSensitivityMs={prefs.idleSensitivityMs}
-          sessionWarmupMs={prefs.sessionWarmupMs}
-          nightMode={prefs.nightMode}
-          onChange={patch}
-          disabled={pending}
-        />
-      </Section>
+      </PrefsSection>
 
       <SaveBar
         dirty={dirty}
@@ -147,23 +228,30 @@ export function PreferencesForm({ initial, initialChannels, initialAlerts }: Pre
   )
 }
 
-function Section({
-  title,
+function PrefsSection({
+  eyebrow,
   subtitle,
+  help,
   children,
 }: {
-  title: string
+  eyebrow: string
   subtitle?: string
+  help?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-lg border border-[var(--rule-default)] bg-[var(--bg-surface)] px-5 py-5 md:px-6 md:py-6">
+    <section className="py-1">
       <header className="mb-4">
-        <h2 className="font-display text-[14px] font-bold tracking-[-0.01em] text-[var(--ink-primary)]">
-          {title}
-        </h2>
+        <div className="flex items-baseline gap-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] font-[var(--font-display)] text-[var(--ink-tertiary)]">
+            {eyebrow}
+          </p>
+          {help}
+        </div>
         {subtitle && (
-          <p className="mt-1 font-body text-[12px] text-[var(--ink-secondary)]">{subtitle}</p>
+          <p className="mt-1 text-[12px] text-[var(--ink-secondary)] font-[var(--font-body)]">
+            {subtitle}
+          </p>
         )}
       </header>
       {children}
@@ -210,7 +298,7 @@ function SaveBar({
             onClick={onSave}
             disabled={!dirty || status.kind === "saving"}
             className={cn(
-              "rounded-md px-4 py-2 font-display text-[11px] font-bold uppercase tracking-[0.12em] transition-colors",
+              "px-4 py-2 font-display text-[11px] font-bold uppercase tracking-[0.12em] transition-colors rounded-none",
               dirty
                 ? "bg-[var(--accent-color)] text-white hover:bg-[var(--accent-hover)]"
                 : "bg-[var(--bg-inset)] text-[var(--ink-tertiary)]"
