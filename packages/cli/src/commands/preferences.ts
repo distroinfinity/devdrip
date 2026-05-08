@@ -1,5 +1,5 @@
 import { Command } from "commander"
-import { intro, outro, select, text, log, isCancel, cancel } from "@clack/prompts"
+import { intro, outro, select, text, confirm, log, isCancel, cancel } from "@clack/prompts"
 import { ChannelMode, type SyncedPreferences } from "@distrotv/shared"
 import { reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
@@ -11,7 +11,24 @@ import { pickChannelMode } from "../lib/prompts/preferences.js"
 import { pickChannels } from "../lib/prompts/channels.js"
 import { pickWatchlistTickers } from "../lib/prompts/watchlist.js"
 
-type Action = "mode" | "channels" | "watchlist" | "alerts" | "caps" | "topics" | "cancel"
+type Action =
+  | "mode"
+  | "channels"
+  | "watchlist"
+  | "alerts"
+  | "quiet-hours"
+  | "tz"
+  | "topics"
+  | "cancel"
+
+function minutesToHHMM(m: number): string {
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
+}
+
+function hhmmToMinutes(s: string): number {
+  const parts = s.split(":").map(Number)
+  return (parts[0] ?? 0) * 60 + (parts[1] ?? 0)
+}
 
 async function mirrorToLocal(updated: SyncedPreferences): Promise<void> {
   const cfg = await readConfig()
@@ -34,7 +51,8 @@ async function showMenu(currentMode: ChannelMode): Promise<Action> {
       { value: "channels", label: "channels (tech / finance / crypto / …)" },
       { value: "watchlist", label: "watchlist (add / remove tickers)" },
       { value: "alerts", label: "alerts (global threshold)" },
-      { value: "caps", label: "caps & quiet hours (coming soon)" },
+      { value: "quiet-hours", label: "quiet hours (set start / end, blank to disable)" },
+      { value: "tz", label: "tz offset (auto-detect or manual)" },
       { value: "topics", label: "news topics (v1.1 — coming soon)" },
       { value: "cancel", label: "cancel" },
     ],
@@ -44,6 +62,60 @@ async function showMenu(currentMode: ChannelMode): Promise<Action> {
     process.exit(0)
   }
   return choice as Action
+}
+
+async function quietHoursAction(current: SyncedPreferences): Promise<void> {
+  const startStr = await text({
+    message: "quiet hours start (HH:MM, blank to disable)",
+    initialValue: current.quietHoursStart != null ? minutesToHHMM(current.quietHoursStart) : "",
+    validate: (v) => (v && !/^([01]\d|2[0-3]):([0-5]\d)$/.test(v) ? "format HH:MM" : undefined),
+  })
+  if (isCancel(startStr)) return
+  if (!startStr) {
+    await putPreferences({ quietHoursStart: null, quietHoursEnd: null })
+    log.success("quiet hours disabled")
+    return
+  }
+  const endStr = await text({
+    message: "quiet hours end (HH:MM)",
+    initialValue: current.quietHoursEnd != null ? minutesToHHMM(current.quietHoursEnd) : "",
+    validate: (v) => (!v || !/^([01]\d|2[0-3]):([0-5]\d)$/.test(v) ? "format HH:MM" : undefined),
+  })
+  if (isCancel(endStr) || !endStr) return
+  await putPreferences({
+    quietHoursStart: hhmmToMinutes(startStr as string),
+    quietHoursEnd: hhmmToMinutes(endStr),
+  })
+  log.success(`quiet hours set: ${startStr} → ${endStr}`)
+}
+
+async function tzAction(current: SyncedPreferences): Promise<void> {
+  const detected = -new Date().getTimezoneOffset() // minutes, positive = east of UTC
+  const sign = detected >= 0 ? "+" : ""
+  const detectedLabel = `UTC${sign}${(detected / 60).toFixed(2).replace(/\.00$/, "")}`
+  const useDetected = await confirm({
+    message: `detected tz offset: ${detectedLabel}. use this?`,
+    initialValue: true,
+  })
+  if (isCancel(useDetected)) return
+  if (useDetected) {
+    await putPreferences({ tzOffsetMinutes: detected })
+    log.success(`tz offset set to ${detected} minutes (${detectedLabel})`)
+    return
+  }
+  const manual = await text({
+    message: "tz offset in minutes (e.g. -240 for EDT, 330 for IST)",
+    initialValue: String(current.tzOffsetMinutes),
+    validate: (v) => {
+      const n = Number(v)
+      return !Number.isInteger(n) || n < -720 || n > 840
+        ? "must be integer between -720 and 840"
+        : undefined
+    },
+  })
+  if (isCancel(manual)) return
+  await putPreferences({ tzOffsetMinutes: Number(manual) })
+  log.success(`tz offset set to ${manual} minutes`)
 }
 
 async function runPreferences(): Promise<void> {
@@ -133,7 +205,19 @@ async function runPreferences(): Promise<void> {
       continue
     }
 
-    if (action === "caps" || action === "topics") {
+    if (action === "quiet-hours") {
+      await quietHoursAction(prefs)
+      prefs = await getPreferences()
+      continue
+    }
+
+    if (action === "tz") {
+      await tzAction(prefs)
+      prefs = await getPreferences()
+      continue
+    }
+
+    if (action === "topics") {
       log.info("not available in mvp — coming in a later release")
       continue
     }
