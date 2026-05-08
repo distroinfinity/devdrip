@@ -118,9 +118,9 @@ async function withLock(sourceId: string, fn: () => Promise<void>): Promise<void
 
 export async function runFetchTick(minuteBucket: number): Promise<void> {
   const db = getDb()
-  const all = await db.select().from(newsSources)
+  const all = await db.select().from(newsSources).where(eq(newsSources.enabled, true))
   const due = all.filter((s) => minuteBucket % s.fetchIntervalMin === 0)
-  logger.info({ due: due.length, total: all.length, minuteBucket }, "news.fetch tick")
+  logger.info({ due: due.length, enabled: all.length, minuteBucket }, "news.fetch tick")
 
   for (const source of due) {
     await withLock(source.id, async () => {

@@ -23,7 +23,7 @@ export async function fetchCoinGeckoPrices(symbols: string[]): Promise<RawTicker
   if (symbols.length === 0) return []
   const idsBySym = new Map<string, string>()
   for (const s of symbols) {
-    const id = coingeckoIdFor(s)
+    const id = await coingeckoIdFor(s)
     if (id) idsBySym.set(s, id)
   }
   if (idsBySym.size === 0) return []
@@ -70,7 +70,7 @@ export async function fetchCoinGeckoCandles(
   symbol: string,
   range: keyof typeof DAYS_BY_RANGE
 ): Promise<RawCandle[]> {
-  const id = coingeckoIdFor(symbol)
+  const id = await coingeckoIdFor(symbol)
   if (!id) return []
   const days = DAYS_BY_RANGE[range]
   if (!days) return []

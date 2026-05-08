@@ -134,6 +134,13 @@
       "when": 1778302800000,
       "tag": "0018_update_channel_mode_to_5_positions",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1746691200000,
+      "tag": "0019_ticker_symbol_map_and_news_sources_enabled",
+      "breakpoints": true
     }
   ]
 }
