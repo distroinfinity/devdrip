@@ -4,6 +4,7 @@
 - [Architecture Overview](architecture/overview.md)
 - [Monorepo Layout](architecture/monorepo.md)
 - [Identity & Auth](architecture/identity.md)
+- [Admin Dashboard](architecture/admin.md)
 - [Channel Modes](architecture/channel-modes.md)
 - [Dashboard](architecture/dashboard.md)
 - [Slot Content](architecture/slot-content.md)
