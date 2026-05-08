@@ -1,4 +1,5 @@
 import type { ChannelDto, WatchlistDto } from "@distrotv/shared"
+import { InlineHelp } from "@/components/v5/inline-help"
 
 interface Props {
   channels: ChannelDto[]
@@ -30,9 +31,15 @@ export function SetupBanner({ channels, watchlists }: Props) {
       className="flex items-center gap-4 px-8 py-3 border-b border-[var(--rule-default)]"
       style={{ background: "var(--accent-surface, rgba(79,70,229,0.06))" }}
     >
-      <span className="font-[var(--font-display)] text-[9px] font-bold tracking-[0.1em] uppercase text-[var(--accent-color)] shrink-0">
-        Setup · {doneCount}/{steps.length}
-      </span>
+      <div className="flex items-baseline gap-1.5 shrink-0">
+        <span className="font-[var(--font-display)] text-[9px] font-bold tracking-[0.1em] uppercase text-[var(--accent-color)]">
+          Setup · {doneCount}/{steps.length}
+        </span>
+        <InlineHelp>
+          finish each step to start seeing slots in your terminal. channels = where news comes from.
+          watchlist = which prices you track.
+        </InlineHelp>
+      </div>
 
       <div className="flex items-center gap-3">
         {steps.map((step) => (

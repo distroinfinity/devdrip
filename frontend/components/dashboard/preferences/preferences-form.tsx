@@ -12,6 +12,7 @@ import { AlertsBlock } from "./alerts-block"
 import { QuietHoursBlock } from "./quiet-hours-block"
 import { ModePill } from "@/components/dashboard/mode-pill"
 import { SectionRule } from "@/components/v5/section-rule"
+import { InlineHelp } from "@/components/v5/inline-help"
 
 interface PreferencesFormProps {
   initial: SyncedPreferences
@@ -156,6 +157,11 @@ export function PreferencesForm({ initial, initialChannels, initialAlerts }: Pre
       <PrefsSection
         eyebrow="channels"
         subtitle="which feeds appear in your slot rotation — drag to set priority"
+        help={
+          <InlineHelp>
+            drag rows to reorder. higher channels are picked first when news rotates.
+          </InlineHelp>
+        }
       >
         <SortableList
           items={sortableChannels}
@@ -225,18 +231,23 @@ export function PreferencesForm({ initial, initialChannels, initialAlerts }: Pre
 function PrefsSection({
   eyebrow,
   subtitle,
+  help,
   children,
 }: {
   eyebrow: string
   subtitle?: string
+  help?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <section className="py-1">
       <header className="mb-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.12em] font-[var(--font-display)] text-[var(--ink-tertiary)]">
-          {eyebrow}
-        </p>
+        <div className="flex items-baseline gap-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] font-[var(--font-display)] text-[var(--ink-tertiary)]">
+            {eyebrow}
+          </p>
+          {help}
+        </div>
         {subtitle && (
           <p className="mt-1 text-[12px] text-[var(--ink-secondary)] font-[var(--font-body)]">
             {subtitle}

@@ -13,6 +13,7 @@ import type {
 import { ChannelMode } from "@distrotv/shared"
 import type { SessionPayload } from "@/lib/session"
 import { ModePill } from "@/components/dashboard/mode-pill"
+import { InlineHelp } from "@/components/v5/inline-help"
 import { SetupBanner } from "./setup-banner"
 import { LiveBar } from "./live-bar"
 import { ActivityTape } from "./activity-tape"
@@ -108,8 +109,13 @@ export function OverviewClient({
         <span className="font-[var(--font-data)] text-[10px] text-[var(--ink-tertiary)] tracking-[0.04em]">
           {getDateMeta()}
         </span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-baseline gap-1">
           <ModePill initial={preferences.channelMode} />
+          <InlineHelp>
+            <strong>balanced</strong> alternates 1:1 (news / ticker / news / ticker).{" "}
+            <strong>news heavy</strong> is 3:1 (NNNT). <strong>ticker heavy</strong> is 1:3 (NTTT).{" "}
+            <strong>news only</strong> / <strong>ticker only</strong> show one kind exclusively.
+          </InlineHelp>
         </div>
       </div>
 

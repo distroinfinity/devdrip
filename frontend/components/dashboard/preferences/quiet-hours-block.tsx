@@ -1,5 +1,6 @@
 "use client"
 import { SharpInput } from "@/components/v5/sharp-input"
+import { InlineHelp } from "@/components/v5/inline-help"
 
 interface Props {
   startMinutes: number | null
@@ -32,6 +33,15 @@ export function QuietHoursBlock({
   const tzLabel = `UTC${hours >= 0 ? "+" : ""}${hours.toFixed(2).replace(/\.00$/, "")}`
   return (
     <div className="space-y-3">
+      <div className="flex items-baseline gap-1 mb-1">
+        <span className="text-[10px] font-[var(--font-display)] tracking-[0.08em] uppercase text-[var(--ink-tertiary)]">
+          window
+        </span>
+        <InlineHelp>
+          alerts are suppressed during this window. they re-fire after it ends if the breach still
+          applies. set both fields to empty to disable.
+        </InlineHelp>
+      </div>
       <div className="flex gap-3 items-end">
         <div>
           <label className="block text-[10px] font-[var(--font-display)] tracking-[0.08em] uppercase text-[var(--ink-tertiary)]">
