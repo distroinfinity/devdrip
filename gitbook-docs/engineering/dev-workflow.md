@@ -188,3 +188,15 @@ All admin commands read the secret from `DEVDRIP_ADMIN_SECRET` (or `ADMIN_SECRET
 - working on shared product vocabulary: start in `packages/shared`
 - working on local runtime behavior: start in `packages/cli`
 - working on dashboard product UI: start in `packages/dashboard`
+
+## M7 admin subdomain env
+
+Required in production for the admin to function:
+
+- `ADMIN_EMAILS` — comma-separated email allowlist for admin access. Bootstrap: `manurajput2911@gmail.com`. Set on the API service.
+- `SLACK_WEBHOOK_URL` (optional) — if set, fetcher errors fan out to Slack. Set on the API service.
+- `NEXT_PUBLIC_ADMIN_HOSTS` — comma-separated list of admin hostnames, e.g. `admin.distrotv.com`. Set on the frontend service. The `NEXT_PUBLIC_` prefix is required because the middleware reads it at runtime.
+- `COOKIE_DOMAIN` — `.distrotv.com` (with leading dot). Scopes session cookies to all subdomains so SSO works across user + admin hosts. Set on the frontend service.
+- `ALLOWED_ORIGINS` (existing) — append the admin host alongside the user host, e.g. `https://app.distrotv.com,https://admin.distrotv.com`. Set on the API service.
+
+Local dev: leave `NEXT_PUBLIC_ADMIN_HOSTS` and `COOKIE_DOMAIN` unset (admin accessible at `localhost:3000/admin/*` without subdomain rewrite). Or set `NEXT_PUBLIC_ADMIN_HOSTS=admin.localhost:3000` to test the rewrite locally — Chrome resolves `*.localhost` to 127.0.0.1 natively.
