@@ -9,18 +9,21 @@ import { SITE_URL } from "@/lib/env"
 const siteUrl = SITE_URL
 
 const title = "Distro TV"
-const description = "Your terminal's news + market feed, while the agent works."
+const description =
+  "Channels for the moments your agent runs the keyboard. Ambient news, markets, and more — surfaces only while your AI coding tool works."
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
   description,
   keywords: [
-    "terminal news feed",
-    "developer news",
-    "market feed",
-    "ai agent idle",
-    "developer tool",
+    "ambient channels",
+    "terminal channel surface",
+    "ai coding tools",
+    "claude code companion",
+    "developer news feed",
+    "market ticker",
+    "distrotv",
   ],
   openGraph: {
     type: "website",

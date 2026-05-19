@@ -1,22 +1,22 @@
 # Local Impression Ledger
 
-Ground truth for earnings. The daemon records every impression and click locally before the backend sees them, and `devdrip sync` batches unsynced rows to `POST /ingest` when the network is reachable.
+Ground truth for earnings. The daemon records every impression and click locally before the backend sees them, and `distro sync` batches unsynced rows to `POST /ingest` when the network is reachable.
 
 ## Why local
 
 - **Latency** — hooks must vanish the ad in under 200ms (see `packages/shared/src/constants/index.ts:VANISH_DEADLINE_MS`). Writing to SQLite is a few microseconds; a backend round-trip is tens of milliseconds minimum.
 - **Never-block hooks** — the Claude Code hook contract requires `exit 0`. Network failures or slow backends can't be allowed to stall the hook path.
 - **Transient backend gaps** — Railway redeploys, Neon failovers, and wifi wobbles are routine during hour-long Claude sessions. A local buffer absorbs them; impressions sync whenever the backend comes back.
-- **User-verifiable earnings** — `devdrip status --local` lets the dev audit what was shown and when, independent of server state.
+- **User-verifiable earnings** — `distro status --local` lets the dev audit what was shown and when, independent of server state.
 
 ## Storage
 
-- Path: `~/.devdrip/ledger.db`
+- Path: `~/.distro/ledger.db` (was `~/.devdrip/ledger.db` pre-pivot)
 - Dir mode: `0700`, file mode: `0600`. WAL sidecars (`ledger.db-wal`, `ledger.db-shm`) also chmod'd to `0600` after the first write, since they carry the same rows between checkpoints.
 - SQLite via `better-sqlite3`, WAL mode (`PRAGMA journal_mode=WAL; synchronous=NORMAL`)
-- `PRAGMA busy_timeout = 5000` — allows concurrent writes from the daemon and `devdrip sync --force` without `SQLITE_BUSY` errors.
+- `PRAGMA busy_timeout = 5000` — allows concurrent writes from the daemon and `distro sync --force` without `SQLITE_BUSY` errors.
 - Schema version tracked in `PRAGMA user_version` (current: **v2**)
-- `devdrip status --local` is strictly read-only: if `ledger.db` doesn't exist it prints `unsynced: 0` without creating it. The file is only ever created by the daemon on first impression write.
+- `distro status --local` is strictly read-only: if `ledger.db` doesn't exist it prints `unsynced: 0` without creating it. The file is only ever created by the daemon on first impression write.
 
 ## Schema (v2)
 
@@ -88,7 +88,7 @@ If the DB file is unreadable on open (bad header, partial write from a killed pr
 
 ## Sync semantics
 
-The sync loop (`packages/cli/src/lib/daemon/sync.ts`) runs on a 5-minute timer inside the daemon and can be triggered manually via `devdrip sync --force`. One cycle:
+The sync loop (`packages/cli/src/lib/daemon/sync.ts`) runs on a 5-minute timer inside the daemon and can be triggered manually via `distro sync --force`. One cycle:
 
 ```ts
 const impressions = ledger.listUnsynced(250)

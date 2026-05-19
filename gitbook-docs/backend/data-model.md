@@ -1,6 +1,8 @@
 # Data Model
 
-`packages/api/src/db/schema` contains the current domain model for the backend.
+`packages/api/src/db/schema` contains the domain model for the backend.
+
+> **Note on pre-pivot tables.** The schema still contains tables from the DevDrip era: `advertisers`, `campaigns`, `creatives`, `impressions` (ad), `clicks`, `earnings_ledger`, `payouts`, `referrals`. These are not written to at runtime for Distro TV users. Pruning them is a future clean-up ticket.
 
 ## Domains
 
@@ -208,7 +210,7 @@ Stores:
 
 Runtime usage today:
 
-- written by `POST /invites` (admin-only batch generation, called by `devdrip admin invite generate`)
+- written by `POST /invites` (admin-only batch generation)
 - read by `GET /invites` (admin-only unused list)
 - redemption flow (marking `usedBy` + `usedAt` on signup) is still pending — see S5-08
 
@@ -303,9 +305,9 @@ Indexes: `(user_id, saved_at)`, unique `(user_id, news_id)` (idempotent saves).
 
 ## preferences (extended)
 
-Two new columns in v0.X:
+Two added columns:
 
-- `channel_mode text NOT NULL DEFAULT 'mix'` — earn / learn / mix
+- `channel_mode text NOT NULL DEFAULT 'balanced'` — `news_only | news_heavy | balanced | ticker_heavy | ticker_only`. Migrated from the legacy `earn / learn / mix` enum in M5.
 - `news_topics text[] NOT NULL DEFAULT '{}'` — future-proofed for v1.1 topic filters
 
 ## Important Notes

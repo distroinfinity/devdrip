@@ -4,12 +4,12 @@ Fills the last structural gap in the CLI: PreToolUse → 3s grace → ad on scre
 
 ## Process model
 
-- **`devdrip daemon start`** — verifies config, probes for a live socket, spawns `devdrip daemon run` detached (`stdio: ignore → daemon.log`, `unref()`). Idempotent: running twice from the same user prints `daemon already running (pid N)` and exits 0.
-- **`devdrip daemon run`** — foreground loop. Acquires PID-file singleton at `~/.devdrip/daemon.lock`, binds unix socket, starts the heartbeat timer, loads config + ledger + ad-cache, enters the event loop.
-- **`devdrip daemon stop`** — sends a `{"type":"kill"}` JSON message over the socket. Falls back to SIGTERM, then SIGKILL.
-- **`devdrip daemon status`** — reads `~/.devdrip/daemon.heartbeat`. No socket round-trip.
+- **`distro daemon start`** — verifies config, probes for a live socket, spawns `distro daemon run` detached (`stdio: ignore → daemon.log`, `unref()`). Idempotent: running twice from the same user prints `daemon already running (pid N)` and exits 0.
+- **`distro daemon run`** — foreground loop. Acquires PID-file singleton at `~/.distro/daemon.lock`, binds unix socket, starts the heartbeat timer, loads config + ledger + ad-cache, enters the event loop.
+- **`distro daemon stop`** — sends a `{"type":"kill"}` JSON message over the socket. Falls back to SIGTERM, then SIGKILL.
+- **`distro daemon status`** — reads `~/.distro/daemon.heartbeat`. No socket round-trip.
 
-## Runtime files (`~/.devdrip/`, mode 0700)
+## Runtime files (`~/.distro/`, mode 0700)
 
 | File               | Purpose                                                |
 | ------------------ | ------------------------------------------------------ |
@@ -18,7 +18,7 @@ Fills the last structural gap in the CLI: PreToolUse → 3s grace → ad on scre
 | `daemon.heartbeat` | JSON, written every 10s, atomic tmp+rename (mode 0600) |
 | `daemon.log`       | append-only plaintext (mode 0600, no rotation for MVP) |
 
-macOS long-username fallback: if `sun_path` (104 bytes) would overflow, the daemon binds `/tmp/devdrip-<uid>.sock` instead. The chosen path is always recorded in `daemon.heartbeat.socketPath` so `devdrip daemon stop` doesn't need to re-derive it.
+macOS long-username fallback: if `sun_path` (104 bytes) would overflow, the daemon binds `/tmp/distro-<uid>.sock` instead. The chosen path is always recorded in `daemon.heartbeat.socketPath` so `distro daemon stop` doesn't need to re-derive it.
 
 ## Wire protocol
 
@@ -30,7 +30,7 @@ Newline-delimited JSON, hook → daemon, fire-and-forget:
 {"type":"idle-end"}
 ```
 
-Plus one control event from `devdrip daemon stop`:
+Plus one control event from `distro daemon stop`:
 
 ```
 {"type":"kill"}
@@ -42,12 +42,12 @@ Key-capture (S3-03) emits `skip | kill | mute | discover | dismiss` from the dae
 
 The ticket body uses `idle-start` as both the subcommand and the event. The code splits them:
 
-| Claude hook event | CLI subcommand               | Wire event      |
-| ----------------- | ---------------------------- | --------------- |
-| SessionStart      | `devdrip hook session-start` | `session-start` |
-| UserPromptSubmit  | `devdrip hook prompt-submit` | `idle-start`    |
-| PreToolUse        | `devdrip hook pre-tool`      | `idle-start`    |
-| Stop              | `devdrip hook stop`          | `idle-end`      |
+| Claude hook event | CLI subcommand              | Wire event      |
+| ----------------- | --------------------------- | --------------- |
+| SessionStart      | `distro hook session-start` | `session-start` |
+| UserPromptSubmit  | `distro hook prompt-submit` | `idle-start`    |
+| PreToolUse        | `distro hook pre-tool`      | `idle-start`    |
+| Stop              | `distro hook stop`          | `idle-end`      |
 
 `UserPromptSubmit` and `PreToolUse` both send `idle-start` so the rotation begins the moment the developer hands control to Claude — including pure thinking time before the first tool call. `idle-start` is idempotent in `GRACE` and `SHOWING`, so the duplicate from a later `PreToolUse` is a no-op.
 
@@ -89,7 +89,7 @@ On exit from SHOWING the state machine emits a `recordImpression` effect carryin
 
 `renderBox()` produces a width-adaptive Unicode box with:
 
-- **Header**: `DEV DRIP TV` + cumulative `$X.XXXX earned` on the left, `via {source}` on the right. Right segment is dropped automatically when terminal width is too tight to fit both without breaking alignment.
+- **Header**: `DISTRO TV` + slot source label on the left. Right segment dropped when width is tight.
 - **Body**: word-wrapped headline + body, sanitized for ANSI escapes and control characters before printing so ad copy can't corrupt the screen.
 - **URL**: emitted on its own line, unwrapped, outside the box (terminal emulators autodetect the link).
 - **Action footer**: `[D]iscover [S]kip [K]ill [M]ute` — the bindings honored by the key-capture reader (S3-03).
@@ -113,7 +113,7 @@ While SHOWING, the daemon opens the tty in raw mode (`/dev/<ttyN>`) via `tty.Rea
 
 Multi-byte chunks starting with `0x1b` (ESC) are treated as terminal control sequences (focus-in/out, arrow keys) and dropped — never our keys. A lone `0x1b` is the user pressing Escape.
 
-CLI fallbacks (`devdrip skip|mute|kill-session|discover`) dispatch the same wire actions for users whose keystrokes lose the tty race with Claude.
+CLI fallbacks (`distro skip|mute|kill-session|discover`) dispatch the same wire actions for users whose keystrokes lose the tty race with Claude.
 
 ## Anchor strategy (real-session hardening)
 
@@ -126,28 +126,26 @@ Earlier MVP rendered at the cursor and vanished via `\x1b[<n>A\x1b[0J`. That bro
 
 On terminal resize, the daemon proactively dismisses the current ad (the next rotation re-anchors with fresh row counts).
 
-## Frequency caps (defaults)
+## Slot frequency (defaults)
 
-Defaults bias toward "show ads aggressively"; users dial down with `devdrip config --set maxPerHour=N`:
+Defaults are permissive; users tune with `distro preferences`:
 
-| Constant                         | Value                |
-| -------------------------------- | -------------------- |
-| `MAX_ADS_PER_HOUR_PER_SURFACE`   | `9_999`              |
-| `MAX_ADS_PER_HOUR_TOTAL`         | `9_999`              |
-| `MAX_ADS_PER_DAY`                | `99_999`             |
-| `MAX_ADS_PER_CONTINUOUS_SESSION` | `9_999`              |
-| `SESSION_WARMUP_MS`              | `0`                  |
-| `LATE_NIGHT_FREQUENCY_REDUCTION` | `1.0` (no reduction) |
-| `INTER_AD_GAP_MS`                | `500`                |
+| Constant                | Value    |
+| ----------------------- | -------- |
+| `MAX_SLOTS_PER_HOUR`    | `9_999`  |
+| `MAX_SLOTS_PER_DAY`     | `99_999` |
+| `MAX_SLOTS_PER_SESSION` | `9_999`  |
+| `SESSION_WARMUP_MS`     | `3_000`  |
+| `INTER_SLOT_GAP_MS`     | `500`    |
 
-Quiet hours and `nightMode` remain available as opt-in throttles.
+Quiet hours remain available as an opt-in suppression window.
 
 ## Known limitations (MVP)
 
 - **Last-writer-wins tty.** A user running Claude in two terminals will only see ads in whichever one last sent `idle-start`. Tracked; supporting concurrent ttys requires a `ttyPath → state` map.
 - **DECSTBM only.** If the host TUI switches to the alternate screen buffer (`\x1b[?1049h`), the scroll region is discarded and the ad anchor is lost. Modern Claude Code stays on the primary screen during tool calls, so this is fine in practice.
 - **Raw mode persists across stop.** `setRawMode(false)` is deliberately NOT called in `input.ts:stop()` because Claude Code owns its REPL's raw-mode setting and toggling it broke Claude's stdin. SIGKILL recovery still requires `reset` if the terminal is left in raw mode.
-- **No hook auto-restart.** A stale daemon means hooks silently exit 0. `devdrip daemon start` restarts it. Auto-restart belongs to `devdrip doctor` (S5-02).
+- **No hook auto-restart.** A stale daemon means hooks silently exit 0. `distro daemon start` restarts it. Auto-restart belongs to `distro doctor`.
 
 ## Sync loop (S3-07, shipped)
 
@@ -181,7 +179,7 @@ Behavior:
 | `internal_error`                    | transient                      | leave + backoff                                    |
 | `impression_not_synced`             | transient → terminal after 24h | leave until click.created_at + 24h, then tombstone |
 
-**`devdrip sync --force`:** standalone CLI path. Opens its own ledger handle and api-client, runs one cycle, prints `synced N impressions, M clicks (K errors)`. Does not go through the daemon socket — works even if the daemon is down. Exits non-zero only on catastrophic failure.
+**`distro sync --force`:** standalone CLI path. Opens its own ledger handle and api-client, runs one cycle, prints `synced N impressions, M clicks (K errors)`. Does not go through the daemon socket — works even if the daemon is down. Exits non-zero only on catastrophic failure.
 
 ## Key capture and click recording
 
@@ -203,5 +201,5 @@ The save keybind `b` writes to `reading_pending` (local SQLite) and syncs to `/m
 
 ## What's next
 
-- **S5-02 `devdrip doctor`** — checks heartbeat age and offers to restart.
-- **S5-04 `devdrip demo`** — `[DEMO]` badge + vanish-timing stats.
+- **`distro doctor`** — checks heartbeat age, hooks, backend reachability.
+- **`distro demo`** — `[DEMO]` badge + vanish-timing stats.

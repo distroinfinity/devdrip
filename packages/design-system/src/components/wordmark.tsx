@@ -5,20 +5,20 @@ interface WordmarkProps {
   size?: "sm" | "md" | "lg"
 }
 
-// "dev drip" in Space Mono, lowercase, tracking-tight — matches landing.
-// size: sm (12px, footer), md (17px, header), lg (22px, hero placements).
+// "distro·tv" in JetBrains Mono, uppercase tracking, indigo `·` separator.
+// size: sm (12px, footer), md (14px, header), lg (28px, OG cards).
 export function Wordmark({ className, size = "md" }: WordmarkProps) {
-  const sizeClass = size === "sm" ? "text-[12px]" : size === "lg" ? "text-[22px]" : "text-[17px]"
+  const sizeClass = size === "sm" ? "text-[12px]" : size === "lg" ? "text-[28px]" : "text-[14px]"
 
   return (
     <span
       className={cn(
-        "font-display font-bold tracking-tight text-[var(--ink-primary)] select-none",
+        "font-data font-bold uppercase tracking-[0.06em] text-[var(--ink-primary)] select-none",
         sizeClass,
         className
       )}
     >
-      dev drip
+      distro<span className="text-[var(--accent-color)] mx-[0.15em]">·</span>tv
     </span>
   )
 }

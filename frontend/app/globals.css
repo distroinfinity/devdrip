@@ -131,3 +131,29 @@
     transform: translateX(100%);
   }
 }
+
+/* Hero ticker tick animation — flashes the last ticker row's sparkline cell.
+   CSS-only; no JS. Mounted on TerminalTV's last-row when shown in the hero. */
+@keyframes ticker-tick {
+  0%,
+  85%,
+  100% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 0.55;
+  }
+}
+.last-row-flash > :last-child {
+  animation: ticker-tick 1.2s ease-in-out infinite;
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-spin-slow {
+  display: inline-block;
+  animation: spin-slow 1.2s linear infinite;
+}
