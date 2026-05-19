@@ -44,7 +44,7 @@ export function ChannelsSection() {
             channelId="CH 01"
             channelName="NEWS"
             title="The signal, not the timeline."
-            blurb="Tech and finance headlines, ranked. Surfaces 2–3 stories at a time, never spams. New stories every 30 min."
+            blurb="Ranked tech and finance headlines. Two or three at a time, refreshed every 30 min."
             sources={["Hacker News", "TechCrunch", "Bloomberg", "Reuters"]}
             features={["rank by votes + recency", "deep-link to source", "save for later"]}
             previewFooterKeys="[S]kip   [O]pen   [L]ater   [K]ill"
@@ -78,7 +78,7 @@ export function ChannelsSection() {
             channelId="CH 02"
             channelName="MARKETS"
             title="Your watchlist, while you wait."
-            blurb="Stocks and crypto. Live ticks every second. 1-line sparklines. Set alerts when something moves >5%."
+            blurb="Stocks and crypto. Live ticks, sparklines, alerts on >5% moves."
             sources={["Stocks", "Crypto", "FX", "Indices"]}
             features={["your watchlist", "alerts on >5% moves", "edit from dashboard"]}
             previewFooterKeys="[S]kip   [A]lert   [+]add   [K]ill"

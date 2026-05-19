@@ -44,8 +44,7 @@ export function HeroSection() {
             </h1>
 
             <p className="font-body text-[14px] leading-[1.55] text-[var(--ink-secondary)] mb-6 max-w-[42ch]">
-              Distro TV is an ambient channel surface that runs alongside your AI coding tools.
-              Surfaces only when the agent works. Vanishes the instant you do.
+              An ambient surface that runs while your AI codes. Vanishes the instant you type.
             </p>
 
             <div className="flex items-center gap-4 mb-6 flex-wrap">

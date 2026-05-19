@@ -55,12 +55,9 @@ export function InstallSection() {
               What does this script do?
             </summary>
             <div className="px-4 pb-4 font-body text-[13px] text-[var(--ink-secondary)] leading-relaxed">
-              Detects Node 20+, downloads the latest cli release tarball from GitHub Releases,
-              extracts to
-              <code className="font-data text-[12px] mx-1">~/.distrotv</code>, and drops a wrapper
-              at
-              <code className="font-data text-[12px] mx-1">~/.local/bin/distro</code>. No npm. No
-              global node_modules. Source:{" "}
+              Checks Node 20+, downloads the latest release from GitHub, drops a wrapper at
+              <code className="font-data text-[12px] mx-1">~/.local/bin/distro</code>. No npm.
+              Source:{" "}
               <a
                 className="text-[var(--accent-color)] no-underline border-b border-[var(--accent-color)] pb-0.5"
                 href="/install.sh"
