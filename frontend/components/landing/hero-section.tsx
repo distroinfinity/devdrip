@@ -47,11 +47,13 @@ export function HeroSection() {
               An ambient surface that runs while your AI codes. Vanishes the instant you type.
             </p>
 
-            <div className="flex items-center gap-4 mb-6 flex-wrap">
+            <div className="mb-3">
               <InstallCommand variant="hero" />
+            </div>
+            <div className="mb-6">
               <Link
                 href="#how-it-works"
-                className="font-data text-[12px] text-[var(--accent-color)] border-b border-[var(--accent-color)] pb-0.5 hover:text-[var(--accent-hover)] no-underline"
+                className="font-data text-[11px] text-[var(--ink-tertiary)] hover:text-[var(--ink-primary)] no-underline border-b border-[var(--rule-default)] pb-0.5 transition-colors"
               >
                 how it works →
               </Link>

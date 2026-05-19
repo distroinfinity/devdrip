@@ -52,15 +52,16 @@ export function InstallCommand({ variant = "hero", className }: InstallCommandPr
         type="button"
         onClick={onCopy}
         className={cn(
-          "font-data text-[12px]",
-          "bg-[var(--ink-primary)] text-[var(--bg-primary)]",
-          "px-4 py-2.5 inline-flex items-center gap-3",
-          "hover:bg-[var(--em-hover)] transition-colors",
+          "font-data text-[13px] font-medium",
+          "bg-[var(--accent-color)] text-white",
+          "px-5 py-3.5 inline-flex items-center gap-3",
+          "hover:bg-[var(--accent-hover)] transition-colors",
+          "shadow-[0_0_0_4px_var(--accent-glow)]",
           className
         )}
         aria-label="copy install command"
       >
-        <span className="text-[var(--ink-tertiary)]">$</span>
+        <span className="text-white/60">$</span>
         <span>{INSTALL_COMMAND}</span>
         <CopyIcon copied={copied} />
       </button>
@@ -98,11 +99,7 @@ export function InstallCommand({ variant = "hero", className }: InstallCommandPr
 
 function CopyIcon({ copied }: { copied: boolean }) {
   if (copied) {
-    return (
-      <span className="font-data text-[10px] text-[var(--accent-color)] tracking-wider">
-        COPIED
-      </span>
-    )
+    return <span className="font-data text-[10px] text-white tracking-wider">COPIED</span>
   }
   return (
     <svg
