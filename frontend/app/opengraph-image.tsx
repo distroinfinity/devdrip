@@ -67,7 +67,7 @@ export default async function OgImage() {
         >
           <span
             style={{
-              display: "inline-block",
+              display: "block",
               width: 8,
               height: 8,
               borderRadius: "50%",
@@ -122,7 +122,7 @@ export default async function OgImage() {
               {c.on && (
                 <span
                   style={{
-                    display: "inline-block",
+                    display: "block",
                     width: 8,
                     height: 8,
                     borderRadius: "50%",
