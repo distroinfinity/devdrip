@@ -3,21 +3,30 @@
 import { motion } from "motion/react"
 import Link from "next/link"
 
-const CONFIG = `[channels.news]
-enabled = true
-sources = ["hn", "techcrunch", "bloomberg", "reuters"]
+const INIT_TRANSCRIPT = `$ distro init
 
-[channels.markets]
-enabled = true
-watchlist = ["NVDA", "AAPL", "BTC", "ETH"]
-alert_threshold = 0.05
-
-[schedule]
-grace_seconds = 3
-quiet_hours = ["23:00", "07:00"]
-
-[keys]
-skip = "s"   kill = "k"   mute = "m"`
+◇  distro tv · init
+│
+◆  which channels would you like in your slot rotation?
+│  ◼ tech news (default)
+│  ◼ markets (default)
+│  ◻ sports
+│
+◆  pick a channel mode
+│  ○ news only
+│  ● balanced — 1:1 news + ticker  (recommended)
+│  ○ ticker heavy
+│
+◆  pick the seed tickers for your watchlist
+│  ◼ AAPL   ◼ MSFT   ◼ NVDA
+│  ◼ BTC    ◼ ETH
+│
+◇  health check
+│  ✓ daemon socket     ready
+│  ✓ claude code hook  installed
+│  ✓ api reachable     400ms
+│
+└  ready. watch your terminal while the agent works.`
 
 const KEYBINDS = [
   { key: "S", label: "skip", desc: "dismiss this slot" },
@@ -57,17 +66,20 @@ export function ControlSection() {
           transition={{ duration: 0.4, delay: 0.05 }}
           className="grid md:grid-cols-2 gap-5"
         >
-          {/* config block */}
+          {/* distro init flow */}
           <div>
-            <div className="bg-[#0A0A0C] text-[#EDEDF0] border border-[#1E1E22] font-data text-[12px] leading-relaxed">
-              <div className="px-3 py-1.5 border-b border-[#1E1E22] text-[10px] text-[#5C5C66] tracking-wider">
-                ~/.distrotv/config.toml
+            <div className="bg-[#0A0A0C] text-[#EDEDF0] border border-[#1E1E22] font-data text-[11px] leading-relaxed">
+              <div className="px-3 py-1.5 border-b border-[#1E1E22] text-[10px] text-[#5C5C66] tracking-wider flex items-center justify-between">
+                <span>terminal · distro init</span>
+                <span className="text-[#6366F1]">● live</span>
               </div>
-              <pre className="px-4 py-3 m-0 whitespace-pre overflow-x-auto">{CONFIG}</pre>
+              <pre className="px-4 py-3 m-0 whitespace-pre overflow-x-auto text-[12px]">
+                {INIT_TRANSCRIPT}
+              </pre>
             </div>
             <p className="mt-3 font-data text-[11px] text-[var(--ink-tertiary)]">
-              Lives in <code className="text-[var(--ink-secondary)]">~/.distrotv/config.toml</code>.
-              Edits hot-reload.
+              One command. <code className="text-[var(--ink-secondary)]">distro init</code> walks
+              you through channels, mode, and watchlist. No file editing.
             </p>
           </div>
 
