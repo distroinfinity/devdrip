@@ -47,7 +47,7 @@ export function InstallSection() {
             <code className="font-data text-[12px] bg-[var(--bg-inset)] px-1.5 py-0.5">
               distro init
             </code>{" "}
-            and you're broadcasting.
+            and you&apos;re broadcasting.
           </p>
 
           <details className="mt-6 border border-[var(--rule-default)] bg-[var(--bg-surface)]">
