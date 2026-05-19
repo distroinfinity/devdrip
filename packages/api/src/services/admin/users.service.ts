@@ -14,6 +14,8 @@ export async function listUsers(page: number, limit: number) {
   const db = getDb()
   const offset = (page - 1) * limit
   const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  // postgres-js driver rejects Date objects inside raw sql`` templates — pass ISO.
+  const since7dIso = since7d.toISOString()
 
   const rows = await db
     .select({
@@ -25,7 +27,7 @@ export async function listUsers(page: number, limit: number) {
       channelCount: sql<number>`(SELECT COUNT(*)::int FROM ${channelSubscriptions} WHERE ${channelSubscriptions.userId} = ${users.id})`,
       watchlistSize: sql<number>`(SELECT COUNT(*)::int FROM ${watchlistTickers} JOIN ${watchlists} ON ${watchlists.id} = ${watchlistTickers.watchlistId} WHERE ${watchlists.userId} = ${users.id})`,
       deviceCount: sql<number>`(SELECT COUNT(*)::int FROM ${devices} WHERE ${devices.userId} = ${users.id})`,
-      alertsFired7d: sql<number>`(SELECT COUNT(*)::int FROM ${alertEvents} WHERE ${alertEvents.userId} = ${users.id} AND ${alertEvents.firedAt} >= ${since7d})`,
+      alertsFired7d: sql<number>`(SELECT COUNT(*)::int FROM ${alertEvents} WHERE ${alertEvents.userId} = ${users.id} AND ${alertEvents.firedAt} >= ${since7dIso})`,
     })
     .from(users)
     .leftJoin(preferences, eq(preferences.userId, users.id))

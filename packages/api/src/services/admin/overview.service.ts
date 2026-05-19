@@ -24,6 +24,10 @@ export interface OverviewDto {
 export async function getOverview(): Promise<OverviewDto> {
   const db = getDb()
   const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  // postgres-js driver rejects Date objects inside raw sql`` templates — pass ISO.
+  // drizzle's .where(gte(col, date)) handles serialization itself, so the date
+  // object is fine where the query-builder is invoked directly.
+  const since7dIso = since7d.toISOString()
 
   const [usersCountRow] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(users)
   const [slots7dRow] = await db
@@ -38,7 +42,7 @@ export async function getOverview(): Promise<OverviewDto> {
   const signupsByDayRaw = await db.execute(sql`
     SELECT to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS day, COUNT(*)::int AS count
     FROM users
-    WHERE created_at >= ${since7d}
+    WHERE created_at >= ${since7dIso}
     GROUP BY day
     ORDER BY day ASC
   `)

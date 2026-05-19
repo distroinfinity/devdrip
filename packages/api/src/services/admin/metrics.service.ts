@@ -15,7 +15,8 @@ function extractRows<T>(result: unknown): T[] {
 
 export async function getMetrics(days: number): Promise<MetricsDto> {
   const db = getDb()
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+  // postgres-js driver rejects Date objects inside raw sql`` templates — pass ISO.
+  const sinceIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
   const slotsByDayRaw = await db.execute(sql`
     SELECT
@@ -23,7 +24,7 @@ export async function getMetrics(days: number): Promise<MetricsDto> {
       COUNT(*) FILTER (WHERE kind = 'news')::int AS news,
       COUNT(*) FILTER (WHERE kind = 'ticker')::int AS ticker
     FROM slot_impressions
-    WHERE created_at >= ${since}
+    WHERE created_at >= ${sinceIso}
     GROUP BY day
     ORDER BY day ASC
   `)
@@ -32,7 +33,7 @@ export async function getMetrics(days: number): Promise<MetricsDto> {
       to_char(date_trunc('day', fired_at), 'YYYY-MM-DD') AS day,
       COUNT(*)::int AS count
     FROM alert_events
-    WHERE fired_at >= ${since}
+    WHERE fired_at >= ${sinceIso}
     GROUP BY day
     ORDER BY day ASC
   `)
@@ -43,7 +44,7 @@ export async function getMetrics(days: number): Promise<MetricsDto> {
         THEN COUNT(*) FILTER (WHERE kind = 'news' AND saved)::float / COUNT(*) FILTER (WHERE kind = 'news')::float
         ELSE 0 END AS rate
     FROM slot_impressions
-    WHERE created_at >= ${since}
+    WHERE created_at >= ${sinceIso}
     GROUP BY day
     ORDER BY day ASC
   `)
@@ -61,7 +62,7 @@ export async function getMetrics(days: number): Promise<MetricsDto> {
         THEN (COUNT(*) FILTER (WHERE opened_url)::float / COUNT(*)::float)
         ELSE 0 END AS ctr
     FROM slot_impressions
-    WHERE kind = 'news' AND created_at >= ${since}
+    WHERE kind = 'news' AND created_at >= ${sinceIso}
     GROUP BY source
     ORDER BY impressions DESC
   `)
