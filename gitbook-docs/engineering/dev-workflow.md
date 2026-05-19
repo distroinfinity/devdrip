@@ -10,7 +10,7 @@
 
 ## Local Postgres via Docker Compose
 
-Local dev runs against a Dockerized Postgres, never the Neon DB. A `docker-compose.yml` at the repo root defines the service; all worktrees share one container via compose project name `distrotv-dev`. The API startup guard refuses `NODE_ENV=development` + `DB_TARGET=neon` unless `DEVDRIP_ALLOW_NEON_IN_DEV=1` is set.
+Local dev runs against a Dockerized Postgres, never the Neon DB. A `docker-compose.yml` at the repo root defines the service; all worktrees share one container via compose project name `distrotv-dev`. The API startup guard refuses `NODE_ENV=development` + `DB_TARGET=neon` unless `DISTROTV_ALLOW_NEON_IN_DEV=1` is set.
 
 **Secrets handling:** the compose file requires `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` via `${VAR:?…}` interpolation — no literals live in committed sources. Real values go in a **gitignored `.env` at the repo root**; `.env.example` documents the shape with `change-me` placeholders. `setup-worktree.sh --db-up` bootstraps `.env` with local-only defaults on first run. If you change `POSTGRES_PASSWORD`, update `DATABASE_URL_LOCAL` in `packages/api/.env` to match.
 
@@ -38,16 +38,16 @@ bash ~/.superset/worktrees/devdrip/setup-worktree.sh
 
 ### Env matrix
 
-| Variable                    | development (default)                                      | test                   | staging/production                 |
-| --------------------------- | ---------------------------------------------------------- | ---------------------- | ---------------------------------- |
-| `NODE_ENV`                  | `development`                                              | `test` (set by vitest) | `production`                       |
-| `DISTRO_ENV`                | `local`                                                    | `local`                | `staging` / `prod`                 |
-| `DB_TARGET`                 | `local`                                                    | unset (tests mock DB)  | `neon`                             |
-| `DATABASE_URL_LOCAL*`       | `postgres://distrotv:distrotv@localhost:5432/distrotv_dev` | —                      | —                                  |
-| `DATABASE_URL*`             | commented in `.env.shared`                                 | —                      | Railway env vars                   |
-| `GITHUB_CLIENT_*`           | n/a (GitHub OAuth removed post-M1)                         | n/a                    | n/a                                |
-| `UPSTASH_REDIS_REST_*`      | unset → in-memory `TestRedis` fallback                     | unset → `TestRedis`    | real Upstash creds                 |
-| `DEVDRIP_ALLOW_NEON_IN_DEV` | unset                                                      | —                      | — (guard not active in production) |
+| Variable                     | development (default)                                      | test                   | staging/production                 |
+| ---------------------------- | ---------------------------------------------------------- | ---------------------- | ---------------------------------- |
+| `NODE_ENV`                   | `development`                                              | `test` (set by vitest) | `production`                       |
+| `DISTRO_ENV`                 | `local`                                                    | `local`                | `staging` / `prod`                 |
+| `DB_TARGET`                  | `local`                                                    | unset (tests mock DB)  | `neon`                             |
+| `DATABASE_URL_LOCAL*`        | `postgres://distrotv:distrotv@localhost:5432/distrotv_dev` | —                      | —                                  |
+| `DATABASE_URL*`              | commented in `.env.shared`                                 | —                      | Railway env vars                   |
+| `GITHUB_CLIENT_*`            | n/a (GitHub OAuth removed post-M1)                         | n/a                    | n/a                                |
+| `UPSTASH_REDIS_REST_*`       | unset → in-memory `TestRedis` fallback                     | unset → `TestRedis`    | real Upstash creds                 |
+| `DISTROTV_ALLOW_NEON_IN_DEV` | unset                                                      | —                      | — (guard not active in production) |
 
 ### `DISTRO_ENV` — single source of truth for URLs
 
@@ -69,13 +69,13 @@ no per-package URL changes needed.
 
 ### Deliberately testing against Neon locally
 
-If you need to reproduce a prod-only data issue without deploying, uncomment the `DATABASE_URL*` lines in `.env.shared` (or your worktree's `.env`), set `DB_TARGET=neon`, and pass `DEVDRIP_ALLOW_NEON_IN_DEV=1`:
+If you need to reproduce a prod-only data issue without deploying, uncomment the `DATABASE_URL*` lines in `.env.shared` (or your worktree's `.env`), set `DB_TARGET=neon`, and pass `DISTROTV_ALLOW_NEON_IN_DEV=1`:
 
 ```bash
-DB_TARGET=neon DEVDRIP_ALLOW_NEON_IN_DEV=1 pnpm --filter @distrotv/api dev
+DB_TARGET=neon DISTROTV_ALLOW_NEON_IN_DEV=1 pnpm --filter @distrotv/api dev
 ```
 
-Without `DEVDRIP_ALLOW_NEON_IN_DEV=1`, the API refuses to start with an explicit "switch to local" message. This exists because every dev touching the same Neon DB was the cause of the S2-06 schema-drift incident.
+Without `DISTROTV_ALLOW_NEON_IN_DEV=1`, the API refuses to start with an explicit "switch to local" message. This exists because every dev touching the same Neon DB was the cause of the S2-06 schema-drift incident.
 
 ### Shared env file + drift detection
 
@@ -135,7 +135,7 @@ Copy values from `packages/api/.env.example`.
 Important toggles:
 
 - `DB_TARGET=local` (default in dev) uses `DATABASE_URL_LOCAL` → Docker Postgres
-- `DB_TARGET=neon` uses `DATABASE_URL` → Neon (deployed envs; requires `DEVDRIP_ALLOW_NEON_IN_DEV=1` in dev)
+- `DB_TARGET=neon` uses `DATABASE_URL` → Neon (deployed envs; requires `DISTROTV_ALLOW_NEON_IN_DEV=1` in dev)
 
 Important runtime vars:
 
