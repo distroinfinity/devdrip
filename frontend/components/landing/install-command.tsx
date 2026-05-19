@@ -28,6 +28,7 @@ export function InstallCommand({ variant = "hero", className }: InstallCommandPr
   if (variant === "pill") {
     return (
       <button
+        type="button"
         onClick={onCopy}
         className={cn(
           "font-data text-[11px] tracking-tight",
@@ -48,6 +49,7 @@ export function InstallCommand({ variant = "hero", className }: InstallCommandPr
   if (variant === "hero") {
     return (
       <button
+        type="button"
         onClick={onCopy}
         className={cn(
           "font-data text-[12px]",
@@ -68,6 +70,8 @@ export function InstallCommand({ variant = "hero", className }: InstallCommandPr
   // large variant — used by install-section
   return (
     <div
+      role="group"
+      aria-label="install command with copy button"
       className={cn(
         "relative w-full",
         "bg-[var(--ink-primary)] text-[var(--bg-primary)]",
@@ -81,6 +85,7 @@ export function InstallCommand({ variant = "hero", className }: InstallCommandPr
         <span className="truncate">{INSTALL_COMMAND}</span>
       </div>
       <button
+        type="button"
         onClick={onCopy}
         className="absolute top-4 right-4 p-1.5 hover:bg-[var(--em-hover)] transition-colors"
         aria-label="copy install command"
