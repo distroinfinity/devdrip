@@ -82,7 +82,12 @@ export function TerminalTV({
               isPreview ? "text-[#8A8A94]" : "text-[var(--ink-secondary)]"
             )}
           >
-            <span className="text-[var(--ink-primary)] dark:text-[#EDEDF0] font-bold">
+            <span
+              className={cn(
+                "font-bold",
+                isPreview ? "text-[#EDEDF0]" : "text-[var(--ink-primary)]"
+              )}
+            >
               <span
                 className={cn(
                   "inline-block w-1.5 h-1.5 rounded-full mr-2 align-middle",
