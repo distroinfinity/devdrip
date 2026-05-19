@@ -95,7 +95,7 @@ export function HeroSection() {
             </motion.div>
 
             <p className="font-data text-[10px] tracking-[0.04em] text-[var(--ink-tertiary)]">
-              opt-in · &lt; 200ms vanish · subscribe per channel
+              opt-in · subscribe per channel · skip anything
             </p>
           </div>
 
@@ -111,12 +111,11 @@ export function HeroSection() {
                   kind: "news",
                   id: "hero-news",
                   title: "CH 01 · NEWS",
-                  status: "3s grace · 12m ago",
+                  status: "12m ago",
                   items: [
                     {
                       source: "TechCrunch",
-                      headline:
-                        "Anthropic raises $5B at $90B valuation, doubles down on agentic tooling",
+                      headline: "Anthropic closes $13B Series F at $183B valuation",
                       meta: "12m ago",
                     },
                     {

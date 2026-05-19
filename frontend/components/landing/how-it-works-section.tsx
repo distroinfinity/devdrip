@@ -6,7 +6,7 @@ const BEATS = [
   {
     num: "01",
     headline: "Your agent starts working.",
-    body: "Distro TV detects idle. Waits 3 seconds.",
+    body: "Distro TV picks up the idle moment.",
     visualKind: "agent" as const,
   },
   {
@@ -76,14 +76,7 @@ export function HowItWorksSection() {
 
         {/* bottom data strip */}
         <div className="mt-8 pt-4 border-t border-[var(--rule-default)] flex flex-wrap gap-x-4 gap-y-1 font-data text-[11px] text-[var(--ink-secondary)]">
-          {[
-            "3s grace",
-            "< 200ms vanish",
-            "opt-in",
-            "per-channel mute",
-            "no auto-play",
-            "no tracking",
-          ].map((f, i, arr) => (
+          {["opt-in", "per-channel mute", "no auto-play", "no tracking"].map((f, i, arr) => (
             <span key={f}>
               {f}
               {i < arr.length - 1 && <span className="text-[var(--ink-tertiary)] ml-4">·</span>}
@@ -116,7 +109,7 @@ function BeatVisual({ kind }: { kind: "agent" | "tv" | "vanish" }) {
             TechCrunch
           </div>
           <div className="text-[11px] font-bold leading-snug">
-            Anthropic raises $5B at $90B valuation
+            Anthropic closes $13B Series F at $183B valuation
           </div>
         </div>
       </div>

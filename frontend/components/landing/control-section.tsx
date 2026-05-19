@@ -55,7 +55,7 @@ export function ControlSection() {
             className="font-display text-[24px] md:text-[28px] tracking-[-0.02em] text-[var(--ink-primary)]"
             style={{ fontWeight: 400 }}
           >
-            Tune what you watch. Kill anything in &lt;200ms.
+            Tune what you watch. Skip anything, anytime.
           </h2>
         </motion.div>
 

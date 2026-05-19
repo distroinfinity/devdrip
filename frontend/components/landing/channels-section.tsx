@@ -52,12 +52,11 @@ export function ChannelsSection() {
               kind: "news",
               id: "ch1-preview",
               title: "CH 01 · NEWS · broadcasting",
-              status: "3s grace",
+              status: "live",
               items: [
                 {
                   source: "TechCrunch",
-                  headline:
-                    "Anthropic raises $5B at $90B valuation, doubles down on agentic tooling",
+                  headline: "Anthropic closes $13B Series F at $183B valuation",
                   meta: "12m ago",
                 },
                 {
