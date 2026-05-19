@@ -3,6 +3,9 @@
 # downloads the latest cli release from GitHub and installs to ~/.local/bin/distro
 set -e
 
+TMP=""
+trap '[ -n "$TMP" ] && [ -d "$TMP" ] && rm -rf "$TMP"' EXIT
+
 INSTALL_DIR="${DISTROTV_HOME:-$HOME/.distrotv}"
 BIN_DIR="${DISTROTV_BIN:-$HOME/.local/bin}"
 REPO="distroinfinity/devdrip"
@@ -25,7 +28,6 @@ echo "→ downloading distro tv cli..."
 TMP=$(mktemp -d)
 curl -fsSL "$TARBALL_URL" -o "$TMP/distrotv-cli.tar.gz"
 tar -xzf "$TMP/distrotv-cli.tar.gz" -C "$INSTALL_DIR"
-rm -rf "$TMP"
 
 # 3. wrapper
 cat > "$BIN_DIR/distro" <<EOF
