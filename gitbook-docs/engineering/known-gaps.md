@@ -68,3 +68,11 @@ These are the main current-state gaps that matter when working in this repo.
 - **Analytics `category` filter narrows `series` and `totals` but NOT `bySource` / `byResult` breakdowns.** Internally inconsistent when a `category` filter is applied. Follow-up ticket needed if the dashboard requires fully-filtered breakdowns.
 - **Sync `stop()` doesn't await in-flight `runOnce`** on daemon shutdown. Any mark-sync writes to a closing ledger silently fail; those rows retry on next boot (idempotent via `impression_already_recorded`). Fix: expose `awaitIdle()` when needed.
 - **Drizzle-kit `db:migrate` fails silently in local dev** (observed during this branch). Workaround: apply migrations via `psql` directly. Investigate separately.
+
+## M8 — Landing page + install vector (2026-05-19)
+
+- Real landing page at `/` with channels-first positioning (CH 01 NEWS, CH 02 MARKETS, CH 0? COMING).
+- Install vector: `curl -fsSL https://distrotv.xyz/install.sh | sh` backed by GitHub Releases. No npm publish.
+- `release-cli.yml` workflow on `cli-v*` tag push.
+- OG and Twitter cards refreshed to match the new positioning.
+- Dropped pre-pivot `publish-cli.yml` and the stale "dev drip" wordmark.
