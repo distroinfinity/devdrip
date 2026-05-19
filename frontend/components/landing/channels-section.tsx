@@ -116,13 +116,6 @@ export function ChannelsSection() {
                   sparkline: "▁▂▄▃▅▆▇",
                 },
                 {
-                  symbol: "ETH",
-                  price: "3,892",
-                  delta: "+1.88%",
-                  direction: "up",
-                  sparkline: "▂▃▃▄▅▆▇",
-                },
-                {
                   symbol: "SPY",
                   price: "528.61",
                   delta: "+0.42%",

@@ -19,7 +19,7 @@ const INIT_TRANSCRIPT = `$ distro init
 │
 ◆  pick the seed tickers for your watchlist
 │  ◼ AAPL   ◼ MSFT   ◼ NVDA
-│  ◼ BTC    ◼ ETH
+│  ◼ BTC    ◼ TSLA
 │
 ◇  health check
 │  ✓ daemon socket     ready
