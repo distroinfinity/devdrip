@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest"
 import { homedir } from "node:os"
-import { daemonSocketPath } from "../constants/index.js"
+import { daemonSocketPath } from "../daemon-socket.js"
 
 const originalHome = process.env["HOME"]
 

@@ -13,7 +13,7 @@ import {
 } from "node:fs"
 import { createConnection } from "node:net"
 import { join } from "node:path"
-import { daemonSocketPath } from "@distrotv/shared"
+import { daemonSocketPath } from "@distrotv/shared/daemon-socket"
 import { configDir } from "../config.js"
 
 // ── paths ───────────────────────────────────────────────────────────────

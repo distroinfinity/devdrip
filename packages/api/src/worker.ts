@@ -6,6 +6,7 @@ import cron from "node-cron"
 import { env, assertEnvSafe } from "./config/env.js"
 import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
+import { sendSlackAlert } from "./lib/slack.js"
 import { runFetchTick } from "./services/news-fetchers/coordinator.js"
 import { runTickerTick } from "./services/ticker-fetchers/coordinator.js"
 
@@ -56,6 +57,8 @@ async function start(): Promise<void> {
     }
   })
 
+  const sha = env.commitSha?.slice(0, 7) ?? "unknown"
+  void sendSlackAlert(`worker booted · sha=${sha}`, { severity: "info" })
   logger.info("worker running — news fetch every 5 min, ticker fetch every 1 min")
 }
 

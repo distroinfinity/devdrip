@@ -1,5 +1,3 @@
-import { homedir } from "node:os"
-import { join } from "node:path"
 import type { DevdripPreferences } from "../types/index.js"
 import { ChannelMode } from "../types/index.js"
 
@@ -8,21 +6,9 @@ import { ChannelMode } from "../types/index.js"
 export const GRACE_PERIOD_MS = 0
 export const MAX_AD_DURATION_MS = 8_000
 
-// ── daemon socket path ─────────────────────────────────────────────────────
-
-const SUN_PATH_MAX = 104
-
-// Single source of truth for the daemon socket path. Evaluated lazily on each
-// call so tests that override `process.env.HOME` pick up the right home dir.
-// Unix domain socket paths have a ~104-byte limit on macOS (sun_path); falls
-// back to /tmp/devdrip-<uid>.sock on the rare long-home-dir case.
-export function daemonSocketPath(
-  uid: number = typeof process.getuid === "function" ? (process.getuid() as number) : 0
-): string {
-  const preferred = join(homedir(), ".distro", "daemon.sock")
-  if (preferred.length < SUN_PATH_MAX) return preferred
-  return `/tmp/distro-${uid}.sock`
-}
+// daemonSocketPath moved to @distrotv/shared/daemon-socket — kept out of the
+// main barrel so the frontend bundle doesn't pull node:os / node:path through
+// the shared package. CLI imports from "@distrotv/shared/daemon-socket".
 
 // ── idle detection ─────────────────────────────────────────────────────────
 
