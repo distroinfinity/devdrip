@@ -2,72 +2,65 @@
 
 Current-state docs for engineers working in this repo.
 
-> _Distro TV is the post-pivot product (2026-05). M1 (rip + rename) and M2 (magic-link auth + /setup onboarding) have shipped. Subsequent sections describing slot delivery, channels, watchlists, and admin tooling will be revised as M3-M8 land. See `docs/superpowers/specs/2026-05-05-distro-tv-pivot-design.md` (local) for the full design._
-
-> **Previously DevDrip.** The product was originally called DevDrip (opt-in ads + USDC micropayments). In May 2026 it pivoted to Distro TV — an ambient news + market terminal feed. Pages flagged "(deprecated)" describe surfaces being torn out. The agent-treasury pivot page describes a prior intermediate direction that was also superseded.
+> **Previously DevDrip.** The product was originally called DevDrip (opt-in ads + USDC micropayments). In May 2026 it pivoted to Distro TV — an ambient channel surface that surfaces during AI coding tool idle time. Pages marked "Status: superseded" document surfaces that were torn out (World Chain integration, agent-treasury pivot, Mini App).
 
 ## What Distro TV Is
 
-Distro TV anchors an ambient content slot at the bottom of the terminal during AI coding tool idle time. Tech and finance news from HN, TechCrunch, Bloomberg, and Reuters. A watchlist of stocks and crypto with sparklines and key stats. Three modes: news-only, markets-only, or alternating mix with alert-driven priority bumps.
+Distro TV anchors an ambient content slot at the bottom of the terminal during AI coding tool idle time. Two launch channels:
 
-In the repo today, the implemented product surface is split across these packages:
+- **CH 01 NEWS** — tech and finance headlines from HN, TechCrunch, Bloomberg, Reuters
+- **CH 02 MARKETS** — watchlist of stocks and crypto with sparklines and key stats
 
-- `frontend` runs the public landing page and the waitlist intake flow.
-- `packages/api` runs the backend API for health, auth, device registration, and slot impression ingestion.
-- `packages/shared` holds shared enums, slot payload types, and constants.
-- `packages/cli` exposes the CLI command surface (`distro init`, `distro daemon`, `distro status`, `distro watchlist`, etc.).
-- `packages/dashboard` is a separate dashboard app shell with minimal UI today.
+Additional channels slot into the same surface without changing the CLI or daemon. Users control the news/ticker ratio (five positions from news-only to ticker-only), set quiet hours, and manage their watchlist.
 
-## Current State (post-M2)
+## Architecture
 
 ```text
-browser
-  -> frontend landing page + waitlist
-  -> /setup onboarding (pair-exchange, magic-link sign-in)
-  -> /sign-in (magic-link form)
-  -> /dashboard/* (auth-gated; account page, preferences, reading)
-     -> session JWT in HTTP-only cookie
+distrotv.xyz (frontend)
+  → landing page + install CTA
+  → /setup onboarding (pair-exchange, magic-link sign-in)
+  → /sign-in (magic-link form)
+  → /dashboard/* (auth-gated; channel config, watchlist, reading, alerts)
+     → session JWT in HTTP-only cookie (distrotv_session)
 
 cli / daemon
-  -> packages/api
-     -> anonymous device registration (no auth required)
-     -> magic-link auth (Resend, SHA-256 hashed tokens)
-     -> pairing handoff (CLI → browser → /setup)
-     -> jwt auth (7-day session JWT)
-     -> postgres via drizzle
-     -> redis via upstash (pairing codes, rate-limit)
+  → packages/api
+     → anonymous device registration
+     → magic-link auth (Resend, SHA-256 hashed tokens)
+     → pairing handoff (CLI → browser → /setup)
+     → slot selection (/me/content/next)
+     → impression ingest (/ingest)
+     → postgres via drizzle (Neon)
+     → redis via upstash (pairing codes, slot caches, alert queues)
 ```
 
-What is real right now (end of M2):
+## Milestones (all shipped)
 
-- landing page and waitlist flow
-- anonymous-first device registration (device bearer auth)
-- magic-link sign-in via Resend + optional anonymous→email upgrade
-- CLI ↔ browser pairing handoff (`distro init` → `/setup?pair=…`)
-- `/setup` onboarding page with 4 states
-- `/dashboard/account` (email, user/device IDs, sign-out)
-- middleware auth gate (dashboard protected behind session cookie)
-- slot impression ingestion (news kind)
-- slot cache (reads `/me/content/next`, falls back to demo fixtures)
-- daemon lifecycle (start/stop/status/heartbeat)
-- hook IPC (PreToolUse, Stop, UserPromptSubmit → daemon socket)
-- reading list ledger (local SQLite)
-- `distro init`, `distro doctor`, `distro status`, `distro watchlist`, `distro demo`
-
-What arrives in upcoming milestones:
-
-- M3: news pipeline (channels schema + worker + selection algorithm)
+- M1: rename + rip — packages renamed to `@distrotv/*`, ads ripped, slot types added
+- M2: magic-link auth + device registration + `/setup` onboarding
+- M3: news pipeline (channels schema + fetcher worker + selection algorithm)
 - M4: ticker slots + watchlist management
 - M5: demo loop end-to-end → merge to main
+- M6: dashboard polish (v5 visual language, 5-position channel mode)
+- M7: admin dashboard (sources/tickers/users/metrics CRUD + Slack alerts)
+- M8: landing page + install vector (curl + GitHub Releases, channels-first positioning)
+
+## Install
+
+```sh
+curl -fsSL https://distrotv.xyz/install.sh | sh
+```
 
 ## Read This Next
 
 - [Architecture Overview](architecture/overview.md)
 - [Monorepo Layout](architecture/monorepo.md)
+- [Identity & Auth](architecture/identity.md)
 - [Backend API](backend/api.md)
 - [Data Model](backend/data-model.md)
-- [Landing And Waitlist](frontend/landing-and-waitlist.md)
+- [Landing Page](frontend/landing-page.md)
 - [CLI Current State](cli/current-state.md)
+- [CLI Releases](cli/releases.md)
 - [Daemon + Hook IPC](cli/daemon-and-hooks.md)
 - [News and Reading (CLI)](cli/news-and-reading.md)
 - [Dev Workflow](engineering/dev-workflow.md)

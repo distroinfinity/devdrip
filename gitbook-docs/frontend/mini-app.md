@@ -1,6 +1,6 @@
 # Mini App
 
-> **Deprecated.** The Mini App and its `/m/*` routes are being removed in the agent-treasury pivot. See [Agent Treasury Pivot](../architecture/agent-treasury-pivot.md). Signup, wallet linking, and claim move to the standard dashboard at `/dashboard/*` with Privy auth.
+> **Status: superseded.** This page documents the World App Mini App (`/m/*` routes) that was part of the pre-pivot DevDrip era (World ID + USDC earnings). The Mini App, the agent-treasury pivot that was meant to replace it, and all on-chain payment flows were abandoned in May 2026 when the product became Distro TV. There is no Mini App in Distro TV. See [Architecture Overview](../architecture/overview.md) for current state. Kept for historical reference only.
 
 The DevDrip Mini App lives at `frontend/app/m/*` as a route group inside the existing Next.js 14 app. It is the **canonical write surface** for chain-related actions: signup, wallet linking, and claim. Web dashboard (`/dashboard/*`) is read-only for chain state but write-capable for non-chain prefs.
 
