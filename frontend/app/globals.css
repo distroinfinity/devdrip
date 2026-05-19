@@ -147,3 +147,13 @@
 .last-row-flash > :last-child {
   animation: ticker-tick 1.2s ease-in-out infinite;
 }
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-spin-slow {
+  display: inline-block;
+  animation: spin-slow 1.2s linear infinite;
+}
