@@ -84,6 +84,20 @@ export async function nextTickerForDevice(args: NextTickerArgs): Promise<TickerP
   return await buildTickerPayload(args.userId, pick.symbol)
 }
 
+// Builds the TradingView URL for a ticker, used on [C] chart in the CLI.
+// Per spec §8: equities use the bare-symbol form (TV resolves to the
+// primary exchange for major tickers), crypto uses the symbol + USD pair.
+// Exchange-prefixed URLs (NASDAQ-TSLA) require a per-symbol exchange map
+// that we don't yet maintain — bare-symbol resolves correctly for the
+// curated watchlist universe (top ~500 equities + top ~50 crypto).
+function buildChartUrl(symbol: string, assetClass: "equity" | "crypto"): string {
+  const cleaned = symbol.toUpperCase().replace(/[^A-Z0-9]/g, "")
+  if (assetClass === "crypto") {
+    return `https://www.tradingview.com/symbols/${cleaned}USD/`
+  }
+  return `https://www.tradingview.com/symbols/${cleaned}/`
+}
+
 async function buildTickerPayload(
   userId: string,
   symbol: string,
@@ -141,6 +155,7 @@ async function buildTickerPayload(
     layout: "single",
     stale,
     asOf: quote.fetchedAt.toISOString(),
+    chartUrl: buildChartUrl(quote.symbol, assetClass),
     ...(alert ? { alert } : {}),
   }
 }
