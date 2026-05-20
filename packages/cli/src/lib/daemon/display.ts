@@ -143,6 +143,7 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
   let closed = false
   let wipeInProgress = false
   let resizeFired = false
+  let flashTimer: NodeJS.Timeout | null = null
   const resizeSubs: Array<() => void> = []
 
   function emitResetSequence(): void {
@@ -188,6 +189,12 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
   // renderer handles colour + placement.
   function flashHeader(text: string, token: "positive" | "negative" | "muted" | "warning"): void {
     if (closed || wipeInProgress || resizeFired) return
+    // Cancel any in-flight un-flash from a previous flashHeader call —
+    // otherwise the previous un-flash would clobber this new flash mid-hold.
+    if (flashTimer) {
+      clearTimeout(flashTimer)
+      flashTimer = null
+    }
     const flashed = renderWithFlash({ flash: { text, token } })
     if (flashed) {
       lastRenderedText = flashed
@@ -196,8 +203,9 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     // After hold, re-render without flash. The fade-in / fade-out from the
     // spec is approximated by token cycling; here we collapse to a single
     // hold step because most terminals can't render true opacity.
-    setTimeout(
+    flashTimer = setTimeout(
       () => {
+        flashTimer = null
         if (closed || wipeInProgress || resizeFired) return
         const restored = renderWithFlash({})
         if (restored) {
@@ -238,6 +246,10 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
         const currentCols = ws.columns ?? initialCols
         if (currentRows !== initialRows || currentCols !== initialCols) {
           resizeFired = true
+          if (flashTimer) {
+            clearTimeout(flashTimer)
+            flashTimer = null
+          }
           emitResetSequence()
           for (const cb of resizeSubs) {
             try {
@@ -282,6 +294,10 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
       const t0 = Date.now()
       if (closed || wipeInProgress) return { latencyMs: 0 }
       if (resizeTimer) clearInterval(resizeTimer)
+      if (flashTimer) {
+        clearTimeout(flashTimer)
+        flashTimer = null
+      }
       // On resize-triggered teardown we skip the wipe and use the existing
       // emitResetSequence path — the slot is already considered invalid.
       if (resizeFired) {
