@@ -146,7 +146,7 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     writeWithRetry(fd, `\x1b7${setRegion}${moveToBottomPane}\x1b[0J\x1b8`)
     let painted = 0
     const paintRow = (): void => {
-      if (closed || resizeFired) return
+      if (closed || wipeInProgress || resizeFired) return
       if (painted >= rows.length) return
       const rowText = rows[painted] ?? ""
       const row = scrollBottom + 1 + painted
