@@ -6,7 +6,7 @@ const DEFAULT_WIDTH = 80
 const MIN_WIDTH = 40
 const MAX_WIDTH = 120
 
-const ANSI_ESCAPE_RE = /(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g
+const ANSI_ESCAPE_RE = /\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g
 
 function sanitize(text: string): string {
   return text.replace(ANSI_ESCAPE_RE, "").replace(/[\x00-\x1F\x7F]/g, "")
