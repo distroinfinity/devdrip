@@ -1,6 +1,11 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
-import { SAVE_FLASH_FADE_MS, SAVE_FLASH_HOLD_MS, VANISH_WIPE_PER_ROW_MS } from "@distrotv/shared"
+import {
+  REVEAL_STAGGER_MS,
+  SAVE_FLASH_FADE_MS,
+  SAVE_FLASH_HOLD_MS,
+  VANISH_WIPE_PER_ROW_MS,
+} from "@distrotv/shared"
 import { renderNewsBox, type NewsRenderOpts } from "../render-box.js"
 import { renderTickerBox } from "../render-ticker.js"
 import type { CachedSlot } from "../slot-cache.js"
@@ -86,6 +91,9 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
   let ws: WriteStream | null
   // captured for flash() so we can re-emit the box with highlighted chrome.
   let lastRenderedText = ""
+  // hoisted so paintRow (called inside the try block) can read them on first tick.
+  let closed = false
+  let resizeFired = false
   const baseNewsOpts: NewsRenderOpts = {
     source: ctx.source,
     width: ctx.width,
@@ -130,7 +138,27 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
 
     const setRegion = `\x1b[1;${scrollBottom}r`
     const moveToBottomPane = `\x1b[${scrollBottom + 1};1H`
-    writeWithRetry(fd, `\x1b7${setRegion}${moveToBottomPane}\x1b[0J${text}\x1b8`)
+    // Initial paint with reveal stagger per spec §11. Set the scroll region
+    // and erase the pane once, then write rows one at a time with a 40ms
+    // delay between each. Cursor save/restore preserves the user's prompt
+    // position throughout.
+    const rows = text.split("\n")
+    writeWithRetry(fd, `\x1b7${setRegion}${moveToBottomPane}\x1b[0J\x1b8`)
+    let painted = 0
+    const paintRow = (): void => {
+      if (closed || resizeFired) return
+      if (painted >= rows.length) return
+      const rowText = rows[painted] ?? ""
+      const row = scrollBottom + 1 + painted
+      try {
+        writeWithRetry(fd, `\x1b7\x1b[${row};1H\x1b[2K${rowText}\x1b8`)
+      } catch {
+        return
+      }
+      painted++
+      if (painted < rows.length) setTimeout(paintRow, REVEAL_STAGGER_MS)
+    }
+    paintRow()
   } catch (err) {
     try {
       fs.closeSync(fd)
@@ -140,9 +168,7 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     throw err
   }
 
-  let closed = false
   let wipeInProgress = false
-  let resizeFired = false
   let flashTimer: NodeJS.Timeout | null = null
   const resizeSubs: Array<() => void> = []
 
