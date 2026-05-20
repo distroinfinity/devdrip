@@ -6,7 +6,7 @@ import { directionFor, renderChart } from "./sparkline.js"
 const DEFAULT_WIDTH = 80
 const MIN_WIDTH = 40
 const MAX_WIDTH = 120
-const ANSI_ESCAPE_RE = /(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g
+const ANSI_ESCAPE_RE = /\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g
 
 function visibleLen(s: string): number {
   return [...s.replace(ANSI_ESCAPE_RE, "")].length
