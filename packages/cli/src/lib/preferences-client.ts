@@ -1,4 +1,4 @@
-import type { AdCategory, ChannelMode, SyncedPreferences } from "@distrotv/shared"
+import type { ChannelMode, SyncedPreferences } from "@distrotv/shared"
 import { apiFetch } from "./api-client.js"
 
 export interface PreferencesResponse {
@@ -6,15 +6,11 @@ export interface PreferencesResponse {
 }
 
 export interface UpdatePreferencesBody {
-  blockedCategories?: AdCategory[]
-  maxPerHour?: number
-  maxPerDay?: number
   quietHoursStart?: number | null
   quietHoursEnd?: number | null
   tzOffsetMinutes?: number
   channelMode?: ChannelMode
   idleSensitivityMs?: number
-  sessionWarmupMs?: number
   nightMode?: boolean
 }
 

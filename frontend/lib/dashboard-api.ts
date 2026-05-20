@@ -1,4 +1,4 @@
-import type { AdCategory, ChannelMode, NewsTopic, SyncedPreferences } from "@distrotv/shared"
+import type { ChannelMode, NewsTopic, SyncedPreferences } from "@distrotv/shared"
 import { apiFetch } from "./api"
 
 // ── preferences (GET + widened PUT) ─────────────────────────────────────────
@@ -8,14 +8,10 @@ export interface PreferencesPayload {
 }
 
 export interface UpdatePreferencesBody {
-  blockedCategories?: AdCategory[]
-  maxPerHour?: number
-  maxPerDay?: number
   quietHoursStart?: number | null
   quietHoursEnd?: number | null
   tzOffsetMinutes?: number
   idleSensitivityMs?: number
-  sessionWarmupMs?: number
   nightMode?: boolean
   channelMode?: ChannelMode
   newsTopics?: NewsTopic[]

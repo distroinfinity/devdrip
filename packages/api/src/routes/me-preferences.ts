@@ -10,15 +10,10 @@ type PreferencesRow = typeof preferences.$inferSelect
 
 function shape(row: PreferencesRow) {
   return {
-    blockedCategories: row.blockedCategories,
-    enabledSurfaces: row.enabledSurfaces,
-    maxPerHour: row.maxPerHour,
-    maxPerDay: row.maxPerDay,
     quietHoursStart: row.quietHoursStart,
     quietHoursEnd: row.quietHoursEnd,
     tzOffsetMinutes: row.tzOffsetMinutes,
     idleSensitivityMs: row.idleSensitivityMs,
-    sessionWarmupMs: row.sessionWarmupMs,
     nightMode: row.nightMode,
     channelMode: row.channelMode,
     newsTopics: row.newsTopics,

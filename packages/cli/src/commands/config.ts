@@ -1,64 +1,17 @@
 import { Command } from "commander"
-import {
-  cancel,
-  confirm,
-  intro,
-  isCancel,
-  log,
-  multiselect,
-  note,
-  outro,
-  select,
-  text,
-} from "@clack/prompts"
-import { AdCategory, defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
+import { cancel, confirm, intro, isCancel, log, note, outro, select, text } from "@clack/prompts"
+import { defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
 import { daemonSocketPath } from "@distrotv/shared/daemon-socket"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { sendHookEvent } from "../lib/daemon/hook-client.js"
-import { putPreferences } from "../lib/preferences-client.js"
-import { ApiError, NotAuthenticatedError, reportError } from "../lib/api-client.js"
-
-const CATEGORY_LABELS: Record<AdCategory, string> = {
-  [AdCategory.CloudInfrastructure]: "Cloud & infrastructure",
-  [AdCategory.DeveloperTools]: "Developer tools",
-  [AdCategory.Databases]: "Databases",
-  [AdCategory.MonitoringObservability]: "Monitoring & observability",
-  [AdCategory.DeveloperRecruiting]: "Developer recruiting / jobs",
-  [AdCategory.DeveloperEducation]: "Developer education",
-  [AdCategory.SaasProducts]: "SaaS products",
-}
-const ALL_CATEGORIES = Object.values(AdCategory) as AdCategory[]
+import { NotAuthenticatedError, reportError } from "../lib/api-client.js"
 
 // Keys a user can tweak via --set / --get. Order matches --list output.
-const EDITABLE_KEYS = [
-  "blockedCategories",
-  "maxPerHour",
-  "maxPerDay",
-  "sessionWarmupMs",
-  "quietHoursStart",
-  "quietHoursEnd",
-  "nightMode",
-] as const
+const EDITABLE_KEYS = ["quietHoursStart", "quietHoursEnd", "nightMode"] as const
 type EditableKey = (typeof EDITABLE_KEYS)[number]
 
 function isEditableKey(key: string): key is EditableKey {
   return (EDITABLE_KEYS as readonly string[]).includes(key)
-}
-
-function parseCategoriesCsv(input: string): AdCategory[] {
-  if (input.trim() === "" || input.trim().toLowerCase() === "none") return []
-  const parts = input
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-  const result: AdCategory[] = []
-  for (const p of parts) {
-    if (!(ALL_CATEGORIES as string[]).includes(p)) {
-      throw new Error(`unknown category "${p}" — valid: ${ALL_CATEGORIES.join(", ")}`)
-    }
-    result.push(p as AdCategory)
-  }
-  return result
 }
 
 function parseBoundedInt(raw: string, opts: { min: number; max: number; field: string }): number {
@@ -90,27 +43,6 @@ function applySetOne(prefs: DevdripPreferences, key: string, raw: string): Devdr
     throw new Error(`unknown key "${key}" — valid: ${EDITABLE_KEYS.join(", ")}`)
   }
   switch (key) {
-    case "blockedCategories":
-      return { ...prefs, blockedCategories: parseCategoriesCsv(raw) }
-    case "maxPerHour":
-      return {
-        ...prefs,
-        maxPerHour: parseBoundedInt(raw, { min: 0, max: 1000, field: key }),
-      }
-    case "maxPerDay":
-      return {
-        ...prefs,
-        maxPerDay: parseBoundedInt(raw, { min: 0, max: 10_000, field: key }),
-      }
-    case "sessionWarmupMs":
-      return {
-        ...prefs,
-        sessionWarmupMs: parseBoundedInt(raw, {
-          min: 0,
-          max: 24 * 60 * 60 * 1000,
-          field: key,
-        }),
-      }
     case "quietHoursStart":
       return { ...prefs, quietHoursStart: parseNullableHour(raw, key) }
     case "quietHoursEnd":
@@ -132,18 +64,8 @@ function hoursChanged(a: DevdripPreferences, b: DevdripPreferences): boolean {
   return a.quietHoursStart !== b.quietHoursStart || a.quietHoursEnd !== b.quietHoursEnd
 }
 
-function categoriesChanged(a: DevdripPreferences, b: DevdripPreferences): boolean {
-  const sa = a.blockedCategories.slice().sort().join(",")
-  const sb = b.blockedCategories.slice().sort().join(",")
-  return sa !== sb
-}
-
 function prefsSummary(p: DevdripPreferences): Record<string, unknown> {
   return {
-    blockedCategories: p.blockedCategories,
-    maxPerHour: p.maxPerHour,
-    maxPerDay: p.maxPerDay,
-    sessionWarmupMs: p.sessionWarmupMs,
     quietHoursStart: p.quietHoursStart,
     quietHoursEnd: p.quietHoursEnd,
     nightMode: p.nightMode,
@@ -155,25 +77,6 @@ async function notifyDaemon(): Promise<void> {
   // fire-and-forget. If the daemon isn't running that's fine; when it starts
   // it re-reads config. The file watcher also catches direct JSON edits.
   await sendHookEvent({ type: "reload-config" }, daemonSocketPath())
-}
-
-async function syncCategoriesToBackend(prefs: DevdripPreferences): Promise<void> {
-  try {
-    await putPreferences({
-      blockedCategories: prefs.blockedCategories,
-      tzOffsetMinutes: prefs.tzOffsetMinutes,
-    })
-  } catch (err) {
-    if (err instanceof ApiError || err instanceof NotAuthenticatedError) {
-      log.warn("could not sync categories to backend — will retry on next change")
-      return
-    }
-    if (err instanceof TypeError && /fetch/i.test(err.message)) {
-      log.warn("backend unreachable — categories saved locally only")
-      return
-    }
-    throw err
-  }
 }
 
 async function persist(next: DevdripPreferences): Promise<void> {
@@ -218,9 +121,6 @@ async function runSet(pairs: string[]): Promise<void> {
     next = applySetOne(next, key, value)
   }
   await persist(next)
-  if (categoriesChanged(cfg.preferences, next)) {
-    await syncCategoriesToBackend(next)
-  }
   await notifyDaemon()
   const changed = pairs.map((p) => splitSetPair(p).key)
   log.success(`updated ${changed.join(", ")}`)
@@ -231,54 +131,11 @@ async function runReset(): Promise<void> {
   if (!cfg) throw new NotAuthenticatedError("not initialized — run `distro init` first")
   const next = defaultDevdripPreferences()
   await persist(next)
-  if (categoriesChanged(cfg.preferences, next)) {
-    await syncCategoriesToBackend(next)
-  }
   await notifyDaemon()
   log.success("preferences reset to defaults")
 }
 
 // ── interactive wizard ─────────────────────────────────────────────────────
-
-async function pickCategoriesInteractive(current: AdCategory[]): Promise<AdCategory[]> {
-  const preCheckedAllowed = ALL_CATEGORIES.filter((c) => !current.includes(c))
-  const selected = await multiselect<AdCategory>({
-    message: "Which categories would you like to see ads from?",
-    options: ALL_CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
-    initialValues: preCheckedAllowed,
-    required: false,
-  })
-  if (isCancel(selected)) {
-    cancel("cancelled")
-    process.exit(0)
-  }
-  const allowed = selected as AdCategory[]
-  return ALL_CATEGORIES.filter((c) => !allowed.includes(c))
-}
-
-async function askNumber(
-  prompt: string,
-  initial: number,
-  opts: { min: number; max: number; field: string }
-): Promise<number> {
-  const raw = await text({
-    message: prompt,
-    initialValue: String(initial),
-    validate: (v) => {
-      try {
-        parseBoundedInt(v, opts)
-        return undefined
-      } catch (err) {
-        return (err as Error).message
-      }
-    },
-  })
-  if (isCancel(raw)) {
-    cancel("cancelled")
-    process.exit(0)
-  }
-  return parseBoundedInt(raw as string, opts)
-}
 
 async function askNullableHour(
   prompt: string,
@@ -314,25 +171,6 @@ async function askBool(prompt: string, initial: boolean): Promise<boolean> {
   return v as boolean
 }
 
-async function editCategories(prefs: DevdripPreferences): Promise<DevdripPreferences> {
-  const blocked = await pickCategoriesInteractive(prefs.blockedCategories)
-  return { ...prefs, blockedCategories: blocked }
-}
-
-async function editRateLimits(prefs: DevdripPreferences): Promise<DevdripPreferences> {
-  const maxPerHour = await askNumber("Maximum ads per hour", prefs.maxPerHour, {
-    min: 0,
-    max: 1000,
-    field: "maxPerHour",
-  })
-  const maxPerDay = await askNumber("Maximum ads per day", prefs.maxPerDay, {
-    min: 0,
-    max: 10_000,
-    field: "maxPerDay",
-  })
-  return { ...prefs, maxPerHour, maxPerDay }
-}
-
 async function editQuietHours(prefs: DevdripPreferences): Promise<DevdripPreferences> {
   const start = await askNullableHour(
     "Quiet hours start (hour of day)",
@@ -355,15 +193,6 @@ async function editNightMode(prefs: DevdripPreferences): Promise<DevdripPreferen
   return { ...prefs, nightMode: on }
 }
 
-async function editWarmup(prefs: DevdripPreferences): Promise<DevdripPreferences> {
-  const minutes = await askNumber(
-    "Session warmup (minutes — no ads during this period after daemon start)",
-    Math.round(prefs.sessionWarmupMs / 60_000),
-    { min: 0, max: 24 * 60, field: "sessionWarmupMs" }
-  )
-  return { ...prefs, sessionWarmupMs: minutes * 60_000 }
-}
-
 async function runInteractive(): Promise<void> {
   const cfg = await readConfig()
   if (!cfg) throw new NotAuthenticatedError("not initialized — run `distro init` first")
@@ -377,11 +206,8 @@ async function runInteractive(): Promise<void> {
     const choice = await select<string>({
       message: "What would you like to configure?",
       options: [
-        { value: "categories", label: "Categories (which ads to show)" },
-        { value: "limits", label: "Rate limits (ads per hour / day)" },
         { value: "quiet", label: "Quiet hours" },
         { value: "night", label: "Night mode toggle" },
-        { value: "warmup", label: "Session warmup duration" },
         { value: "save", label: "Save & exit" },
         { value: "cancel", label: "Exit without saving" },
       ],
@@ -393,20 +219,11 @@ async function runInteractive(): Promise<void> {
     if (choice === "save") break
 
     switch (choice) {
-      case "categories":
-        working = await editCategories(working)
-        break
-      case "limits":
-        working = await editRateLimits(working)
-        break
       case "quiet":
         working = await editQuietHours(working)
         break
       case "night":
         working = await editNightMode(working)
-        break
-      case "warmup":
-        working = await editWarmup(working)
         break
     }
     note(JSON.stringify(prefsSummary(working), null, 2), "updated (unsaved)")
@@ -416,9 +233,6 @@ async function runInteractive(): Promise<void> {
   working = { ...working, tzOffsetMinutes: -new Date().getTimezoneOffset() }
 
   await persist(working)
-  if (categoriesChanged(cfg.preferences, working)) {
-    await syncCategoriesToBackend(working)
-  }
   await notifyDaemon()
 
   if (hoursChanged(cfg.preferences, working)) {

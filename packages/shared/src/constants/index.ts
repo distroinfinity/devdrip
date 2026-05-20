@@ -15,13 +15,10 @@ export const MAX_AD_DURATION_MS = 8_000
 export const MIN_IDLE_PREDICTION_MS = 10_000
 export const MIN_IDLE_DURATION_MS = 8_000
 export const RE_ENGAGEMENT_COOLDOWN_MS = 15_000
-export const SESSION_WARMUP_MS = 0
 
 // ── frequency caps ─────────────────────────────────────────────────────────
 
 export const MAX_ADS_PER_HOUR_PER_SURFACE = 9_999
-export const MAX_ADS_PER_HOUR_TOTAL = 9_999
-export const MAX_ADS_PER_DAY = 99_999
 
 // ── late-night reduction ───────────────────────────────────────────────────
 
@@ -52,10 +49,6 @@ export const PROGRESS_TICK_MS = 500
 export const PROGRESS_CAP = 0.9
 export const PROGRESS_SNAP_HOLD_MS = 120
 
-// ── earnings toast ────────────────────────────────────────────────────────
-export const VALID_IMPRESSION_FOR_TOAST_MS = 3_000
-export const TOAST_HOLD_MS = 2_000
-
 // ── night-mode preset ─────────────────────────────────────────────────────
 export const NIGHT_MODE_DEFAULT_START_HOUR = 22
 export const NIGHT_MODE_DEFAULT_END_HOUR = 7
@@ -65,10 +58,6 @@ export const IDLE_SENSITIVITY_MS = 10_000
 // ── default DevdripPreferences for fresh v2→v3 migration / --reset ─────────
 export function defaultPreferences(): DevdripPreferences {
   return {
-    blockedCategories: [],
-    maxPerHour: MAX_ADS_PER_HOUR_TOTAL,
-    maxPerDay: MAX_ADS_PER_DAY,
-    sessionWarmupMs: SESSION_WARMUP_MS,
     quietHoursStart: null,
     quietHoursEnd: null,
     nightMode: false,
