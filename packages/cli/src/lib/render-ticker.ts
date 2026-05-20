@@ -1,81 +1,159 @@
 import type { TickerPayload } from "@distrotv/shared"
-import { sparkline } from "./sparkline.js"
+import { detectColor, color, type ColorMode } from "./ansi.js"
+import { renderChip } from "./brand-colors.js"
+import { directionFor, renderChart } from "./sparkline.js"
 
-interface RenderOpts {
+const DEFAULT_WIDTH = 80
+const MIN_WIDTH = 40
+const MAX_WIDTH = 120
+const ANSI_ESCAPE_RE = /(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g
+
+function visibleLen(s: string): number {
+  return [...s.replace(ANSI_ESCAPE_RE, "")].length
+}
+
+function clampWidth(w: number | undefined): number {
+  const v = w ?? DEFAULT_WIDTH
+  if (!Number.isFinite(v)) return DEFAULT_WIDTH
+  if (v < MIN_WIDTH) return MIN_WIDTH
+  if (v > MAX_WIDTH) return MAX_WIDTH
+  return v
+}
+
+function pctFormat(n: number): string {
+  const sign = n >= 0 ? "+" : ""
+  return `${sign}${n.toFixed(2)}%`
+}
+
+function pctShort(n: number): string {
+  const sign = n >= 0 ? "+" : ""
+  return `${sign}${n.toFixed(1)}%`
+}
+
+function nowClock(): string {
+  const d = new Date()
+  const hh = String(d.getHours()).padStart(2, "0")
+  const mm = String(d.getMinutes()).padStart(2, "0")
+  return `${hh}:${mm}`
+}
+
+function marketsFooter(innerWidth: number, isAlert: boolean): string {
+  const full = isAlert
+    ? "[O] open · [A] ack · [T] tune · [S] skip"
+    : "[C] chart · [W] watch · [S] skip · [K] kill"
+  const short = isAlert ? "[O] · [A] · [T] · [S]" : "[C] · [W] · [S] · [K]"
+  return innerWidth >= full.length ? full : short
+}
+
+export interface TickerRenderOpts {
   width?: number
+  color?: ColorMode
+  flash?: { text: string; token: "positive" | "negative" | "muted" | "warning" }
+  // kept for caller compat with the daemon until later tasks update display.ts.
   source?: string
   progress?: number
   elapsedMs?: number
 }
 
-interface BoxChars {
-  tl: string
-  tr: string
-  bl: string
-  br: string
-  h: string
-  v: string
-}
+export function renderTickerBox(payload: TickerPayload, opts: TickerRenderOpts = {}): string {
+  const width = clampWidth(opts.width)
+  const mode: ColorMode = opts.color ?? detectColor()
 
-const UNICODE_BOX: BoxChars = { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║" }
-const ASCII_BOX: BoxChars = { tl: "+", tr: "+", bl: "+", br: "+", h: "-", v: "|" }
+  // tier selection per spec §10.
+  const showChart = width >= 60
+  const showStats = width >= 80
 
-const ASCII_FALLBACK = !process.stdout.isTTY
-
-const ANSI_RED = "\x1b[31m"
-const ANSI_BOLD = "\x1b[1m"
-const ANSI_RESET = "\x1b[0m"
-
-function padLine(s: string, w: number): string {
-  if (s.length > w) return s.slice(0, w)
-  return s + " ".repeat(w - s.length)
-}
-
-function pct(n: number): string {
-  const sign = n >= 0 ? "+" : ""
-  return `${sign}${n.toFixed(1)}%`
-}
-
-export function renderTickerBox(payload: TickerPayload, opts: RenderOpts = {}): string {
-  const width = Math.max(40, Math.min(opts.width ?? 80, 120))
-  const c = ASCII_FALLBACK ? ASCII_BOX : UNICODE_BOX
-  const inner = width - 2
   const isAlert = payload.alert != null
-  const arrow = payload.changePct >= 0 ? "▲" : "▼"
-  const sign = payload.changePct >= 0 ? "+" : ""
+  const changeToken = payload.changePct >= 0 ? "positive" : "negative"
 
-  // header: "═ ● DISTRO TV · 📈 AAPL ═══════════════════════ EQUITY ═"
-  const symbolBadge = isAlert ? `🔔 ${payload.symbol} ALERT` : `📈 ${payload.symbol}`
-  const headerLeft = ` ● DISTRO TV · ${symbolBadge} `
-  const headerRight = ` ${payload.assetClass.toUpperCase()} `
-  const fillLen = Math.max(2, inner - headerLeft.length - headerRight.length - 2)
-  const headerMid = c.h.repeat(fillLen)
-  const header = `${c.tl}${c.h}${headerLeft}${headerMid}${headerRight}${c.h}${c.tr}`
+  // ── header ──────────────────────────────────────────────
+  const headerLeftWords = isAlert
+    ? `${color("warning", "▍", mode)} ${color("warning", "alert", mode)} ${color("muted", "·", mode)} ${color("warning", "markets", mode)}`
+    : `${color("indigo", "▍", mode)} ${color("indigo", "markets", mode)} ${color("muted", "·", mode)} ${color("muted", "live", mode)}`
+  const headerLeftPlain = isAlert ? `▍ alert · markets` : `▍ markets · live`
 
-  const priceLine = `  ${payload.symbol}  $${payload.price.toFixed(2)}  ${arrow} ${sign}${payload.changePct.toFixed(2)}%`
-  const sparkWidth = Math.max(8, inner - priceLine.length - 5)
-  const spark = sparkline(payload.sparkline, sparkWidth)
-  const priceFull = padLine(`${priceLine}   ${spark} 1m`, inner)
+  const clock = nowClock()
+  const rightPlain = opts.flash ? opts.flash.text + "   " + clock : clock
+  const right = opts.flash
+    ? `${color(opts.flash.token, opts.flash.text, mode)}   ${color("muted", clock, mode)}`
+    : color("muted", clock, mode)
 
-  const stats = padLine(
-    `  1d ${pct(payload.stats.d1Pct)}  1w ${pct(payload.stats.w1Pct)}  1m ${pct(payload.stats.m1Pct)}  52w ${payload.stats.w52Lo.toFixed(0)}-${payload.stats.w52Hi.toFixed(0)}`,
-    inner
-  )
+  const headerPad = Math.max(1, width - headerLeftPlain.length - rightPlain.length)
+  const header = headerLeftWords + " ".repeat(headerPad) + right
 
-  const footer = padLine(`  [O]pen  [C]hart  [N]ext  [W]atchlist  [S]kip  [K]ill  [M]ute`, inner)
+  // ── rules ───────────────────────────────────────────────
+  const rule = color("rule", "─".repeat(width), mode)
 
-  const blank = padLine("", inner)
-  const lines = [
-    header,
-    `${c.v}${blank}${c.v}`,
-    `${c.v}${priceFull}${c.v}`,
-    `${c.v}${stats}${c.v}`,
-    `${c.v}${blank}${c.v}`,
-    `${c.v}${footer}${c.v}`,
-    `${c.bl}${c.h.repeat(inner)}${c.br}`,
-  ]
-  if (isAlert && !ASCII_FALLBACK) {
-    return lines.map((l) => `${ANSI_RED}${ANSI_BOLD}${l}${ANSI_RESET}`).join("\n")
+  // ── price line ──────────────────────────────────────────
+  //   [TSLA]  Tesla Inc                $404.11   −1.43%
+  const chip = renderChip(payload.symbol, mode)
+  const chipPlain = ` ${payload.symbol} `
+  const name = payload.name ?? payload.symbol
+  const price = `$${payload.price.toFixed(2)}`
+  const change = pctFormat(payload.changePct)
+  const changeDisplay = change.startsWith("+") ? change : change.replace("-", "−") // unicode minus sign reads cleaner in the slot
+
+  const leftSegPlain = `  ${chipPlain}  ${name}`
+  const rightSegPlain = `${price}   ${changeDisplay}`
+  const priceGap = Math.max(2, width - leftSegPlain.length - rightSegPlain.length - 2)
+  const priceLine =
+    `  ${chip}  ${color("fg", name, mode)}` +
+    " ".repeat(priceGap) +
+    `${color("fg", price, mode)}   ${color(changeToken, changeDisplay, mode)}`
+
+  // ── chart line ──────────────────────────────────────────
+  let chartLine = ""
+  if (showChart) {
+    const chartW = Math.max(8, Math.min(32, width - 8))
+    const dir = directionFor(payload.sparkline)
+    const chart = renderChart(payload.sparkline, { width: chartW, direction: dir, mode })
+    chartLine = `  ${chart}  ${color("muted", "1D", mode)}`
   }
-  return lines.join("\n")
+
+  // ── stats row ───────────────────────────────────────────
+  let statsLine = ""
+  if (showStats && !isAlert) {
+    const dPct = pctFormat(payload.stats.d1Pct)
+    const wPct = pctShort(payload.stats.w1Pct)
+    const mPct = pctShort(payload.stats.m1Pct)
+    const range52 = `${Math.round(payload.stats.w52Lo)} — ${Math.round(payload.stats.w52Hi)}`
+    const dTok = payload.stats.d1Pct >= 0 ? "positive" : "negative"
+    const wTok = payload.stats.w1Pct >= 0 ? "positive" : "negative"
+    const mTok = payload.stats.m1Pct >= 0 ? "positive" : "negative"
+    statsLine =
+      `  ${color("muted", "day", mode)} ${color(dTok, dPct.replace("-", "−"), mode)}` +
+      `   ${color("muted", "wk", mode)} ${color(wTok, wPct.replace("-", "−"), mode)}` +
+      `   ${color("muted", "mo", mode)} ${color(mTok, mPct.replace("-", "−"), mode)}` +
+      `   ${color("muted", "52w", mode)} ${color("muted", range52, mode)}`
+  }
+
+  // ── alert body ──────────────────────────────────────────
+  // PendingAlert has no free-text message field; compose one from thresholdPct.
+  let alertLine = ""
+  if (isAlert && payload.alert) {
+    const sign = payload.alert.thresholdPct >= 0 ? "+" : ""
+    const msg = `threshold ${sign}${payload.alert.thresholdPct.toFixed(1)}% hit`
+    alertLine = `  ${color("warning", "▲ " + msg, mode)}`
+  }
+
+  // ── footer ──────────────────────────────────────────────
+  const footerInner = width - 4
+  const footerLine = "  " + color("muted", marketsFooter(footerInner, isAlert), mode)
+
+  // ── assembly ────────────────────────────────────────────
+  const blocks: string[] = [header, rule, "", priceLine, ""]
+  if (showChart) blocks.push(chartLine, "")
+  if (isAlert && alertLine) blocks.push(alertLine, "")
+  else if (showStats && statsLine) blocks.push(statsLine, "")
+  blocks.push(rule, footerLine)
+
+  // pad each line to `width` for clean scroll-region anchoring (no trailing
+  // background color bleed from previous frames).
+  return blocks.map((l) => padVisible(l, width)).join("\n")
+}
+
+function padVisible(s: string, w: number): string {
+  const len = visibleLen(s)
+  if (len >= w) return s
+  return s + " ".repeat(w - len)
 }
