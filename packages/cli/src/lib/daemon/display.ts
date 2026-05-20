@@ -1,5 +1,6 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
+import { VANISH_WIPE_PER_ROW_MS } from "@distrotv/shared"
 import { renderNewsBox, type NewsRenderOpts } from "../render-box.js"
 import { renderTickerBox } from "../render-ticker.js"
 import type { CachedSlot } from "../slot-cache.js"
@@ -150,6 +151,33 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     }
   }
 
+  // Vanish wipe motion per spec §11. Clears the slot pane row-by-row from
+  // bottom to top, ~20ms per row, total <200ms (the hard rule).
+  function wipeSlot(rowCount: number): void {
+    if (closed) return
+    const rowsToWipe = Math.max(1, rowCount)
+    let i = 0
+    const tick = (): void => {
+      if (closed || i >= rowsToWipe) {
+        emitResetSequence()
+        return
+      }
+      // Overwrite row from the bottom up by clearing the bottom of the pane
+      // line-by-line. Each iteration shrinks the scroll region by one row.
+      const clearedBottom = scrollBottom + rowsToWipe - i
+      try {
+        writeWithRetry(fd, `\x1b7\x1b[${clearedBottom};1H\x1b[2K\x1b8`)
+      } catch {
+        /* tty gone; abort wipe */
+        closed = true
+        return
+      }
+      i++
+      setTimeout(tick, VANISH_WIPE_PER_ROW_MS)
+    }
+    tick()
+  }
+
   // poll terminal dimensions. if they change, reset the scroll region
   // immediately (to prevent Claude's subsequent output from clipping) and
   // notify subscribers so the orchestrator can dismiss and re-anchor.
@@ -203,17 +231,36 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     vanish(): { latencyMs: number } {
       const t0 = Date.now()
       if (closed) return { latencyMs: 0 }
-      closed = true
       if (resizeTimer) clearInterval(resizeTimer)
-      if (!resizeFired) {
-        // normal vanish path — clean up scroll region + ad pane.
-        emitResetSequence()
+      // On resize-triggered teardown we skip the wipe and use the existing
+      // emitResetSequence path — the slot is already considered invalid.
+      if (resizeFired) {
+        closed = true
+        try {
+          fs.closeSync(fd)
+        } catch {
+          /* ignore */
+        }
+        return { latencyMs: Date.now() - t0 }
       }
-      try {
-        fs.closeSync(fd)
-      } catch {
-        /* ignore */
-      }
+      // Wipe rows bottom-to-top before closing the fd. The fd close happens
+      // immediately after scheduling the wipe (so latency is measured against
+      // the *start* of the wipe), and the wipe itself completes asynchronously
+      // within ~180ms.
+      const rowCount = lastRenderedText ? lastRenderedText.split("\n").length : 0
+      wipeSlot(rowCount)
+      closed = true
+      // Defer fd close until the wipe finishes — otherwise EBADF on the writes.
+      setTimeout(
+        () => {
+          try {
+            fs.closeSync(fd)
+          } catch {
+            /* ignore */
+          }
+        },
+        rowCount * VANISH_WIPE_PER_ROW_MS + 20
+      )
       return { latencyMs: Date.now() - t0 }
     },
     onResize(cb: () => void): void {
