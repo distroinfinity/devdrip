@@ -139,6 +139,7 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
   }
 
   let closed = false
+  let wipeInProgress = false
   let resizeFired = false
   const resizeSubs: Array<() => void> = []
 
@@ -230,7 +231,7 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
   return {
     vanish(): { latencyMs: number } {
       const t0 = Date.now()
-      if (closed) return { latencyMs: 0 }
+      if (closed || wipeInProgress) return { latencyMs: 0 }
       if (resizeTimer) clearInterval(resizeTimer)
       // On resize-triggered teardown we skip the wipe and use the existing
       // emitResetSequence path — the slot is already considered invalid.
@@ -243,16 +244,17 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
         }
         return { latencyMs: Date.now() - t0 }
       }
-      // Wipe rows bottom-to-top before closing the fd. The fd close happens
-      // immediately after scheduling the wipe (so latency is measured against
-      // the *start* of the wipe), and the wipe itself completes asynchronously
-      // within ~180ms.
+      // Wipe rows bottom-to-top before closing the fd. `wipeInProgress` blocks a
+      // second vanish() call from re-entering during the animation; `closed` is
+      // set only AFTER the wipe completes (otherwise the wipe's recursive ticks
+      // would hit the `if (closed)` guard and abort the animation after row 1).
       const rowCount = lastRenderedText ? lastRenderedText.split("\n").length : 0
+      wipeInProgress = true
       wipeSlot(rowCount)
-      closed = true
-      // Defer fd close until the wipe finishes — otherwise EBADF on the writes.
       setTimeout(
         () => {
+          closed = true
+          wipeInProgress = false
           try {
             fs.closeSync(fd)
           } catch {
