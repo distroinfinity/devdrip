@@ -1,6 +1,6 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
-import { VANISH_WIPE_PER_ROW_MS } from "@distrotv/shared"
+import { SAVE_FLASH_FADE_MS, SAVE_FLASH_HOLD_MS, VANISH_WIPE_PER_ROW_MS } from "@distrotv/shared"
 import { renderNewsBox, type NewsRenderOpts } from "../render-box.js"
 import { renderTickerBox } from "../render-ticker.js"
 import type { CachedSlot } from "../slot-cache.js"
@@ -53,6 +53,8 @@ export interface DisplayHandle {
   flash(): void
   // redraw the box with a new progress value. cheap re-render — reuses the scroll region anchor.
   updateProgress(progress: number, elapsedMs: number): void
+  // save/skip/kill confirmation flash per spec §11.
+  flashHeader(text: string, token: "positive" | "negative" | "muted" | "warning"): void
 }
 
 export function writeWithRetry(fd: number, data: string): void {
@@ -179,6 +181,53 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     tick()
   }
 
+  // Save / skip / kill confirmation flash per spec §11. Triggers a 1.2s
+  // banner ("✓ saved", "↪ skipped", "✕ killed") in the header strip area.
+  // Implementation: re-render the entire pane with the renderer's `flash` opt,
+  // hold for SAVE_FLASH_HOLD_MS, then re-render without the flash. The
+  // renderer handles colour + placement.
+  function flashHeader(text: string, token: "positive" | "negative" | "muted" | "warning"): void {
+    if (closed || wipeInProgress || resizeFired) return
+    const flashed = renderWithFlash({ flash: { text, token } })
+    if (flashed) {
+      lastRenderedText = flashed
+      writePane(flashed, "")
+    }
+    // After hold, re-render without flash. The fade-in / fade-out from the
+    // spec is approximated by token cycling; here we collapse to a single
+    // hold step because most terminals can't render true opacity.
+    setTimeout(
+      () => {
+        if (closed || wipeInProgress || resizeFired) return
+        const restored = renderWithFlash({})
+        if (restored) {
+          lastRenderedText = restored
+          writePane(restored, "")
+        }
+      },
+      SAVE_FLASH_FADE_MS + SAVE_FLASH_HOLD_MS + SAVE_FLASH_FADE_MS
+    )
+  }
+
+  function renderWithFlash(flashOpts: {
+    flash?: { text: string; token: "positive" | "negative" | "muted" | "warning" }
+  }): string | null {
+    try {
+      if (slot.kind === "ticker") {
+        return renderTickerBox(slot, {
+          width: ctx.width ?? initialCols,
+          ...flashOpts,
+        })
+      }
+      return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], {
+        ...baseNewsOpts,
+        ...flashOpts,
+      })
+    } catch {
+      return null
+    }
+  }
+
   // poll terminal dimensions. if they change, reset the scroll region
   // immediately (to prevent Claude's subsequent output from clipping) and
   // notify subscribers so the orchestrator can dismiss and re-anchor.
@@ -279,6 +328,9 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
       const text = renderTick(progress, elapsedMs)
       lastRenderedText = text
       writePane(text, "")
+    },
+    flashHeader(text, token) {
+      flashHeader(text, token)
     },
   }
 }
