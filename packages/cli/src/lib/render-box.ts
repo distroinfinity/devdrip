@@ -1,125 +1,14 @@
 import type { NewsPayload } from "@distrotv/shared"
-import { detectColor, dim, green, type ColorMode } from "./ansi.js"
+import { detectColor, color, type ColorMode } from "./ansi.js"
+import { chipLabelFor, renderChip } from "./brand-colors.js"
 
-const DEFAULT_WIDTH = 72
+const DEFAULT_WIDTH = 80
 const MIN_WIDTH = 40
 const MAX_WIDTH = 120
 
-// ticker verbs cycle on the progress line while Claude is working. the swap
-// cadence is ~4s so the motion reads as deliberate rather than busy. intended
-// to blend with Claude Code's own "verb + ellipsis" idle feel without copying
-// specific words. ASCII fallback always uses "working" (no unicode ellipsis).
-const VERBS = ["working", "thinking", "shipping", "cooking"] as const
-const VERB_SWAP_MS = 4_000
-
-interface Chars {
-  tl: string
-  tr: string
-  bl: string
-  br: string
-  h: string
-  v: string
-}
-
-const UNI: Chars = { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║" }
-const ASCII: Chars = { tl: "+", tr: "+", bl: "+", br: "+", h: "-", v: "|" }
-const ANSI_ESCAPE_RE = /\u001b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g
-
-export function shouldUseAscii(): boolean {
-  if (process.env["NO_COLOR"]) return true
-  if (!process.stdout.isTTY) return true
-  return false
-}
-
-function progressBar(progress: number, cells: number, ascii: boolean, color: ColorMode): string {
-  const clamped = progress < 0 ? 0 : progress > 1 ? 1 : progress
-  // filled count is cells-1 so there's always room for the head cell; when
-  // progress crosses into the last cell we render a full track with no head.
-  const filledBody = Math.floor(clamped * (cells - 1))
-  const atEnd = filledBody >= cells - 1
-  // thin-track unicode reads as "polished CLI" (Vercel/Railway style) inside
-  // the existing heavy double border. ascii fallback stays equals-signs.
-  const fillCh = ascii ? "=" : "━"
-  const headCh = ascii ? ">" : "╸"
-  const emptyCh = ascii ? "-" : "─"
-  const filledStr = fillCh.repeat(atEnd ? cells : filledBody)
-  const head = atEnd ? "" : headCh
-  const rest = emptyCh.repeat(Math.max(0, cells - filledBody - 1))
-  // accent only the filled portion so the "done so far" reads at a glance.
-  // leave the track dim gray (or default) so it doesn't scream.
-  return `${green(filledStr, color)}${green(head, color)}${dim(rest, color)}`
-}
-
-// 4-slot verb rotation keyed off elapsed ms. deterministic so repeated renders
-// for the same progress tick pick the same verb (no flicker when `updateProgress`
-// is called back-to-back within the same 4s window).
-function pickVerb(elapsedMs: number, ascii: boolean): string {
-  if (ascii) return "working"
-  const idx = Math.floor(elapsedMs / VERB_SWAP_MS) % VERBS.length
-  return VERBS[idx] ?? VERBS[0]
-}
-
-// two-phase "alive" indicator in the header. flips every 500ms to match the
-// orchestrator's progress tick cadence, so every re-render visibly moves it.
-// ● (solid) → ○ (hollow) → back. in color mode the solid pulses bright green
-// and the hollow is dim gray, so it reads as a soft breathing dot. ascii
-// fallback uses * / o to stay font-safe.
-function liveDot(
-  elapsedMs: number,
-  ascii: boolean,
-  color: ColorMode
-): { plain: string; rendered: string } {
-  const phase = Math.floor(elapsedMs / 500) % 2
-  if (ascii) {
-    const ch = phase === 0 ? "*" : "o"
-    return { plain: ch, rendered: ch }
-  }
-  const ch = phase === 0 ? "●" : "○"
-  if (color === "none") return { plain: ch, rendered: ch }
-  return {
-    plain: ch,
-    rendered: phase === 0 ? green(ch, color) : dim(ch, color),
-  }
-}
-
-function progressLine(
-  progress: number,
-  elapsedMs: number,
-  inner: number,
-  ascii: boolean,
-  color: ColorMode
-): string {
-  const verb = pickVerb(elapsedMs, ascii)
-  const pct = `${Math.min(100, Math.round(progress * 100))}%`
-  // reserve space for verb, two spaces around bar, pct. cells = whatever is
-  // left, clamped 8..30 so narrow terminals don't get ugly. narrower than the
-  // old 40% heuristic — the bar is now visually lighter so it doesn't need
-  // the width to feel substantial.
-  const fixedCost = verb.length + 1 + 1 + pct.length + 1
-  const raw = inner - fixedCost
-  const cells = Math.max(8, Math.min(30, raw))
-  const bar = progressBar(progress, cells, ascii, color)
-  return `${dim(verb, color)} ${bar} ${dim(pct, color)}`
-}
-
-function visibleLen(s: string): number {
-  // exclude ANSI SGR escapes from width calc so the right-hand box border
-  // aligns even when the line contains color codes (progress bar).
-  return [...s.replace(ANSI_ESCAPE_RE, "")].length
-}
-
-function padRight(s: string, n: number): string {
-  const len = visibleLen(s)
-  if (len >= n) return s
-  return s + " ".repeat(n - len)
-}
-
-function line(c: Chars, text: string, inner: number): string {
-  return `${c.v} ${padRight(text, inner)} ${c.v}`
-}
+const ANSI_ESCAPE_RE = /(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g
 
 function sanitize(text: string): string {
-  // Strip terminal control sequences and remaining control bytes from ad copy.
   return text.replace(ANSI_ESCAPE_RE, "").replace(/[\x00-\x1F\x7F]/g, "")
 }
 
@@ -131,94 +20,143 @@ function clampWidth(w: number | undefined): number {
   return v
 }
 
-export interface NewsRenderOpts {
-  source?: string
-  width?: number
-  ascii?: boolean
-  color?: ColorMode
-  progress?: number // 0..1
-  elapsedMs?: number
-  // earnings popup intentionally omitted — news doesn't earn.
-  // demoBadge intentionally omitted — news has no demo path in mvp.
+function formatAgeLong(ageSeconds: number): string {
+  if (ageSeconds < 60) return "just now"
+  if (ageSeconds < 3600) return `${Math.round(ageSeconds / 60)}m ago`
+  if (ageSeconds < 86400) return `${Math.round(ageSeconds / 3600)}h ago`
+  return `${Math.round(ageSeconds / 86400)}d ago`
 }
 
-function newsActionFooter(inner: number): string {
-  // d = open story  ·  b = save  ·  s = skip  ·  k = kill  ·  m = mute
-  const full = "[D] open   [B] save   [S] skip   [K] kill   [M] mute"
-  const short = "[D]pen  [B]ave  [S]kip  [K]ill  [M]ute"
-  const tiny = "[D] [B] [S] [K] [M]"
-  if (inner >= 55) return full
-  if (inner >= 34) return short
-  return tiny
-}
-
-function formatAge(ageSeconds: number): string {
+function formatAgeShort(ageSeconds: number): string {
   if (ageSeconds < 60) return "<1m"
   if (ageSeconds < 3600) return `${Math.round(ageSeconds / 60)}m`
   if (ageSeconds < 86400) return `${Math.round(ageSeconds / 3600)}h`
   return `${Math.round(ageSeconds / 86400)}d`
 }
 
+// Word-wrap a string into at most `maxLines` lines of width `w`. If the text
+// doesn't fit, the last line is truncated with a single trailing ellipsis.
+function wrapHeadline(text: string, w: number, maxLines: number): string[] {
+  const clean = sanitize(text)
+  const words = clean.split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let current = ""
+  let consumed = 0
+
+  for (const word of words) {
+    if (current.length === 0) {
+      current = word
+      consumed++
+      continue
+    }
+    if (current.length + 1 + word.length <= w) {
+      current += " " + word
+      consumed++
+    } else {
+      lines.push(current)
+      if (lines.length >= maxLines) {
+        current = ""
+        break
+      }
+      current = word
+      consumed++
+    }
+  }
+  if (current.length > 0 && lines.length < maxLines) lines.push(current)
+
+  // If we ran out of lines before consuming all words, ellipsize the last line.
+  if (consumed < words.length && lines.length > 0) {
+    const last = lines[lines.length - 1] as string
+    const trimmed = last.length >= w ? last.slice(0, w - 1) : last
+    lines[lines.length - 1] = trimmed + "…"
+  }
+  return lines
+}
+
+function newsFooter(innerWidth: number): string {
+  const full = "[D] open · [B] save · [S] skip · [K] kill"
+  const short = "[D] · [B] · [S] · [K]"
+  return innerWidth >= full.length ? full : short
+}
+
+export interface NewsRenderOpts {
+  width?: number
+  color?: ColorMode
+  // When set, overrides the right-aligned header text with a flash message
+  // (e.g., "✓ saved"). Used by the daemon's flashHeader motion.
+  flash?: { text: string; token: "positive" | "negative" | "muted" | "warning" }
+  // Legacy fields ignored by the new renderer; kept for caller compat with
+  // daemon/display.ts until that file is updated in later tasks.
+  source?: string
+  progress?: number
+  elapsedMs?: number
+  ascii?: boolean
+}
+
 export function renderNewsBox(
-  payload: Pick<
-    NewsPayload,
-    "headline" | "url" | "source" | "score" | "ageSeconds" | "commentsUrl"
-  >,
+  payload: Pick<NewsPayload, "headline" | "url" | "source" | "score" | "ageSeconds">,
   opts: NewsRenderOpts = {}
 ): string {
   const width = clampWidth(opts.width)
-  const inner = width - 4
-  const ascii = opts.ascii ?? false
-  const c = ascii ? ASCII : UNI
-  const color: ColorMode = ascii ? "none" : (opts.color ?? detectColor())
+  const mode: ColorMode = opts.color ?? detectColor()
 
-  const title = "DISTRO TV"
-  const sourceSegment = opts.source ? `via ${opts.source}` : ""
+  // Tier selection per spec §10.
+  const showLive = width >= 60
+  const showSourceName = width >= 80
+  const showScore = width >= 60
+  const useShortAge = width < 60
 
-  const dot = liveDot(opts.elapsedMs ?? 0, ascii, color)
-  const tagPlain = ascii ? "NEWS" : "📰 NEWS"
-  const tagRendered = ascii ? "NEWS" : "📰 NEWS"
+  // ── header ──────────────────────────────────────────────
+  // ▍ news · live                                     2h ago
+  const ageText = useShortAge
+    ? formatAgeShort(payload.ageSeconds)
+    : formatAgeLong(payload.ageSeconds)
+  const liveSuffix = showLive ? ` ${color("muted", "·", mode)} ${color("muted", "live", mode)}` : ""
+  const leftPlain = showLive ? `▍ news · live` : `▍ news`
+  const left = `${color("indigo", "▍", mode)} ${color("indigo", "news", mode)}${liveSuffix}`
 
-  const leftSegmentsPlain = [title, tagPlain].filter(Boolean)
-  const leftSegmentsRendered = [title, tagRendered].filter(Boolean)
-  const leftLabelPlain = ` ${dot.plain} ${leftSegmentsPlain.join(" · ")} `
-  const leftLabelRendered = ` ${dot.rendered} ${leftSegmentsRendered.join(" · ")} `
+  const rightPlain = opts.flash ? opts.flash.text + "   " + ageText : ageText
+  const right = opts.flash
+    ? `${color(opts.flash.token, opts.flash.text, mode)}   ${color("muted", ageText, mode)}`
+    : color("muted", ageText, mode)
 
-  const headerInnerLen = width - 2
-  const rightLabelRaw = sourceSegment ? ` ${sourceSegment} ` : ""
-  const tentativeFill = headerInnerLen - leftLabelPlain.length - rightLabelRaw.length
-  const rightLabel = tentativeFill >= 4 ? rightLabelRaw : ""
-  const fillLen = headerInnerLen - leftLabelPlain.length - rightLabel.length
-  const left = c.h + leftLabelRendered
-  const right = rightLabel + c.h
-  const middle = c.h.repeat(Math.max(0, fillLen - 2))
-  const header = `${c.tl}${left}${middle}${right}${c.tr}`
+  const headerPad = Math.max(1, width - leftPlain.length - rightPlain.length)
+  const header = left + " ".repeat(headerPad) + right
 
-  const sourceLabel = ascii ? payload.source : `📰 ${payload.source}`
-  const scoreSeg = payload.score != null ? `${payload.score} pts · ` : ""
-  const meta = `${sourceLabel} · ${scoreSeg}${formatAge(payload.ageSeconds)}`
-  const headline = sanitize(payload.headline)
-  const url = sanitize(payload.url)
+  // ── rules ───────────────────────────────────────────────
+  const rule = color("rule", "─".repeat(width), mode)
 
-  const footerLine = newsActionFooter(inner)
+  // ── meta row ────────────────────────────────────────────
+  //   [HN]  Hacker News  ·  ↑ 418
+  const chipLabel = chipLabelFor(payload.source)
+  const chipRendered = renderChip(chipLabel, mode)
 
-  const body = [
-    line(c, "", inner),
-    line(c, sanitize(meta), inner),
-    line(c, headline, inner),
-    line(c, "", inner),
-    line(c, footerLine, inner),
-    ...(opts.progress !== undefined
-      ? [
-          line(c, "", inner),
-          line(c, progressLine(opts.progress, opts.elapsedMs ?? 0, inner, ascii, color), inner),
-        ]
-      : []),
-  ]
+  const scorePart = payload.score != null ? `↑ ${payload.score}` : ""
+  let metaTail = ""
+  let metaTailRendered = ""
 
-  const footer = `${c.bl}${c.h.repeat(width - 2)}${c.br}`
-  // url is intentionally not appended — news box stays inside the anchored pane.
-  // opening the story uses [D] which routes to openUrl in the orchestrator.
-  void url
-  return [header, ...body, footer].join("\n")
+  if (showSourceName) {
+    metaTail += `  ${payload.source}`
+    metaTailRendered += `  ${color("muted", payload.source, mode)}`
+    if (scorePart && showScore) {
+      metaTail += `  ·  ${scorePart}`
+      metaTailRendered += `  ${color("muted", "·", mode)}  ${color("muted", scorePart, mode)}`
+    }
+  } else if (scorePart && showScore) {
+    metaTail += `  ${scorePart}`
+    metaTailRendered += `  ${color("muted", scorePart, mode)}`
+  }
+  void metaTail // plain version retained for future width-budget logic; suppress unused warning
+  const metaLine = `  ${chipRendered}${metaTailRendered}`
+
+  // ── headline ────────────────────────────────────────────
+  const headlineW = width - 4 // 2-space indent left + small right safety
+  const headlineLines = wrapHeadline(payload.headline, headlineW, 2)
+  const headlineRendered = headlineLines.map((l) => "  " + color("fg", l, mode))
+
+  // ── footer ──────────────────────────────────────────────
+  const footerInner = width - 4
+  const footerLine = "  " + color("muted", newsFooter(footerInner), mode)
+
+  return [header, rule, "", metaLine, "", ...headlineRendered, "", rule, footerLine].join("\n")
 }
