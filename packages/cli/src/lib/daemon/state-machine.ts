@@ -30,6 +30,7 @@ export type Event =
   | { kind: "kill-key"; now: number; tty?: string | null }
   | { kind: "mute-key"; now: number; tty?: string | null }
   | { kind: "discover-key"; now: number; tty?: string | null }
+  | { kind: "chart-key"; now: number; tty?: string | null }
   | { kind: "inter-ad-elapsed"; ad: CachedSlot | null; now: number; tty?: string | null }
   | { kind: "session-start"; now: number; tty?: string | null }
   | { kind: "save-key"; now: number; tty?: string | null }
@@ -138,7 +139,7 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
     }
   }
   if (event.kind === "save-key") return { state, effects: [] }
-  // vanish-elapsed, skip-key, discover-key, inter-ad-elapsed
+  // vanish-elapsed, skip-key, discover-key, chart-key, inter-ad-elapsed
   // are stale in GRACE — orchestrator logs and drops
   return { state, effects: [] }
 }
@@ -184,6 +185,16 @@ function stepShowing(
   if (event.kind === "discover-key") {
     // discover opens the advertiser URL in the browser AND keeps rotation
     // going so the user doesn't lose the ad stream while Claude is still busy.
+    const base = endShowing(state, event.now, ctx, "completed", /*goToInterAd*/ true)
+    const deliveryToken = ""
+    return {
+      state: base.state,
+      effects: [{ kind: "openDiscover", ad: state.ad, deliveryToken }, ...base.effects],
+    }
+  }
+  if (event.kind === "chart-key") {
+    // [C] opens the TradingView chart only for ticker slots; news slots are a no-op.
+    if (state.ad.kind !== "ticker") return { state, effects: [] }
     const base = endShowing(state, event.now, ctx, "completed", /*goToInterAd*/ true)
     const deliveryToken = ""
     return {
@@ -244,7 +255,7 @@ function stepInterAd(state: Extract<State, { kind: "INTER_AD" }>, event: Event):
       ],
     }
   }
-  // skip-key / discover-key / vanish-elapsed / save-key — stale in INTER_AD, ignore
+  // skip-key / discover-key / chart-key / vanish-elapsed / save-key — stale in INTER_AD, ignore
   return { state, effects: [] }
 }
 

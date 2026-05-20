@@ -128,6 +128,8 @@ function toStateEvent(w: StateWireEvent): Event {
           return { kind: "mute-key", now, tty: w.tty }
         case "dismiss":
           return { kind: "dismiss", now, tty: w.tty }
+        case "chart":
+          return { kind: "chart-key", now, tty: w.tty }
       }
   }
 }

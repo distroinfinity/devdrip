@@ -16,7 +16,7 @@ export type SessionStartEvent = { type: "session-start"; tty?: string | null }
 // User-initiated actions dispatched from CLI subcommands (`distro skip`,
 // etc.). Separate from the raw-mode key path in `input.ts` so users can
 // reliably interact even when their keystrokes lose the tty race with Claude.
-export type ActionKind = "discover" | "skip" | "kill-session" | "mute" | "dismiss"
+export type ActionKind = "discover" | "skip" | "kill-session" | "mute" | "dismiss" | "chart"
 export type ActionEvent = { type: "action"; action: ActionKind; tty?: string | null }
 
 // Events carried by the hook socket. `kill` and `reload-config` are admin
@@ -30,7 +30,14 @@ export type WireEvent =
   | SessionStartEvent
   | ActionEvent
 
-const VALID_ACTIONS: readonly ActionKind[] = ["discover", "skip", "kill-session", "mute", "dismiss"]
+const VALID_ACTIONS: readonly ActionKind[] = [
+  "discover",
+  "skip",
+  "kill-session",
+  "mute",
+  "dismiss",
+  "chart",
+]
 
 function readOptionalTty(o: Record<string, unknown>): string | null | undefined {
   if (!("tty" in o)) return undefined

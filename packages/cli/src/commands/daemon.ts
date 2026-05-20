@@ -237,6 +237,9 @@ export async function runDaemon(): Promise<number> {
         case "save":
           orchestrator.dispatch({ kind: "save-key", now, tty })
           return
+        case "chart":
+          orchestrator.dispatch({ kind: "chart-key", now, tty })
+          return
       }
     },
     log,
