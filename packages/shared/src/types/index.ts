@@ -51,7 +51,7 @@ export interface LocalPreferences {
   muteUntil: number | null
 }
 
-export type DevdripPreferences = SyncedPreferences & LocalPreferences
+export type DistroPreferences = SyncedPreferences & LocalPreferences
 
 export interface Device {
   id: string

@@ -8,7 +8,7 @@ import {
   PROGRESS_CAP,
   PROGRESS_SNAP_HOLD_MS,
   PROGRESS_TICK_MS,
-  type DevdripPreferences,
+  type DistroPreferences,
   type SlotKind,
 } from "@distrotv/shared"
 import type { SlotCache, CachedSlot } from "../slot-cache.js"
@@ -49,8 +49,8 @@ export interface OrchestratorDeps {
   openUrl: OpenUrl
   log: LoggerApi
   deviceId: string
-  preferences: DevdripPreferences
-  writePreferences?: (next: DevdripPreferences) => Promise<void>
+  preferences: DistroPreferences
+  writePreferences?: (next: DistroPreferences) => Promise<void>
   now?: () => number
 }
 
@@ -59,7 +59,7 @@ export interface Orchestrator {
   currentState(): State
   adsShown(): number
   hooksReceived(): number
-  updatePreferences(next: DevdripPreferences): void
+  updatePreferences(next: DistroPreferences): void
   shutdown(): Promise<void>
 }
 
@@ -79,7 +79,7 @@ function isInQuietWindow(hour: number, start: number, end: number): boolean {
   return hour >= start || hour < end
 }
 
-function resolveQuietWindow(prefs: DevdripPreferences): { start: number; end: number } | null {
+function resolveQuietWindow(prefs: DistroPreferences): { start: number; end: number } | null {
   if (prefs.quietHoursStart !== null && prefs.quietHoursEnd !== null) {
     return { start: prefs.quietHoursStart, end: prefs.quietHoursEnd }
   }
@@ -150,7 +150,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   const KEY_FLASH_DELAY_MS = 150
 
   // ── globals (per user, shared across all tty sessions) ────────────────
-  let preferences: DevdripPreferences = deps.preferences
+  let preferences: DistroPreferences = deps.preferences
   let adsShownCount = 0
   let hooksReceivedCount = 0
 
@@ -596,7 +596,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     return slot
   }
 
-  function updatePreferences(next: DevdripPreferences): void {
+  function updatePreferences(next: DistroPreferences): void {
     preferences = next
     deps.log.info("preferences reloaded", {
       quietHoursStart: next.quietHoursStart,

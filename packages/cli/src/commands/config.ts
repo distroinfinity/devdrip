@@ -1,6 +1,6 @@
 import { Command } from "commander"
 import { cancel, confirm, intro, isCancel, log, note, outro, select, text } from "@clack/prompts"
-import { defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
+import { defaultDistroPreferences, type DistroPreferences } from "@distrotv/shared"
 import { daemonSocketPath } from "@distrotv/shared/daemon-socket"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { sendHookEvent } from "../lib/daemon/hook-client.js"
@@ -38,7 +38,7 @@ function parseNullableHour(raw: string, field: string): number | null {
   return parseBoundedInt(raw, { min: 0, max: 23, field })
 }
 
-function applySetOne(prefs: DevdripPreferences, key: string, raw: string): DevdripPreferences {
+function applySetOne(prefs: DistroPreferences, key: string, raw: string): DistroPreferences {
   if (!isEditableKey(key)) {
     throw new Error(`unknown key "${key}" — valid: ${EDITABLE_KEYS.join(", ")}`)
   }
@@ -60,11 +60,11 @@ function splitSetPair(pair: string): { key: string; value: string } {
   return { key: pair.slice(0, idx), value: pair.slice(idx + 1) }
 }
 
-function hoursChanged(a: DevdripPreferences, b: DevdripPreferences): boolean {
+function hoursChanged(a: DistroPreferences, b: DistroPreferences): boolean {
   return a.quietHoursStart !== b.quietHoursStart || a.quietHoursEnd !== b.quietHoursEnd
 }
 
-function prefsSummary(p: DevdripPreferences): Record<string, unknown> {
+function prefsSummary(p: DistroPreferences): Record<string, unknown> {
   return {
     quietHoursStart: p.quietHoursStart,
     quietHoursEnd: p.quietHoursEnd,
@@ -79,7 +79,7 @@ async function notifyDaemon(): Promise<void> {
   await sendHookEvent({ type: "reload-config" }, daemonSocketPath())
 }
 
-async function persist(next: DevdripPreferences): Promise<void> {
+async function persist(next: DistroPreferences): Promise<void> {
   const cfg = await readConfig()
   if (!cfg) {
     throw new NotAuthenticatedError("not initialized — run `distro init` first")
@@ -129,7 +129,7 @@ async function runSet(pairs: string[]): Promise<void> {
 async function runReset(): Promise<void> {
   const cfg = await readConfig()
   if (!cfg) throw new NotAuthenticatedError("not initialized — run `distro init` first")
-  const next = defaultDevdripPreferences()
+  const next = defaultDistroPreferences()
   await persist(next)
   await notifyDaemon()
   log.success("preferences reset to defaults")
@@ -171,7 +171,7 @@ async function askBool(prompt: string, initial: boolean): Promise<boolean> {
   return v as boolean
 }
 
-async function editQuietHours(prefs: DevdripPreferences): Promise<DevdripPreferences> {
+async function editQuietHours(prefs: DistroPreferences): Promise<DistroPreferences> {
   const start = await askNullableHour(
     "Quiet hours start (hour of day)",
     prefs.quietHoursStart,
@@ -185,7 +185,7 @@ async function editQuietHours(prefs: DevdripPreferences): Promise<DevdripPrefere
   return { ...prefs, quietHoursStart: start, quietHoursEnd: end }
 }
 
-async function editNightMode(prefs: DevdripPreferences): Promise<DevdripPreferences> {
+async function editNightMode(prefs: DistroPreferences): Promise<DistroPreferences> {
   const on = await askBool(
     "Enable night mode? (suppresses ads 22:00–07:00 when no quiet hours are set)",
     prefs.nightMode

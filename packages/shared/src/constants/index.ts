@@ -1,4 +1,4 @@
-import type { DevdripPreferences } from "../types/index.js"
+import type { DistroPreferences } from "../types/index.js"
 import { ChannelMode } from "../types/index.js"
 
 // ── timing ──────────────────────────────────────────────────────────────────
@@ -55,8 +55,8 @@ export const NIGHT_MODE_DEFAULT_END_HOUR = 7
 
 export const IDLE_SENSITIVITY_MS = 10_000
 
-// ── default DevdripPreferences for fresh v2→v3 migration / --reset ─────────
-export function defaultPreferences(): DevdripPreferences {
+// ── default DistroPreferences for fresh v2→v3 migration / --reset ──────────
+export function defaultPreferences(): DistroPreferences {
   return {
     quietHoursStart: null,
     quietHoursEnd: null,
@@ -71,5 +71,4 @@ export function defaultPreferences(): DevdripPreferences {
   }
 }
 
-// alias for legacy callers; safe to remove in M3
-export const defaultDevdripPreferences = defaultPreferences
+export const defaultDistroPreferences = defaultPreferences
