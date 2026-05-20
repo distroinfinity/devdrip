@@ -1,6 +1,7 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
 import {
+  BAR_PULSE_INTERVAL_MS,
   REVEAL_STAGGER_MS,
   SAVE_FLASH_FADE_MS,
   SAVE_FLASH_HOLD_MS,
@@ -272,6 +273,7 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
         const currentCols = ws.columns ?? initialCols
         if (currentRows !== initialRows || currentCols !== initialCols) {
           resizeFired = true
+          if (pulseTimer) clearInterval(pulseTimer)
           if (flashTimer) {
             clearTimeout(flashTimer)
             flashTimer = null
@@ -315,11 +317,40 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     writePane(lastRenderedText, colorPrefix)
   }
 
+  // Bar pulse per spec §11. Cycles the first character of the header line
+  // (`▍`) between full indigo and muted indigo every BAR_PULSE_INTERVAL_MS.
+  // The rest of the header stays cached in lastRenderedText; we only re-emit
+  // row 1 of the pane so the cost is one short ANSI write per frame.
+  const totalFrames = Math.round(2200 / BAR_PULSE_INTERVAL_MS) // 20 frames over 2.2s
+  let pulsePhase = 0
+  let pulseTimer: NodeJS.Timeout | null = null
+  if (!closed && !resizeFired) {
+    pulseTimer = setInterval(() => {
+      if (closed || wipeInProgress || resizeFired) return
+      pulsePhase = (pulsePhase + 1) % totalFrames
+      // Triangle wave from 0 (full indigo) → half → 0 (full indigo).
+      const t = pulsePhase / totalFrames
+      const halfwave = t < 0.5 ? t * 2 : (1 - t) * 2 // 0 → 1 → 0
+      const useDim = halfwave > 0.55
+      const barEscape = useDim
+        ? "\x1b[38;2;80;84;168m" // indigoDim
+        : "\x1b[38;2;129;140;248m" // indigo
+      const row = scrollBottom + 1 // first row of the pane
+      try {
+        writeWithRetry(fd, `\x1b7\x1b[${row};1H${barEscape}▍\x1b[0m\x1b8`)
+      } catch {
+        /* tty gone; clear ourselves */
+        if (pulseTimer) clearInterval(pulseTimer)
+      }
+    }, BAR_PULSE_INTERVAL_MS)
+  }
+
   return {
     vanish(): { latencyMs: number } {
       const t0 = Date.now()
       if (closed || wipeInProgress) return { latencyMs: 0 }
       if (resizeTimer) clearInterval(resizeTimer)
+      if (pulseTimer) clearInterval(pulseTimer)
       if (flashTimer) {
         clearTimeout(flashTimer)
         flashTimer = null
