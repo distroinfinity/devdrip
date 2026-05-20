@@ -37,14 +37,10 @@ export async function syncPreferencesOnce(log: SyncLogger): Promise<PrefsSyncOut
   if (serverUpdatedAt > localUpdatedAt) {
     const next = {
       ...cfg.preferences,
-      blockedCategories: server.blockedCategories,
-      maxPerHour: server.maxPerHour,
-      maxPerDay: server.maxPerDay,
       quietHoursStart: server.quietHoursStart,
       quietHoursEnd: server.quietHoursEnd,
       tzOffsetMinutes: server.tzOffsetMinutes,
       idleSensitivityMs: server.idleSensitivityMs,
-      sessionWarmupMs: server.sessionWarmupMs,
       nightMode: server.nightMode,
       channelMode: server.channelMode,
       newsTopics: server.newsTopics ?? [],
@@ -59,14 +55,10 @@ export async function syncPreferencesOnce(log: SyncLogger): Promise<PrefsSyncOut
   if (localUpdatedAt > serverUpdatedAt) {
     try {
       const updated = await putPreferences({
-        blockedCategories: cfg.preferences.blockedCategories,
-        maxPerHour: cfg.preferences.maxPerHour,
-        maxPerDay: cfg.preferences.maxPerDay,
         quietHoursStart: cfg.preferences.quietHoursStart,
         quietHoursEnd: cfg.preferences.quietHoursEnd,
         tzOffsetMinutes: cfg.preferences.tzOffsetMinutes,
         idleSensitivityMs: cfg.preferences.idleSensitivityMs,
-        sessionWarmupMs: cfg.preferences.sessionWarmupMs,
         nightMode: cfg.preferences.nightMode,
         channelMode: cfg.preferences.channelMode,
       })

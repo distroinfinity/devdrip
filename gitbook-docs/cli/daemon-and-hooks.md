@@ -85,12 +85,14 @@ On exit from SHOWING the state machine emits a `recordImpression` effect carryin
 - Skips the ledger write entirely if `impression.source === "demo"` (matches the rule in [ad-cache.md](./ad-cache.md)).
 - Catches ledger write errors and warns to `daemon.log`.
 
+For news slots, a separate `recordNewsImpression` effect is emitted, writing to `news_impressions_pending` in SQLite.
+
 ## Renderer (S3-01, shipped)
 
 `renderBox()` produces a width-adaptive Unicode box with:
 
 - **Header**: `DISTRO TV` + slot source label on the left. Right segment dropped when width is tight.
-- **Body**: word-wrapped headline + body, sanitized for ANSI escapes and control characters before printing so ad copy can't corrupt the screen.
+- **Body**: word-wrapped headline + body, sanitized for ANSI escapes and control characters before printing so slot copy can't corrupt the screen.
 - **URL**: emitted on its own line, unwrapped, outside the box (terminal emulators autodetect the link).
 - **Action footer**: `[D]iscover [S]kip [K]ill [M]ute` — the bindings honored by the key-capture reader (S3-03).
 - **Progress bar**: filled cells proportional to elapsed display time.
@@ -103,17 +105,17 @@ While SHOWING, the daemon opens the tty in raw mode (`/dev/<ttyN>`) via `tty.Rea
 
 | Key                       | Action   | State machine event                                         |
 | ------------------------- | -------- | ----------------------------------------------------------- |
-| `d` / `D`                 | discover | opens advertiser URL; impression = `completed`; rotates     |
+| `d` / `D`                 | discover | opens slot URL; impression = `completed`; rotates           |
 | `s` / `S`                 | skip     | impression = `skipped` (or `completed` if ≥ 1s); rotates    |
 | `k` / `K`                 | kill     | dismisses + sets `sessionKilled` until next `session-start` |
 | `m` / `M`                 | mute     | dismisses + writes `muteUntil = now + MUTE_DURATION_MS`     |
 | `Enter` / `Space` / `Esc` | dismiss  | impression = `completed` if ≥ 1s, else `skipped`            |
 
-`mute` and `kill` are also honored during the GRACE window (the previous ad's footer was visible up to ~1.5s ago, so a key press here is intentional).
+`mute` and `kill` are also honored during the GRACE window (the previous slot's footer was visible up to ~1.5s ago, so a key press here is intentional).
 
 Multi-byte chunks starting with `0x1b` (ESC) are treated as terminal control sequences (focus-in/out, arrow keys) and dropped — never our keys. A lone `0x1b` is the user pressing Escape.
 
-CLI fallbacks (`distro skip|mute|kill-session|discover`) dispatch the same wire actions for users whose keystrokes lose the tty race with Claude.
+CLI fallbacks (`distro skip|mute|kill-session|discover`) dispatch the same wire actions for users whose keystrokes lose the tty race.
 
 ## Anchor strategy (real-session hardening)
 
@@ -128,17 +130,14 @@ On terminal resize, the daemon proactively dismisses the current ad (the next ro
 
 ## Slot frequency (defaults)
 
-Defaults are permissive; users tune with `distro preferences`:
+Defaults are permissive; users tune quiet hours and night mode via `distro config`:
 
-| Constant                | Value    |
-| ----------------------- | -------- |
-| `MAX_SLOTS_PER_HOUR`    | `9_999`  |
-| `MAX_SLOTS_PER_DAY`     | `99_999` |
-| `MAX_SLOTS_PER_SESSION` | `9_999`  |
-| `SESSION_WARMUP_MS`     | `3_000`  |
-| `INTER_SLOT_GAP_MS`     | `500`    |
+| Constant                | Value   |
+| ----------------------- | ------- |
+| `MAX_SLOTS_PER_SESSION` | `9_999` |
+| `INTER_SLOT_GAP_MS`     | `500`   |
 
-Quiet hours remain available as an opt-in suppression window.
+Quiet hours and night mode remain available as opt-in suppression windows.
 
 ## Known limitations (MVP)
 
@@ -162,42 +161,27 @@ Behavior:
 - **Skip-if-in-flight**: overlapping ticks don't stack; a running cycle blocks the next tick.
 - **Eager first sync**: on daemon boot, one sync runs immediately to drain impressions accumulated while offline.
 - **Exponential backoff on failures**: 5m → 10m → 20m, capped. Resets to normal cadence on any successful cycle. Triggered by top-level network errors or 5xx; per-item errors don't trigger backoff.
-- Batch caps per cycle: 250 impressions + 250 clicks (under the backend 500-item combined cap).
+- Batch caps per cycle: 250 news impressions (under the backend 500-item combined cap).
 
 **Per-item classification:**
 
-| Error code                          | Classification                 | Action                                             |
-| ----------------------------------- | ------------------------------ | -------------------------------------------------- |
-| `invalid_or_expired_delivery_token` | terminal (impression + click)  | tombstone (`synced_at = -1`)                       |
-| `delivery_token_too_old`            | terminal (impression + click)  | tombstone                                          |
-| `delivery_not_owned`                | terminal (impression + click)  | tombstone                                          |
-| `impression_already_recorded`       | terminal (impression)          | tombstone                                          |
-| `click_already_recorded`            | terminal (click)               | tombstone                                          |
-| `campaign_budget_exhausted`         | transient                      | leave for next cycle                               |
-| `rate_limit_exceeded`               | transient                      | leave + backoff                                    |
-| `too_many_items`                    | transient                      | leave + backoff                                    |
-| `internal_error`                    | transient                      | leave + backoff                                    |
-| `impression_not_synced`             | transient → terminal after 24h | leave until click.created_at + 24h, then tombstone |
+| Error code            | Classification | Action          |
+| --------------------- | -------------- | --------------- |
+| `rate_limit_exceeded` | transient      | leave + backoff |
+| `too_many_items`      | transient      | leave + backoff |
+| `internal_error`      | transient      | leave + backoff |
 
-**`distro sync --force`:** standalone CLI path. Opens its own ledger handle and api-client, runs one cycle, prints `synced N impressions, M clicks (K errors)`. Does not go through the daemon socket — works even if the daemon is down. Exits non-zero only on catastrophic failure.
-
-## Key capture and click recording
-
-When the user presses `D` (discover), `orchestrator.ts` `openDiscover` writes a click to the local ledger before opening the advertiser URL:
-
-```ts
-deps.ledger.recordClick({ id: uuid(), deliveryToken: imp.deliveryToken, createdAt: now() })
-```
-
-The click is queued alongside its parent impression and synced in the next cycle.
+**`distro sync --force`:** standalone CLI path. Opens its own ledger handle and api-client, runs one cycle, prints `synced N news impressions (K errors)`. Does not go through the daemon socket — works even if the daemon is down. Exits non-zero only on catastrophic failure.
 
 ## Slot-agnostic delivery
 
-The daemon's cache holds `CachedSlot[]` (discriminated union of ad + news, see [Slot Content](../architecture/slot-content.md)). The orchestrator's `pickNextSlot` returns the next item; render branches on `slot.kind` in `display.ts` with an exhaustiveness check.
+The daemon's cache holds `CachedSlot[]` (discriminated union of news + ticker slots, see [Slot Content](../architecture/slot-content.md)). The orchestrator's `pickNextSlot` returns the next item; render branches on `slot.kind` in `display.ts` with an exhaustiveness check.
 
-Ad-only side effects (campaign cap, hourly/daily fatigue caps, ad ledger writes, click tracking, viewability beacons) are gated on `slot.kind === "ad"`. News slots write to a separate `news_impressions_pending` SQLite table and sync via the same `/ingest` POST.
+News slots write to a separate `news_impressions_pending` SQLite table and sync via the same `/ingest` POST. Ticker slots record no impression.
 
 The save keybind `b` writes to `reading_pending` (local SQLite) and syncs to `/me/reading`.
+
+When the user presses `D` (discover) on a news slot, `orchestrator.ts` sets `openedUrl: true` on the pending news impression before opening the article URL.
 
 ## What's next
 

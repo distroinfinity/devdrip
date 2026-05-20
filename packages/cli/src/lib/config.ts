@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto"
 import { chmod, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { ChannelMode, defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
+import { ChannelMode, defaultDistroPreferences, type DistroPreferences } from "@distrotv/shared"
 
 export const CONFIG_VERSION = 6
 
@@ -20,7 +20,7 @@ export interface DevdripConfig {
   // secret is present for anon-registered devices; cleared post-M2 if we swap to JWT-only
   device: { id: string | null; secret?: string }
   cli: { binPath: string }
-  preferences: DevdripPreferences
+  preferences: DistroPreferences
 }
 
 export function configDir(): string {
@@ -68,7 +68,7 @@ interface RawConfigV3 {
   user: LegacyUser
   device?: { id: string | null }
   cli?: DevdripConfig["cli"]
-  preferences?: Partial<DevdripPreferences>
+  preferences?: Partial<DistroPreferences>
 }
 
 interface RawConfigV4 {
@@ -78,7 +78,7 @@ interface RawConfigV4 {
   user: LegacyUser
   device?: { id: string | null }
   cli?: DevdripConfig["cli"]
-  preferences?: Partial<DevdripPreferences>
+  preferences?: Partial<DistroPreferences>
 }
 
 interface RawConfigV5 {
@@ -88,7 +88,7 @@ interface RawConfigV5 {
   user: { id: string }
   device?: { id: string | null; secret?: string }
   cli?: DevdripConfig["cli"]
-  preferences?: Partial<DevdripPreferences>
+  preferences?: Partial<DistroPreferences>
 }
 
 export class UnsupportedConfigVersionError extends Error {
@@ -100,8 +100,8 @@ export class UnsupportedConfigVersionError extends Error {
   }
 }
 
-function mergePreferences(saved: Partial<DevdripPreferences> | undefined): DevdripPreferences {
-  const defaults = defaultDevdripPreferences()
+function mergePreferences(saved: Partial<DistroPreferences> | undefined): DistroPreferences {
+  const defaults = defaultDistroPreferences()
   if (!saved) return defaults
   return { ...defaults, ...saved }
 }
@@ -113,7 +113,7 @@ function legacyAuthToV5(auth: LegacyAuth): DevdripConfig["auth"] {
 
 // M6: ChannelMode values changed (news|markets|mix → news_only|ticker_only|balanced|…).
 // Explicit forward-mapping so users on v5 configs auto-upgrade on next CLI run.
-function migrateChannelMode(saved: Partial<DevdripPreferences> | undefined): DevdripPreferences {
+function migrateChannelMode(saved: Partial<DistroPreferences> | undefined): DistroPreferences {
   const merged = mergePreferences(saved)
   const legacyMap: Record<string, ChannelMode> = {
     news: ChannelMode.NewsOnly,
@@ -189,7 +189,7 @@ function migrate(parsed: Record<string, unknown>): DevdripConfig {
       user: { id: v2.user.id },
       device: v2.device ?? { id: null },
       cli: v2.cli ?? { binPath: "" },
-      preferences: defaultDevdripPreferences(),
+      preferences: defaultDistroPreferences(),
     }
   }
   if (version === 1) {
@@ -201,7 +201,7 @@ function migrate(parsed: Record<string, unknown>): DevdripConfig {
       user: { id: v1.user.id },
       device: { id: null },
       cli: { binPath: "" },
-      preferences: defaultDevdripPreferences(),
+      preferences: defaultDistroPreferences(),
     }
   }
   throw new UnsupportedConfigVersionError(version)
@@ -220,7 +220,7 @@ export async function readConfig(): Promise<DevdripConfig | null> {
 
 export async function writeConfig(
   cfg: Omit<DevdripConfig, "version" | "preferences"> & {
-    preferences?: DevdripPreferences
+    preferences?: DistroPreferences
   }
 ): Promise<void> {
   const dir = configDir()

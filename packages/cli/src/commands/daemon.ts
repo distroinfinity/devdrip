@@ -270,9 +270,8 @@ export async function runDaemon(): Promise<number> {
     preferences: cfg.preferences,
   })
 
-  function fingerprintPrefs(p: { blockedCategories: string[]; channelMode: string }): string {
+  function fingerprintPrefs(p: { channelMode: string }): string {
     return JSON.stringify({
-      blockedCategories: [...p.blockedCategories].sort(),
       channelMode: p.channelMode,
     })
   }

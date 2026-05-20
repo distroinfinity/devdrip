@@ -18,7 +18,7 @@ interface NavPillProps {
 }
 
 // monochrome nav chips — accent color is reserved for surgical touchpoints
-// (earnings number, chart line, links), not wide fills.
+// (active indicator, channel chips, focus rings, link hover), not wide fills.
 export function NavPill({ href, label, exact, disabled, soonLabel, sidebar }: NavPillProps) {
   const pathname = usePathname()
   const active =

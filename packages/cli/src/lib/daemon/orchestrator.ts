@@ -8,7 +8,7 @@ import {
   PROGRESS_CAP,
   PROGRESS_SNAP_HOLD_MS,
   PROGRESS_TICK_MS,
-  type DevdripPreferences,
+  type DistroPreferences,
   type SlotKind,
 } from "@distrotv/shared"
 import type { SlotCache, CachedSlot } from "../slot-cache.js"
@@ -49,8 +49,8 @@ export interface OrchestratorDeps {
   openUrl: OpenUrl
   log: LoggerApi
   deviceId: string
-  preferences: DevdripPreferences
-  writePreferences?: (next: DevdripPreferences) => Promise<void>
+  preferences: DistroPreferences
+  writePreferences?: (next: DistroPreferences) => Promise<void>
   now?: () => number
 }
 
@@ -59,7 +59,7 @@ export interface Orchestrator {
   currentState(): State
   adsShown(): number
   hooksReceived(): number
-  updatePreferences(next: DevdripPreferences): void
+  updatePreferences(next: DistroPreferences): void
   shutdown(): Promise<void>
 }
 
@@ -72,12 +72,6 @@ function localHour(nowMs: number, tzOffsetMinutes: number): number {
   return shifted.getUTCHours()
 }
 
-function localDayKey(nowMs: number, tzOffsetMinutes: number): string {
-  const offsetMs = tzOffsetMinutes * 60_000
-  const shifted = new Date(nowMs + offsetMs)
-  return `${shifted.getUTCFullYear()}-${shifted.getUTCMonth()}-${shifted.getUTCDate()}`
-}
-
 // Supports a wraparound window (start=22, end=7 → hours 22,23,0..6).
 function isInQuietWindow(hour: number, start: number, end: number): boolean {
   if (start === end) return false
@@ -85,7 +79,7 @@ function isInQuietWindow(hour: number, start: number, end: number): boolean {
   return hour >= start || hour < end
 }
 
-function resolveQuietWindow(prefs: DevdripPreferences): { start: number; end: number } | null {
+function resolveQuietWindow(prefs: DistroPreferences): { start: number; end: number } | null {
   if (prefs.quietHoursStart !== null && prefs.quietHoursEnd !== null) {
     return { start: prefs.quietHoursStart, end: prefs.quietHoursEnd }
   }
@@ -156,13 +150,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   const KEY_FLASH_DELAY_MS = 150
 
   // ── globals (per user, shared across all tty sessions) ────────────────
-  let preferences: DevdripPreferences = deps.preferences
+  let preferences: DistroPreferences = deps.preferences
   let adsShownCount = 0
   let hooksReceivedCount = 0
-  // rate-limit counters are per-user, not per-tty: two terminals must NOT
-  // double the ads a user sees in an hour/day.
-  const hourlyTimestamps: number[] = []
-  const dailyTimestamps: number[] = []
 
   function getOrCreateSession(key: string, tty: string | null): Session {
     let s = sessions.get(key)
@@ -572,36 +562,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     }
   }
 
-  type Reason =
-    | "warmup"
-    | "quiet-hours"
-    | "muted"
-    | "killed"
-    | "session-cap"
-    | "hourly-cap"
-    | "daily-cap"
-
-  function pruneCounters(nowMs: number): void {
-    const hourAgo = nowMs - 3_600_000
-    while (hourlyTimestamps.length > 0) {
-      const head = hourlyTimestamps[0]
-      if (head === undefined || head >= hourAgo) break
-      hourlyTimestamps.shift()
-    }
-    // daily: bucket by local day
-    const today = localDayKey(nowMs, preferences.tzOffsetMinutes)
-    let i = 0
-    while (i < dailyTimestamps.length) {
-      const ts = dailyTimestamps[i]
-      if (ts === undefined) break
-      if (localDayKey(ts, preferences.tzOffsetMinutes) === today) break
-      i++
-    }
-    if (i > 0) dailyTimestamps.splice(0, i)
-  }
+  type Reason = "quiet-hours" | "muted" | "killed" | "session-cap"
 
   function suppressionReason(session: Session, nowMs: number): Reason | null {
-    if (nowMs - session.sessionStartAt < preferences.sessionWarmupMs) return "warmup"
     const window = resolveQuietWindow(preferences)
     if (window) {
       const hour = localHour(nowMs, preferences.tzOffsetMinutes)
@@ -609,10 +572,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     }
     if (preferences.muteUntil && nowMs < preferences.muteUntil) return "muted"
     if (session.sessionKilled) return "killed"
-    pruneCounters(nowMs)
     if (session.adsInCurrentBusyWindow >= MAX_ADS_PER_CONTINUOUS_SESSION) return "session-cap"
-    if (hourlyTimestamps.length >= preferences.maxPerHour) return "hourly-cap"
-    if (dailyTimestamps.length >= preferences.maxPerDay) return "daily-cap"
     return null
   }
 
@@ -636,13 +596,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     return slot
   }
 
-  function updatePreferences(next: DevdripPreferences): void {
+  function updatePreferences(next: DistroPreferences): void {
     preferences = next
     deps.log.info("preferences reloaded", {
-      blockedCategories: next.blockedCategories.length,
-      maxPerHour: next.maxPerHour,
-      maxPerDay: next.maxPerDay,
-      sessionWarmupMs: next.sessionWarmupMs,
       quietHoursStart: next.quietHoursStart,
       quietHoursEnd: next.quietHoursEnd,
       nightMode: next.nightMode,

@@ -1,34 +1,25 @@
-import { AdCategory, ChannelMode, NewsTopic } from "@distrotv/shared"
+import { ChannelMode, NewsTopic } from "@distrotv/shared"
 import { ValidationError } from "../errors/index.js"
 import { requireBody, validateEnumArray, validateEnumValue } from "./common.js"
 
-const AD_CATEGORIES = Object.values(AdCategory) as string[]
 const CHANNEL_MODES = Object.values(ChannelMode) as string[]
 const NEWS_TOPICS = Object.values(NewsTopic) as string[]
 
 export interface UpdatePreferencesInput {
-  blockedCategories?: AdCategory[]
-  maxPerHour?: number
-  maxPerDay?: number
   quietHoursStart?: number | null
   quietHoursEnd?: number | null
   tzOffsetMinutes?: number
   idleSensitivityMs?: number
-  sessionWarmupMs?: number
   nightMode?: boolean
   channelMode?: ChannelMode
   newsTopics?: NewsTopic[]
 }
 
 const ALLOWED_KEYS = new Set<string>([
-  "blockedCategories",
-  "maxPerHour",
-  "maxPerDay",
   "quietHoursStart",
   "quietHoursEnd",
   "tzOffsetMinutes",
   "idleSensitivityMs",
-  "sessionWarmupMs",
   "nightMode",
   "channelMode",
   "newsTopics",
@@ -42,19 +33,6 @@ export function validateUpdatePreferences(body: unknown): UpdatePreferencesInput
   }
 
   const out: UpdatePreferencesInput = {}
-
-  if (b["blockedCategories"] !== undefined) {
-    const arr = validateEnumArray(b["blockedCategories"], AD_CATEGORIES, "blocked_categories")
-    out.blockedCategories = arr as AdCategory[]
-  }
-
-  if (b["maxPerHour"] !== undefined) {
-    out.maxPerHour = parseIntInRange(b["maxPerHour"], 1, 100, "max_per_hour")
-  }
-
-  if (b["maxPerDay"] !== undefined) {
-    out.maxPerDay = parseIntInRange(b["maxPerDay"], 1, 1000, "max_per_day")
-  }
 
   if (b["quietHoursStart"] !== undefined) {
     if (
@@ -114,10 +92,6 @@ export function validateUpdatePreferences(body: unknown): UpdatePreferencesInput
       300_000,
       "idle_sensitivity_ms"
     )
-  }
-
-  if (b["sessionWarmupMs"] !== undefined) {
-    out.sessionWarmupMs = parseIntInRange(b["sessionWarmupMs"], 0, 60_000, "session_warmup_ms")
   }
 
   if (b["nightMode"] !== undefined) {

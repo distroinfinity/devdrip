@@ -85,7 +85,6 @@ export function PreferencesForm({ initial, initialChannels, initialAlerts }: Pre
         quietHoursEnd: quietHours.endMinutes,
         tzOffsetMinutes: prefs.tzOffsetMinutes,
         idleSensitivityMs: prefs.idleSensitivityMs,
-        sessionWarmupMs: prefs.sessionWarmupMs,
         nightMode: prefs.nightMode,
       })
       if (result.ok && result.preferences) {

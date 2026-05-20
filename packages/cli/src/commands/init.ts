@@ -14,7 +14,7 @@ import {
   resolveApiUrl,
 } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
-import { defaultDevdripPreferences } from "@distrotv/shared"
+import { defaultDistroPreferences } from "@distrotv/shared"
 import {
   readSettings,
   writeSettingsAtomic,
@@ -114,7 +114,7 @@ async function ensureDevice(): Promise<{ deviceId: string }> {
       user: { id: userId },
       device: { id: deviceId, secret: deviceSecret },
       cli: { binPath: "" },
-      preferences: defaultDevdripPreferences(),
+      preferences: defaultDistroPreferences(),
     })
     log.success(`device registered (anon): ${hostname()} (${platform()})`)
     return { deviceId }
