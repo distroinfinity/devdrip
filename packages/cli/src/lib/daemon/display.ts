@@ -2,6 +2,7 @@ import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
 import {
   BAR_PULSE_INTERVAL_MS,
+  CHART_SHIFT_MS,
   REVEAL_STAGGER_MS,
   SAVE_FLASH_FADE_MS,
   SAVE_FLASH_HOLD_MS,
@@ -61,6 +62,9 @@ export interface DisplayHandle {
   updateProgress(progress: number, elapsedMs: number): void
   // save/skip/kill confirmation flash per spec §11.
   flashHeader(text: string, token: "positive" | "negative" | "muted" | "warning"): void
+  // Append a fresh datapoint to a ticker slot's sparkline and re-render.
+  // No-op for non-ticker slots.
+  shiftChart(newPoint: number): void
 }
 
 export function writeWithRetry(fd: number, data: string): void {
@@ -263,6 +267,29 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     }
   }
 
+  // Chart shift on data tick per spec §11. Receives a new datapoint, mutates
+  // the cached slot's sparkline buffer (drop first, append last), and
+  // re-renders. The 120ms ease is approximated by sleeping CHART_SHIFT_MS/2
+  // before the redraw — terminals don't natively interpolate, but the brief
+  // hold reads as motion when the user is glancing.
+  function shiftChart(newPoint: number): void {
+    if (closed || wipeInProgress || resizeFired) return
+    if (slot.kind !== "ticker") return
+    // Mutate the buffer in place — the daemon owns the cached slot.
+    slot.sparkline.shift()
+    slot.sparkline.push(newPoint)
+    // Hold half the shift duration to let the eye register motion, then redraw.
+    setTimeout(
+      () => {
+        if (closed || wipeInProgress || resizeFired) return
+        const text = renderTickerBox(slot, { width: ctx.width ?? initialCols })
+        lastRenderedText = text
+        writePane(text, "")
+      },
+      Math.floor(CHART_SHIFT_MS / 2)
+    )
+  }
+
   // poll terminal dimensions. if they change, reset the scroll region
   // immediately (to prevent Claude's subsequent output from clipping) and
   // notify subscribers so the orchestrator can dismiss and re-anchor.
@@ -404,6 +431,9 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     },
     flashHeader(text, token) {
       flashHeader(text, token)
+    },
+    shiftChart(newPoint) {
+      shiftChart(newPoint)
     },
   }
 }
