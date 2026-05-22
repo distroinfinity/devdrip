@@ -34,7 +34,7 @@ Distro TV is an ambient **channel surface** that runs in the developer's termina
 - &lt;200ms slot vanish — hard requirement, measure it, log it
 - hooks always exit 0 — never block Claude Code
 - local ledger is ground truth — backend can be down
-- 3s grace period before showing slots — no slots on fast tool calls
+- no grace period before showing slots — surface as soon as Claude takes over (`GRACE_PERIOD_MS = 0`). Fast tool calls are gated by the slot vanish timer + frequency caps, not by a pre-show delay.
 - **lead with _channels_ as the surface noun, never with "news + markets"** — Distro TV is a channel platform; NEWS and MARKETS are the two launch channels; future verticals slot into the same surface. Marketing, docs, and product copy must reflect this. The two-tangent "news AND market data" framing is what we explicitly pivoted away from in M8.
 - **CLI distribution = `curl -fsSL https://distrotv.xyz/install.sh | sh` + GitHub Releases, never npm publish.** install.sh lives at `frontend/public/install.sh` and pulls the latest tarball from `releases/latest/download/distrotv-cli.tar.gz`. Releases are triggered by pushing a `cli-v*` git tag. See `gitbook-docs/cli/releases.md`.
 
