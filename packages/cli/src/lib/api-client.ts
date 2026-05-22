@@ -239,6 +239,49 @@ export async function requestPairingCode(): Promise<{
   })
 }
 
+export interface PairInitResponse {
+  code: string
+  setupUrl: string
+  expiresInSec: number
+}
+
+export async function pairInit(): Promise<PairInitResponse> {
+  return apiFetchPublic<PairInitResponse>("/devices/pair-init", { method: "POST" })
+}
+
+export interface PairPollUser {
+  id: string
+  githubLogin: string
+  email: string
+  avatarUrl: string
+}
+
+export interface PairPollReady {
+  kind: "ready"
+  deviceToken: string
+  deviceId: string
+  user: PairPollUser
+}
+
+export type PairPollResult = PairPollReady | { kind: "pending" } | { kind: "expired" }
+
+export async function pairPoll(code: string): Promise<PairPollResult> {
+  const url = `/devices/pair-poll?code=${encodeURIComponent(code)}`
+  const apiUrl = resolveApiUrl(null)
+  const resp = await fetch(`${apiUrl}${url}`)
+  if (resp.status === 204) return { kind: "pending" }
+  if (resp.status === 410) return { kind: "expired" }
+  if (!resp.ok) {
+    throw new ApiError(resp.status, "pair_poll_http_error", { status: resp.status })
+  }
+  const body = (await resp.json()) as {
+    deviceToken: string
+    deviceId: string
+    user: PairPollUser
+  }
+  return { kind: "ready", ...body }
+}
+
 export function reportError(err: unknown): never {
   if (err instanceof NotAuthenticatedError) {
     console.error(err.message)
