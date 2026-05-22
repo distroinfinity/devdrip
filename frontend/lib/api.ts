@@ -54,7 +54,6 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 }
 
 // server-component shortcut: on 401 redirect to /sign-in.
-// M2 magic-link will reintroduce token refresh; for M1 device bearer never expires.
 export async function apiFetchOrRefresh<T>(
   path: string,
   _nextPath: string,
