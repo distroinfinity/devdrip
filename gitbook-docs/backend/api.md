@@ -2,12 +2,12 @@
 
 `packages/api` is the current backend runtime.
 
-> **Note on pre-pivot content.** Sections below covering advertisers, campaigns, creatives, ad serving (`/ads/*`, `/ingest` ad impressions), earnings (`/me/earnings/*`), payouts, World Chain endpoints, and the settlement worker are pre-pivot artifacts. The tables and code still exist in the repo (not yet pruned) but are unused at runtime for Distro TV users. The current active surface is: health, magic-link auth, device registration, slot selection (`/me/content/next`), news impressions, reading list, watchlist, alerts, preferences, ticker charts, and the admin dashboard. For active API state, start with the sections below that section.
+> **Note on pre-pivot content.** Sections below covering advertisers, campaigns, creatives, ad serving (`/ads/*`, `/ingest` ad impressions), earnings (`/me/earnings/*`), payouts, World Chain endpoints, and the settlement worker are pre-pivot artifacts. The tables and code still exist in the repo (not yet pruned) but are unused at runtime for Distro TV users. The current active surface is: health, GitHub OAuth auth (`/auth/github/*`, `/devices/pair-*`), slot selection (`/me/content/next`), news impressions, reading list, watchlist, alerts, preferences, ticker charts, and the admin dashboard.
 
 ## App Structure
 
 - framework: Express 5
-- auth: device bearer (`Authorization: Bearer device.<secret>`) or magic-link session JWT
+- auth: device bearer (`Authorization: Bearer device.<secret>`) for CLI, session JWT for the dashboard (set by `/auth/github/callback`). See [architecture/auth.md](../architecture/auth.md).
 - cookies: HTTP-only `distrotv_session` for dashboard sessions
 - CORS: credentials enabled, origins from `ALLOWED_ORIGINS`
 - security headers: Helmet
@@ -74,7 +74,7 @@ Response shape:
 
 ## `GET /auth/github/redirect`
 
-> **Pre-pivot.** GitHub OAuth was the original sign-in method. Replaced by magic-link auth in M2. Routes still exist in code but are not exposed in the Distro TV UI.
+> **Historical.** This endpoint was the S1-era OAuth start route. It was removed in M1, re-introduced (with different shape) in the 2026-05-22 github-oauth cutover where the dashboard owns `/auth/github/start` and `/auth/github/callback`, and the API exposes `/auth/github/complete` (s2s only). Treat this section as archived; see [architecture/auth.md](../architecture/auth.md) for the current flow.
 
 Purpose:
 start GitHub OAuth. Used by the original `devdrip auth` flow.
