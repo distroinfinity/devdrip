@@ -2,7 +2,8 @@ import { Router, type Router as ExpressRouter } from "express"
 import { requireAuth } from "../middleware/auth.js"
 import { requireAdmin } from "../middleware/admin.js"
 import * as sources from "../services/admin/news-sources.service.js"
-import * as tickers from "../services/admin/ticker-symbols.service.js"
+// admin/ticker-symbols routes removed — Yahoo handles symbol lookup directly
+// per spec §12; there's no internal map table to administer.
 import * as usersService from "../services/admin/users.service.js"
 import { getSystemHealth } from "../services/admin/system-health.service.js"
 import { getOverview } from "../services/admin/overview.service.js"
@@ -38,37 +39,6 @@ router.patch("/news-sources/:id", async (req, res, next) => {
 router.delete("/news-sources/:id", async (req, res, next) => {
   try {
     await sources.deleteNewsSource(req.params.id)
-    res.status(204).end()
-  } catch (e) {
-    next(e)
-  }
-})
-
-// ticker symbols
-router.get("/ticker-symbols", async (_req, res, next) => {
-  try {
-    res.json({ symbols: await tickers.listTickerSymbols() })
-  } catch (e) {
-    next(e)
-  }
-})
-router.post("/ticker-symbols", async (req, res, next) => {
-  try {
-    res.json(await tickers.createTickerSymbol(req.body))
-  } catch (e) {
-    next(e)
-  }
-})
-router.patch("/ticker-symbols/:symbol", async (req, res, next) => {
-  try {
-    res.json(await tickers.updateTickerSymbol(req.params.symbol, req.body))
-  } catch (e) {
-    next(e)
-  }
-})
-router.delete("/ticker-symbols/:symbol", async (req, res, next) => {
-  try {
-    await tickers.deleteTickerSymbol(req.params.symbol)
     res.status(204).end()
   } catch (e) {
     next(e)

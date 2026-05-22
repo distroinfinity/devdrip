@@ -23,6 +23,10 @@ export interface TickerPayload {
   layout: SlotLayout
   stale: boolean
   asOf: string
+  // External URL the CLI opens on [C] chart. Backend builds it from
+  // assetClass + symbol → TradingView. Optional for backward compat;
+  // CLI falls back to bare-symbol URL when absent.
+  chartUrl?: string
   // populated when this slot was promoted by an alert fire — daemon renders the glow variant.
   alert?: PendingAlert
 }

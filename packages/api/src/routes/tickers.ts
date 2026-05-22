@@ -3,8 +3,7 @@ import { eq } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import { watchlistTickers } from "../db/schema/watchlist_tickers.js"
 import type { AssetClass } from "@distrotv/shared"
-import { fetchFinnhubCandles } from "../services/ticker-fetchers/finnhub.js"
-import { fetchCoinGeckoCandles } from "../services/ticker-fetchers/coingecko.js"
+import { fetchYahooCandles } from "../lib/yahoo-chart.js"
 
 export const tickersRouter: ReturnType<typeof Router> = Router()
 
@@ -25,8 +24,7 @@ tickersRouter.get("/:symbol/history", async (req, res, next) => {
     }
     const range = rangeRaw as Range
 
-    // determine asset class from any watchlist entry — first match wins.
-    // unknown symbols default to equity (Finnhub).
+    // Asset class from any watchlist entry — defaults to equity for unknowns.
     const db = getDb()
     const [hit] = await db
       .select({ assetClass: watchlistTickers.assetClass })
@@ -35,10 +33,12 @@ tickersRouter.get("/:symbol/history", async (req, res, next) => {
       .limit(1)
     const assetClass: AssetClass = (hit?.assetClass as AssetClass) ?? "equity"
 
-    const candles =
-      assetClass === "crypto"
-        ? await fetchCoinGeckoCandles(symbol, range)
-        : await fetchFinnhubCandles(symbol, range)
+    // Per spec §12, candles are fetched on demand from Yahoo (Redis-cached).
+    const candles = await fetchYahooCandles(symbol, assetClass, range)
+    if (!candles) {
+      res.status(502).json({ error: "upstream_failed" })
+      return
+    }
 
     res.json({
       symbol,
