@@ -2,82 +2,21 @@ import { Router } from "express"
 import { eq } from "drizzle-orm"
 import { getDb } from "../db/index.js"
 import { devices } from "../db/schema/devices.js"
-import { users } from "../db/schema/users.js"
 import { logger } from "../lib/logger.js"
-import { generateReferralCode } from "../lib/referral.js"
-import { generateDeviceSecret, hashSecret } from "../lib/secret-hash.js"
 
-// ── POST /devices/register (public — no auth required) ──────────────────────
-// Creates an anonymous user + device. Returns the raw device secret — lost
-// forever after this response. Caller stores it as Bearer device.<secret>.
+// ── POST /devices/register ──────────────────────────────────────────────────
+// Returns 410 Gone — anon device registration was removed in the github-oauth
+// cutover (2026-05-22). Old `cli-v0.1.x` clients hit this endpoint; surface a
+// clear "upgrade your CLI" message instead of a 500.
 
 export const devicesRegisterRouter: ReturnType<typeof Router> = Router()
 
-devicesRegisterRouter.post("/", async (req, res) => {
-  const { name, ideType, platform } = req.body as {
-    name?: string
-    ideType?: string
-    platform?: string
-    hostname?: string
-  }
-
-  const db = getDb()
-
-  try {
-    // create anonymous user (email/github_id null until M2 magic-link)
-    const referralCode = generateReferralCode()
-    const [user] = await db
-      .insert(users)
-      .values({
-        email: null,
-        githubId: null,
-        githubLogin: null,
-        referralCode,
-      })
-      .returning()
-
-    if (!user) {
-      await res.status(500).json({ error: "internal_error" })
-      return
-    }
-
-    // generate + hash device secret
-    const deviceSecret = generateDeviceSecret()
-    const deviceSecretHash = hashSecret(deviceSecret)
-
-    const [device] = await db
-      .insert(devices)
-      .values({
-        userId: user.id,
-        // anon registration doesn't require machineIdHash — use empty sentinel
-        // so the existing unique index (userId, machineIdHash) stays happy.
-        // M2 CLI pair flow can update this once a real machine hash is known.
-        machineIdHash: deviceSecretHash.slice(0, 64),
-        deviceName: typeof name === "string" && name.length > 0 ? name.slice(0, 255) : null,
-        os: typeof platform === "string" && platform.length > 0 ? platform.slice(0, 50) : "unknown",
-        ideType:
-          ideType === "vscode" || ideType === "cursor" || ideType === "terminal"
-            ? ideType
-            : "terminal",
-        deviceSecretHash,
-        lastHeartbeat: new Date(),
-      })
-      .returning()
-
-    if (!device) {
-      await res.status(500).json({ error: "internal_error" })
-      return
-    }
-
-    await res.status(201).json({
-      userId: user.id,
-      deviceId: device.id,
-      deviceSecret,
-    })
-  } catch (err) {
-    logger.error({ err }, "device register error")
-    await res.status(500).json({ error: "internal_error" })
-  }
+devicesRegisterRouter.post("/", async (_req, res) => {
+  await res.status(410).json({
+    error: "device_register_removed",
+    message:
+      "Anonymous device registration is no longer supported. Upgrade the Distro CLI (curl -fsSL https://distrotv.xyz/install.sh | sh) and run `distro init` to sign in with GitHub.",
+  })
 })
 
 // ── POST /devices (authed — updates/re-registers a device) ──────────────────
