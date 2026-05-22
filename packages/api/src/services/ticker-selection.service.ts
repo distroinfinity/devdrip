@@ -115,13 +115,13 @@ async function buildTickerPayload(
   const snap = await fetchTickerSnapshot(symbol, assetClass)
   if (!snap) return null
 
-  const stats = computeStats(snap.price, snap.prevClose, snap.sparkline)
+  const stats = computeStats(snap)
 
   return {
     kind: "ticker",
     symbol,
     assetClass,
-    name: null,
+    name: snap.displayName,
     price: snap.price,
     changePct: snap.changePct,
     sparkline: snap.sparkline,
@@ -143,20 +143,26 @@ function deviceRotationIndex(deviceId: string, mod: number): number {
   return Math.abs(h + minuteBucket) % mod
 }
 
-function computeStats(price: number, prevClose: number, sparkline: number[]): TickerStats {
-  const safePrev = Math.max(prevClose, 0.01)
-  const d1 = ((price - prevClose) / safePrev) * 100
-  const w1 = pctChange(sparkline, 7)
-  const m1 = pctChange(sparkline, 30)
-  const hi = sparkline.length > 0 ? Math.max(...sparkline, price) : price
-  const lo = sparkline.length > 0 ? Math.min(...sparkline, price) : price
+function computeStats(snap: {
+  price: number
+  prevClose: number
+  changePct: number
+  fiftyTwoWeekHigh: number
+  fiftyTwoWeekLow: number
+  sparkline: number[]
+}): TickerStats {
+  // d1 comes straight from Yahoo (snap.changePct) so the terminal matches
+  // what yahoo.com shows. w1 / m1 are derived from the same 1-month
+  // sparkline Yahoo returned — last 7 trading days for 1w, full window
+  // (~22 trading days) for 1m. 52w hi/lo come from Yahoo's meta, not the
+  // sparkline window, so they reflect the actual year range.
   return {
-    d1Pct: round1(d1),
-    w1Pct: round1(w1),
-    m1Pct: round1(m1),
-    w52Hi: round1(hi),
-    w52Lo: round1(lo),
-    prevClose,
+    d1Pct: round1(snap.changePct),
+    w1Pct: round1(pctChange(snap.sparkline, 7)),
+    m1Pct: round1(pctChange(snap.sparkline, 30)),
+    w52Hi: round1(snap.fiftyTwoWeekHigh),
+    w52Lo: round1(snap.fiftyTwoWeekLow),
+    prevClose: snap.prevClose,
   }
 }
 

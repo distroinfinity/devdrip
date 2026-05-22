@@ -23,6 +23,12 @@ interface YfChartResponse {
         regularMarketPrice?: number
         previousClose?: number
         chartPreviousClose?: number
+        fiftyTwoWeekHigh?: number
+        fiftyTwoWeekLow?: number
+        regularMarketDayHigh?: number
+        regularMarketDayLow?: number
+        longName?: string
+        shortName?: string
       }
       timestamp?: number[]
       indicators?: {
@@ -50,9 +56,23 @@ export interface OhlcvCandle {
 
 export interface TickerSnapshot {
   price: number
+  // Yesterday's close — taken as the penultimate candle in the 1-month
+  // sparkline. Yahoo's chart-endpoint meta does NOT include previousClose
+  // (only chartPreviousClose, which is the close from the start of the
+  // chart window = ~1 month ago — using that would make changePct read
+  // as a 1-month delta, not a daily one).
   prevClose: number
+  // (price - prevClose) / prevClose * 100 — the daily change %, matching
+  // what yahoo.com shows in its quote header.
   changePct: number
-  sparkline: number[] // ~30 daily closes, oldest → newest
+  // Year-range high/low from Yahoo's quote meta. Used for the "52w X — Y"
+  // stats line; never computed locally from the 1mo sparkline.
+  fiftyTwoWeekHigh: number
+  fiftyTwoWeekLow: number
+  // Company / instrument display name (Yahoo's longName, falling back to
+  // shortName). Null when Yahoo doesn't ship one.
+  displayName: string | null
+  sparkline: number[] // ~22 daily closes, oldest → newest
   asOfMs: number
 }
 
@@ -114,20 +134,41 @@ export async function fetchTickerSnapshot(
 
   const meta = result.meta ?? {}
   const price = meta.regularMarketPrice
-  const prevClose = meta.previousClose ?? meta.chartPreviousClose
-  if (typeof price !== "number" || typeof prevClose !== "number") return null
+  if (typeof price !== "number") return null
 
   const closes = result.indicators?.quote?.[0]?.close
   if (!Array.isArray(closes)) return null
   const cleaned = closes.filter((v): v is number => typeof v === "number" && Number.isFinite(v))
   if (cleaned.length < 2) return null
 
+  // Previous close = penultimate candle (yesterday's close). The chart
+  // endpoint's meta.previousClose is undefined for daily intervals; using
+  // chartPreviousClose would be the close from the start of the window
+  // (1 month back). Pulling from the sparkline is the only correct path.
+  const prevClose = cleaned[cleaned.length - 2] as number
   const changePct = ((price - prevClose) / prevClose) * 100
+
+  // 52-week high/low straight from Yahoo's meta. Falls back to the
+  // sparkline window only when Yahoo omits it (rare, newly listed tickers).
+  const fiftyTwoWeekHigh =
+    typeof meta.fiftyTwoWeekHigh === "number" ? meta.fiftyTwoWeekHigh : Math.max(...cleaned, price)
+  const fiftyTwoWeekLow =
+    typeof meta.fiftyTwoWeekLow === "number" ? meta.fiftyTwoWeekLow : Math.min(...cleaned, price)
+
+  const displayName =
+    typeof meta.longName === "string" && meta.longName.length > 0
+      ? meta.longName
+      : typeof meta.shortName === "string" && meta.shortName.length > 0
+        ? meta.shortName
+        : null
 
   const snapshot: TickerSnapshot = {
     price,
     prevClose,
     changePct: Number.isFinite(changePct) ? changePct : 0,
+    fiftyTwoWeekHigh,
+    fiftyTwoWeekLow,
+    displayName,
     sparkline: cleaned,
     asOfMs: Date.now(),
   }
