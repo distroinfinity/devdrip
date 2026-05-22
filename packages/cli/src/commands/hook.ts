@@ -37,6 +37,14 @@ export async function handleSessionStart(socketPath: string = daemonSocketPath()
   }
 }
 
+export async function handleSessionEnd(socketPath: string = daemonSocketPath()): Promise<void> {
+  try {
+    await sendHookEvent({ type: "session-end", tty: resolveTty() }, socketPath)
+  } catch {
+    /* never escapes */
+  }
+}
+
 export const hookCmd = new Command("hook")
   .description("internal hook handlers for Claude Code (always exits 0)")
   .addCommand(
@@ -60,6 +68,12 @@ export const hookCmd = new Command("hook")
   .addCommand(
     new Command("session-start").description("handle SessionStart hook").action(async () => {
       await handleSessionStart()
+      process.exit(0)
+    })
+  )
+  .addCommand(
+    new Command("session-end").description("handle SessionEnd hook").action(async () => {
+      await handleSessionEnd()
       process.exit(0)
     })
   )

@@ -10,6 +10,15 @@ import {
 } from "@distrotv/shared"
 import { renderNewsBox, type NewsRenderOpts } from "../render-box.js"
 import { renderTickerBox } from "../render-ticker.js"
+import type { ColorMode } from "../ansi.js"
+
+// The daemon process's own stdout is the log file (not a TTY), so the
+// renderer's default detectColor() heuristic returns "none" and strips
+// every color from the slot. We render onto the *user's* tty (resolved
+// via the tty path) — which IS a real terminal — so default to truecolor
+// unless NO_COLOR is set in the daemon's env (inherited from the user's
+// shell, so the opt-out signal still gets through).
+const RENDER_COLOR: ColorMode = process.env["NO_COLOR"] ? "none" : "truecolor"
 import type { CachedSlot } from "../slot-cache.js"
 
 const MAX_WRITE_ATTEMPTS = 3
@@ -104,18 +113,24 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
   const baseNewsOpts: NewsRenderOpts = {
     source: ctx.source,
     width: ctx.width,
+    color: RENDER_COLOR,
   }
 
   function renderInitial(): string {
     if (slot.kind === "ticker") {
-      return renderTickerBox(slot, { width: ctx.width ?? initialCols })
+      return renderTickerBox(slot, { width: ctx.width ?? initialCols, color: RENDER_COLOR })
     }
     return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], baseNewsOpts)
   }
 
   function renderTick(progress: number, elapsedMs: number): string {
     if (slot.kind === "ticker") {
-      return renderTickerBox(slot, { width: ctx.width ?? initialCols, progress, elapsedMs })
+      return renderTickerBox(slot, {
+        width: ctx.width ?? initialCols,
+        progress,
+        elapsedMs,
+        color: RENDER_COLOR,
+      })
     }
     return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], {
       ...baseNewsOpts,
@@ -255,6 +270,7 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
       if (slot.kind === "ticker") {
         return renderTickerBox(slot, {
           width: ctx.width ?? initialCols,
+          color: RENDER_COLOR,
           ...flashOpts,
         })
       }
@@ -282,7 +298,7 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     setTimeout(
       () => {
         if (closed || wipeInProgress || resizeFired) return
-        const text = renderTickerBox(slot, { width: ctx.width ?? initialCols })
+        const text = renderTickerBox(slot, { width: ctx.width ?? initialCols, color: RENDER_COLOR })
         lastRenderedText = text
         writePane(text, "")
       },

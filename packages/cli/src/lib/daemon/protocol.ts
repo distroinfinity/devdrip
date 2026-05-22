@@ -12,6 +12,7 @@ export type DismissEvent = { type: "dismiss"; tty?: string | null }
 export type KillEvent = { type: "kill" }
 export type ReloadConfigEvent = { type: "reload-config" }
 export type SessionStartEvent = { type: "session-start"; tty?: string | null }
+export type SessionEndEvent = { type: "session-end"; tty?: string | null }
 
 // User-initiated actions dispatched from CLI subcommands (`distro skip`,
 // etc.). Separate from the raw-mode key path in `input.ts` so users can
@@ -28,6 +29,7 @@ export type WireEvent =
   | KillEvent
   | ReloadConfigEvent
   | SessionStartEvent
+  | SessionEndEvent
   | ActionEvent
 
 const VALID_ACTIONS: readonly ActionKind[] = [
@@ -77,6 +79,10 @@ export function parseWireEvent(line: string): WireEvent | null {
     case "session-start": {
       const tty = readOptionalTty(o)
       return tty === undefined ? { type: "session-start" } : { type: "session-start", tty }
+    }
+    case "session-end": {
+      const tty = readOptionalTty(o)
+      return tty === undefined ? { type: "session-end" } : { type: "session-end", tty }
     }
     case "action": {
       const a = o["action"]

@@ -116,6 +116,8 @@ function toStateEvent(w: StateWireEvent): Event {
       return { kind: "dismiss", now, tty: w.tty }
     case "session-start":
       return { kind: "session-start", now, tty: w.tty }
+    case "session-end":
+      return { kind: "session-end", now, tty: w.tty }
     case "action":
       switch (w.action) {
         case "discover":

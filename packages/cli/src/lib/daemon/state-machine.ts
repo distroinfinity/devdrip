@@ -33,6 +33,7 @@ export type Event =
   | { kind: "chart-key"; now: number; tty?: string | null }
   | { kind: "inter-ad-elapsed"; ad: CachedSlot | null; now: number; tty?: string | null }
   | { kind: "session-start"; now: number; tty?: string | null }
+  | { kind: "session-end"; now: number; tty?: string | null }
   | { kind: "save-key"; now: number; tty?: string | null }
 
 export type Effect =
@@ -93,11 +94,15 @@ function stepIdle(event: Event): StepResult {
   if (event.kind === "session-start") {
     return { state: { kind: "IDLE" }, effects: [{ kind: "clearSessionState" }] }
   }
+  if (event.kind === "session-end") {
+    // session-end while IDLE just clears any per-session bits (kill, counters).
+    return { state: { kind: "IDLE" }, effects: [{ kind: "clearSessionState" }] }
+  }
   return { state: { kind: "IDLE" }, effects: [] }
 }
 
 function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): StepResult {
-  if (event.kind === "session-start") {
+  if (event.kind === "session-start" || event.kind === "session-end") {
     return {
       state: { kind: "IDLE" },
       effects: [{ kind: "cancelGraceTimer" }, { kind: "clearSessionState" }],
@@ -202,7 +207,11 @@ function stepShowing(
       effects: [{ kind: "openDiscover", ad: state.ad, deliveryToken }, ...base.effects],
     }
   }
-  if (event.kind === "session-start") {
+  if (event.kind === "session-start" || event.kind === "session-end") {
+    // Treat session boundary as a forceful end: vanish the active slot,
+    // clear per-session state, do NOT roll into INTER_AD. The user has
+    // either exited Claude or started a fresh session; we shouldn't keep
+    // surfacing slots in either case.
     const base = endShowing(state, event.now, ctx, "interrupted", false)
     return { state: base.state, effects: [...base.effects, { kind: "clearSessionState" }] }
   }
@@ -218,12 +227,13 @@ function stepInterAd(state: Extract<State, { kind: "INTER_AD" }>, event: Event):
     event.kind === "idle-end" ||
     event.kind === "dismiss" ||
     event.kind === "kill-key" ||
-    event.kind === "session-start"
+    event.kind === "session-start" ||
+    event.kind === "session-end"
   ) {
     const extra: Effect[] =
       event.kind === "kill-key"
         ? [{ kind: "setSessionKilled" }]
-        : event.kind === "session-start"
+        : event.kind === "session-start" || event.kind === "session-end"
           ? [{ kind: "clearSessionState" }]
           : []
     return {

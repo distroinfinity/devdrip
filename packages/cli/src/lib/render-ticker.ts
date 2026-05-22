@@ -107,7 +107,9 @@ export function renderTickerBox(payload: TickerPayload, opts: TickerRenderOpts =
     const chartW = Math.max(8, Math.min(32, width - 8))
     const dir = directionFor(payload.sparkline)
     const chart = renderChart(payload.sparkline, { width: chartW, direction: dir, mode })
-    chartLine = `  ${chart}  ${color("muted", "1D", mode)}`
+    // Backend returns ~14 daily candles per slot — relabel as "1W" so the
+    // curve has enough variation to read as a curve, not a flat line.
+    chartLine = `  ${chart}  ${color("muted", "1W", mode)}`
   }
 
   // ── stats row ───────────────────────────────────────────

@@ -25,16 +25,17 @@ export interface Settings {
 
 const DISTRO_BIN_RE = /^(?:distro|dtv)(?:\.js|\.mjs|\.cjs|\.exe)?$/i
 const DISTRO_COMMAND_RE =
-  /^\s*(?:"((?:\\.|[^"])*)"|'([^']*)'|(\S+))\s+hook\s+(pre-tool|stop|prompt-submit|session-start)(?:\s|$)/
+  /^\s*(?:"((?:\\.|[^"])*)"|'([^']*)'|(\S+))\s+hook\s+(pre-tool|stop|prompt-submit|session-start|session-end)(?:\s|$)/
 
-export type HookEvent = "PreToolUse" | "Stop" | "UserPromptSubmit" | "SessionStart"
-type Sub = "pre-tool" | "stop" | "prompt-submit" | "session-start"
+export type HookEvent = "PreToolUse" | "Stop" | "UserPromptSubmit" | "SessionStart" | "SessionEnd"
+type Sub = "pre-tool" | "stop" | "prompt-submit" | "session-start" | "session-end"
 
 const EVENTS: Array<{ event: HookEvent; sub: Sub; matcher?: string }> = [
   { event: "PreToolUse", sub: "pre-tool", matcher: "*" },
   { event: "Stop", sub: "stop" },
   { event: "UserPromptSubmit", sub: "prompt-submit" },
   { event: "SessionStart", sub: "session-start" },
+  { event: "SessionEnd", sub: "session-end" },
 ]
 
 function quoteShellArg(arg: string): string {
