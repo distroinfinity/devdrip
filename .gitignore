@@ -48,3 +48,7 @@ docs/superpowers/plans/
 
 # brainstorming companion
 .superpowers/
+
+# cli release staging — built per-release, never tracked
+.release-staging/
+frontend/public/distrotv-cli.tar.gz

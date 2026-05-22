@@ -37,9 +37,22 @@ jobs:
         run: |
           mkdir -p .release-staging
           cp -R packages/cli/dist .release-staging/
-          cp packages/cli/package.json .release-staging/
           cp packages/cli/LICENSE .release-staging/
           test -f packages/cli/README.md && cp packages/cli/README.md .release-staging/ || true
+          # Build a runtime package.json with only the native deps that can't
+          # be bundled (better-sqlite3 ships per-platform prebuilds). All
+          # pure-JS deps are bundled into dist/ by tsup's noExternal.
+          node -e "
+            const pkg = require('./packages/cli/package.json');
+            const runtime = {
+              name: pkg.name,
+              version: pkg.version,
+              type: pkg.type,
+              bin: pkg.bin,
+              dependencies: { 'better-sqlite3': pkg.dependencies['better-sqlite3'] },
+            };
+            require('fs').writeFileSync('.release-staging/package.json', JSON.stringify(runtime, null, 2));
+          "
 
       - name: pack tarball
         run: tar -czf distrotv-cli.tar.gz -C .release-staging .
