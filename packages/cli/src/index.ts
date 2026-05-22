@@ -1,4 +1,5 @@
-// claim/referral/admin/verify/login/auth removed M1; auth re-added M2 (magic-link); admin lives in dashboard from M7
+// auth lives in `distro init` (github oauth via the pair-code flow);
+// admin lives in dashboard from M7.
 import { realpathSync } from "node:fs"
 import { createRequire } from "node:module"
 import { fileURLToPath } from "node:url"
