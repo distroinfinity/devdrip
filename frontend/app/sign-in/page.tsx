@@ -63,6 +63,18 @@ export default async function SignInPage({ searchParams }: PageProps) {
           </div>
         )}
 
+        {/* GitHub OAuth — Phase 2 of the auth migration */}
+        <form action="/auth/github/start" method="get" className="space-y-3">
+          <input type="hidden" name="next" value={params.next ?? "/dashboard"} />
+          <SharpButton type="submit" variant="primary" className="w-full">
+            Continue with GitHub
+          </SharpButton>
+        </form>
+
+        <div className="text-center font-[var(--font-data)] text-[10px] uppercase tracking-wider text-[var(--ink-tertiary)]">
+          — or sign in with email —
+        </div>
+
         <form
           action={async (formData: FormData) => {
             "use server"
@@ -83,7 +95,7 @@ export default async function SignInPage({ searchParams }: PageProps) {
             required
             className="w-full"
           />
-          <SharpButton type="submit" variant="primary" className="w-full">
+          <SharpButton type="submit" variant="secondary" className="w-full">
             Send sign-in link
           </SharpButton>
         </form>
@@ -116,6 +128,17 @@ function describeError(code: string): string {
       return "Couldn't send the email. Please try again."
     case "network":
       return "Couldn't reach the server. Check your network and try again."
+    case "oauth_user_denied":
+      return "GitHub sign-in was cancelled."
+    case "oauth_csrf_failed":
+    case "oauth_state_expired":
+      return "Sign-in session expired. Please try again."
+    case "no_verified_email":
+      return "GitHub returned no verified primary email. Verify an email on GitHub and retry."
+    case "github_rate_limited":
+      return "GitHub is rate-limiting sign-in. Try again in a minute."
+    case "github_unavailable":
+      return "Couldn't reach GitHub. Try again in a moment."
     default:
       return `Something went wrong (${code}). Try again.`
   }
