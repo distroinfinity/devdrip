@@ -61,21 +61,29 @@ export function renderChart(values: number[], opts: ChartOpts): string {
   if (values.length === 0) return " ".repeat(width)
   if (values.length < 2) return tint(FLAT_GLYPH.repeat(width), direction, mode)
 
+  // Smooth daily noise with a 3-day moving average before resampling. Daily
+  // closes oscillate enough that without smoothing, sequential dots flip
+  // between adjacent y-rows ~every char even when the underlying trend is
+  // stable — making the chart read as scatter instead of a curve. A 3-day
+  // window is small enough to preserve real direction changes, big enough
+  // to absorb single-day noise.
+  const smoothed = smoothSeries(values, 3)
+
   // Resample to 2 * width datapoints (left + right column per char). Linear
   // interpolation, not nearest-neighbor — neighbors in `sampled` then differ
   // by at most `range / sampleCount` in value-space, so adjacent dots end up
-  // ≤1 y-step apart in calm regions. Genuine single-day spikes still jump,
-  // and the bridging glyphs handle those.
+  // ≤1 y-step apart in calm regions. Genuine spikes still jump, and the
+  // bridging glyphs handle those.
   const sampleCount = 2 * width
   const sampled: number[] = []
-  const lastIdx = values.length - 1
+  const lastIdx = smoothed.length - 1
   for (let i = 0; i < sampleCount; i++) {
     const t = (i / Math.max(1, sampleCount - 1)) * lastIdx
     const lo = Math.floor(t)
     const hi = Math.min(lastIdx, lo + 1)
     const frac = t - lo
-    const a = values[lo] as number
-    const b = values[hi] as number
+    const a = smoothed[lo] as number
+    const b = smoothed[hi] as number
     sampled.push(a + (b - a) * frac)
   }
 
@@ -104,6 +112,28 @@ export function renderChart(values: number[], opts: ChartOpts): string {
     out += glyph
   }
   return tint(out, direction, mode)
+}
+
+// Centered moving average. Returns a series the same length as `values`;
+// each output[i] is the mean of values in [i - window/2, i + window/2].
+// Window is clamped against the array bounds at the edges so the smoothed
+// series doesn't drift away from the real endpoints.
+function smoothSeries(values: number[], window: number): number[] {
+  if (values.length <= window || window <= 1) return values
+  const half = Math.floor(window / 2)
+  const out: number[] = []
+  for (let i = 0; i < values.length; i++) {
+    const lo = Math.max(0, i - half)
+    const hi = Math.min(values.length, i + half + 1)
+    let sum = 0
+    let count = 0
+    for (let j = lo; j < hi; j++) {
+      sum += values[j] as number
+      count++
+    }
+    out.push(count > 0 ? sum / count : (values[i] as number))
+  }
+  return out
 }
 
 function tint(s: string, direction: ChartDirection, mode: ColorMode): string {
