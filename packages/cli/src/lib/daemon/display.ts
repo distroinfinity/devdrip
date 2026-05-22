@@ -99,6 +99,8 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
   // hoisted so paintRow (called inside the try block) can read them on first tick.
   let closed = false
   let resizeFired = false
+  let wipeInProgress = false
+  let flashTimer: NodeJS.Timeout | null = null
   const baseNewsOpts: NewsRenderOpts = {
     source: ctx.source,
     width: ctx.width,
@@ -173,8 +175,6 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     throw err
   }
 
-  let wipeInProgress = false
-  let flashTimer: NodeJS.Timeout | null = null
   const resizeSubs: Array<() => void> = []
 
   function emitResetSequence(): void {
