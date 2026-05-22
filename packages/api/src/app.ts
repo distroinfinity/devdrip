@@ -21,7 +21,8 @@ import { meWatchlistsRouter } from "./routes/me-watchlists.js"
 import { meAlertsEventsRouter } from "./routes/me-alerts-events.js"
 import { meAlertsRouter } from "./routes/me-alerts.js"
 import { meActivitySummaryRouter } from "./routes/me-activity-summary.js"
-import { meWatchlistSparklinesRouter } from "./routes/me-watchlist-sparklines.js"
+// removed: /me/watchlist/sparklines — historical price series fetched on
+// demand from Yahoo (spec §12).
 import { meNowPlayingRouter } from "./routes/me-now-playing.js"
 import { meRecentNewsRouter } from "./routes/me-recent-news.js"
 import { ingestRouter } from "./routes/ingest.js"
@@ -113,7 +114,6 @@ app.use("/me/watchlists", requireAuth, userLimiter, meWatchlistsRouter)
 app.use("/me/alerts/events", requireAuth, userLimiter, meAlertsEventsRouter)
 app.use("/me/alerts", requireAuth, userLimiter, meAlertsRouter)
 app.use("/me/activity-summary", requireAuth, userLimiter, meActivitySummaryRouter)
-app.use("/me/watchlist/sparklines", requireAuth, userLimiter, meWatchlistSparklinesRouter)
 app.use("/me/devices/:id/now", requireAuth, userLimiter, meNowPlayingRouter)
 app.use("/me/recent-news", requireAuth, userLimiter, meRecentNewsRouter)
 app.use("/ingest", requireAuth, userLimiter, ingestRouter)

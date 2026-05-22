@@ -101,3 +101,75 @@ export function renderChip(label: string, mode: ColorMode): string {
 export function chipVisibleWidth(label: string): number {
   return label.length + 2
 }
+
+// Display names for tickers + news sources. Falls back to null so callers
+// can decide whether to use the raw symbol/source identifier instead.
+const BRAND_NAMES: Record<string, string> = {
+  // equities
+  TSLA: "Tesla Inc",
+  AAPL: "Apple Inc",
+  NVDA: "NVIDIA Corp",
+  AMZN: "Amazon.com",
+  MSFT: "Microsoft",
+  GOOGL: "Alphabet",
+  GOOG: "Alphabet",
+  META: "Meta Platforms",
+  NFLX: "Netflix",
+  SPOT: "Spotify",
+  UBER: "Uber Technologies",
+  ABNB: "Airbnb",
+  COIN: "Coinbase",
+  HOOD: "Robinhood",
+  PLTR: "Palantir",
+  AMD: "Advanced Micro Devices",
+  INTC: "Intel",
+  CRM: "Salesforce",
+  ORCL: "Oracle",
+  SHOP: "Shopify",
+  DIS: "Walt Disney",
+  WMT: "Walmart",
+  // crypto
+  BTC: "Bitcoin",
+  ETH: "Ethereum",
+  SOL: "Solana",
+  DOGE: "Dogecoin",
+  USDC: "USD Coin",
+  XRP: "Ripple",
+  ADA: "Cardano",
+  AVAX: "Avalanche",
+  MATIC: "Polygon",
+  LINK: "Chainlink",
+  // news sources — full display names
+  HN: "Hacker News",
+  TC: "TechCrunch",
+  BBG: "Bloomberg",
+  RTR: "Reuters",
+  ARS: "Ars Technica",
+  VRG: "The Verge",
+  WIRED: "Wired",
+  WSJ: "Wall Street Journal",
+  NYT: "New York Times",
+  FT: "Financial Times",
+  ECON: "The Economist",
+  // source aliases (full identifier)
+  HACKERNEWS: "Hacker News",
+  TECHCRUNCH: "TechCrunch",
+  BLOOMBERG: "Bloomberg",
+  REUTERS: "Reuters",
+  ARSTECHNICA: "Ars Technica",
+  THEVERGE: "The Verge",
+}
+
+export function getBrandName(key: string): string | null {
+  const upper = key.toUpperCase().replace(/[^A-Z0-9]/g, "")
+  return BRAND_NAMES[upper] ?? null
+}
+
+// Renders a label in just the brand foreground color (no background block).
+// Used for news source names where we want a colored word, not a chip block.
+export function renderBrandLabel(key: string, displayText: string, mode: ColorMode): string {
+  const { bg } = getChipColor(key)
+  // The chip's bg color is the brand's recognizable hue (HN orange, VRG pink,
+  // BBG amber). Use it as the fg color for the inline label.
+  return rgb(displayText, bg[0], bg[1], bg[2], mode)
+}

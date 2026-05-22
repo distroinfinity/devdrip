@@ -10,8 +10,8 @@ export * from "./news_sources.js"
 export * from "./news_items.js"
 export * from "./watchlists.js"
 export * from "./watchlist_tickers.js"
-export * from "./ticker_quotes.js"
-export * from "./ticker_history.js"
+// ticker_quotes + ticker_history schemas removed — market data is fetched on
+// demand from Yahoo and cached in Redis (spec §12, no market-data persistence).
 export * from "./alerts.js"
 export * from "./alert_events.js"
-export * from "./ticker_symbol_map.js"
+// ticker_symbol_map schema removed (no internal symbol↔provider map needed)

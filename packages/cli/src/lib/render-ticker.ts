@@ -1,6 +1,6 @@
 import type { TickerPayload } from "@distrotv/shared"
 import { detectColor, color, type ColorMode } from "./ansi.js"
-import { renderChip } from "./brand-colors.js"
+import { getBrandName, renderChip } from "./brand-colors.js"
 import { directionFor, renderChart } from "./sparkline.js"
 
 const DEFAULT_WIDTH = 80
@@ -88,7 +88,10 @@ export function renderTickerBox(payload: TickerPayload, opts: TickerRenderOpts =
   //   [TSLA]  Tesla Inc                $404.11   −1.43%
   const chip = renderChip(payload.symbol, mode)
   const chipPlain = ` ${payload.symbol} `
-  const name = payload.name ?? payload.symbol
+  // Prefer backend-supplied name; fall back to the CLI's curated map so the
+  // ticker doesn't render twice (chip + symbol) when the backend ships
+  // `name: null`. Last resort: the symbol itself.
+  const name = payload.name ?? getBrandName(payload.symbol) ?? payload.symbol
   const price = `$${payload.price.toFixed(2)}`
   const change = pctFormat(payload.changePct)
   const changeDisplay = change.startsWith("+") ? change : change.replace("-", "−") // unicode minus sign reads cleaner in the slot
@@ -107,9 +110,8 @@ export function renderTickerBox(payload: TickerPayload, opts: TickerRenderOpts =
     const chartW = Math.max(8, Math.min(32, width - 8))
     const dir = directionFor(payload.sparkline)
     const chart = renderChart(payload.sparkline, { width: chartW, direction: dir, mode })
-    // Backend returns ~14 daily candles per slot — relabel as "1W" so the
-    // curve has enough variation to read as a curve, not a flat line.
-    chartLine = `  ${chart}  ${color("muted", "1W", mode)}`
+    // Backend returns ~30 daily candles per slot for a 1-month window.
+    chartLine = `  ${chart}  ${color("muted", "1M", mode)}`
   }
 
   // ── stats row ───────────────────────────────────────────

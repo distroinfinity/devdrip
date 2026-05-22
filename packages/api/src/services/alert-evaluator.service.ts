@@ -5,13 +5,13 @@ import { alerts } from "../db/schema/alerts.js"
 import { alertEvents } from "../db/schema/alert_events.js"
 import { devices } from "../db/schema/devices.js"
 import { preferences } from "../db/schema/preferences.js"
-import { tickerQuotes } from "../db/schema/ticker_quotes.js"
 import { watchlists } from "../db/schema/watchlists.js"
 import { watchlistTickers } from "../db/schema/watchlist_tickers.js"
 import { getRedis } from "../lib/redis.js"
 import { pendingAlertsKey } from "../lib/alert-keys.js"
 import { isInQuietHours } from "../lib/quiet-hours.js"
 import { logger } from "../lib/logger.js"
+import { fetchTickerSnapshot } from "../lib/yahoo-chart.js"
 
 const PENDING_TTL_SEC = 60 * 60 // 60 minutes — same as the debounce window
 
@@ -70,29 +70,45 @@ async function loadCandidates(): Promise<AlertCandidate[]> {
     else if (a.scope === "per_ticker" && a.symbol) cfg.byTicker.set(a.symbol, a.thresholdPct)
   }
 
-  // join watchlist_tickers ↔ watchlists ↔ ticker_quotes to get (user, symbol, change_pct).
-  // skip stale quotes — don't fire on cached/last-known data after a fetch failure.
+  // Per spec §12, we don't persist quotes. Pull (user, symbol, assetClass)
+  // pairs from watchlists, then fetch the current snapshot for each unique
+  // symbol from Yahoo (Redis-cached ~5 min so the evaluation cycle costs at
+  // most ~N upstream calls per 5-min window).
   const rows = await db
     .select({
       userId: watchlists.userId,
       symbol: watchlistTickers.symbol,
-      changePct: tickerQuotes.changePct,
-      stale: tickerQuotes.stale,
+      assetClass: watchlistTickers.assetClass,
     })
     .from(watchlistTickers)
     .innerJoin(watchlists, eq(watchlists.id, watchlistTickers.watchlistId))
-    .innerJoin(tickerQuotes, eq(tickerQuotes.symbol, watchlistTickers.symbol))
+
+  // Resolve each unique symbol once.
+  const uniqueSymbols = new Map<string, "equity" | "crypto">()
+  for (const r of rows) {
+    if (!uniqueSymbols.has(r.symbol)) {
+      uniqueSymbols.set(r.symbol, r.assetClass === "crypto" ? "crypto" : "equity")
+    }
+  }
+  const changeBySymbol = new Map<string, number>()
+  await Promise.allSettled(
+    Array.from(uniqueSymbols.entries()).map(async ([sym, ac]) => {
+      const snap = await fetchTickerSnapshot(sym, ac)
+      if (snap) changeBySymbol.set(sym, snap.changePct)
+    })
+  )
 
   const out: AlertCandidate[] = []
   for (const r of rows) {
-    if (r.stale) continue
+    const changePct = changeBySymbol.get(r.symbol)
+    if (changePct === undefined) continue // upstream failure — skip this cycle
     let cfg = byUser.get(r.userId)
     if (!cfg) cfg = { global: DEFAULT_GLOBAL_THRESHOLD_PCT, byTicker: new Map() }
     const threshold = cfg.byTicker.get(r.symbol) ?? cfg.global
     out.push({
       userId: r.userId,
       symbol: r.symbol,
-      changePct: r.changePct,
+      changePct,
       thresholdPct: threshold,
     })
   }

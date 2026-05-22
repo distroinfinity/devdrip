@@ -1,20 +1,14 @@
-import { eq, and, gte, desc, asc } from "drizzle-orm"
+import { eq, and, asc } from "drizzle-orm"
 import type { TickerPayload, TickerStats, PendingAlert } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { preferences } from "../db/schema/preferences.js"
 import { watchlists } from "../db/schema/watchlists.js"
 import { watchlistTickers } from "../db/schema/watchlist_tickers.js"
-import { tickerQuotes } from "../db/schema/ticker_quotes.js"
-import { tickerHistory } from "../db/schema/ticker_history.js"
 import { ensureDefaultWatchlist } from "./watchlist.service.js"
 import { getRedis } from "../lib/redis.js"
 import { pendingAlertsKey } from "../lib/alert-keys.js"
 import { isInQuietHours } from "../lib/quiet-hours.js"
-
-// guard against the worker silently dying: even if quote.stale=false in the DB,
-// any quote older than this is treated as stale on serve. ticker fetcher runs
-// every 1 min, so 5 min is generous (allows transient provider hiccups).
-const STALE_AFTER_MS = 5 * 60 * 1000
+import { fetchTickerSnapshot } from "../lib/yahoo-chart.js"
 
 export interface NextTickerArgs {
   userId: string
@@ -104,58 +98,38 @@ async function buildTickerPayload(
   alert?: PendingAlert
 ): Promise<TickerPayload | null> {
   const db = getDb()
-  const [quote] = await db
-    .select()
-    .from(tickerQuotes)
-    .where(eq(tickerQuotes.symbol, symbol))
-    .limit(1)
-  if (!quote) return null
 
-  // determine asset_class — preferred from the user's watchlist row; falls back to the quote.
-  // (named wlPick to avoid shadowing the rotation `pick` var in nextTickerForDevice.)
+  // Asset class comes from the user's watchlist row (single source of truth).
+  // Default to equity when there's no row — Yahoo's lookup handles the rest.
   const [wlPick] = await db
     .select({ assetClass: watchlistTickers.assetClass })
     .from(watchlistTickers)
     .innerJoin(watchlists, eq(watchlists.id, watchlistTickers.watchlistId))
     .where(and(eq(watchlists.userId, userId), eq(watchlistTickers.symbol, symbol)))
     .limit(1)
-  const assetClass: "equity" | "crypto" =
-    wlPick?.assetClass === "crypto"
-      ? "crypto"
-      : wlPick?.assetClass === "equity"
-        ? "equity"
-        : quote.assetClass === "crypto"
-          ? "crypto"
-          : "equity"
+  const assetClass: "equity" | "crypto" = wlPick?.assetClass === "crypto" ? "crypto" : "equity"
 
-  const cutoffDate = new Date(Date.now() - 30 * 86400 * 1000).toISOString().slice(0, 10)
-  const candles = await db
-    .select({ close: tickerHistory.close })
-    .from(tickerHistory)
-    .where(and(eq(tickerHistory.symbol, symbol), gte(tickerHistory.date, cutoffDate)))
-    .orderBy(desc(tickerHistory.date))
-    .limit(14)
+  // Per spec §12: we don't persist market data. Quote + sparkline come from
+  // Yahoo on demand (Redis-cached ~5 min). Null on failure so the orchestrator
+  // can move on to the next slot rather than surfacing a broken tile.
+  const snap = await fetchTickerSnapshot(symbol, assetClass)
+  if (!snap) return null
 
-  const sparklinePts =
-    candles.length > 0 ? candles.map((c) => c.close).reverse() : [quote.prevClose, quote.price]
-  const stats = computeStats(quote.price, quote.prevClose, sparklinePts)
-
-  const ageMs = Date.now() - quote.fetchedAt.getTime()
-  const stale = quote.stale || ageMs > STALE_AFTER_MS
+  const stats = computeStats(snap.price, snap.prevClose, snap.sparkline)
 
   return {
     kind: "ticker",
-    symbol: quote.symbol,
+    symbol,
     assetClass,
     name: null,
-    price: quote.price,
-    changePct: quote.changePct,
-    sparkline: sparklinePts,
+    price: snap.price,
+    changePct: snap.changePct,
+    sparkline: snap.sparkline,
     stats,
     layout: "single",
-    stale,
-    asOf: quote.fetchedAt.toISOString(),
-    chartUrl: buildChartUrl(quote.symbol, assetClass),
+    stale: false,
+    asOf: new Date(snap.asOfMs).toISOString(),
+    chartUrl: buildChartUrl(symbol, assetClass),
     ...(alert ? { alert } : {}),
   }
 }
