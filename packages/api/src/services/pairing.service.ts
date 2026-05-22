@@ -56,27 +56,3 @@ export async function consumePairIfReady(
   await getRedis().del(`${PAIR_PREFIX}${code}`)
   return current
 }
-
-// ── DEPRECATED — kept only so magic-link.service.ts and auth-pair.ts compile
-// during Phase 1. Removed in Phase 5 deletion commit. ──────────────────────
-
-export interface PairingExchange {
-  deviceId: string
-  userId: string
-  createdAt: number
-}
-
-export async function createPairingCode(_input: {
-  deviceId: string
-  userId: string
-}): Promise<string> {
-  throw new Error("createPairingCode deprecated — use createPendingPair")
-}
-
-export async function exchangePairingCode(_code: string): Promise<PairingExchange | null> {
-  throw new Error("exchangePairingCode deprecated — use consumePairIfReady")
-}
-
-export async function exchangePairingCodeForDeviceId(_code: string): Promise<string | null> {
-  return null
-}

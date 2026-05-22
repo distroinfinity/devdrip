@@ -9,8 +9,6 @@ import { logger } from "./lib/logger.js"
 import { errorHandler } from "./errors/error-handler.js"
 import { healthRouter } from "./routes/health.js"
 import { authRouter } from "./routes/auth.js"
-import { authMagicLinkRouter } from "./routes/auth-magic-link.js"
-import { devicesPairRouter, authExchangePairRouter } from "./routes/auth-pair.js"
 import { devicesPairInitRouter, devicesPairPollRouter } from "./routes/devices-pair-v2.js"
 import { authGithubCompleteRouter } from "./routes/auth-github.js"
 import { authLogoutRouter } from "./routes/auth-logout.js"
@@ -33,7 +31,7 @@ import { ingestRouter } from "./routes/ingest.js"
 import { adminRouter } from "./routes/admin.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
-import { globalLimiter, userLimiter, authLimiter } from "./middleware/rate-limit.js"
+import { globalLimiter, userLimiter } from "./middleware/rate-limit.js"
 import { getDb } from "./db/index.js"
 import { users } from "./db/schema/users.js"
 
@@ -75,11 +73,8 @@ app.use("/channels", channelsPublicRouter)
 app.use("/tickers", tickersRouter)
 
 app.use("/auth", authRouter)
-app.use("/auth/magic-link", authLimiter, authMagicLinkRouter)
-app.use("/auth/exchange-pair", globalLimiter, authExchangePairRouter)
-// public — anon device registration (no auth required)
+// public — anon device registration retained for legacy v0.1.x CLIs (deprecated)
 app.use("/devices/register", devicesRegisterRouter)
-app.use("/devices/pair", devicesPairRouter)
 app.use("/devices/pair-init", devicesPairInitRouter)
 app.use("/devices/pair-poll", devicesPairPollRouter)
 app.use("/auth/github/complete", authGithubCompleteRouter)
