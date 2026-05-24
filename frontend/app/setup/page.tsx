@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation"
-import { rememberPairCode } from "./actions"
 import { getSession, getPairCookie } from "@/lib/session"
 import { SharpButton } from "@/components/v5/sharp-button"
 
@@ -16,14 +15,10 @@ export default async function SetupPage({ searchParams }: PageProps) {
     redirect("/setup/channels")
   }
 
-  // first arrival from CLI: pair code in URL → stash in cookie + redirect to clean URL
-  if (params.pair && !session) {
-    await rememberPairCode(params.pair)
-    redirect("/setup")
-  }
-
-  // pair cookie present from a prior redirect → show GitHub button with pair
-  const pair = await getPairCookie()
+  // pair code from the CLI url (falls back to a cookie from a prior visit). it
+  // rides to github via the oauth-state set in /auth/github/start, so it never
+  // needs persisting here — and cookies can't be written during a render.
+  const pair = params.pair ?? (await getPairCookie())
   if (pair) {
     return <ChooseSignInState pairingCode={pair} error={params.error} />
   }
