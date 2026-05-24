@@ -1,5 +1,9 @@
 import { randomBytes } from "node:crypto"
 import { getRedis } from "../lib/redis.js"
+import { getDb } from "../db/index.js"
+import { devices } from "../db/schema/devices.js"
+import { generateDeviceSecret, hashSecret } from "../lib/secret-hash.js"
+import { logger } from "../lib/logger.js"
 
 export const PAIR_TTL_SECONDS = 10 * 60
 const PAIR_PREFIX = "pair:"
@@ -45,6 +49,40 @@ export async function markPairReady(input: {
     createdAt: Date.now(),
   }
   await getRedis().set(`${PAIR_PREFIX}${input.code}`, payload, { ex: PAIR_TTL_SECONDS })
+}
+
+// create a device for `userId` and mark the pair ready so the CLI long-poll
+// completes. shared by /auth/github/complete (fresh OAuth) and the already-
+// signed-in dashboard path (/auth/internal/pair-bind). returns false if the
+// pair expired before we got here.
+export async function bindPairToUser(userId: string, pairCode: string): Promise<boolean> {
+  const current = await peekPair(pairCode)
+  if (!current) {
+    logger.info({ pairCode }, "pair expired before bind")
+    return false
+  }
+  const deviceSecret = generateDeviceSecret()
+  const deviceSecretHash = hashSecret(deviceSecret)
+  const [device] = await getDb()
+    .insert(devices)
+    .values({
+      userId,
+      machineIdHash: deviceSecretHash.slice(0, 64),
+      deviceName: null,
+      os: "unknown",
+      ideType: "terminal",
+      deviceSecretHash,
+      lastHeartbeat: new Date(),
+    })
+    .returning()
+  if (!device) throw new Error("device_create_failed")
+  await markPairReady({
+    code: pairCode,
+    deviceId: device.id,
+    userId,
+    deviceToken: `device.${deviceSecret}`,
+  })
+  return true
 }
 
 // single-use consume — used by pair-poll once the entry is ready.
