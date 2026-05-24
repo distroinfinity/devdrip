@@ -161,6 +161,16 @@ pnpm --filter @distrotv/api db:studio
 pnpm --filter @distrotv/api db:seed
 ```
 
+### Migrations apply automatically on deploy
+
+Railway runs `node packages/api/dist/migrate.js` as a `preDeployCommand` (see `railway.toml`) before each new version serves traffic. A failed migration aborts the deploy and keeps the previous version live, so you never hand-run `db:migrate` against prod on a merge. The runner is a standalone compiled script (`src/migrate.ts`) using the `postgres-js` driver (transaction-safe), and the migration SQL is copied into `dist/migrations` at build time.
+
+When authoring a migration:
+
+- prefer `db:generate` so the `meta/_journal.json` entry + snapshot are created for you
+- if you hand-write the `.sql`, you **must** add a matching `_journal.json` entry, and its `when` must be greater than every existing entry — drizzle uses the max `when` as the applied-watermark, so a smaller value is silently skipped
+- do not put `BEGIN;`/`COMMIT;` inside a migration; drizzle wraps each migration in its own transaction. Separate statements with `--> statement-breakpoint`.
+
 ## Admin CLI Smoke Test
 
 With the API running and `ADMIN_SECRET` set (defaults to `test-admin-secret` in the worktree `.env`):

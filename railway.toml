@@ -5,6 +5,9 @@ builder = "nixpacks"
 watchPatterns = ["packages/api/**", "packages/shared/**", "nixpacks.toml"]
 
 [deploy]
+# run db migrations once before the new version serves traffic; a failed
+# migration aborts the deploy and keeps the previous version live.
+preDeployCommand = "node packages/api/dist/migrate.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 healthcheckPath = "/health"
