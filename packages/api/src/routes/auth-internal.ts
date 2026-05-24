@@ -2,6 +2,7 @@ import { Router } from "express"
 import { z } from "zod"
 import { env } from "../config/env.js"
 import { createOAuthState, consumeOAuthState } from "../services/oauth-state.service.js"
+import { bindPairToUser } from "../services/pairing.service.js"
 
 export const authInternalRouter: ReturnType<typeof Router> = Router()
 
@@ -41,4 +42,18 @@ authInternalRouter.post("/oauth-state-consume", async (req, res) => {
     return
   }
   await res.status(200).json(payload)
+})
+
+// bind a pair code to an ALREADY-authenticated user (no OAuth round-trip). the
+// dashboard calls this when /setup is hit with a live session + a pair code, so
+// the CLI long-poll completes instead of hanging.
+authInternalRouter.post("/pair-bind", async (req, res) => {
+  const schema = z.object({ userId: z.string().min(1), pair: z.string().min(8).max(64) })
+  const parse = schema.safeParse(req.body)
+  if (!parse.success) {
+    await res.status(400).json({ error: "invalid_body" })
+    return
+  }
+  const pairBound = await bindPairToUser(parse.data.userId, parse.data.pair)
+  await res.status(200).json({ pairBound })
 })

@@ -5,19 +5,39 @@ interface PageProps {
   searchParams: Promise<{ pair?: string; error?: string }>
 }
 
+// bind a pair code to an already-signed-in user via the API, so the CLI's
+// long-poll completes without forcing a fresh OAuth round-trip. never throws —
+// on failure the CLI times out and the user can re-run `distro init`.
+async function bindPairForSession(userId: string, pair: string): Promise<void> {
+  const apiUrl = process.env["API_URL"] ?? "http://localhost:3001"
+  const internalSecret = process.env["API_INTERNAL_SECRET"] ?? ""
+  try {
+    await fetch(`${apiUrl}/auth/internal/pair-bind`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": internalSecret },
+      body: JSON.stringify({ userId, pair }),
+    })
+  } catch {
+    /* swallow — don't block the confirmation page */
+  }
+}
+
 export default async function SetupPage({ searchParams }: PageProps) {
   const params = await searchParams
   const session = await getSession()
-
-  // signed in → onboarding happens in the cli; just confirm + send back to terminal
-  if (session?.email) {
-    redirect("/setup/done")
-  }
 
   // pair code from the CLI url (falls back to a cookie from a prior visit). it
   // rides to github via the oauth-state set in /auth/github/start, so it never
   // needs persisting here — and cookies can't be written during a render.
   const pair = params.pair ?? (await getPairCookie())
+
+  // already signed in (existing browser session) → the OAuth callback that
+  // normally binds the pair is skipped, so bind it here before confirming.
+  if (session?.userId) {
+    if (pair) await bindPairForSession(session.userId, pair)
+    redirect("/setup/done")
+  }
+
   if (pair) {
     return <ChooseSignInState pairingCode={pair} error={params.error} />
   }

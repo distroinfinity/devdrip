@@ -153,7 +153,12 @@ Quiet hours remain available as an opt-in suppression window.
 - **Last-writer-wins tty.** A user running Claude in two terminals will only see ads in whichever one last sent `idle-start`. Tracked; supporting concurrent ttys requires a `ttyPath → state` map.
 - **DECSTBM only.** If the host TUI switches to the alternate screen buffer (`\x1b[?1049h`), the scroll region is discarded and the ad anchor is lost. Modern Claude Code stays on the primary screen during tool calls, so this is fine in practice.
 - **Raw mode persists across stop.** `setRawMode(false)` is deliberately NOT called in `input.ts:stop()` because Claude Code owns its REPL's raw-mode setting and toggling it broke Claude's stdin. SIGKILL recovery still requires `reset` if the terminal is left in raw mode.
-- **No hook auto-restart.** A stale daemon means hooks silently exit 0. `distro daemon start` restarts it. Auto-restart belongs to `distro doctor`.
+
+## Self-healing daemon (cli-v0.2.2)
+
+The daemon now revives itself from the hook path — a user never runs `distro daemon start` manually after `distro init`. When a hook fires and the socket is unreachable (`hook-client.ts` `sendHookEvent` returns `"unreachable"` on ECONNREFUSED/ENOENT/timeout), the hook calls `spawnDaemonDetached(binPath)` (`lifecycle.ts`) fire-and-forget. The current event is dropped; the respawned daemon serves the next hook (Claude fires one on the next tool call), so reboot/crash recovery is automatic with no launchd/systemd.
+
+Safeguards: the happy path (live daemon) does NO extra work — no `readConfig`, no spawn — so the <200ms vanish is untouched. A `daemon.respawn` stamp + `tryClaimRespawn()` debounce (`RESPAWN_DEBOUNCE_MS = 5000`) caps spawns to ~1/5s so a crash-looping daemon can't spawn-storm; `acquireSingletonLock()` remains the hard guarantee that only one daemon lives. `maybeRevive()` bails when the cli isn't initialized (no user/device/binPath) — we can't OAuth from a hook. After `distro init`, the daemon is the only "other stuff" needed and it keeps itself alive.
 
 ## Sync loop (S3-07, shipped)
 
