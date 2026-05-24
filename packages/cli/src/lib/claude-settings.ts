@@ -23,7 +23,10 @@ export interface Settings {
   [k: string]: unknown
 }
 
-const DISTRO_BIN_RE = /^(?:distro|dtv)(?:\.js|\.mjs|\.cjs|\.exe)?$/i
+// includes the pre-pivot `devdrip` binary name so old hooks (~/.devdrip/bin/devdrip)
+// are recognized — removeDevdripHooks then strips them and mergeDevdripHooks
+// stale-replaces them with the current distro command.
+const DISTRO_BIN_RE = /^(?:distro|dtv|devdrip)(?:\.js|\.mjs|\.cjs|\.exe)?$/i
 const DISTRO_COMMAND_RE =
   /^\s*(?:"((?:\\.|[^"])*)"|'([^']*)'|(\S+))\s+hook\s+(pre-tool|stop|prompt-submit|session-start|session-end)(?:\s|$)/
 
