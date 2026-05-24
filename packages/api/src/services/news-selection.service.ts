@@ -110,10 +110,14 @@ export async function nextPicksForDevice({
   const limit = Math.max(1, Math.min(n, 20))
 
   const cached = await redis.get<NewsPayload[]>(nextPicksKey(deviceId))
-  // sparse channels can produce caches shorter than `limit`; serving the partial
-  // beats hammering the db until the next worker tick refills news_items
   if (cached && cached.length > 0) {
-    return cached.slice(0, limit)
+    // filter the cached batch by the served set — the cache used to be returned
+    // wholesale, which re-served items the device had already seen within the
+    // 5-min cache window (the "same news rotating" bug). when every cached pick
+    // has been served, fall through to a fresh db selection (also served-filtered).
+    const servedCached = new Set(await redis.smembers(servedKey(deviceId)))
+    const fresh = cached.filter((p) => !servedCached.has(p.id))
+    if (fresh.length > 0) return fresh.slice(0, limit)
   }
 
   await ensureDefaultSubscriptions(userId)
