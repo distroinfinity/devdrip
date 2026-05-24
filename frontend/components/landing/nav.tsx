@@ -6,8 +6,6 @@ import { InstallCommand } from "./install-command"
 const LINKS = [
   { href: "#channels", label: "channels" },
   { href: "#how-it-works", label: "how it works" },
-  { href: "#control", label: "control" },
-  { href: "https://github.com/distroinfinity/devdrip", label: "github", external: true },
 ]
 
 export function Nav() {
@@ -23,7 +21,6 @@ export function Nav() {
             <Link
               key={link.href}
               href={link.href}
-              {...(link.external ? { target: "_blank", rel: "noreferrer" } : {})}
               className="text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors no-underline"
             >
               {link.label}

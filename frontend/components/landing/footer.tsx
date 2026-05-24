@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Wordmark } from "@distrotv/design-system/components/wordmark"
 import { ThemeToggle } from "@distrotv/design-system/components/theme-toggle"
+import { HeartPixel } from "@distrotv/design-system/components/heart-pixel"
 
 const COLS = [
   {
@@ -14,11 +15,15 @@ const COLS = [
   {
     label: "Resources",
     items: [
-      { label: "Docs", href: "https://github.com/distroinfinity/devdrip#readme", external: true },
       { label: "GitHub", href: "https://github.com/distroinfinity/devdrip", external: true },
       {
-        label: "Submit a channel",
-        href: "https://github.com/distroinfinity/devdrip/discussions/categories/channel-ideas",
+        label: "Request a channel",
+        href: "https://github.com/distroinfinity/devdrip/issues/new?template=channel-request.yml",
+        external: true,
+      },
+      {
+        label: "Community (WhatsApp)",
+        href: "https://chat.whatsapp.com/ElNoFH46V31I9kw2RWrL6z?mode=gi_t",
         external: true,
       },
     ],
@@ -28,11 +33,6 @@ const COLS = [
     items: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Sign in", href: "/sign-in" },
-      {
-        label: "Changelog",
-        href: "https://github.com/distroinfinity/devdrip/releases",
-        external: true,
-      },
     ],
   },
 ]
@@ -67,7 +67,22 @@ export function Footer() {
         </div>
 
         <div className="pt-5 border-t border-[var(--rule-default)] flex justify-between items-center flex-wrap gap-3 font-data text-[11px] text-[var(--ink-tertiary)]">
-          <Wordmark size="sm" />
+          <div className="flex items-center gap-3 flex-wrap">
+            <Wordmark size="sm" />
+            <span className="flex items-center gap-1.5">
+              built with
+              <HeartPixel className="text-[var(--accent-color)]" />
+              by
+              <Link
+                href="https://x.com/distroinfinity"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] no-underline border-b border-[var(--rule-default)] pb-px transition-colors"
+              >
+                manu
+              </Link>
+            </span>
+          </div>
           <div className="flex items-center gap-3">
             <span>v0.1.0</span>
             <span>·</span>

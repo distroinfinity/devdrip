@@ -7,7 +7,8 @@ const FUTURE_CHANNELS = [
   { id: "CH 08", name: "Crypto Deep" },
 ]
 
-const SUBMIT_URL = "https://github.com/distroinfinity/devdrip/discussions/categories/channel-ideas"
+const SUBMIT_URL =
+  "https://github.com/distroinfinity/devdrip/issues/new?template=channel-request.yml"
 
 export function ComingChannelsCard() {
   return (
@@ -28,7 +29,7 @@ export function ComingChannelsCard() {
           rel="noreferrer"
           className="font-data text-[11px] text-[var(--accent-color)] border-b border-[var(--accent-color)] pb-0.5 hover:text-[var(--accent-hover)] no-underline"
         >
-          submit a channel idea →
+          request a channel →
         </a>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-1">

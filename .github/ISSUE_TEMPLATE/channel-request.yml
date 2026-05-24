@@ -1,0 +1,52 @@
+name: Channel request
+description: Suggest a new Distro TV channel for the ambient surface
+title: "[Channel]: "
+labels: ["channel-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for pitching a channel. Channels are the verticals that surface on Distro TV while your AI coding tool runs the keyboard (NEWS and MARKETS are the two launch channels). Fill this in and hit **Submit new issue**.
+  - type: input
+    id: name
+    attributes:
+      label: Channel name
+      description: What should it be called on the surface?
+      placeholder: e.g. CH 03 · WEATHER
+    validations:
+      required: true
+  - type: textarea
+    id: shows
+    attributes:
+      label: What does it show?
+      description: The rows / headlines / values that would render in a slot.
+      placeholder: e.g. local forecast, next 3 hours, severe-weather alerts
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Data source / API
+      description: Where would the data come from?
+      placeholder: e.g. open-meteo.com (free, no key)
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is it useful during AI idle time?
+      description: What makes this worth glancing at while the agent works?
+  - type: dropdown
+    id: cadence
+    attributes:
+      label: Update cadence
+      options:
+        - Real-time (seconds)
+        - Minutes
+        - Hourly
+        - Daily
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Example layout, prior art, links — optional.
