@@ -7,12 +7,19 @@ import { channelSubscriptions } from "../db/schema/channel_subscriptions.js"
 import { newsItems } from "../db/schema/news_items.js"
 import { newsSources } from "../db/schema/news_sources.js"
 import { getRedis } from "../lib/redis.js"
-import { servedKey, nextPicksKey } from "../lib/news-keys.js"
+import { servedKey, nextPicksKey, recentlyOfferedKey } from "../lib/news-keys.js"
 import { logger } from "../lib/logger.js"
 import { ensureDefaultSubscriptions } from "./channel.service.js"
 
 const SERVED_TTL_SEC = 30 * 86400
 const NEXTPICKS_TTL_SEC = 5 * 60
+// how long an offered item is held back from re-selection. long enough to ride
+// out cache churn + the 5-min impression sync, short enough that a fresh cycle
+// eventually reconsiders items the device never actually rendered. enforced
+// per-item via a ZSET scored by offered-at — NOT a whole-key TTL, so an active
+// device doesn't keep older offers suppressed indefinitely.
+const OFFERED_WINDOW_MS = 4 * 3600 * 1000
+const OFFERED_WINDOW_SEC = 4 * 3600
 const CANDIDATE_LIMIT = 200
 const MAX_AGE_HOURS = 72
 const NEWS_DISPLAY_TIME_MS = 10_000
@@ -155,8 +162,17 @@ export async function nextPicksForDevice({
 
   if (rows.length === 0) return []
 
-  const served = new Set(await redis.smembers(servedKey(deviceId)))
   const nowMs = Date.now()
+  // prune offers older than the window so each item ages out on its own clock,
+  // then read the survivors. served is a plain SET (30d, marked on impression).
+  const offeredCutoff = nowMs - OFFERED_WINDOW_MS
+  await redis.zremrangebyscore(recentlyOfferedKey(deviceId), 0, offeredCutoff)
+  const [servedMembers, offeredMembers] = await Promise.all([
+    redis.smembers(servedKey(deviceId)),
+    redis.zrange(recentlyOfferedKey(deviceId), offeredCutoff, nowMs, { byScore: true }),
+  ])
+  const served = new Set(servedMembers)
+  const offered = new Set(offeredMembers)
 
   const candidates: CandidateRow[] = rows.map((r) => ({
     id: r.id,
@@ -175,16 +191,41 @@ export async function nextPicksForDevice({
     .map((c) => ({ c, s: scoreCandidate(c, nowMs, !served.has(c.id)) }))
     .sort((a, b) => b.s - a.s)
 
-  const unseen = scored.filter((x) => !served.has(x.c.id))
-  const picks = (unseen.length >= limit ? unseen : scored).slice(0, limit).map((x) => x.c)
+  // tier 1: genuinely fresh — never served AND not recently offered. always
+  // preferred. serving fewer than `limit` is fine (the CLI slot-cache handles
+  // partial batches); we'd rather show 3 fresh items than pad with repeats.
+  const fresh = scored.filter((x) => !served.has(x.c.id) && !offered.has(x.c.id))
+  let picked = fresh.slice(0, limit)
+  let recycled = false
+
+  if (picked.length === 0) {
+    // fresh inventory exhausted for this device. rather than serve an empty
+    // surface, prefer offered-but-never-rendered items, then already-served —
+    // both score-ranked. no whole-set reset: offers age out per-item, so the
+    // oldest naturally fall out of the window on their own.
+    recycled = true
+    const offeredUnseen = scored.filter((x) => !served.has(x.c.id) && offered.has(x.c.id))
+    const seen = scored.filter((x) => served.has(x.c.id))
+    picked = [...offeredUnseen, ...seen].slice(0, limit)
+  }
+
+  const picks = picked.map((x) => x.c)
   const payloads = picks.map((c) => toPayload(c, nowMs))
 
-  // cache the picks for fast next-call serving, but DO NOT mark them served yet.
-  // dedupe is now driven by /ingest impressions (see markServedOnImpression):
-  // an item only enters the served set if the device actually rendered it,
-  // so cache-evicted-but-never-shown picks remain candidates for next time.
   if (payloads.length > 0) {
     await redis.set(nextPicksKey(deviceId), payloads, { ex: NEXTPICKS_TTL_SEC })
+    // mark offered NOW (not at impression time), each with its own timestamp so
+    // it ages out ~4h later independently. impressions still drive the long-term
+    // served set; this closes the window where a cache-evicted-but-unsynced batch
+    // got re-served as the same handful.
+    const offeredMembers = picks.map((c) => ({ score: nowMs, member: c.id }))
+    await redis.zadd(
+      recentlyOfferedKey(deviceId),
+      offeredMembers[0] as { score: number; member: string },
+      ...offeredMembers.slice(1)
+    )
+    // safety cleanup for devices that go idle; per-item pruning does the real work.
+    await redis.expire(recentlyOfferedKey(deviceId), OFFERED_WINDOW_SEC * 2)
   }
 
   logger.debug(
@@ -193,7 +234,9 @@ export async function nextPicksForDevice({
       deviceIdHash: deviceId.slice(0, 8),
       candidates: candidates.length,
       served: served.size,
+      offered: offered.size,
       picked: payloads.length,
+      recycled,
     },
     "news.select"
   )

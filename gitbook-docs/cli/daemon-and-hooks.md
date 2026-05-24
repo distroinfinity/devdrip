@@ -92,28 +92,36 @@ On exit from SHOWING the state machine emits a `recordImpression` effect carryin
 - **Header**: `DISTRO TV` + slot source label on the left. Right segment dropped when width is tight.
 - **Body**: word-wrapped headline + body, sanitized for ANSI escapes and control characters before printing so ad copy can't corrupt the screen.
 - **URL**: emitted on its own line, unwrapped, outside the box (terminal emulators autodetect the link).
-- **Action footer**: `[D]iscover [S]kip [K]ill [M]ute` — the bindings honored by the key-capture reader (S3-03).
+- **Action footer**: `⌥D open · ⌥B save · ⌥S skip · ⌥K kill` — the Alt/Option chord bindings honored by the key-capture reader (S3-03).
 - **Progress bar**: filled cells proportional to elapsed display time.
 
 Width clamps at `[40, 120]` columns; ASCII fallback (`+` / `|`) kicks in when the tty is non-color or `NO_COLOR=1` is set.
 
-## Key capture (S3-03, shipped)
+## Input separation: `dtv run` (PTY wrapper) vs. shared-tty capture
 
-While SHOWING, the daemon opens the tty in raw mode (`/dev/<ttyN>`) via `tty.ReadStream` and listens for keystrokes. Mapping (`packages/cli/src/lib/daemon/input.ts`):
+There are two input paths, because two processes reading one tty can never deterministically separate keystrokes — whoever's `read()` wins **consumes** the byte, so a filter can't hand it back.
 
-| Key                       | Action   | State machine event                                         |
-| ------------------------- | -------- | ----------------------------------------------------------- |
-| `d` / `D`                 | discover | opens advertiser URL; impression = `completed`; rotates     |
-| `s` / `S`                 | skip     | impression = `skipped` (or `completed` if ≥ 1s); rotates    |
-| `k` / `K`                 | kill     | dismisses + sets `sessionKilled` until next `session-start` |
-| `m` / `M`                 | mute     | dismisses + writes `muteUntil = now + MUTE_DURATION_MS`     |
-| `Enter` / `Space` / `Esc` | dismiss  | impression = `completed` if ≥ 1s, else `skipped`            |
+**`dtv run -- claude` (true separation, recommended).** Distro launches the child inside a PTY it owns (`packages/cli/src/commands/run.ts`, `node-pty`) and becomes the **sole** reader of the real terminal. Every keystroke hits Distro first: if it's a Distro `⌥`-chord it's dispatched to the daemon over the socket (`{type:"action",…}`) and **not** forwarded; everything else is written verbatim to the child PTY. Deterministic, zero byte loss, single-key chords work. Slot rendering needs no rework — the daemon still writes slots to Claude's PTY-slave tty, and the wrapper copies that to the real screen. The wrapper sets `DISTRO_PTY=1` in the child env; Claude's hooks then send `idle-start` with `wrapped:true`, and the daemon **skips its own tty key capture** for that session (orchestrator gates `keyCapture.start` on `!session.wrapped`) so it doesn't re-race Claude inside the PTY.
 
-`mute` and `kill` are also honored during the GRACE window (the previous ad's footer was visible up to ~1.5s ago, so a key press here is intentional).
+**Shared-tty capture (fallback, best-effort).** When Claude is launched directly (no wrapper), the daemon opens the slot's tty in raw mode and reads it — this **races** Claude for each byte, so it can only ever be best-effort. It still claims **Alt/Option chords** (Meta = `ESC` + letter) and ignores everything else, which stops accidental actions, but a key the daemon's reader wins is lost to Claude. For guaranteed delivery without the wrapper, use the race-free subcommands (`distro discover|skip|save|mute|kill-session|chart|dismiss`). Mapping (`packages/cli/src/lib/daemon/input.ts`, `processByteChunk` / `letterToAction`):
 
-Multi-byte chunks starting with `0x1b` (ESC) are treated as terminal control sequences (focus-in/out, arrow keys) and dropped — never our keys. A lone `0x1b` is the user pressing Escape.
+| Bytes         | Key | Action   | Notes                                                       |
+| ------------- | --- | -------- | ----------------------------------------------------------- |
+| `0x1b` + `d`  | ⌥D  | discover | opens the item URL; impression = `completed`; rotates       |
+| `0x1b` + `s`  | ⌥S  | skip     | impression = `skipped` (or `completed` if ≥ 1s); rotates    |
+| `0x1b` + `k`  | ⌥K  | kill     | dismisses + sets `sessionKilled` until next `session-start` |
+| `0x1b` + `m`  | ⌥M  | mute     | dismisses + writes `muteUntil = now + MUTE_DURATION_MS`     |
+| `0x1b` + `b`  | ⌥B  | save     | adds to reading list (flash only, no state change)          |
+| `0x1b` + `c`  | ⌥C  | chart    | ticker slots only; no-op on news                            |
+| `0x1b` (lone) | Esc | dismiss  | impression = `completed` if ≥ 1s, else `skipped`            |
 
-CLI fallbacks (`distro skip|mute|kill-session|discover`) dispatch the same wire actions for users whose keystrokes lose the tty race with Claude.
+Letters are case-insensitive, so ⌥D and ⌥⇧D both fire. `ESC` followed by `[` (CSI: arrows, focus, mouse, bracketed paste) or `O` (SS3: function keys) is a terminal control sequence and is dropped — never ours. A lone `ESC` (1-byte chunk) is the user pressing Escape → dismiss.
+
+**macOS caveat (both paths):** Option+letter only emits `ESC`+letter when the terminal sends Meta — iTerm: _Profiles → Keys → Left/Right Option key = Esc+_; Apple Terminal: _Use Option as Meta key_. With Meta off, Option+D produces `∂` (just text) and is correctly ignored. The race-free CLI subcommands (`distro discover|skip|save|mute|kill-session|chart|dismiss`) always work regardless of terminal config.
+
+**Capture window (shared-tty fallback only):** key capture starts on `displayAd` and stops on `vanishDisplay`. The `Stop` hook (Claude finishes its turn → `idle-end`) vanishes the slot and stops capture, so typing the next prompt is never intercepted — `endShowing` emits `vanishDisplay`, and the orchestrator calls `keyCapture.stop(tty)` there. (Under `dtv run` the daemon never opens the tty at all, so there's nothing to race.)
+
+**Packaging note:** `node-pty` is a native module shipped like `better-sqlite3` — external in tsup, listed in the release tarball's runtime `package.json`, installed via `npm install --omit=dev` (prebuilds, no compiler needed). On macOS the prebuild's `spawn-helper` must keep its executable bit; `npm` preserves it (pnpm in the monorepo can strip it — `chmod +x` the prebuild if running from source).
 
 ## Anchor strategy (real-session hardening)
 

@@ -21,7 +21,7 @@ export type State =
 // orchestrator falls back to the single active session (preserves
 // single-terminal behavior and keeps existing tests as-is).
 export type Event =
-  | { kind: "idle-start"; tty: string | null; now: number }
+  | { kind: "idle-start"; tty: string | null; now: number; wrapped?: boolean }
   | { kind: "idle-end"; now: number; tty?: string | null }
   | { kind: "dismiss"; now: number; tty?: string | null }
   | { kind: "grace-elapsed"; ad: CachedSlot | null; now: number; tty?: string | null }

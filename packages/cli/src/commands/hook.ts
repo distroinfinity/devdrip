@@ -6,6 +6,10 @@ import { spawnDaemonDetached, tryClaimRespawn } from "../lib/daemon/lifecycle.js
 import { readConfig } from "../lib/config.js"
 import type { WireEvent } from "../lib/daemon/protocol.js"
 
+// true when this process tree was launched by `dtv run` (the PTY wrapper),
+// which owns the keyboard — the daemon must then skip its own tty key capture.
+const isWrapped = (): boolean => process.env.DISTRO_PTY === "1"
+
 // deliver the event; if the daemon socket is down, revive it so the NEXT hook
 // lands. the happy path (daemon alive) does no extra work, so the <200ms slot
 // vanish is untouched. always swallows — the hook must exit 0.
@@ -34,7 +38,10 @@ async function maybeRevive(): Promise<void> {
 }
 
 export async function handlePreTool(socketPath: string = daemonSocketPath()): Promise<void> {
-  await deliverOrRevive({ type: "idle-start", tty: resolveTty() }, socketPath)
+  await deliverOrRevive(
+    { type: "idle-start", tty: resolveTty(), ...(isWrapped() ? { wrapped: true } : {}) },
+    socketPath
+  )
 }
 
 export async function handleStop(socketPath: string = daemonSocketPath()): Promise<void> {
@@ -44,7 +51,10 @@ export async function handleStop(socketPath: string = daemonSocketPath()): Promi
 }
 
 export async function handlePromptSubmit(socketPath: string = daemonSocketPath()): Promise<void> {
-  await deliverOrRevive({ type: "idle-start", tty: resolveTty() }, socketPath)
+  await deliverOrRevive(
+    { type: "idle-start", tty: resolveTty(), ...(isWrapped() ? { wrapped: true } : {}) },
+    socketPath
+  )
 }
 
 export async function handleSessionStart(socketPath: string = daemonSocketPath()): Promise<void> {

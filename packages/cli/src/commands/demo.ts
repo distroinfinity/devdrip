@@ -95,7 +95,7 @@ async function runNewsDemoOnce(deviceId: string, opts: { ascii?: boolean }): Pro
   const ascii = opts.ascii ?? false
 
   console.log(renderNewsBox(payload, { ...(ascii ? { ascii: true } : {}) }))
-  console.log(`  ${dim("[D] open · [B] save · [S] skip · [K] kill · [Enter] dismiss", color)}`)
+  console.log(`  ${dim("⌥D open · ⌥B save · ⌥S skip · ⌥K kill · [Esc] dismiss", color)}`)
 
   if (!process.stdin.isTTY || ascii) {
     console.log(`  ${dim("(run in an interactive terminal to practice keys)", color)}`)
