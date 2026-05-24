@@ -7,12 +7,16 @@ import { channelSubscriptions } from "../db/schema/channel_subscriptions.js"
 import { newsItems } from "../db/schema/news_items.js"
 import { newsSources } from "../db/schema/news_sources.js"
 import { getRedis } from "../lib/redis.js"
-import { servedKey, nextPicksKey } from "../lib/news-keys.js"
+import { servedKey, nextPicksKey, recentlyOfferedKey } from "../lib/news-keys.js"
 import { logger } from "../lib/logger.js"
 import { ensureDefaultSubscriptions } from "./channel.service.js"
 
 const SERVED_TTL_SEC = 30 * 86400
 const NEXTPICKS_TTL_SEC = 5 * 60
+// how long an offered item is held back from re-selection. long enough to ride
+// out cache churn + the 5-min impression sync, short enough that a fresh cycle
+// eventually reconsiders items the device never actually rendered.
+const RECENTLY_OFFERED_TTL_SEC = 4 * 3600
 const CANDIDATE_LIMIT = 200
 const MAX_AGE_HOURS = 72
 const NEWS_DISPLAY_TIME_MS = 10_000
@@ -155,7 +159,12 @@ export async function nextPicksForDevice({
 
   if (rows.length === 0) return []
 
-  const served = new Set(await redis.smembers(servedKey(deviceId)))
+  const [servedMembers, offeredMembers] = await Promise.all([
+    redis.smembers(servedKey(deviceId)),
+    redis.smembers(recentlyOfferedKey(deviceId)),
+  ])
+  const served = new Set(servedMembers)
+  const offered = new Set(offeredMembers)
   const nowMs = Date.now()
 
   const candidates: CandidateRow[] = rows.map((r) => ({
@@ -175,16 +184,36 @@ export async function nextPicksForDevice({
     .map((c) => ({ c, s: scoreCandidate(c, nowMs, !served.has(c.id)) }))
     .sort((a, b) => b.s - a.s)
 
-  const unseen = scored.filter((x) => !served.has(x.c.id))
-  const picks = (unseen.length >= limit ? unseen : scored).slice(0, limit).map((x) => x.c)
+  // tier 1: genuinely fresh — never served AND not recently offered. always
+  // preferred. serving fewer than `limit` is fine (the CLI slot-cache handles
+  // partial batches); we'd rather show 3 fresh items than pad with repeats.
+  const fresh = scored.filter((x) => !served.has(x.c.id) && !offered.has(x.c.id))
+  let picked = fresh.slice(0, limit)
+  let recycled = false
+
+  if (picked.length === 0) {
+    // fresh inventory exhausted for this device. rather than serve an empty
+    // surface, start a new cycle: prefer offered-but-never-rendered items, then
+    // already-served — both score-ranked. reset the offered set so the next
+    // selections can rebuild it from scratch.
+    recycled = true
+    const offeredUnseen = scored.filter((x) => !served.has(x.c.id) && offered.has(x.c.id))
+    const seen = scored.filter((x) => served.has(x.c.id))
+    picked = [...offeredUnseen, ...seen].slice(0, limit)
+    await redis.del(recentlyOfferedKey(deviceId)).catch(() => {})
+  }
+
+  const picks = picked.map((x) => x.c)
   const payloads = picks.map((c) => toPayload(c, nowMs))
 
-  // cache the picks for fast next-call serving, but DO NOT mark them served yet.
-  // dedupe is now driven by /ingest impressions (see markServedOnImpression):
-  // an item only enters the served set if the device actually rendered it,
-  // so cache-evicted-but-never-shown picks remain candidates for next time.
   if (payloads.length > 0) {
     await redis.set(nextPicksKey(deviceId), payloads, { ex: NEXTPICKS_TTL_SEC })
+    // mark offered NOW (not at impression time). impressions still drive the
+    // long-term served set, but this short-lived set closes the window where a
+    // cache-evicted-but-unsynced batch got re-served as the same handful.
+    const ids = picks.map((c) => c.id)
+    await redis.sadd(recentlyOfferedKey(deviceId), ids[0] as string, ...ids.slice(1))
+    await redis.expire(recentlyOfferedKey(deviceId), RECENTLY_OFFERED_TTL_SEC)
   }
 
   logger.debug(
@@ -193,7 +222,9 @@ export async function nextPicksForDevice({
       deviceIdHash: deviceId.slice(0, 8),
       candidates: candidates.length,
       served: served.size,
+      offered: offered.size,
       picked: payloads.length,
+      recycled,
     },
     "news.select"
   )

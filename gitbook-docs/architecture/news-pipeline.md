@@ -13,7 +13,11 @@ The text PK on `news_items.id` uses namespaced source-stable identifiers (`hn:38
 
 ## Fetcher worker
 
-`packages/api/src/worker.ts` runs `node-cron` on `*/5 * * * *`. Each tick walks every `news_sources` row whose `fetch_interval_min` divides the current minute bucket and dispatches by `kind` to a per-protocol fetcher:
+Scheduling lives in `packages/api/src/scheduler.ts` (`startScheduler()`): news fetch on `*/5 * * * *`, alert eval on `*/1`, and a source-health sweep on `*/15`, plus an eager `runFetchTick(0)` on boot so a fresh process doesn't wait 5 min for its first news.
+
+`startScheduler()` runs in **two** places: the standalone `worker.ts` entry (`worker:start`, kept for local dev / future scale-out) **and in-process inside the API** (`index.ts`, gated by `RUN_INPROCESS_WORKER`, default on). Prod runs only the single Railway API service, so without the in-process path the cron never fired and `news_items` stayed empty — the API start command (`node packages/api/dist/index.js`) never started `worker.js`. The per-source Redis lock means even multiple API instances won't double-fetch. Set `RUN_INPROCESS_WORKER=false` only if a dedicated worker service is added, so the two don't double-schedule.
+
+Each tick walks every `news_sources` row whose `fetch_interval_min` divides the current minute bucket and dispatches by `kind` to a per-protocol fetcher:
 
 - `news-fetchers/hn.ts` — HN Firebase API. Top 60 ids, batches of 10 concurrent fetches, filters `type === "story"` and `score >= 50`.
 - `news-fetchers/rss.ts` — `fast-xml-parser`. Handles RSS 2.0 (`<channel><item>`) and Atom (`<feed><entry>`). Maps source enum from key prefix.
@@ -42,33 +46,36 @@ On success: source row gets `healthy=true, lastError=null, lastFetchedAt=now`. O
 
    Per-source `half_life_hours` lets HN (6h) decay faster than RSS (24h) or Smashing Magazine (72h).
 
-6. Prefer unseen items at the top of the sorted list. Only fall back to seen items when the unseen pool is shorter than `n` — that's the resurfacing path for power users.
-7. Write the `n` picks to `news:nextpicks:<deviceId>` (5-min TTL). Items are **not** added to `news:served:<deviceId>` here — that happens on impression ingest (see "Dedupe, on impression" below).
+6. **Tiered picks** so the surface always trends toward fresh content:
+   - **tier 1 (preferred):** items neither in `news:served:<deviceId>` nor in `news:offered:<deviceId>` (recently offered). Take the top `n`. Serving **fewer than `n` is intentional** — the CLI slot-cache handles partial batches, and a short fresh batch beats padding with repeats.
+   - **recycle (only if tier 1 is empty):** fresh inventory is exhausted for this device, so rather than show an empty surface we serve offered-but-never-rendered items, then already-served — both score-ranked — and `DEL` the offered set to start a new cycle.
+7. Write the `n` picks to `news:nextpicks:<deviceId>` (5-min TTL) **and** add their ids to `news:offered:<deviceId>` (`recentlyOfferedKey`, ~4h TTL). Offered is marked **at selection time**; served is still marked on impression (see "Dedupe" below).
 
 ## Failure modes
 
-| failure                              | behavior                                                                                                            |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| Source 4xx/5xx                       | Mark `news_sources.healthy=false`, write `lastError`. Coordinator continues other sources.                          |
-| HTTP stall                           | 15s `AbortSignal.timeout` aborts; same as 4xx path.                                                                 |
-| Empty news_items + empty Redis queue | `/me/content/next` returns `{ items: [] }`. CLI slot-cache falls back to demo fixtures.                             |
-| Bloomberg blocks bot UA              | Marked unhealthy on first tick. HN + TechCrunch + Verge + Smashing + ArsTechnica + Polygon + Reddit carry the demo. |
-| Worker process killed mid-fetch      | Per-source Redis lock expires after 90s; next tick proceeds normally.                                               |
+| failure                              | behavior                                                                                                                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source 4xx/5xx                       | Mark `news_sources.healthy=false`, write `lastError`. Coordinator continues other sources.                                                                                            |
+| HTTP stall                           | 15s `AbortSignal.timeout` aborts; same as 4xx path.                                                                                                                                   |
+| Empty news_items + empty Redis queue | `/me/content/next` returns `{ items: [] }`. CLI slot-cache falls back to the single offline demo fixture. If this persists, the scheduler isn't running — check `/admin/news-health`. |
+| Bloomberg blocks bot UA              | Marked unhealthy on first tick. HN + TechCrunch + Verge + Smashing + ArsTechnica + Polygon + Reddit carry the demo.                                                                   |
+| Worker process killed mid-fetch      | Per-source Redis lock expires after 90s; next tick proceeds normally.                                                                                                                 |
 
-## Dedupe, on impression (not on selection)
+## Dedupe — two sets
 
-The served set (`news:served:<deviceId>`, SET, 30d TTL) is **only advanced when the
-device actually renders an item** — the CLI POSTs to `/ingest` after a slot
-displays for ≥1ms, and `recordSlotImpression` calls `markServedOnImpression`.
+Repetition ("the same handful over and over") is governed by two Redis sets, on purpose:
 
-This means picks that get cached (`news:nextpicks`, 5-min TTL) but never
-displayed (cache eviction, daemon crash, user closes Claude before slot fires)
-remain candidates for the next selection round. The earlier "stamp on cache"
-behavior caused the same item to be 30-day-locked even though the user never
-saw it.
+- **`news:offered:<deviceId>`** (SET, ~4h TTL) — marked **at selection time**. Hard-excluded from tier-1 picks. This is what guarantees a device doesn't get the same batch back even if impressions never sync (cache eviction, daemon crash, flaky `/ingest`, user closes Claude before a slot fires). Closing that window was the fix for the repeating-handful symptom.
+- **`news:served:<deviceId>`** (SET, 30d TTL) — marked **on impression** only. The CLI POSTs to `/ingest` after a slot displays for ≥1ms and `recordSlotImpression` calls `markServedOnImpression`. This is the long-term "don't show me this again for a month" set; it also feeds the `is_first_time` scoring bonus. Failures are logged (`markServedOnImpression failed`) but no longer load-bearing for dedup, since `offered` already covers the short term.
+
+An item the device never rendered ages out of `offered` after ~4h and becomes a candidate again — intended resurfacing once fresh inventory is thin.
 
 Reuters source was retired by Reuters Agency in 2024; migration `0015` drops
 the row.
+
+## Health monitoring
+
+`packages/api/src/services/news-health.service.ts` exposes `getNewsHealth()` (flags sources that have never fetched, are stale beyond `3× fetch_interval_min` (15-min floor), or carry a `lastError`, plus a pipeline-wide "no items at all" check). `runNewsHealthCheck()` runs on the `*/15` cron and fires a deduped Slack alert when degraded; `GET /admin/news-health` returns the same report on demand. This exists because the pipeline previously failed **silently** — the worker simply wasn't running, and nothing surfaced it.
 
 ## Adding a source
 
@@ -78,6 +85,6 @@ the row.
 
 ## Capacity at this scale
 
-For 100 users × 6 channels × 200 candidates per sync = ~120k candidate scoring ops/hour. Negligible on a single Railway worker. The Postgres index on `(channel_id, published_at)` covers the selection query without a full table scan.
+For 100 users × 6 channels × 200 candidates per sync = ~120k candidate scoring ops/hour. Negligible for the in-process scheduler running alongside the API. The Postgres index on `(channel_id, published_at)` covers the selection query without a full table scan.
 
 The served set per device grows up to ~36k entries for a heavy user over 30 days (~1-2 MB Redis). At 100 users this is well under 200 MB total Redis SET memory. M5+ may need eviction logic at 10k+ users.

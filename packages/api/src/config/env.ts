@@ -32,6 +32,12 @@ export const env = {
       throw new Error(`DB_TARGET must be "local" or "neon", got "${val}"`)
     return val
   },
+  // default on: the API process runs the news-fetch + alert crons in-process,
+  // so a single Railway service keeps news flowing. set RUN_INPROCESS_WORKER=false
+  // if a dedicated worker service is ever added so the two don't double-schedule.
+  get runInprocessWorker(): boolean {
+    return optionalEnv("RUN_INPROCESS_WORKER", "true") !== "false"
+  },
 
   get finnhubApiKey(): string {
     return env.nodeEnv === "production"

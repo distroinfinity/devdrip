@@ -4,6 +4,7 @@ import { env, assertEnvSafe } from "./config/env.js"
 import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
 import { sendSlackAlert } from "./lib/slack.js"
+import { startScheduler } from "./scheduler.js"
 import type { Socket } from "node:net"
 
 // Catch anything that slips past Express's route-level try/catch or runs
@@ -50,6 +51,10 @@ async function start() {
     logger.info({ port: env.port }, "api listening")
     const sha = env.commitSha?.slice(0, 7) ?? "unknown"
     void sendSlackAlert(`api booted · sha=${sha}`, { severity: "info" })
+    // No dedicated worker service in prod — run the fetch/alert/health crons
+    // in-process. Redis locks in the coordinator keep multiple API instances
+    // from double-fetching. Disable with RUN_INPROCESS_WORKER=false.
+    if (env.runInprocessWorker) startScheduler()
   })
 
   const openSockets = new Set<Socket>()

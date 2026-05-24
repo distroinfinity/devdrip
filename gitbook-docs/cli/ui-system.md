@@ -64,7 +64,7 @@ Defined in `packages/cli/src/lib/daemon/display.ts`. Timings live in `packages/s
 
 ## External actions
 
-The CLI never embeds article previews or chart renders. The `[D] open` (news) and `[C] chart` (markets) actions invoke the platform URL handler:
+The CLI never embeds article previews or chart renders. The `⌥D open` (news) and `⌥C chart` (markets) actions — Alt/Option chords, see [daemon-and-hooks](./daemon-and-hooks.md#key-capture-altoption-chords) — invoke the platform URL handler:
 
 - News: opens `payload.url` (the article URL from the slot payload).
 - Markets: opens `payload.chartUrl ?? buildBareSymbolUrl(symbol, assetClass)` (TradingView). The backend populates `chartUrl` per spec §8; the CLI fallback handles backward-compat with old payload producers.
