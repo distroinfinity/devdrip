@@ -3,9 +3,16 @@ import { daemonSocketPath } from "@distrotv/shared/daemon-socket"
 import { sendHookEvent } from "../lib/daemon/hook-client.js"
 import { resolveTty } from "../lib/daemon/tty.js"
 
+// true when this process tree was launched by `dtv run` (the PTY wrapper),
+// which owns the keyboard — the daemon must then skip its own tty key capture.
+const isWrapped = (): boolean => process.env.DISTRO_PTY === "1"
+
 export async function handlePreTool(socketPath: string = daemonSocketPath()): Promise<void> {
   try {
-    await sendHookEvent({ type: "idle-start", tty: resolveTty() }, socketPath)
+    await sendHookEvent(
+      { type: "idle-start", tty: resolveTty(), ...(isWrapped() ? { wrapped: true } : {}) },
+      socketPath
+    )
   } catch {
     /* never escapes */
   }
@@ -23,7 +30,10 @@ export async function handleStop(socketPath: string = daemonSocketPath()): Promi
 
 export async function handlePromptSubmit(socketPath: string = daemonSocketPath()): Promise<void> {
   try {
-    await sendHookEvent({ type: "idle-start", tty: resolveTty() }, socketPath)
+    await sendHookEvent(
+      { type: "idle-start", tty: resolveTty(), ...(isWrapped() ? { wrapped: true } : {}) },
+      socketPath
+    )
   } catch {
     /* never escapes */
   }

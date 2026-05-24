@@ -112,6 +112,10 @@ class TestRedis {
       this.listExpiresAt.set(key, Date.now() + seconds * 1000)
       return 1
     }
+    if (this.sortedSetStore?.has(key)) {
+      this.listExpiresAt.set(key, Date.now() + seconds * 1000)
+      return 1
+    }
     return 0
   }
 
@@ -144,6 +148,54 @@ class TestRedis {
 
   async smembers(key: string): Promise<string[]> {
     return Array.from(this.setStore.get(key) ?? [])
+  }
+
+  // sorted sets — member → score. backs news:offered per-item aging in dev/test;
+  // production uses Upstash's native zset commands.
+  private sortedSetStore = new Map<string, Map<string, number>>()
+
+  async zadd(key: string, ...elements: { score: number; member: string }[]): Promise<number> {
+    let z = this.sortedSetStore.get(key)
+    if (!z) {
+      z = new Map()
+      this.sortedSetStore.set(key, z)
+    }
+    let added = 0
+    for (const { score, member } of elements) {
+      if (!z.has(member)) added += 1
+      z.set(member, score)
+    }
+    return added
+  }
+
+  async zremrangebyscore(key: string, min: number, max: number): Promise<number> {
+    const z = this.sortedSetStore.get(key)
+    if (!z) return 0
+    let removed = 0
+    for (const [member, score] of z) {
+      if (score >= min && score <= max) {
+        z.delete(member)
+        removed += 1
+      }
+    }
+    return removed
+  }
+
+  async zrange(
+    key: string,
+    min: number,
+    max: number,
+    opts?: { byScore?: boolean }
+  ): Promise<string[]> {
+    const z = this.sortedSetStore.get(key)
+    if (!z) return []
+    const entries = [...z.entries()].sort((a, b) => a[1] - b[1])
+    if (opts?.byScore) {
+      return entries.filter(([, s]) => s >= min && s <= max).map(([m]) => m)
+    }
+    // index range (supports the common zrange(key, 0, -1) full-range read)
+    const stop = max < 0 ? entries.length + max : max
+    return entries.filter((_, i) => i >= min && i <= stop).map(([m]) => m)
   }
 
   private listStore = new Map<string, unknown[]>()

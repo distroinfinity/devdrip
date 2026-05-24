@@ -151,6 +151,10 @@ interface Session {
   // set true when save-key successfully writes a reading_pending row for the
   // active news slot; carried into recordNewsImpression so saved is accurate.
   savedNews: boolean
+  // set when idle-start arrives with wrapped=true (session launched via
+  // `dtv run`). the PTY wrapper owns the keyboard, so the daemon must NOT open
+  // this tty for key capture — doing so would re-race Claude inside the PTY.
+  wrapped: boolean
 }
 
 export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
@@ -189,6 +193,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       sessionStartAt: now(),
       openedNewsUrl: false,
       savedNews: false,
+      wrapped: false,
     }
     sessions.set(key, s)
     return s
@@ -289,6 +294,11 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     if (!session) {
       deps.log.debug("dispatch skipped — no matching session", { eventKind: event.kind })
       return
+    }
+
+    if (event.kind === "idle-start" && event.wrapped) {
+      // sticky: once a session reports it's wrapper-owned, keep skipping capture.
+      session.wrapped = true
     }
 
     if (event.kind === "idle-end" || event.kind === "dismiss") {
@@ -416,7 +426,10 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             })
             dispatch({ kind: "dismiss", now: now(), tty: session.tty })
           })
-          deps.keyCapture.start(effect.tty)
+          // skip when the session is wrapper-owned: `dtv run` reads the real
+          // terminal and forwards keys to the PTY, so the daemon reading this
+          // (PTY-slave) tty would steal Claude's input all over again.
+          if (!session.wrapped) deps.keyCapture.start(effect.tty)
           const displayTimeMs =
             effect.ad.kind === "news" ? effect.ad.displayTimeMs : MAX_AD_DURATION_MS
           deps.log.info("showing slot", {

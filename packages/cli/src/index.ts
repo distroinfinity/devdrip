@@ -14,6 +14,7 @@ import { doctorCmd } from "./commands/doctor.js"
 import { uninstallCmd } from "./commands/uninstall.js"
 import { upgradeCmd } from "./commands/upgrade.js"
 import { hookCmd } from "./commands/hook.js"
+import { runCmd } from "./commands/run.js"
 import { chartCmd, discoverCmd, killSessionCmd, muteCmd, skipCmd } from "./commands/action.js"
 import { preferencesCmd } from "./commands/preferences.js"
 import { watchlistCmd } from "./commands/watchlist.js"
@@ -37,6 +38,7 @@ program
   .addCommand(configCmd)
   .addCommand(statusCmd)
   .addCommand(daemonCmd)
+  .addCommand(runCmd)
   .addCommand(syncCmd)
   .addCommand(demoCmd)
   .addCommand(doctorCmd)

@@ -109,7 +109,7 @@ function toStateEvent(w: StateWireEvent): Event {
   const now = Date.now()
   switch (w.type) {
     case "idle-start":
-      return { kind: "idle-start", tty: w.tty, now }
+      return { kind: "idle-start", tty: w.tty, now, wrapped: w.wrapped }
     case "idle-end":
       return { kind: "idle-end", now, tty: w.tty }
     case "dismiss":
@@ -132,6 +132,8 @@ function toStateEvent(w: StateWireEvent): Event {
           return { kind: "dismiss", now, tty: w.tty }
         case "chart":
           return { kind: "chart-key", now, tty: w.tty }
+        case "save":
+          return { kind: "save-key", now, tty: w.tty }
       }
   }
 }
