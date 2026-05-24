@@ -65,15 +65,19 @@ async function getMode(userId: string): Promise<ChannelMode> {
 // during fetcher warm-up). bounded at 2*n attempts so a fully empty quote table
 // still terminates instead of looping forever.
 async function fetchTickers(userId: string, deviceId: string, n: number): Promise<TickerPayload[]> {
-  const out: TickerPayload[] = []
-  let attempts = 0
+  if (n <= 0) return []
+  // fetch candidates in PARALLEL. the old sequential loop made up to 2*n yahoo
+  // round-trips back-to-back (~5s each on a cold redis cache), pushing the
+  // endpoint past the daemon's 10s fetch timeout → the daemon aborted and fell
+  // back to the offline demo (and the abort cancelled the warm-up, so the cache
+  // never filled). parallel keeps worst-case ≈ one yahoo timeout.
   const maxAttempts = n * 2
-  while (out.length < n && attempts < maxAttempts) {
-    const t = await nextTickerForDevice({ userId, deviceId, rotationIndex: attempts })
-    attempts++
-    if (t) out.push(t)
-  }
-  return out
+  const candidates = await Promise.all(
+    Array.from({ length: maxAttempts }, (_, i) =>
+      nextTickerForDevice({ userId, deviceId, rotationIndex: i })
+    )
+  )
+  return candidates.filter((t): t is TickerPayload => t !== null).slice(0, n)
 }
 
 async function onlyTicker(userId: string, deviceId: string, n: number): Promise<SlotPayload[]> {
@@ -83,8 +87,11 @@ async function onlyTicker(userId: string, deviceId: string, n: number): Promise<
 async function interleave(userId: string, deviceId: string, n: number): Promise<SlotPayload[]> {
   const halfNews = Math.ceil(n / 2)
   const halfTicker = n - halfNews
-  const news = await nextPicksForDevice({ userId, deviceId, n: halfNews })
-  const tickers = await fetchTickers(userId, deviceId, halfTicker)
+  // news (db) + tickers (yahoo) in parallel so the response time is max(), not sum().
+  const [news, tickers] = await Promise.all([
+    nextPicksForDevice({ userId, deviceId, n: halfNews }),
+    fetchTickers(userId, deviceId, halfTicker),
+  ])
   // round-robin merge starting with news
   const out: SlotPayload[] = []
   for (let i = 0; i < n; i++) {
