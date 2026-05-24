@@ -38,11 +38,10 @@ function nowClock(): string {
 }
 
 function marketsFooter(innerWidth: number, isAlert: boolean): string {
-  const full = isAlert
-    ? "[O] open · [A] ack · [T] tune · [S] skip"
-    : "[C] chart · [W] watch · [S] skip · [K] kill"
-  const short = isAlert ? "[O] · [A] · [T] · [S]" : "[C] · [W] · [S] · [K]"
-  return innerWidth >= full.length ? full : short
+  // display-only: interactive key controls (chart/watch/skip/kill, ack/tune)
+  // are disabled for now — the slot just shows info. keep a passive channel tag.
+  const full = isAlert ? "distro tv · alert" : "distro tv · markets"
+  return innerWidth >= full.length ? full : "distro tv"
 }
 
 export interface TickerRenderOpts {
