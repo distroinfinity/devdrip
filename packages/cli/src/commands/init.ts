@@ -23,6 +23,7 @@ import {
   writeSettingsAtomic,
   writeBackupOnce,
   mergeDevdripHooks,
+  setStatusLine,
 } from "../lib/claude-settings.js"
 import { putPreferences } from "../lib/preferences-client.js"
 import { getMyChannels, putMyChannels } from "../lib/channels-client.js"
@@ -226,7 +227,10 @@ async function installHooks(): Promise<void> {
   await writeBackupOnce(settingsPath, backupPath)
 
   const existing = await readSettings(settingsPath)
-  const { next, changed } = mergeDevdripHooks(existing, binPath)
+  const hooked = mergeDevdripHooks(existing, binPath)
+  const status = setStatusLine(hooked.next, binPath)
+  const next = status.next
+  const changed = hooked.changed || status.changed
 
   // always keep cfg.cli.binPath current — even if settings.json is already correct
   const cfg = await readConfig()

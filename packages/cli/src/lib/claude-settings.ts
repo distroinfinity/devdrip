@@ -12,6 +12,12 @@ export interface HookGroup {
   hooks: HookCommand[]
 }
 
+export interface StatusLineConfig {
+  type: "command"
+  command: string
+  padding?: number
+}
+
 export interface Settings {
   hooks?: {
     PreToolUse?: HookGroup[]
@@ -20,6 +26,7 @@ export interface Settings {
     SessionStart?: HookGroup[]
     [k: string]: HookGroup[] | undefined
   }
+  statusLine?: StatusLineConfig | unknown
   [k: string]: unknown
 }
 
@@ -196,6 +203,51 @@ export function mergeDevdripHooks(
   }
 
   return { next, changed }
+}
+
+function buildStatusLineCommand(binPath: string): string {
+  return `${quoteShellArg(binPath)} statusline`
+}
+
+// matches "<bin> statusline" (bare / single / double quoted), capturing the bin
+const STATUSLINE_COMMAND_RE = /^\s*(?:"((?:\\.|[^"])*)"|'([^']*)'|(\S+))\s+statusline\s*$/
+
+// Point Claude Code's statusLine at `distro statusline` so it renders the
+// current slot at the bottom. Idempotent — no-op if already pointed at binPath.
+export function setStatusLine(
+  settings: Settings,
+  binPath: string
+): { next: Settings; changed: boolean } {
+  const command = buildStatusLineCommand(binPath)
+  const current = settings.statusLine as { type?: unknown; command?: unknown } | undefined
+  if (
+    current &&
+    typeof current === "object" &&
+    current.type === "command" &&
+    current.command === command
+  ) {
+    return { next: settings, changed: false }
+  }
+  return {
+    next: { ...settings, statusLine: { type: "command", command, padding: 0 } },
+    changed: true,
+  }
+}
+
+// Strip the statusLine entry only when it's ours ("<distro-bin> statusline"),
+// so we never clobber a user's custom status line.
+export function removeStatusLine(settings: Settings): { next: Settings; changed: boolean } {
+  const current = settings.statusLine as { command?: unknown } | undefined
+  if (!current || typeof current !== "object" || typeof current.command !== "string") {
+    return { next: settings, changed: false }
+  }
+  const m = STATUSLINE_COMMAND_RE.exec(current.command)
+  if (!m) return { next: settings, changed: false }
+  const bin = m[1] !== undefined ? unescapeDoubleQuoted(m[1]) : (m[2] ?? m[3] ?? "")
+  if (!DISTRO_BIN_RE.test(basename(bin))) return { next: settings, changed: false }
+  const next = { ...settings }
+  delete next.statusLine
+  return { next, changed: true }
 }
 
 export async function readSettings(path: string): Promise<Settings> {
