@@ -4,6 +4,7 @@ import { themeInitScript } from "@distrotv/design-system/theme"
 import { Analytics } from "@vercel/analytics/react"
 import "@distrotv/design-system/tokens.css"
 import "./globals.css"
+import { PostHogProvider } from "@/components/posthog-provider"
 import { SITE_URL } from "@/lib/env"
 
 const siteUrl = SITE_URL
@@ -103,7 +104,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        {children}
+        <PostHogProvider>{children}</PostHogProvider>
         <Analytics />
       </body>
     </html>
