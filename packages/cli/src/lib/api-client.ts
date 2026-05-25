@@ -6,6 +6,7 @@ import {
   readConfig,
   type DevdripConfig,
 } from "./config.js"
+import { captureCliException, flushCliTelemetry } from "./telemetry.js"
 
 const DEFAULT_TIMEOUT_MS = 10_000
 
@@ -297,6 +298,12 @@ export function reportError(err: unknown): never {
   } else {
     console.error("error: unknown failure")
   }
+  // NotAuthenticatedError is an expected "not logged in" state, not a bug.
+  if (!(err instanceof NotAuthenticatedError)) {
+    captureCliException(err, process.argv[2])
+  }
+  void flushCliTelemetry().finally(() => process.exit(1))
+  // unreachable — process.exit fires inside the finally above; satisfies `never`
   process.exit(1)
 }
 
