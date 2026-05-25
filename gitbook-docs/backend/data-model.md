@@ -23,7 +23,7 @@ Stores:
 
 Runtime usage today:
 
-- GitHub OAuth upsert
+- GitHub OAuth upsert — `repos_count` (`public_repos`) and `primary_language` (top language across public repos) are populated here, best-effort; existing users backfill on next sign-in
 - `/me` identity response
 - refresh token rotation lookup
 
@@ -53,11 +53,12 @@ Stores:
 - device name
 - OS
 - IDE type
+- CLI version (`cli_version`, migration `0022`)
 - last heartbeat
 
 Runtime usage today:
 
-- `/devices` registration and heartbeat refresh
+- `/devices` updates the authenticated device **by id** (os / ide_type / device_name / cli_version / last_heartbeat). The pairing-time row carries a placeholder `machine_id_hash`, so the legacy `(user_id, machine_id_hash)` upsert never matched it; the by-id path is what actually lands metadata. Reported by the daemon on startup (CLI ≥ 0.2.4).
 
 ### `preferences`
 

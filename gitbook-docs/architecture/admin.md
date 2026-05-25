@@ -18,15 +18,15 @@ If `NEXT_PUBLIC_ADMIN_HOSTS` is unset, the middleware is a no-op — admin paths
 
 ## Pages
 
-| URL on `admin.host` | File                                     | Surface                                                                                                    |
-| ------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `/`                 | `frontend/app/admin/page.tsx`            | Overview — 3-column counts header + 2×2 grid (system health, signups 7d, mode distribution, recent alerts) |
-| `/sources`          | `frontend/app/admin/sources/page.tsx`    | News sources CRUD with status dots and inline edit                                                         |
-| `/tickers`          | `frontend/app/admin/tickers/page.tsx`    | Ticker symbol-map CRUD                                                                                     |
-| `/users`            | `frontend/app/admin/users/page.tsx`      | Paginated user list (50/page) with substring filter                                                        |
-| `/users/:id`        | `frontend/app/admin/users/[id]/page.tsx` | Per-user drill-down (read-only)                                                                            |
-| `/metrics`          | `frontend/app/admin/metrics/page.tsx`    | Aggregate charts (recharts)                                                                                |
-| `/audit`            | `frontend/app/admin/audit/page.tsx`      | Alert audit log across all users with time-window filter chips                                             |
+| URL on `admin.host` | File                                     | Surface                                                                                                                                  |
+| ------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                 | `frontend/app/admin/page.tsx`            | Overview — 3-column counts header + card grid (system health, signups 7d, mode distribution, recent alerts, os, ide/terminal, languages) |
+| `/sources`          | `frontend/app/admin/sources/page.tsx`    | News sources CRUD with status dots and inline edit                                                                                       |
+| `/tickers`          | `frontend/app/admin/tickers/page.tsx`    | Ticker symbol-map CRUD                                                                                                                   |
+| `/users`            | `frontend/app/admin/users/page.tsx`      | Paginated user list (50/page) with substring filter                                                                                      |
+| `/users/:id`        | `frontend/app/admin/users/[id]/page.tsx` | Per-user drill-down (read-only)                                                                                                          |
+| `/metrics`          | `frontend/app/admin/metrics/page.tsx`    | Aggregate charts (recharts)                                                                                                              |
+| `/audit`            | `frontend/app/admin/audit/page.tsx`      | Alert audit log across all users with time-window filter chips                                                                           |
 
 ## Data
 
@@ -34,6 +34,17 @@ If `NEXT_PUBLIC_ADMIN_HOSTS` is unset, the middleware is a no-op — admin paths
 - Ticker symbols: new `ticker_symbol_map` table seeded from the previously hardcoded `symbol-map.ts` (8 crypto + 7 equity rows). The ticker-fetcher reads from this table with a 60s in-process cache; admin write paths invalidate the cache via `invalidateSymbolMapCache()`.
 
 Schema migration: `0019_ticker_symbol_map_and_news_sources_enabled.sql`.
+
+## Audience signals collected
+
+What the admin surface can report on, for growth + audience understanding:
+
+- **Identity** (`users`): github id / login / email / avatar, signup time. `repos_count` + `primary_language` are populated at GitHub OAuth (`exchangeCodeForProfile`): `public_repos` from `/user`, top language tallied from `/users/{login}/repos` (best-effort, null on failure — never blocks sign-in). Existing users backfill on their next sign-in.
+- **Devices** (`devices`): `os`, `ide_type`, `device_name` (hostname), and `cli_version` (added migration `0022`). These are reported by the daemon on startup via `POST /devices`, which updates the row **by authenticated device id** (the pairing-time row carries a placeholder `machine_id_hash`, so the old `(user_id, machine_id_hash)` upsert never matched and left every device `os='unknown'`). Requires CLI ≥ 0.2.4; older clients keep working and simply report nothing here.
+- **Geography**: timezone offset only (`preferences.tz_offset_minutes`). Country is **intentionally not collected**.
+- **Usage**: slot impressions (kind, source, dwell, result, link-opened, saved), save rate, news CTR by source, channel-mode split, watchlists, alert fires.
+
+Surfaced in the UI as overview breakdown cards (os / ide / languages) and per-user columns (`lang`, `repos`, `os`) in the user list; `getOverview` adds `osDistribution` / `ideDistribution` / `languageDistribution`, and `listUsers` adds `reposCount` / `primaryLanguage` / `primaryOs` / `cliVersion`.
 
 ## API endpoints
 

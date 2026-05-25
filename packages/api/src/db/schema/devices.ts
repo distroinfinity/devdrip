@@ -14,6 +14,7 @@ export const devices = pgTable(
     deviceName: varchar("device_name", { length: 255 }),
     os: varchar("os", { length: 50 }).notNull(),
     ideType: ideTypeEnum("ide_type").notNull(),
+    cliVersion: varchar("cli_version", { length: 32 }),
     deviceSecretHash: text("device_secret_hash"),
     lastHeartbeat: timestamp("last_heartbeat", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

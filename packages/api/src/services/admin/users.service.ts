@@ -23,6 +23,14 @@ export async function listUsers(page: number, limit: number) {
       email: users.email,
       createdAt: users.createdAt,
       mode: preferences.channelMode,
+      reposCount: users.reposCount,
+      primaryLanguage: users.primaryLanguage,
+      primaryOs: sql<
+        string | null
+      >`(SELECT ${devices.os} FROM ${devices} WHERE ${devices.userId} = ${users.id} GROUP BY ${devices.os} ORDER BY COUNT(*) DESC LIMIT 1)`,
+      cliVersion: sql<
+        string | null
+      >`(SELECT ${devices.cliVersion} FROM ${devices} WHERE ${devices.userId} = ${users.id} AND ${devices.cliVersion} IS NOT NULL ORDER BY ${devices.lastHeartbeat} DESC NULLS LAST LIMIT 1)`,
       lastActivity: sql<Date | null>`(SELECT MAX(${slotImpressions.createdAt}) FROM ${slotImpressions} WHERE ${slotImpressions.userId} = ${users.id})`,
       channelCount: sql<number>`(SELECT COUNT(*)::int FROM ${channelSubscriptions} WHERE ${channelSubscriptions.userId} = ${users.id})`,
       watchlistSize: sql<number>`(SELECT COUNT(*)::int FROM ${watchlistTickers} JOIN ${watchlists} ON ${watchlists.id} = ${watchlistTickers.watchlistId} WHERE ${watchlists.userId} = ${users.id})`,

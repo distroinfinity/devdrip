@@ -62,6 +62,8 @@ authGithubCompleteRouter.post("/", async (req, res) => {
         githubLogin: profile.login,
         email: profile.email,
         avatarUrl: profile.avatarUrl,
+        reposCount: profile.reposCount,
+        primaryLanguage: profile.primaryLanguage,
         updatedAt: new Date(),
       })
       .where(eq(users.id, existingUser.id))
@@ -74,6 +76,8 @@ authGithubCompleteRouter.post("/", async (req, res) => {
         githubLogin: profile.login,
         email: profile.email,
         avatarUrl: profile.avatarUrl,
+        reposCount: profile.reposCount,
+        primaryLanguage: profile.primaryLanguage,
         signedUpAt: new Date(),
       })
       .returning()

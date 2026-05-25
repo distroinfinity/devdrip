@@ -7,6 +7,7 @@ import { configPath, readConfig, writeConfig } from "../lib/config.js"
 import { openSlotCache } from "../lib/slot-cache.js"
 import { openLedger } from "../lib/ledger.js"
 import { showAd } from "../lib/daemon/display.js"
+import { refreshDeviceMetadata } from "../lib/device.js"
 import { createKeyCapture } from "../lib/daemon/input.js"
 import {
   acquireSingletonLock,
@@ -194,6 +195,13 @@ export async function runDaemon(): Promise<number> {
   syncPreferencesOnce(log)
     .then((outcome) => log.debug("prefs startup sync", { outcome }))
     .catch((err) => log.warn("prefs startup sync failed", { error: (err as Error).message }))
+
+  // fire-and-forget: report this device's real os/ide/hostname/cli version so
+  // the backend can replace the placeholders written at pairing time. failures
+  // are swallowed — the daemon must never crash on a metadata refresh.
+  refreshDeviceMetadata()
+    .then(() => log.debug("device metadata refreshed"))
+    .catch((err) => log.warn("device metadata refresh failed", { error: (err as Error).message }))
 
   // forward declaration: keyCapture.onKey closes over orchestrator, but
   // orchestrator needs keyCapture passed into createOrchestrator. keys can

@@ -30,13 +30,30 @@ import { authLimiter } from "../middleware/rate-limit.js"
 
 export const devicesRouter: ReturnType<typeof Router> = Router()
 
+const CLI_VERSION_RE = /^[\w.+-]{1,32}$/
+
+function deviceDto(device: typeof devices.$inferSelect): Record<string, unknown> {
+  return {
+    id: device.id,
+    userId: device.userId,
+    deviceName: device.deviceName,
+    os: device.os,
+    ideType: device.ideType,
+    cliVersion: device.cliVersion,
+    lastHeartbeat: device.lastHeartbeat?.toISOString() ?? null,
+    createdAt: device.createdAt.toISOString(),
+  }
+}
+
 devicesRouter.post("/", authLimiter, async (_req, res) => {
   const userId = res.locals["userId"] as string
-  const { machineIdHash, os, ideType, deviceName } = _req.body as {
+  const deviceId = res.locals["deviceId"] as string | undefined
+  const { machineIdHash, os, ideType, deviceName, cliVersion } = _req.body as {
     machineIdHash?: string
     os?: string
     ideType?: string
     deviceName?: string
+    cliVersion?: string
   }
 
   if (!machineIdHash || !MACHINE_ID_HASH_RE.test(machineIdHash)) {
@@ -58,28 +75,49 @@ devicesRouter.post("/", authLimiter, async (_req, res) => {
     await res.status(400).json({ error: "invalid_device_name" })
     return
   }
+  if (
+    cliVersion !== undefined &&
+    (typeof cliVersion !== "string" || !CLI_VERSION_RE.test(cliVersion))
+  ) {
+    await res.status(400).json({ error: "invalid_cli_version" })
+    return
+  }
 
   const db = getDb()
   const now = new Date()
-
-  const conflictSet: Record<string, unknown> = {
-    os,
-    ideType: ideType as "terminal" | "vscode" | "cursor",
-    lastHeartbeat: now,
-  }
-  if (deviceName !== undefined) {
-    conflictSet["deviceName"] = deviceName
-  }
+  const ide = ideType as "terminal" | "vscode" | "cursor"
 
   try {
+    // device-token path: the bearer identifies THIS exact device, so update it
+    // by id. the row created at pairing carries a placeholder machine_id_hash,
+    // so the (user_id, machine_id_hash) upsert below would never match it and
+    // would insert a duplicate — updating by id is the only path that lands.
+    if (deviceId) {
+      const set: Record<string, unknown> = { os, ideType: ide, lastHeartbeat: now }
+      if (deviceName !== undefined) set["deviceName"] = deviceName
+      if (cliVersion !== undefined) set["cliVersion"] = cliVersion
+      const [device] = await db.update(devices).set(set).where(eq(devices.id, deviceId)).returning()
+      if (!device) {
+        await res.status(404).json({ error: "device_not_found" })
+        return
+      }
+      await res.json({ device: deviceDto(device) })
+      return
+    }
+
+    // JWT path (no device in context): upsert by (user_id, machine_id_hash).
+    const conflictSet: Record<string, unknown> = { os, ideType: ide, lastHeartbeat: now }
+    if (deviceName !== undefined) conflictSet["deviceName"] = deviceName
+    if (cliVersion !== undefined) conflictSet["cliVersion"] = cliVersion
     const [device] = await db
       .insert(devices)
       .values({
         userId,
         machineIdHash,
         os,
-        ideType: ideType as "terminal" | "vscode" | "cursor",
+        ideType: ide,
         deviceName: deviceName ?? null,
+        cliVersion: cliVersion ?? null,
         lastHeartbeat: now,
       })
       .onConflictDoUpdate({
@@ -93,17 +131,7 @@ devicesRouter.post("/", authLimiter, async (_req, res) => {
       return
     }
 
-    await res.json({
-      device: {
-        id: device.id,
-        userId: device.userId,
-        deviceName: device.deviceName,
-        os: device.os,
-        ideType: device.ideType,
-        lastHeartbeat: device.lastHeartbeat?.toISOString() ?? null,
-        createdAt: device.createdAt.toISOString(),
-      },
-    })
+    await res.json({ device: deviceDto(device) })
   } catch (err) {
     logger.error({ err }, "device registration error")
     await res.status(500).json({ error: "internal_error" })

@@ -65,6 +65,25 @@ export function UsersListClient({ initial, total, page, limit }: Props) {
       render: (u) => u.mode ?? "—",
     },
     {
+      key: "primaryLanguage",
+      header: "lang",
+      width: "90px",
+      render: (u) => u.primaryLanguage ?? "—",
+    },
+    {
+      key: "reposCount",
+      header: "repos",
+      width: "56px",
+      align: "right",
+      render: (u) => u.reposCount ?? "—",
+    },
+    {
+      key: "primaryOs",
+      header: "os",
+      width: "70px",
+      render: (u) => u.primaryOs ?? "—",
+    },
+    {
       key: "channels",
       header: "ch",
       width: "40px",
