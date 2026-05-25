@@ -1,6 +1,30 @@
+import fs, { constants as fsConstants } from "node:fs"
+import { WriteStream } from "node:tty"
 import { renderSlotLine } from "../render-line.js"
 import { writeStatusLine } from "../statusline-state.js"
+import type { ColorMode } from "../ansi.js"
 import type { CachedSlot } from "../slot-cache.js"
+
+// The daemon's own stdout is the log file (not a TTY), so detectColor() would
+// strip color. We render onto Claude's statusLine, which supports truecolor —
+// so force it on unless the user opted out via NO_COLOR.
+const RENDER_COLOR: ColorMode = process.env["NO_COLOR"] ? "none" : "truecolor"
+const FALLBACK_COLS = 80
+
+// Read the terminal width off the tty path the hook handed us, so the panel can
+// spread price/change/age across the real width. Best-effort — falls back to 80.
+function readTtyCols(ttyPath: string): number {
+  try {
+    const fd = fs.openSync(ttyPath, fsConstants.O_WRONLY | fsConstants.O_NONBLOCK)
+    try {
+      return new WriteStream(fd).columns ?? FALLBACK_COLS
+    } finally {
+      fs.closeSync(fd)
+    }
+  } catch {
+    return FALLBACK_COLS
+  }
+}
 
 export interface RenderCtx {
   source?: string
@@ -26,9 +50,10 @@ export interface DisplayHandle {
 // The orchestrator still drives show/vanish/progress timers for rotation +
 // impression accounting, so the handle keeps its shape; the visual-only methods
 // are no-ops.
-export function showAd(_ttyPath: string, slot: CachedSlot, _ctx: RenderCtx = {}): DisplayHandle {
+export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): DisplayHandle {
   try {
-    writeStatusLine(renderSlotLine(slot))
+    const width = ctx.width ?? readTtyCols(ttyPath) - 4
+    writeStatusLine(renderSlotLine(slot, RENDER_COLOR, width))
   } catch {
     /* display must never throw — the daemon stays up no matter what */
   }

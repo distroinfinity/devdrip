@@ -105,6 +105,10 @@ wild keep working when the Vercel challenge isn't firing.
 
 **Changed:** the status-line bar is now **persistent** — the daemon keeps the last slot on screen between rotations instead of clearing on vanish, so the bottom bar stays pinned rather than flickering blank in the gaps. Staleness TTL bumped to 5 min; the daemon clears the line on clean shutdown. (Claude Code only loads a newly-added `statusLine` after a full quit-and-relaunch.)
 
+## cli-v0.2.8 (2026-05-25)
+
+**Changed:** the statusLine slot is now a **rich, colored, multi-line panel** (indigo bar, brand-colored chip badge, white headline/name, green/red change, braille sparkline, day/wk/mo/52w stats, brand footer) instead of a plain single line. The daemon reads the terminal width off the tty and right-aligns price/change/age so the panel spreads across the space; long news headlines wrap to 2 lines. **Timing:** both news and ticker now show for 12s (`MAX_AD_DURATION_MS` 8s → 12s; news no longer capped to its 8s-capped 10s payload — both rotate at one rate). See `architecture/slot-rendering.md`.
+
 ## cli-v0.2.6 (2026-05-25)
 
 **Changed:** slots now render via Claude Code's **statusLine** instead of the daemon drawing to the TTY. The daemon publishes the current slot as one line to `~/.distro/now-playing.json`; `distro statusline` prints it; `distro init` points Claude's `statusLine` at that command. This pins the slot to the bottom (Claude-owned, replaced in place) with zero terminal contention — fixing both the original corruption and the 0.2.4/0.2.5 inline-scrollback spam. Existing users must re-run `distro init` to wire the `statusLine` config, then restart Claude Code. See `architecture/slot-rendering.md`.

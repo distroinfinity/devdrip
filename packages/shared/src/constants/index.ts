@@ -4,7 +4,8 @@ import { ChannelMode } from "../types/index.js"
 // ── timing ──────────────────────────────────────────────────────────────────
 
 export const GRACE_PERIOD_MS = 0
-export const MAX_AD_DURATION_MS = 8_000
+// every slot (news + ticker) shows for this long before rotating.
+export const MAX_AD_DURATION_MS = 12_000
 
 // daemonSocketPath moved to @distrotv/shared/daemon-socket — kept out of the
 // main barrel so the frontend bundle doesn't pull node:os / node:path through
