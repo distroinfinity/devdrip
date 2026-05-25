@@ -32,10 +32,13 @@ export function isTelemetryDisabledByEnv(): boolean {
 // leaves the machine. Default-deny: we only ever send error name/message/stack
 // and an explicit property allow-list; this is the second line of defense for
 // the message/stack strings themselves.
+// Note: this also strips the path portion of file:// and http(s):// URLs.
+// That's deliberate — ESM stack traces embed real filesystem paths as
+// file:///… URLs, and scrubbing those wins over keeping a URL intact.
 const ABS_PATH = /(?:\/[\w.\-+@]+){2,}/g // /Users/foo/bar, /home/x/y, /var/...
 const WIN_PATH = /[A-Za-z]:\\(?:[\w.\-+@]+\\?)+/g // C:\Users\foo\...
 const TOKEN =
-  /\b(?:gh[opsu]_[A-Za-z0-9]{16,}|sk-[A-Za-z0-9]{16,}|eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-.]+)\b/g
+  /\b(?:gh[opsu]_[A-Za-z0-9]{16,}|sk-[A-Za-z0-9-]{16,}|eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-.]+)\b/g
 
 export function scrubString(input: string): string {
   return input
