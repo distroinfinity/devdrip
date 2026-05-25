@@ -5,18 +5,24 @@ The CLI daemon dispatches by `slot.kind` to one of two renderers:
 - **News (`renderNewsBox`)** — single headline + source/age/score line + footer hotkeys. M3.
 - **Ticker (`renderTickerBox`)** — layout B: header row, price + sparkline + 1m label, stats row (d1/w1/m1/52w), footer hotkeys. M4.
 
-Both renderers produce a multi-line string anchored to the bottom of the TTY via DECSTBM scroll-region pinning. The renderer dispatch lives in `packages/cli/src/lib/daemon/display.ts`:
+Both renderers produce a multi-line string. The renderer dispatch lives in `packages/cli/src/lib/daemon/display.ts` (`showAd`).
+
+## Rendering model: inline, append-only
+
+`showAd` writes the rendered block **once** to the user's TTY as ordinary scrolling output, then closes the fd. There is **no** scroll region (DECSTBM), **no** cursor save/restore (DECSC/DECRC), **no** absolute positioning, and **no** repaint timers (pulse / progress / resize poll). The block becomes part of the scrollback and scrolls away naturally as the host produces more output.
 
 ```ts
-function renderInitial(): string {
-  if (slot.kind === "ticker") {
-    return renderTickerBox(slot, { width: ctx.width ?? initialCols })
-  }
-  return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], baseNewsOpts)
-}
+const block = "\r\n" + text.split("\n").join("\r\n") + "\x1b[0m\r\n"
+writeWithRetry(fd, block)
 ```
 
-The `as` cast is for the `cacheSource` field on `CachedSlot` and the future `sponsored`/`portfolio` kinds in the `SlotKind` enum that don't have payload types yet.
+CRLF joins each row so the block lands correctly whether the host left the TTY in cooked or raw mode; the trailing SGR reset prevents color bleed.
+
+**Why this model.** The previous approach pinned a fixed bottom pane via DECSTBM and repainted it on timers. That fought Claude Code's TUI, which owns the same bottom rows (its input box + footer), shares the single cursor-save register, and periodically resets the scroll region — the two writers clobbered each other and corrupted the host screen. Appending plain text can't: it composes with the host like any other line. The tradeoff is that there is no persistent pane, live progress bar, pulse animation, or in-place vanish — the slot just scrolls by.
+
+The orchestrator still drives its show / vanish / progress timers (for impression accounting and rotation), so the `DisplayHandle` keeps its shape but `flash` / `updateProgress` / `vanish` / `onResize` are no-ops; `vanish` reports `latencyMs: 0` (nothing to wipe).
+
+The `as` cast in the dispatch is for the `cacheSource` field on `CachedSlot` and the future `sponsored`/`portfolio` kinds in the `SlotKind` enum that don't have payload types yet.
 
 ## Layout B (single ticker)
 
