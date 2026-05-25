@@ -3,7 +3,7 @@
 `packages/cli` is the Distro TV terminal client. Binary: `distro` (alias: `dtv`). Install via curl:
 
 ```sh
-curl -fsSL https://distrotv.xyz/install.sh | sh
+curl -fsSL https://get.distrotv.xyz/install.sh | sh
 ```
 
 ## Structure

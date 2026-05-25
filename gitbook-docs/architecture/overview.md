@@ -23,7 +23,7 @@ flowchart LR
 ## Package Responsibilities
 
 - `frontend`
-  Public landing page at `distrotv.xyz`. Channels-first positioning (CH 01 NEWS, CH 02 MARKETS). Hosts `install.sh` as a static asset. Dashboard lives here too (`/dashboard/*`, auth-gated).
+  Public landing page at `distrotv.xyz`. Channels-first positioning (CH 01 NEWS, CH 02 MARKETS). Keeps a fallback copy of `install.sh`; the canonical installer is served from GitHub Pages at `get.distrotv.xyz`. Dashboard lives here too (`/dashboard/*`, auth-gated).
 - `packages/api`
   Express app with layered architecture: thin routes → validators → services → Drizzle ORM. Covers magic-link auth, device registration, channel subscriptions, watchlists, alerts, slot selection and impression ingestion. Centralized error handling via typed error classes.
 - `packages/shared`
@@ -38,7 +38,7 @@ flowchart LR
 ### Install
 
 ```
-curl -fsSL https://distrotv.xyz/install.sh | sh
+curl -fsSL https://get.distrotv.xyz/install.sh | sh
   → node 20+ check
   → download latest tarball from GitHub Releases
   → extract to ~/.distrotv/
@@ -86,7 +86,7 @@ claude hooks fire (PreToolUse / UserPromptSubmit)
 
 ## Important Boundaries
 
-- install script lives in `frontend/public/install.sh`; served as a static Vercel asset
+- install script lives in `frontend/public/install.sh` (single source of truth); served from GitHub Pages at `get.distrotv.xyz` (off Vercel's firewall) — Vercel keeps a fallback copy at `distrotv.xyz/install.sh`
 - waitlist intake is gone post-M1; the landing page has no form submission
 - API runtime uses Neon Postgres + Upstash Redis
 - daemon is a per-user singleton over a Unix socket

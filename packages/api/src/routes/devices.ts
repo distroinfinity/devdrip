@@ -15,7 +15,7 @@ devicesRegisterRouter.post("/", async (_req, res) => {
   await res.status(410).json({
     error: "device_register_removed",
     message:
-      "Anonymous device registration is no longer supported. Upgrade the Distro CLI (curl -fsSL https://distrotv.xyz/install.sh | sh) and run `distro init` to sign in with GitHub.",
+      "Anonymous device registration is no longer supported. Upgrade the Distro CLI (curl -fsSL https://get.distrotv.xyz/install.sh | sh) and run `distro init` to sign in with GitHub.",
   })
 })
 

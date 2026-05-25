@@ -40,25 +40,59 @@ Steps the installer performs:
 4. Drop a wrapper script at `~/.local/bin/distro` (or `$DISTROTV_BIN`) that does `exec node ~/.distrotv/dist/index.js "$@"`.
 5. Print a PATH hint if `~/.local/bin` isn't on PATH.
 
-## install.sh is served from Vercel — keep it off the Firewall challenge
+## How install.sh is hosted (and why it's off Vercel)
 
-The script itself is served as a static asset from the Vercel-hosted frontend (`distrotv.xyz`). The
-tarball download (step 2 above) goes to `github.com` and is unaffected, but the **script fetch** sits
-behind Vercel's edge Firewall. When Vercel serves a **challenge** mitigation — either Attack Mode is
-toggled on, or automatic L7 DDoS mitigation triggers on a traffic spike / IP reputation / TLS
-fingerprint — the response is `403` with `x-vercel-mitigated: challenge`. A challenge can only be
-solved by a real browser running JS, so `curl … | sh` fails for every user during the episode.
+The installer one-liner is:
 
-**Required mitigation:** a Vercel WAF **Custom Rule with the `Bypass` action** matching path
-`/install.sh` on the `distrotv` project. Bypass exempts the path from Attack Mode and system DDoS
-challenges. This **cannot** live in `vercel.json` (only `challenge`/`deny` mitigate actions are
-supported there) — it must be created in the dashboard (**Firewall → Configure → Add Rule**, or the
-natural-language box: _"Bypass the firewall for requests where the path is `/install.sh`"_) or via
-the Vercel API. If a versioned/extra installer path is added later, add it to the same rule.
+```sh
+curl -fsSL https://get.distrotv.xyz/install.sh | sh
+```
 
-Symptom history: users hit this `403` on 2026-05-24; the install one-liner is published in ~10 places
-(landing, dashboard account page, gitbook docs) and is already in users' shells, so moving the URL is
-not a cheap option — the Bypass rule is the durable fix.
+`install.sh` is served from **GitHub Pages** at the custom domain `get.distrotv.xyz`, deployed by
+`.github/workflows/deploy-install.yml` from the single source of truth at `frontend/public/install.sh`.
+The tarball it downloads still comes from GitHub Releases. **Nothing in the install path touches
+Vercel** — GitHub Pages is plain static hosting (Fastly CDN) with no JS-challenge layer, so `curl`
+always gets the raw bytes.
+
+### Why not Vercel (the 2026-05-24 incident)
+
+`install.sh` was originally served from the Vercel frontend (`distrotv.xyz/install.sh`). On
+2026-05-24 users got `403` with `x-vercel-mitigated: challenge` — Vercel's edge Firewall served a JS
+"Security Checkpoint" that only a real browser can solve, so `curl … | sh` died.
+
+A WAF custom-rule **Bypass** on `/install.sh` is **not** a reliable fix for this. Vercel's
+[rule execution order](https://vercel.com/docs/vercel-firewall) is:
+
+1. platform-wide automatic DDoS mitigation
+2. WAF IP blocking
+3. WAF custom rules
+4. managed rulesets
+
+A `challenge` can be issued either at the WAF layer (Attack Mode / a WAF rule) **or** by step-1
+automatic DDoS mitigation, and both emit the same `x-vercel-mitigated: challenge` header. A
+custom-rule Bypass lives at step 3, so it is **never evaluated** for a request already challenged at
+step 1. System-level mitigations can only be exempted with
+[System Bypass Rules](https://vercel.com/docs/vercel-firewall/vercel-waf/system-bypass-rules), which
+match **IP address / CIDR + domain — not path** (and are Pro/Enterprise-only). Because the installer
+is hit by arbitrary user IPs, there is **no path-scoped way to exempt it from automatic DDoS
+challenges on Vercel.** Hosting the script on a platform with no challenge layer removes the entire
+class of failure — hence GitHub Pages.
+
+Refs: [Vercel Firewall](https://vercel.com/docs/vercel-firewall) ·
+[Firewall concepts](https://vercel.com/docs/vercel-firewall/firewall-concepts) ·
+[System Bypass Rules](https://vercel.com/docs/vercel-firewall/vercel-waf/system-bypass-rules).
+
+### One-time DNS / Pages setup
+
+1. **GoDaddy DNS** (distrotv.xyz is on GoDaddy): add a CNAME — host `get` → `distroinfinity.github.io`.
+2. **Repo → Settings → Pages**: source = **GitHub Actions**, custom domain = `get.distrotv.xyz`,
+   enable **Enforce HTTPS** once the cert provisions.
+3. Trigger `deploy-install.yml` (push to `main` touching `install.sh`, or run it manually via
+   **workflow_dispatch**). The first run will fail until Pages is enabled with the Actions source.
+4. Verify: `curl -fsSL https://get.distrotv.xyz/install.sh` returns the script (200).
+
+The Vercel copy at `distrotv.xyz/install.sh` is kept as a fallback so older one-liners already in the
+wild keep working when the Vercel challenge isn't firing.
 
 ## First-time setup (post-M8 merge)
 

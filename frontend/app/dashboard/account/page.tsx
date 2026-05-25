@@ -94,7 +94,7 @@ export default async function AccountPage() {
             body="run distro init from your terminal to pair this account with your machine"
             action={
               <pre className="text-[10px] font-[var(--font-data)] bg-[var(--bg-inset,var(--bg-surface))] border border-[var(--rule-default)] p-3 inline-block text-left text-[var(--ink-primary)]">
-                {`curl -fsSL https://distrotv.xyz/install.sh | sh\ndistro init`}
+                {`curl -fsSL https://get.distrotv.xyz/install.sh | sh\ndistro init`}
               </pre>
             }
           />

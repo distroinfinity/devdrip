@@ -47,8 +47,9 @@ Current-state gaps that matter when working in this repo.
 ## M8 — Landing page + install vector (2026-05-19)
 
 - Real landing page at `/` with channels-first positioning (CH 01 NEWS, CH 02 MARKETS, CH 0? COMING).
-- Install vector: `curl -fsSL https://distrotv.xyz/install.sh | sh` backed by GitHub Releases. No npm publish.
-- **install.sh is served from Vercel and can be 403'd by the edge Firewall challenge** (`x-vercel-mitigated: challenge`) during Attack Mode or auto DDoS mitigation — `curl` can't solve a JS challenge. Mitigated by a WAF **Bypass** rule on `/install.sh` (dashboard/API only; not expressible in `vercel.json`). See [CLI Releases](../cli/releases.md).
+- Install vector: `curl -fsSL https://get.distrotv.xyz/install.sh | sh` backed by GitHub Releases. No npm publish.
+- **Resolved (was a Vercel Firewall 403):** install.sh used to be served from Vercel (`distrotv.xyz/install.sh`) and got `403 x-vercel-mitigated: challenge` on 2026-05-24 — `curl` can't solve a JS challenge, and a path-scoped WAF Bypass can't cover step-1 system DDoS mitigation (System Bypass is IP/CIDR-only). Now served from **GitHub Pages at `get.distrotv.xyz`** (off Vercel's firewall) via `deploy-install.yml`; Vercel keeps a fallback copy. See [CLI Releases](../cli/releases.md).
+- Remaining setup dep: `get.distrotv.xyz` needs the one-time GoDaddy CNAME + repo Pages config (see CLI Releases) before the new URL resolves.
 - `release-cli.yml` workflow on `cli-v*` tag push.
 - OG and Twitter cards refreshed to match the new positioning.
 - Dropped pre-pivot `publish-cli.yml` and the stale "dev drip" wordmark.
