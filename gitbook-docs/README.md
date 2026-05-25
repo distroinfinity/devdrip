@@ -48,7 +48,7 @@ cli / daemon
 ## Install
 
 ```sh
-curl -fsSL https://distrotv.xyz/install.sh | sh
+curl -fsSL https://get.distrotv.xyz/install.sh | sh
 ```
 
 ## Read This Next

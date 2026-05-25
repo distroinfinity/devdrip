@@ -1,0 +1,44 @@
+name: Deploy installer (Pages)
+
+# Serves frontend/public/install.sh from GitHub Pages at get.distrotv.xyz —
+# off Vercel's platform firewall, which can JS-challenge curl (see
+# gitbook-docs/cli/releases.md). Single source of truth stays in frontend/public.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/public/install.sh"
+      - ".github/workflows/deploy-install.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: assemble site
+        run: |
+          mkdir -p _site
+          cp frontend/public/install.sh _site/install.sh
+          echo "get.distrotv.xyz" > _site/CNAME
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

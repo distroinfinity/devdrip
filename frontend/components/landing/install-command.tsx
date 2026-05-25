@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 
-export const INSTALL_COMMAND = "curl -fsSL https://distrotv.xyz/install.sh | sh"
+export const INSTALL_COMMAND = "curl -fsSL https://get.distrotv.xyz/install.sh | sh"
 
 type Variant = "pill" | "hero" | "large"
 
@@ -40,7 +40,7 @@ export function InstallCommand({ variant = "hero", className }: InstallCommandPr
         aria-label="copy install command"
       >
         <span className="text-[var(--ink-tertiary)]">$</span>
-        <span className="truncate max-w-[180px]">curl -fsSL distrotv.xyz/install.sh | sh</span>
+        <span className="truncate max-w-[180px]">curl -fsSL get.distrotv.xyz/install.sh | sh</span>
         <CopyIcon copied={copied} />
       </button>
     )

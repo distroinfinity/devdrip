@@ -52,10 +52,10 @@ Design system: `@distrotv/design-system` v5.
 The primary install command shown on the landing page:
 
 ```sh
-curl -fsSL https://distrotv.xyz/install.sh | sh
+curl -fsSL https://get.distrotv.xyz/install.sh | sh
 ```
 
-`install.sh` lives at `frontend/public/install.sh` and is served as a static asset by Vercel. See [CLI Releases](../cli/releases.md) for what the installer does and how releases are built.
+`install.sh` lives at `frontend/public/install.sh` (single source of truth) and is served from GitHub Pages at `get.distrotv.xyz` via `.github/workflows/deploy-install.yml` — off Vercel's platform firewall, which JS-challenges `curl`. Vercel keeps a fallback copy at `distrotv.xyz/install.sh`. See [CLI Releases](../cli/releases.md) for what the installer does, how releases are built, and why the installer is hosted off Vercel.
 
 ## OG / Twitter Cards
 

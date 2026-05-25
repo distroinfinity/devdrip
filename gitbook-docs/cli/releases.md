@@ -40,6 +40,60 @@ Steps the installer performs:
 4. Drop a wrapper script at `~/.local/bin/distro` (or `$DISTROTV_BIN`) that does `exec node ~/.distrotv/dist/index.js "$@"`.
 5. Print a PATH hint if `~/.local/bin` isn't on PATH.
 
+## How install.sh is hosted (and why it's off Vercel)
+
+The installer one-liner is:
+
+```sh
+curl -fsSL https://get.distrotv.xyz/install.sh | sh
+```
+
+`install.sh` is served from **GitHub Pages** at the custom domain `get.distrotv.xyz`, deployed by
+`.github/workflows/deploy-install.yml` from the single source of truth at `frontend/public/install.sh`.
+The tarball it downloads still comes from GitHub Releases. **Nothing in the install path touches
+Vercel** — GitHub Pages is plain static hosting (Fastly CDN) with no JS-challenge layer, so `curl`
+always gets the raw bytes.
+
+### Why not Vercel (the 2026-05-24 incident)
+
+`install.sh` was originally served from the Vercel frontend (`distrotv.xyz/install.sh`). On
+2026-05-24 users got `403` with `x-vercel-mitigated: challenge` — Vercel's edge Firewall served a JS
+"Security Checkpoint" that only a real browser can solve, so `curl … | sh` died.
+
+A WAF custom-rule **Bypass** on `/install.sh` is **not** a reliable fix for this. Vercel's
+[rule execution order](https://vercel.com/docs/vercel-firewall) is:
+
+1. platform-wide automatic DDoS mitigation
+2. WAF IP blocking
+3. WAF custom rules
+4. managed rulesets
+
+A `challenge` can be issued either at the WAF layer (Attack Mode / a WAF rule) **or** by step-1
+automatic DDoS mitigation, and both emit the same `x-vercel-mitigated: challenge` header. A
+custom-rule Bypass lives at step 3, so it is **never evaluated** for a request already challenged at
+step 1. System-level mitigations can only be exempted with
+[System Bypass Rules](https://vercel.com/docs/vercel-firewall/vercel-waf/system-bypass-rules), which
+match **IP address / CIDR + domain — not path** (and are Pro/Enterprise-only). Because the installer
+is hit by arbitrary user IPs, there is **no path-scoped way to exempt it from automatic DDoS
+challenges on Vercel.** Hosting the script on a platform with no challenge layer removes the entire
+class of failure — hence GitHub Pages.
+
+Refs: [Vercel Firewall](https://vercel.com/docs/vercel-firewall) ·
+[Firewall concepts](https://vercel.com/docs/vercel-firewall/firewall-concepts) ·
+[System Bypass Rules](https://vercel.com/docs/vercel-firewall/vercel-waf/system-bypass-rules).
+
+### One-time DNS / Pages setup
+
+1. **GoDaddy DNS** (distrotv.xyz is on GoDaddy): add a CNAME — host `get` → `distroinfinity.github.io`.
+2. **Repo → Settings → Pages**: source = **GitHub Actions**, custom domain = `get.distrotv.xyz`,
+   enable **Enforce HTTPS** once the cert provisions.
+3. Trigger `deploy-install.yml` (push to `main` touching `install.sh`, or run it manually via
+   **workflow_dispatch**). The first run will fail until Pages is enabled with the Actions source.
+4. Verify: `curl -fsSL https://get.distrotv.xyz/install.sh` returns the script (200).
+
+The Vercel copy at `distrotv.xyz/install.sh` is kept as a fallback so older one-liners already in the
+wild keep working when the Vercel challenge isn't firing.
+
 ## First-time setup (post-M8 merge)
 
 1. Confirm `packages/cli/LICENSE` and `packages/cli/package.json` version (e.g. `0.1.0`).
