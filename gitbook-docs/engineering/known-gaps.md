@@ -48,6 +48,7 @@ Current-state gaps that matter when working in this repo.
 
 - Real landing page at `/` with channels-first positioning (CH 01 NEWS, CH 02 MARKETS, CH 0? COMING).
 - Install vector: `curl -fsSL https://distrotv.xyz/install.sh | sh` backed by GitHub Releases. No npm publish.
+- **install.sh is served from Vercel and can be 403'd by the edge Firewall challenge** (`x-vercel-mitigated: challenge`) during Attack Mode or auto DDoS mitigation — `curl` can't solve a JS challenge. Mitigated by a WAF **Bypass** rule on `/install.sh` (dashboard/API only; not expressible in `vercel.json`). See [CLI Releases](../cli/releases.md).
 - `release-cli.yml` workflow on `cli-v*` tag push.
 - OG and Twitter cards refreshed to match the new positioning.
 - Dropped pre-pivot `publish-cli.yml` and the stale "dev drip" wordmark.

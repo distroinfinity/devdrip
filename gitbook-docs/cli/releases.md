@@ -40,6 +40,26 @@ Steps the installer performs:
 4. Drop a wrapper script at `~/.local/bin/distro` (or `$DISTROTV_BIN`) that does `exec node ~/.distrotv/dist/index.js "$@"`.
 5. Print a PATH hint if `~/.local/bin` isn't on PATH.
 
+## install.sh is served from Vercel — keep it off the Firewall challenge
+
+The script itself is served as a static asset from the Vercel-hosted frontend (`distrotv.xyz`). The
+tarball download (step 2 above) goes to `github.com` and is unaffected, but the **script fetch** sits
+behind Vercel's edge Firewall. When Vercel serves a **challenge** mitigation — either Attack Mode is
+toggled on, or automatic L7 DDoS mitigation triggers on a traffic spike / IP reputation / TLS
+fingerprint — the response is `403` with `x-vercel-mitigated: challenge`. A challenge can only be
+solved by a real browser running JS, so `curl … | sh` fails for every user during the episode.
+
+**Required mitigation:** a Vercel WAF **Custom Rule with the `Bypass` action** matching path
+`/install.sh` on the `distrotv` project. Bypass exempts the path from Attack Mode and system DDoS
+challenges. This **cannot** live in `vercel.json` (only `challenge`/`deny` mitigate actions are
+supported there) — it must be created in the dashboard (**Firewall → Configure → Add Rule**, or the
+natural-language box: _"Bypass the firewall for requests where the path is `/install.sh`"_) or via
+the Vercel API. If a versioned/extra installer path is added later, add it to the same rule.
+
+Symptom history: users hit this `403` on 2026-05-24; the install one-liner is published in ~10 places
+(landing, dashboard account page, gitbook docs) and is already in users' shells, so moving the URL is
+not a cheap option — the Bypass rule is the durable fix.
+
 ## First-time setup (post-M8 merge)
 
 1. Confirm `packages/cli/LICENSE` and `packages/cli/package.json` version (e.g. `0.1.0`).

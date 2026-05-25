@@ -44,5 +44,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next|favicon|robots|sitemap|api).*)"],
+  matcher: ["/((?!_next|favicon|robots|sitemap|api|install\\.sh|install-local\\.sh).*)"],
 }
