@@ -2,6 +2,7 @@ import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
 import { renderSlotLine } from "../render-line.js"
 import { writeStatusLine } from "../statusline-state.js"
+import { getPendingUpdate } from "../update-nudge.js"
 import type { ColorMode } from "../ansi.js"
 import type { CachedSlot } from "../slot-cache.js"
 
@@ -53,7 +54,7 @@ export interface DisplayHandle {
 export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): DisplayHandle {
   try {
     const width = ctx.width ?? readTtyCols(ttyPath) - 4
-    writeStatusLine(renderSlotLine(slot, RENDER_COLOR, width))
+    writeStatusLine(renderSlotLine(slot, RENDER_COLOR, width, getPendingUpdate() ?? undefined))
   } catch {
     /* display must never throw — the daemon stays up no matter what */
   }

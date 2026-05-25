@@ -80,13 +80,20 @@ function wrapHeadline(text: string, width: number, maxLines: number): string[] {
   return lines
 }
 
+// One-line update prompt shown above the slot heading when a newer CLI exists.
+function updateNudge(latest: string, mode: ColorMode): string {
+  return `${color("warning", "↑", mode)} ${color("muted", `distro tv ${latest} available · curl -fsSL https://get.distrotv.xyz/install.sh | sh`, mode)}`
+}
+
 export function renderSlotLine(
   slot: CachedSlot,
   mode: ColorMode = "truecolor",
-  width = 80
+  width = 80,
+  updateLatest?: string
 ): string {
   const W = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width))
   const dot = color("muted", "·", mode)
+  const nudge = updateLatest ? [updateNudge(updateLatest, mode)] : []
 
   if (slot.kind === "ticker") {
     const header = `${color("indigo", "▍", mode)} ${color("indigo", "markets", mode)} ${dot} ${color("muted", "live", mode)}`
@@ -115,7 +122,7 @@ export function renderSlotLine(
     const statsLine = spread(statsLeft, statsRight, W)
 
     const footer = `${LEFT_PAD}${color("muted", "distro tv · markets", mode)}`
-    return [header, priceLine, chartLine, statsLine, footer].join("\n")
+    return [...nudge, header, priceLine, chartLine, statsLine, footer].join("\n")
   }
 
   // news
@@ -135,5 +142,5 @@ export function renderSlotLine(
   )
 
   const footer = `${LEFT_PAD}${color("muted", "distro tv · news", mode)}`
-  return [header, metaLine, ...hlLines, footer].join("\n")
+  return [...nudge, header, metaLine, ...hlLines, footer].join("\n")
 }
