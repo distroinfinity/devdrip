@@ -42,7 +42,19 @@ export const muteCmd = new Command("mute")
   })
 
 export const chartCmd = new Command("chart")
-  .description("open the current ticker on TradingView (fallback for [C])")
+  .description("open the current ticker on TradingView (fallback for ⌥C)")
   .action(async () => {
     process.exit(await sendAction("chart"))
+  })
+
+export const saveCmd = new Command("save")
+  .description("save the current story to your reading list (fallback for ⌥B)")
+  .action(async () => {
+    process.exit(await sendAction("save"))
+  })
+
+export const dismissCmd = new Command("dismiss")
+  .description("dismiss the current slot (fallback for Esc)")
+  .action(async () => {
+    process.exit(await sendAction("dismiss"))
   })
