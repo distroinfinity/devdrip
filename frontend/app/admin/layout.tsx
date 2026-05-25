@@ -7,7 +7,7 @@ import { AdminPathnameShell } from "./pathname-shell"
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
-  if (!session) redirect("/sign-in?next=/")
+  if (!session) redirect("/sign-in?next=/admin")
 
   let overview: Awaited<ReturnType<typeof adminApi.overview>> | null = null
   let systemHealth: Awaited<ReturnType<typeof adminApi.systemHealth>> | null = null

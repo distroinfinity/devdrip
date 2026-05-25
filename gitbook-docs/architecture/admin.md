@@ -1,6 +1,6 @@
 # Admin Dashboard
 
-Internal operator surface at a dedicated `admin.<base>` subdomain. Introduced in M7.
+Internal operator surface. Introduced in M7. **In prod it runs path-based at `distrotv.xyz/admin/*`** — the `admin.<base>` subdomain is not set up (no DNS, `NEXT_PUBLIC_ADMIN_HOSTS` unset). Subdomain mode remains a dormant, optional path (see Hosting).
 
 ## Audience + auth
 
@@ -10,30 +10,27 @@ Single admin pool gated by `ADMIN_EMAILS` (comma-separated env var, lowercased o
 
 ## Hosting
 
-Same Next.js app, separate hostname. `frontend/middleware.ts` inspects `Host`; admin requests rewrite to `/admin/*` paths internally so the file structure under `frontend/app/admin/` matches Next.js conventions while the URL bar shows clean root-relative paths on the admin subdomain (e.g. `admin.distrotv.com/sources` → file `frontend/app/admin/sources/page.tsx`).
+**Current (prod + local): path-based.** The admin lives at `/admin/*` on the main host. All admin nav links use the `/admin/*` prefix (`components/admin/admin-shell.tsx`); `app/admin/pathname-shell.tsx` passes the full pathname through so active-state matching works. No subdomain, no extra DNS or env.
 
-`NEXT_PUBLIC_ADMIN_HOSTS` (comma-separated) tells the middleware which hostnames are admin. `COOKIE_DOMAIN=.basehost` scopes session cookies to the parent domain so SSO works across user + admin subdomains. The inverse redirect (user host hitting `/admin/*` → bounce to admin host) is also handled by the middleware.
-
-If `NEXT_PUBLIC_ADMIN_HOSTS` is unset, the middleware is a no-op — admin paths still work at `/admin/*` on the user host as a fallback for local dev.
+**Optional subdomain mode (dormant).** `frontend/middleware.ts` inspects `Host`; if `NEXT_PUBLIC_ADMIN_HOSTS` (comma-separated) names the request host, clean root-relative paths rewrite to `/admin/*` (e.g. `admin.distrotv.xyz/sources` → `frontend/app/admin/sources/page.tsx`), and the inverse redirect bounces user-host `/admin/*` to the admin host. Standing this up requires the DNS CNAME + Vercel domain + `NEXT_PUBLIC_ADMIN_HOSTS` + `COOKIE_DOMAIN=.distrotv.xyz` (SSO across hosts) + appending the admin host to `ALLOWED_ORIGINS`. With `NEXT_PUBLIC_ADMIN_HOSTS` unset the middleware is a no-op and the path-based behavior above applies. (Note: the nav links are `/admin/*`-prefixed, so enabling the subdomain would show `admin.host/admin/*` rather than clean URLs unless the links are revisited.)
 
 ## Pages
 
-| URL on `admin.host` | File                                     | Surface                                                                                                                                  |
-| ------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                 | `frontend/app/admin/page.tsx`            | Overview — 3-column counts header + card grid (system health, signups 7d, mode distribution, recent alerts, os, ide/terminal, languages) |
-| `/sources`          | `frontend/app/admin/sources/page.tsx`    | News sources CRUD with status dots and inline edit                                                                                       |
-| `/tickers`          | `frontend/app/admin/tickers/page.tsx`    | Ticker symbol-map CRUD                                                                                                                   |
-| `/users`            | `frontend/app/admin/users/page.tsx`      | Paginated user list (50/page) with substring filter                                                                                      |
-| `/users/:id`        | `frontend/app/admin/users/[id]/page.tsx` | Per-user drill-down (read-only)                                                                                                          |
-| `/metrics`          | `frontend/app/admin/metrics/page.tsx`    | Aggregate charts (recharts)                                                                                                              |
-| `/audit`            | `frontend/app/admin/audit/page.tsx`      | Alert audit log across all users with time-window filter chips                                                                           |
+| URL                | File                                     | Surface                                                                                                                                  |
+| ------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `/admin`           | `frontend/app/admin/page.tsx`            | Overview — 3-column counts header + card grid (system health, signups 7d, mode distribution, recent alerts, os, ide/terminal, languages) |
+| `/admin/sources`   | `frontend/app/admin/sources/page.tsx`    | News sources CRUD with status dots and inline edit                                                                                       |
+| `/admin/users`     | `frontend/app/admin/users/page.tsx`      | Paginated user list (50/page) with substring filter                                                                                      |
+| `/admin/users/:id` | `frontend/app/admin/users/[id]/page.tsx` | Per-user drill-down (read-only)                                                                                                          |
+| `/admin/metrics`   | `frontend/app/admin/metrics/page.tsx`    | Aggregate charts (recharts)                                                                                                              |
+| `/admin/audit`     | `frontend/app/admin/audit/page.tsx`      | Alert audit log across all users with time-window filter chips                                                                           |
 
 ## Data
 
 - News sources: existing `news_sources` table extended with `enabled BOOLEAN` (admin-managed; distinct from system-managed `healthy`). The news fetcher coordinator skips `enabled = false` rows.
-- Ticker symbols: new `ticker_symbol_map` table seeded from the previously hardcoded `symbol-map.ts` (8 crypto + 7 equity rows). The ticker-fetcher reads from this table with a 60s in-process cache; admin write paths invalidate the cache via `invalidateSymbolMapCache()`.
+- ~~Ticker symbols: `ticker_symbol_map` table + admin CRUD~~ — **deprecated.** Symbol lookup is handled directly by the provider (Yahoo) per spec §12; there is no internal map to administer. The `/admin/ticker-symbols` API routes and the admin **tickers** tab were removed. Ticker _provider_ health (finnhub / coingecko) is still surfaced read-only on the overview system-health card via `/admin/system-health`.
 
-Schema migration: `0019_ticker_symbol_map_and_news_sources_enabled.sql`.
+Schema migration: `0019_ticker_symbol_map_and_news_sources_enabled.sql` (the `enabled` column on `news_sources` is still in use; the `ticker_symbol_map` table it also created is now orphaned).
 
 ## Audience signals collected
 
@@ -56,8 +53,6 @@ All under `/admin/*`, gated by `requireAuth` + `requireAdmin` (chained on the ro
 | GET               | `/admin/system-health`                    | Worker tick + per-source state with status (green/amber/red)        |
 | GET               | `/admin/news-sources`                     | List news sources                                                   |
 | POST/PATCH/DELETE | `/admin/news-sources[/:id]`               | CRUD                                                                |
-| GET               | `/admin/ticker-symbols`                   | List ticker symbols                                                 |
-| POST/PATCH/DELETE | `/admin/ticker-symbols[/:symbol]`         | CRUD                                                                |
 | GET               | `/admin/users?page=1&limit=50`            | Paginated user list with per-user counts                            |
 | GET               | `/admin/users/:id`                        | Per-user drill-down bundle                                          |
 | GET               | `/admin/metrics?days=30`                  | Aggregate metrics for charts                                        |
