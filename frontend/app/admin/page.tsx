@@ -128,7 +128,6 @@ function SystemHealthCard({
             <StatusDot status={p.status} />
             <span className="font-bold text-[11px]">{p.provider}</span>
             <span className="text-[var(--ink-tertiary)] flex-1">
-              {p.enabledSymbolCount} symbols ·{" "}
               {p.lastQuoteAt ? `last quote ${relativeTime(p.lastQuoteAt)}` : "no quote"}
             </span>
           </div>

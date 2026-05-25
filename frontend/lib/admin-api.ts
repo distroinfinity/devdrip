@@ -35,7 +35,6 @@ export interface SystemHealthDto {
   tickerProviders: Array<{
     provider: "finnhub" | "coingecko"
     lastQuoteAt: string | null
-    enabledSymbolCount: number
     status: "green" | "amber" | "red"
   }>
 }

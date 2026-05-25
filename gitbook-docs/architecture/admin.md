@@ -28,9 +28,9 @@ Single admin pool gated by `ADMIN_EMAILS` (comma-separated env var, lowercased o
 ## Data
 
 - News sources: existing `news_sources` table extended with `enabled BOOLEAN` (admin-managed; distinct from system-managed `healthy`). The news fetcher coordinator skips `enabled = false` rows.
-- ~~Ticker symbols: `ticker_symbol_map` table + admin CRUD~~ — **deprecated.** Symbol lookup is handled directly by the provider (Yahoo) per spec §12; there is no internal map to administer. The `/admin/ticker-symbols` API routes and the admin **tickers** tab were removed. Ticker _provider_ health (finnhub / coingecko) is still surfaced read-only on the overview system-health card via `/admin/system-health`.
+- ~~Ticker symbols: `ticker_symbol_map` table + admin CRUD~~ — **deprecated.** Symbol lookup is handled directly by the provider (Yahoo) per spec §12; there is no internal map to administer. The `/admin/ticker-symbols` API routes and the admin **tickers** tab were removed, and `/admin/system-health` no longer reads `ticker_symbol_map` (it previously derived a per-provider `enabledSymbolCount` from it). Ticker _provider_ health (finnhub / coingecko) is still surfaced read-only on the overview system-health card — now just a status dot + last-quote time (sourced from `ticker_quotes`), no symbol count.
 
-Schema migration: `0019_ticker_symbol_map_and_news_sources_enabled.sql` (the `enabled` column on `news_sources` is still in use; the `ticker_symbol_map` table it also created is now orphaned).
+Schema migration: `0019_ticker_symbol_map_and_news_sources_enabled.sql` (the `enabled` column on `news_sources` is still in use; the `ticker_symbol_map` table it also created is now fully orphaned — nothing reads it).
 
 ## Audience signals collected
 
