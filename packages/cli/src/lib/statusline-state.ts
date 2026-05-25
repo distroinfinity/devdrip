@@ -3,9 +3,11 @@ import { join } from "node:path"
 import { configDir } from "./config.js"
 
 // The daemon publishes the current slot here; `distro statusline` reads it and
-// Claude Code renders it at the bottom. A staleness TTL is a safety net: if the
-// daemon dies without clearing, the line vanishes instead of sticking forever.
-const STALE_MS = 30_000
+// Claude Code renders it at the bottom. We keep the last line between rotations
+// so the bar stays visible ("pinned") rather than flickering blank. The TTL is
+// a safety net: a daemon that died without a clean shutdown stops showing a
+// frozen line after a few idle minutes.
+const STALE_MS = 5 * 60_000
 
 function statePath(): string {
   return join(configDir(), "now-playing.json")

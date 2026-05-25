@@ -8,6 +8,7 @@ import { openSlotCache } from "../lib/slot-cache.js"
 import { openLedger } from "../lib/ledger.js"
 import { showAd } from "../lib/daemon/display.js"
 import { refreshDeviceMetadata } from "../lib/device.js"
+import { clearStatusLine } from "../lib/statusline-state.js"
 import { createKeyCapture } from "../lib/daemon/input.js"
 import {
   acquireSingletonLock,
@@ -348,6 +349,7 @@ export async function runDaemon(): Promise<number> {
     shuttingDown = true
     clearInterval(heartbeatInterval)
     unwatchFile(watchedConfig)
+    clearStatusLine()
     await syncLoop.stop()
     await orchestrator.shutdown()
     await server.close()
