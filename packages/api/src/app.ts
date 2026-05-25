@@ -27,6 +27,7 @@ import { meActivitySummaryRouter } from "./routes/me-activity-summary.js"
 // demand from Yahoo (spec §12).
 import { meNowPlayingRouter } from "./routes/me-now-playing.js"
 import { meRecentNewsRouter } from "./routes/me-recent-news.js"
+import { meOnchainRouter } from "./routes/me-onchain.js"
 import { ingestRouter } from "./routes/ingest.js"
 import { adminRouter } from "./routes/admin.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
@@ -120,6 +121,7 @@ app.use("/me/alerts", requireAuth, userLimiter, meAlertsRouter)
 app.use("/me/activity-summary", requireAuth, userLimiter, meActivitySummaryRouter)
 app.use("/me/devices/:id/now", requireAuth, userLimiter, meNowPlayingRouter)
 app.use("/me/recent-news", requireAuth, userLimiter, meRecentNewsRouter)
+app.use("/me/onchain", requireAuth, userLimiter, meOnchainRouter)
 app.use("/ingest", requireAuth, userLimiter, ingestRouter)
 app.use("/admin", adminRouter)
 
