@@ -16,6 +16,10 @@
     "./daemon-socket": {
       "types": "./dist/daemon-socket.d.ts",
       "import": "./dist/daemon-socket.js"
+    },
+    "./telemetry": {
+      "types": "./dist/telemetry.d.ts",
+      "import": "./dist/telemetry.js"
     }
   },
   "main": "./dist/index.js",
