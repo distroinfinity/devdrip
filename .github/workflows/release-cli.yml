@@ -34,6 +34,8 @@ jobs:
         run: test -f packages/cli/dist/index.js
 
       - name: stage release contents
+        env:
+          TAG_NAME: ${{ github.ref_name }}
         run: |
           mkdir -p .release-staging
           cp -R packages/cli/dist .release-staging/
@@ -42,11 +44,19 @@ jobs:
           # Build a runtime package.json with only the native deps that can't
           # be bundled (better-sqlite3 ships per-platform prebuilds). All
           # pure-JS deps are bundled into dist/ by tsup's noExternal.
+          #
+          # version is derived from the release tag (cli-vX.Y.Z), NOT the
+          # committed pkg.version — the tag is the single source of truth so the
+          # installed CLI always reports the exact version users were nudged to.
+          # mirrors the prefix-strip in upgrade-check.ts fetchLatestVersion();
+          # falls back to pkg.version only if the ref name is somehow empty.
           node -e "
             const pkg = require('./packages/cli/package.json');
+            const tag = process.env.TAG_NAME || '';
+            const version = tag.replace(/^cli-v/, '').replace(/^v/, '') || pkg.version;
             const runtime = {
               name: pkg.name,
-              version: pkg.version,
+              version,
               type: pkg.type,
               bin: pkg.bin,
               dependencies: { 'better-sqlite3': pkg.dependencies['better-sqlite3'] },
