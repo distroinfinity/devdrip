@@ -396,7 +396,12 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         }
         return
       case "displayAd": {
-        const payloadId = effect.ad.kind === "news" ? effect.ad.id : effect.ad.symbol
+        const payloadId =
+          effect.ad.kind === "news"
+            ? effect.ad.id
+            : effect.ad.kind === "ticker"
+              ? effect.ad.symbol
+              : effect.ad.poolId
         if (!effect.tty) {
           deps.log.warn("display skipped: no tty path", { payloadId })
           queueMicrotask(() => dispatch({ kind: "dismiss", now: now(), tty: session.tty }))

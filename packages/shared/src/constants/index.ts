@@ -97,3 +97,5 @@ export function defaultPreferences(): DevdripPreferences {
 
 // alias for legacy callers; safe to remove in M3
 export const defaultDevdripPreferences = defaultPreferences
+
+export * from "./onchain.js"
