@@ -31,6 +31,7 @@ import { createOrchestrator } from "../lib/daemon/orchestrator.js"
 import { startDaemonServer } from "../lib/daemon/server.js"
 import { createSyncLoop } from "../lib/daemon/sync.js"
 import { syncPreferencesOnce } from "../lib/daemon/prefs-sync.js"
+import { captureCliException, flushCliTelemetry } from "../lib/telemetry.js"
 
 const HEARTBEAT_INTERVAL_MS = 10_000
 const START_POLL_DEADLINE_MS = 2_000
@@ -172,6 +173,17 @@ export async function runDaemon(): Promise<number> {
     return 1
   }
 
+  // Capture unexpected faults to PostHog but stay alive — the daemon is
+  // designed to be resilient (it must never take down the host terminal).
+  process.on("uncaughtException", (err) => {
+    appendLog("error", "daemon uncaughtException", { error: (err as Error).message })
+    captureCliException(err, "daemon")
+  })
+  process.on("unhandledRejection", (reason) => {
+    appendLog("error", "daemon unhandledRejection", { error: String(reason) })
+    captureCliException(reason, "daemon")
+  })
+
   const socketPath = resolveSocketPath()
   unlinkSocketIfExists(socketPath)
 
@@ -186,7 +198,13 @@ export async function runDaemon(): Promise<number> {
     debug: (msg: string, fields?: Record<string, unknown>) => appendLog("debug", msg, fields),
     info: (msg: string, fields?: Record<string, unknown>) => appendLog("info", msg, fields),
     warn: (msg: string, fields?: Record<string, unknown>) => appendLog("warn", msg, fields),
-    error: (msg: string, fields?: Record<string, unknown>) => appendLog("error", msg, fields),
+    error: (msg: string, fields?: Record<string, unknown>) => {
+      appendLog("error", msg, fields)
+      // daemon errors stash the underlying cause in fields.error — fold it into
+      // the captured message so PostHog groups by something useful, not a bare msg.
+      const detail = fields?.error !== undefined ? `: ${String(fields.error)}` : ""
+      captureCliException(new Error(`${msg}${detail}`), "daemon")
+    },
   }
 
   const syncLoop = createSyncLoop({ ledger, log })
@@ -376,6 +394,7 @@ export async function runDaemon(): Promise<number> {
     removeHeartbeat()
     lock?.release()
     log.info("daemon stopped")
+    await flushCliTelemetry()
     process.exit(0)
   }
 
