@@ -19,6 +19,19 @@ export default defineConfig({
   // stay external — they ship per-platform prebuilds via npm and can't be
   // bundled. Install.sh runs `npm install --omit=dev` against a stripped
   // runtime package.json (built in the release workflow) for those.
-  noExternal: ["@distrotv/shared", "@clack/prompts", "cli-table3", "commander", "qrcode-terminal"],
+  noExternal: [
+    "@distrotv/shared",
+    "@clack/prompts",
+    "cli-table3",
+    "commander",
+    "posthog-node",
+    "qrcode-terminal",
+  ],
   external: ["better-sqlite3"],
+  define: {
+    "process.env.POSTHOG_CLI_KEY": JSON.stringify(process.env["POSTHOG_CLI_KEY"] ?? ""),
+    "process.env.POSTHOG_CLI_HOST": JSON.stringify(
+      process.env["POSTHOG_CLI_HOST"] ?? "https://us.i.posthog.com"
+    ),
+  },
 })
