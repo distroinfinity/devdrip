@@ -5,12 +5,11 @@ import { Wordmark } from "@distrotv/design-system/components/wordmark"
 import { AdminPill } from "./admin-pill"
 
 const NAV = [
-  { href: "/", label: "overview" },
-  { href: "/sources", label: "sources" },
-  { href: "/tickers", label: "tickers" },
-  { href: "/users", label: "users" },
-  { href: "/metrics", label: "metrics" },
-  { href: "/audit", label: "audit" },
+  { href: "/admin", label: "overview" },
+  { href: "/admin/sources", label: "sources" },
+  { href: "/admin/users", label: "users" },
+  { href: "/admin/metrics", label: "metrics" },
+  { href: "/admin/audit", label: "audit" },
 ]
 
 interface Props {
@@ -33,8 +32,8 @@ export function AdminShell({ pathname, systemStateReadout, children }: Props) {
         <nav className="flex flex-col py-3">
           {NAV.map((n) => {
             const active =
-              n.href === "/"
-                ? pathname === "/"
+              n.href === "/admin"
+                ? pathname === "/admin"
                 : pathname === n.href || pathname.startsWith(`${n.href}/`)
             return (
               <Link
