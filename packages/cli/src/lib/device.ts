@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url)
 // the installed CLI version, reported per device so we can see adoption /
 // upgrade spread. mirrors index.ts/status.ts; "../package.json" resolves to
 // the package root from the bundled output in dist/.
-function cliVersion(): string {
+export function cliVersion(): string {
   try {
     const { version = "0.0.0" } = require("../package.json") as { version?: string }
     return version

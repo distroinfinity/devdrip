@@ -11,8 +11,8 @@ The CLI daemon dispatches by `slot.kind` to one of two renderers:
 
 Flow:
 
-1. The daemon's `showAd` (`packages/cli/src/lib/daemon/display.ts`) renders a **single compact line** (`renderSlotLine` in `lib/render-line.ts`) and publishes it to a local file `~/.distro/now-playing.json` (`lib/statusline-state.ts`, `{ line, ts }`). `vanish` clears the file. **No terminal writes at all.**
-2. `distro statusline` (`commands/statusline.ts`) reads that file — printing the line, or nothing when no slot is active or the entry is older than the 30s staleness TTL — and exits fast. Claude pipes session JSON on stdin (ignored).
+1. The daemon's `showAd` (`packages/cli/src/lib/daemon/display.ts`) renders a **colored, multi-line panel** (`renderSlotLine` in `lib/render-line.ts`) and publishes it to a local file `~/.distro/now-playing.json` (`lib/statusline-state.ts`, `{ line, ts }`). `showAd` reads the terminal width off the tty path so the panel can right-align price/change/age across the available space. **No terminal writes at all.**
+2. `distro statusline` (`commands/statusline.ts`) reads that file — printing the panel, or nothing when the entry is older than the 5-min staleness TTL — and exits fast. Claude pipes session JSON on stdin (ignored).
 3. `distro init` wires Claude Code's `statusLine` to that command via `setStatusLine` (`lib/claude-settings.ts`):
 
 ```json
@@ -21,14 +21,24 @@ Flow:
 
 Claude Code owns the bottom line, polls the command on its own cadence, and renders the result in place — zero TTY contention, no scrollback spam, replaced each rotation. `uninstall` strips the entry (only if it's ours) via `removeStatusLine`.
 
-Line format (plain text, capped ~140 chars; Claude truncates to terminal width):
+Panel format (truecolor; reuses `ansi` tokens, `renderChip` brand badges, and the `sparkline` braille chart — left-to-right with the price/change/age right-aligned to the read width; Claude truncates over-wide lines):
 
 ```
-▍ NEWS · BBG · Rubio Says "Significant Progress" Made on Iran Talks · 6h
-▍ AAPL $234.56 ▲ +2.34%
+▍ news · live
+  ‹BBG› Bloomberg · ↑ 418                                    2h
+  BlackRock's Saigal Sees 'Sufficient Factors' to Justify Fed Cuts   (wraps to 2 lines when long)
+  distro tv · news
+
+▍ markets · live
+  ‹AAPL› Apple Inc                          $308.82   ▲ +1.26%
+  ⣀⣀⡠⠤⠤⠒⠒⠉⠉  1M
+  day +1.30%  ·  wk +3.30%  ·  mo +12.90%               52w 195–311
+  distro tv · markets
 ```
 
-The orchestrator still drives its show / vanish / progress timers (for rotation + impression accounting), so the `DisplayHandle` keeps its shape but `flash` / `updateProgress` / `flashHeader` / `shiftChart` / `onResize` are no-ops; `vanish` clears the file and reports `latencyMs: 0`. The multi-line box renderers (`renderNewsBox`, `renderTickerBox`) remain for `distro demo` and possible future surfaces but are no longer used by the daemon.
+The orchestrator still drives its show / vanish / progress timers (for rotation + impression accounting), so the `DisplayHandle` keeps its shape but `flash` / `updateProgress` / `flashHeader` / `shiftChart` / `onResize` are no-ops; `vanish` is a no-op too — the panel **persists between rotations** (the daemon clears the file only on clean shutdown; the TTL guards the rest). The multi-line box renderers (`renderNewsBox`, `renderTickerBox`) remain for `distro demo`.
+
+**Timing:** every slot (news + ticker) shows for `MAX_AD_DURATION_MS` (12s) then rotates after `INTER_AD_GAP_MS` (0.5s). News no longer uses its server `displayTimeMs` (the daemon overrides both kinds to one rate).
 
 The `as` casts elsewhere are for the `cacheSource` field on `CachedSlot` and the future `sponsored`/`portfolio` kinds in the `SlotKind` enum that don't have payload types yet.
 
