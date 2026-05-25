@@ -7,15 +7,18 @@ import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
 import { sendSlackAlert } from "./lib/slack.js"
 import { startBackgroundJobs } from "./lib/background-jobs.js"
+import { captureApiException } from "./lib/telemetry.js"
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("[worker] unhandledRejection at:", promise, "reason:", reason)
   logger.error({ err: reason }, "worker unhandledRejection")
+  captureApiException(reason)
 })
 
 process.on("uncaughtException", (err) => {
   console.error("[worker] uncaughtException:", err)
   logger.fatal({ err }, "worker uncaughtException")
+  captureApiException(err)
   if (env.nodeEnv === "production") process.exit(1)
 })
 

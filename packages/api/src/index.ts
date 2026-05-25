@@ -5,6 +5,7 @@ import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
 import { sendSlackAlert } from "./lib/slack.js"
 import { startBackgroundJobs } from "./lib/background-jobs.js"
+import { captureApiException, flushTelemetry } from "./lib/telemetry.js"
 import type { Socket } from "node:net"
 
 // Catch anything that slips past Express's route-level try/catch or runs
@@ -15,11 +16,13 @@ import type { Socket } from "node:net"
 process.on("unhandledRejection", (reason, promise) => {
   console.error("[process] unhandledRejection at:", promise, "reason:", reason)
   logger.error({ err: reason }, "unhandledRejection")
+  captureApiException(reason)
 })
 
 process.on("uncaughtException", (err) => {
   console.error("[process] uncaughtException:", err)
   logger.fatal({ err }, "uncaughtException")
+  captureApiException(err)
   if (env.nodeEnv === "production") process.exit(1)
 })
 
@@ -67,6 +70,7 @@ async function start() {
 
   function shutdown(signal: string) {
     logger.info({ signal }, "shutting down")
+    void flushTelemetry()
     for (const socket of openSockets) socket.destroy()
     server.close(() => {
       logger.info("http server closed")
