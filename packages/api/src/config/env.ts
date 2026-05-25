@@ -72,6 +72,13 @@ export const env = {
     const v = process.env["SLACK_WEBHOOK_URL"]
     return v && v.length > 0 ? v : undefined
   },
+  get posthogKey(): string | undefined {
+    const v = process.env["POSTHOG_KEY"]
+    return v && v.length > 0 ? v : undefined
+  },
+  get posthogHost(): string {
+    return process.env["POSTHOG_HOST"] ?? "https://us.i.posthog.com"
+  },
   get commitSha(): string | undefined {
     return (
       process.env["RAILWAY_GIT_COMMIT_SHA"] ??
@@ -89,8 +96,6 @@ export const env = {
     return origins
   },
 }
-
-// PostHog deferred.
 
 /**
  * Refuses to boot if we'd be pointing a dev process at the deployed Neon DB.
