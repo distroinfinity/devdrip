@@ -2,6 +2,7 @@ import type { CachedSlot } from "./slot-cache.js"
 import { color, type ColorMode } from "./ansi.js"
 import { renderChip, getBrandName, chipLabelFor } from "./brand-colors.js"
 import { renderChart, directionFor } from "./sparkline.js"
+import { renderOnchainBox } from "./render-onchain.js"
 
 // Multi-line, colored slot panel for Claude Code's statusLine. Mirrors the old
 // box's look (indigo bar, brand chip badge, colored change, braille sparkline,
@@ -125,11 +126,9 @@ export function renderSlotLine(
     return [...nudge, header, priceLine, chartLine, statsLine, footer].join("\n")
   }
 
-  // onchain — full renderer comes in a later task; stub keeps typecheck green
   if (slot.kind === "onchain") {
-    const header = `${color("indigo", "▍", mode)} ${color("indigo", "lp guard", mode)} ${dot} ${color("muted", slot.poolLabel, mode)}`
-    const footer = `${LEFT_PAD}${color("muted", "distro tv · onchain", mode)}`
-    return [...nudge, header, footer].join("\n")
+    const box = renderOnchainBox(slot, { width: W, color: mode })
+    return [...nudge, box].join("\n")
   }
 
   // news
