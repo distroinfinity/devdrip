@@ -19,18 +19,22 @@ function printResult(current: string, latest: string, cached: boolean): void {
   process.stdout.write(`current: ${current}\n`)
   process.stdout.write(`latest:  ${latest}${cacheTag}\n`)
   if (cmp < 0) {
-    process.stdout.write(`\n${yellow("→ npm install -g @distrotv/cli@latest", color)}\n`)
+    process.stdout.write(
+      `\n${yellow("→ curl -fsSL https://get.distrotv.xyz/install.sh | sh", color)}\n`
+    )
   } else if (cmp === 0) {
     process.stdout.write(`\n${green("you're up to date", color)}\n`)
   } else {
-    // local version ahead of registry — common during dev builds / pre-publish
-    process.stdout.write(`\n${dim("(local build ahead of registry — nothing to do)", color)}\n`)
+    // local version ahead of the latest release — common during dev builds
+    process.stdout.write(
+      `\n${dim("(local build ahead of latest release — nothing to do)", color)}\n`
+    )
   }
 }
 
 export const upgradeCmd = new Command("upgrade")
-  .description("check npm registry for updates")
-  .option("--force", "bypass the 7-day cache and fetch the registry now")
+  .description("check GitHub Releases for updates")
+  .option("--force", "bypass the 7-day cache and fetch the latest release now")
   .action(async (opts: { force?: boolean }) => {
     try {
       const current = currentVersion()

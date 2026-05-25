@@ -3,7 +3,9 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { configDir } from "./config.js"
 
-const REGISTRY_URL = "https://registry.npmjs.org/@distrotv/cli/latest"
+// the CLI ships via GitHub Releases (cli-v* tags), NOT npm — so the update
+// check reads the latest release tag, not the npm registry. see cli/releases.md.
+const RELEASES_URL = "https://api.github.com/repos/distroinfinity/devdrip/releases/latest"
 const FETCH_TIMEOUT_MS = 1500
 // Sprint-5 ticket says "weekly" auto-check. 7 days keeps the nudge visible
 // without hammering the registry. overridden by --force in the upgrade cmd.
@@ -70,15 +72,20 @@ export async function fetchLatestVersion(signal?: AbortSignal): Promise<string> 
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
   const composedSignal = signal ? anySignal([signal, controller.signal]) : controller.signal
   try {
-    const res = await fetch(REGISTRY_URL, { signal: composedSignal })
+    // GitHub requires a User-Agent; Accept pins the v3 JSON shape.
+    const res = await fetch(RELEASES_URL, {
+      signal: composedSignal,
+      headers: { Accept: "application/vnd.github+json", "User-Agent": "distro-cli" },
+    })
     if (!res.ok) {
-      throw new Error(`registry returned ${res.status}`)
+      throw new Error(`github releases returned ${res.status}`)
     }
-    const body = (await res.json()) as { version?: unknown }
-    if (typeof body.version !== "string" || body.version.length === 0) {
-      throw new Error("registry response missing version")
+    const body = (await res.json()) as { tag_name?: unknown }
+    if (typeof body.tag_name !== "string" || body.tag_name.length === 0) {
+      throw new Error("github release response missing tag_name")
     }
-    return body.version
+    // tags look like "cli-v0.2.5" — strip the prefix to a bare semver.
+    return body.tag_name.replace(/^cli-v/, "").replace(/^v/, "")
   } finally {
     clearTimeout(timer)
   }
