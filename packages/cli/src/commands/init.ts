@@ -400,6 +400,13 @@ export async function runInit(): Promise<void> {
     outro("one or more health checks failed — see ✗ above")
     process.exit(1)
   }
+  note(
+    [
+      "anonymous crash reports help us fix bugs — never any code, prompts, or content.",
+      "turn off any time: distro config telemetry off  (or DISTRO_TELEMETRY=0)",
+    ].join("\n"),
+    "telemetry"
+  )
   outro("all set — open a new Claude Code session to start earning")
 }
 
