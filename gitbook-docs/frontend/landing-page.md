@@ -76,6 +76,36 @@ The surface noun is **channels**. The two launch channels are:
 
 Additional channels are surfaced as coming-soon cards on the landing page.
 
+## Copy & Voice
+
+Voice is **terse, minimal, lowercase-leaning, terminal-flavored** — but every line must be **concrete**, not clever-for-its-own-sake. A cold visitor must be able to answer "what is this / why do I want it" inside the hero. Avoid GPT-vague tropes (e.g. "the signal, not the noise/timeline", "catches the idle moment") and riddles that hide the product.
+
+Lead with **channels** as the noun; name news + your watchlist as the concrete payload (not the two-tangent "news AND markets" framing pivoted away from in M8).
+
+Canonical copy (keep these in sync if you touch the components):
+
+| surface          | copy                                                                                                                                                             |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| hero H1          | Channels for your agent's idle minutes.                                                                                                                          |
+| hero sub         | News and your watchlist, ambient in your terminal.                                                                                                               |
+| meta title       | Distro TV — the channel that runs while your agent codes                                                                                                         |
+| meta description | A terminal channel surface that plays tech news and your market watchlist while your AI agent works — gone the instant you type. Two channels live, more queued. |
+| CH 01 title      | Top stories.                                                                                                                                                     |
+| CH 02 title      | Your watchlist, while you wait.                                                                                                                                  |
+| coming-channels  | Next on the dial.                                                                                                                                                |
+| footer tagline   | Channels for your agent's idle minutes.                                                                                                                          |
+
+Stay tool-agnostic in product copy ("your agent", not "Claude").
+
+## Preview Treatments
+
+The channel-card previews are differentiated so each reads as its own channel (not a clone of the hero terminal). Gated on `TerminalTV`'s `preview` variant so the hero `card` variant is untouched:
+
+- **NEWS** — editorial brief: accent source kicker, emphasized lead headline, ruled stories
+- **MARKETS** — data-grid: `sym / last / chg / 7d` header row above the rows
+
+The coming-channels card renders a dim "channel lineup" of dashed stubs (CH number + name + `queued` tag), echoing the hero's dashed "coming" chip language.
+
 ## Operational Notes
 
 - no waitlist route — the pre-pivot waitlist (`/api/waitlist`) was deprecated post-M1 and is no longer present

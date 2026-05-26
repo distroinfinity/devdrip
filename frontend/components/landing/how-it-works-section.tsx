@@ -7,7 +7,7 @@ const BEATS = [
   {
     num: "01",
     headline: "Your agent starts working.",
-    body: "Distro TV catches the idle moment.",
+    body: "Distro TV catches the wait.",
     visualKind: "agent" as const,
   },
   {
@@ -101,13 +101,13 @@ function ScreenFrame({
   children: ReactNode
 }) {
   return (
-    <div className="flex h-[116px] flex-col overflow-hidden border border-[#1E1E22] bg-[#0A0A0C] font-data text-[11px] text-[#EDEDF0]">
-      <div className="flex items-center gap-2 border-b border-[#1E1E22] px-3 py-1.5 text-[10px] text-[#8A8A94]">
+    <div className="flex h-[152px] flex-col overflow-hidden border border-[#1E1E22] bg-[#0A0A0C] font-data text-[12px] text-[#EDEDF0]">
+      <div className="flex items-center gap-2 border-b border-[#1E1E22] px-3.5 py-2 text-[10px] text-[#8A8A94]">
         <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-color)]" />
         <span>{label}</span>
         <span className="ml-auto text-[#5C5C66]">{status}</span>
       </div>
-      <div className="min-h-0 flex-1 px-3 py-2.5">{children}</div>
+      <div className="flex min-h-0 flex-1 flex-col justify-center px-4 py-3.5">{children}</div>
     </div>
   )
 }
@@ -116,7 +116,7 @@ function BeatVisual({ kind }: { kind: "agent" | "tv" | "vanish" }) {
   if (kind === "agent") {
     return (
       <ScreenFrame label="~ · idle detected" status="stop hook">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <div>
             <span className="mr-2 inline-block animate-spin-slow text-[var(--accent-color)]">
               ⠋
@@ -131,10 +131,10 @@ function BeatVisual({ kind }: { kind: "agent" | "tv" | "vanish" }) {
   if (kind === "tv") {
     return (
       <ScreenFrame label="CH 01 · NEWS" status="12m ago">
-        <div className="mb-1 text-[10px] uppercase tracking-wider text-[var(--accent-color)]">
+        <div className="mb-1.5 text-[10px] uppercase tracking-[0.14em] text-[var(--accent-color)]">
           TechCrunch
         </div>
-        <div className="text-[11px] font-bold leading-snug">Anthropic closes $13B Series F</div>
+        <div className="text-[13px] font-bold leading-snug">Anthropic closes $13B Series F</div>
       </ScreenFrame>
     )
   }

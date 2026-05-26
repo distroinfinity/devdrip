@@ -42,7 +42,7 @@ export function TerminalTV({
   return (
     <div
       className={cn(
-        "font-data text-[11px] leading-[1.5]",
+        "font-data text-[11px] leading-[1.5] flex flex-col",
         isPreview
           ? "bg-[#0A0A0C] text-[#EDEDF0]"
           : "bg-[var(--bg-surface)] text-[var(--ink-primary)] border border-[var(--rule-default)] shadow-[0_8px_24px_rgba(14,14,17,0.04)]",
@@ -101,41 +101,55 @@ export function TerminalTV({
             </span>
           </div>
 
-          {block.kind === "news" && (
-            <div className="space-y-1.5">
-              {block.items.map((item, i) => (
-                <div key={i} className="grid grid-cols-[auto_1fr] gap-3 items-start">
-                  <span
-                    className={cn(
-                      "text-[10px] uppercase tracking-wider pt-0.5 min-w-[80px]",
-                      "text-[var(--accent-color)]"
-                    )}
-                  >
-                    {item.source}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[12px] font-bold leading-snug",
-                      isPreview ? "text-[#EDEDF0]" : "text-[var(--ink-primary)]"
-                    )}
-                  >
-                    {item.headline}
-                    <span
+          {block.kind === "news" &&
+            (isPreview ? (
+              /* editorial brief: accent kicker, lead headline emphasized, ruled stories */
+              <div className="divide-y divide-[#1E1E22]">
+                {block.items.map((item, i) => (
+                  <div key={i} className="py-2 first:pt-0 last:pb-0">
+                    <div className="mb-1 text-[9px] uppercase tracking-[0.14em] text-[var(--accent-color)]">
+                      {item.source}
+                    </div>
+                    <div
                       className={cn(
-                        "block text-[9px] font-normal mt-0.5 tracking-wider",
-                        isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]"
+                        "font-bold leading-snug text-[#EDEDF0]",
+                        i === 0 ? "text-[14px]" : "text-[12px]"
                       )}
                     >
-                      {item.meta}
+                      {item.headline}
+                    </div>
+                    <div className="mt-1 text-[9px] tracking-wider text-[#5C5C66]">{item.meta}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {block.items.map((item, i) => (
+                  <div key={i} className="grid grid-cols-[auto_1fr] gap-3 items-start">
+                    <span className="min-w-[80px] pt-0.5 text-[10px] uppercase tracking-wider text-[var(--accent-color)]">
+                      {item.source}
                     </span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+                    <span className="text-[12px] font-bold leading-snug text-[var(--ink-primary)]">
+                      {item.headline}
+                      <span className="mt-0.5 block text-[9px] font-normal tracking-wider text-[var(--ink-tertiary)]">
+                        {item.meta}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
 
           {block.kind === "markets" && (
             <div className="space-y-0.5">
+              {isPreview && (
+                <div className="grid grid-cols-[50px_70px_60px_1fr] gap-3 border-b border-[#1E1E22] pb-1 mb-1 text-[9px] uppercase tracking-[0.14em] text-[#5C5C66]">
+                  <span>sym</span>
+                  <span className="text-right">last</span>
+                  <span className="text-right">chg</span>
+                  <span className="text-right">7d</span>
+                </div>
+              )}
               {block.rows.map((row, i) => (
                 <div
                   key={i}
@@ -190,7 +204,7 @@ export function TerminalTV({
       {/* frame foot */}
       <div
         className={cn(
-          "flex justify-between px-3 py-1.5 text-[10px]",
+          "mt-auto flex justify-between px-3 py-1.5 text-[10px]",
           isPreview
             ? "border-t border-[#1E1E22] text-[#5C5C66]"
             : "border-t border-[var(--rule-default)] text-[var(--ink-tertiary)]"
