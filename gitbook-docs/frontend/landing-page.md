@@ -87,10 +87,10 @@ Canonical copy (keep these in sync if you touch the components):
 | surface          | copy                                                                                                                                                             |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | hero H1          | Channels for your agent's idle minutes.                                                                                                                          |
-| hero sub         | News and your watchlist, ambient in your terminal. Vanishes the instant you type.                                                                                |
+| hero sub         | News and your watchlist, ambient in your terminal.                                                                                                               |
 | meta title       | Distro TV — the channel that runs while your agent codes                                                                                                         |
 | meta description | A terminal channel surface that plays tech news and your market watchlist while your AI agent works — gone the instant you type. Two channels live, more queued. |
-| CH 01 title      | Top stories, two at a time.                                                                                                                                      |
+| CH 01 title      | Top stories.                                                                                                                                                     |
 | CH 02 title      | Your watchlist, while you wait.                                                                                                                                  |
 | coming-channels  | Next on the dial.                                                                                                                                                |
 | footer tagline   | Channels for your agent's idle minutes.                                                                                                                          |
