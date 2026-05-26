@@ -44,7 +44,7 @@ Files: `frontend/components/posthog-provider.tsx`, `frontend/app/global-error.ts
 Configuration choices:
 
 - `capture_exceptions: true` — exception autocapture enabled
-- session replay active with `maskAllInputs: true` and `maskTextSelector: "*"` — all inputs and readable text are masked before leaving the browser
+- session replay configured with `maskAllInputs: true` and `maskTextSelector: "*"` — all inputs and readable text are masked before leaving the browser (recording only happens once session replay is enabled in the PostHog project settings)
 - `capture_pageview: false` — Vercel Analytics still owns pageview counting; PostHog does not double-count
 
 `global-error.tsx` is a Next.js error boundary that forwards React render errors into PostHog.
@@ -92,7 +92,7 @@ API and dashboard telemetry is the project's own infra. No per-user consent is n
 
 **Allow-list — only these fields leave a machine:**
 
-- error name, message, stack (run through `scrubString`)
+- error name, message, stack (CLI + API run these through `scrubString`; see note below for the web surface)
 - runtime context: OS, arch, Node version, CLI version
 - route, method, HTTP status (API)
 - URL path, browser UA (dashboard)
@@ -107,7 +107,7 @@ API and dashboard telemetry is the project's own infra. No per-user consent is n
 - file paths outside the distrotv package tree
 - full `process.argv`
 
-`scrubString` strips path-shaped substrings and token-shaped values (`gh*`, `sk-*`, JWT patterns). Web session replay masks all inputs and text at the SDK level before transmission.
+`scrubString` strips path-shaped substrings and token-shaped values (`gh*`, `sk-*`, JWT patterns) on the CLI and API, where errors can embed filesystem paths or secrets. The **web** client does NOT run `scrubString`: browser error messages/stacks reference bundled asset URLs, not user paths or secrets, and the dashboard handles no Claude prompts, code, or file contents. Web privacy instead relies on session-replay masking (all inputs and text masked at the SDK level) and on never identifying users with PII (no `identify`/`setPersonProperties` calls — only an anonymous `distinct_id`).
 
 ## Release tagging
 
