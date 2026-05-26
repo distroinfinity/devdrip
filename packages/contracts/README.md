@@ -2,6 +2,14 @@
 
 Uniswap v4 hook (`DistroGuardHook`) + pool deploy scripts for X Layer.
 
+## Dependencies
+
+`lib/` is gitignored. Install the pinned deps once after cloning:
+
+```shell
+forge install uniswap/v4-core@v1.0.2 uniswap/v4-periphery@v1.0.4 foundry-rs/forge-std --no-git
+```
+
 ## Build & test
 
 ```shell
