@@ -2,6 +2,8 @@ import cron from "node-cron"
 import { logger } from "./logger.js"
 import { runFetchTick } from "../services/news-fetchers/coordinator.js"
 import { runAlertEvaluation } from "../services/alert-evaluator.service.js"
+import { runOnchainEvaluation } from "../services/onchain-evaluator.service.js"
+import { ONCHAIN_ENABLED } from "../config/onchain.js"
 
 // schedules the periodic jobs: news fetch (populates news_items) every 5 min
 // with an immediate tick on start, and alert evaluation every 1 min. used by
@@ -25,6 +27,16 @@ export function startBackgroundJobs(): void {
       logger.error({ err }, "alert evaluation tick failed")
     }
   })
+
+  if (ONCHAIN_ENABLED) {
+    cron.schedule("*/1 * * * *", async () => {
+      try {
+        await runOnchainEvaluation()
+      } catch (err) {
+        logger.error({ err }, "onchain eval tick failed")
+      }
+    })
+  }
 
   logger.info("background jobs scheduled — news fetch every 5 min, alert eval every 1 min")
 }
