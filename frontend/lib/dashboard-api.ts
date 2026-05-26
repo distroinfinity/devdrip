@@ -166,6 +166,61 @@ export async function getNewsStats(): Promise<NewsStats> {
   return apiFetch<NewsStats>("/me/news-stats")
 }
 
+// ── onchain lp guard ──────────────────────────────────────────────────────────
+
+export interface OnchainPosition {
+  id: string
+  chainId: number
+  poolId: string
+  tickLower: number
+  tickUpper: number
+  walletAddress: string
+  label: string | null
+  status: string
+  createdAt: string
+}
+
+export interface CreateOnchainPositionBody {
+  chainId: number
+  poolId: string
+  tickLower: number
+  tickUpper: number
+  walletAddress: string
+  label?: string
+}
+
+export interface PoolSnapshot {
+  poolId: string
+  poolLabel: string
+  tick: number
+  price: number
+  volBps: number
+  feeBps: number
+  asOf: string
+}
+
+export async function getOnchainPositions(): Promise<{ positions: OnchainPosition[] }> {
+  return apiFetch<{ positions: OnchainPosition[] }>("/me/onchain/positions")
+}
+
+export async function createOnchainPosition(
+  body: CreateOnchainPositionBody
+): Promise<OnchainPosition> {
+  return apiFetch<OnchainPosition>("/me/onchain/positions", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteOnchainPosition(id: string): Promise<void> {
+  await apiFetch(`/me/onchain/positions/${id}`, { method: "DELETE" })
+}
+
+// public — no auth required
+export async function getPoolSnapshot(poolId: string): Promise<PoolSnapshot> {
+  return apiFetch<PoolSnapshot>(`/onchain/pools/${poolId}`)
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 function buildQuery(params: Record<string, unknown>): string {
