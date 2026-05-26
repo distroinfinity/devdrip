@@ -12,7 +12,7 @@ const SUBMIT_URL =
 
 export function ComingChannelsCard() {
   return (
-    <div className="mt-6 border border-dashed border-[var(--rule-strong)] bg-[var(--bg-surface)]/40 px-6 py-5 grid md:grid-cols-[1fr_2fr] gap-5 items-start">
+    <div className="mt-6 border border-[var(--rule-default)] bg-[var(--bg-surface)]/40 px-6 py-5 grid md:grid-cols-[1fr_2fr] gap-x-8 gap-y-5 items-start">
       <div>
         <div className="font-data text-[11px] tracking-[0.08em] text-[var(--ink-tertiary)] mb-1.5">
           CH 0? · COMING
@@ -21,7 +21,7 @@ export function ComingChannelsCard() {
           className="font-display text-[18px] text-[var(--ink-secondary)] mb-2"
           style={{ fontWeight: 400 }}
         >
-          Channels in the queue.
+          Next on the dial.
         </h3>
         <a
           href={SUBMIT_URL}
@@ -32,14 +32,27 @@ export function ComingChannelsCard() {
           request a channel →
         </a>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-1">
+      {/* dim channel lineup — each stub mirrors the "coming" chip language (dashed, no accent dot) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         {FUTURE_CHANNELS.map((c) => (
           <div
             key={c.id}
-            className="font-data text-[11px] text-[var(--ink-secondary)] py-1 border-b border-[var(--rule-subtle)]"
+            className="group border border-dashed border-[var(--rule-default)] bg-[var(--bg-primary)]/40 px-3 py-2.5 transition-colors hover:border-[var(--rule-strong)]"
           >
-            <span className="text-[var(--ink-tertiary)] mr-2">{c.id}</span>
-            {c.name}
+            <div className="flex items-center justify-between">
+              <span className="font-data text-[10px] tracking-[0.08em] text-[var(--ink-tertiary)]">
+                {c.id}
+              </span>
+              <span className="font-data text-[8px] uppercase tracking-[0.18em] text-[var(--ink-faint)]">
+                queued
+              </span>
+            </div>
+            <div
+              className="font-display text-[14px] leading-tight text-[var(--ink-secondary)] mt-1.5"
+              style={{ fontWeight: 400 }}
+            >
+              {c.name}
+            </div>
           </div>
         ))}
       </div>

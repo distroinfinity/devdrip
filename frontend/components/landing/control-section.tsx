@@ -77,10 +77,6 @@ export function ControlSection() {
                 {INIT_TRANSCRIPT}
               </pre>
             </div>
-            <p className="mt-3 font-data text-[11px] text-[var(--ink-tertiary)]">
-              One command. <code className="text-[var(--ink-secondary)]">distro init</code> walks
-              you through channels, mode, and watchlist. No file editing.
-            </p>
           </div>
 
           {/* keybind cheat-sheet */}
