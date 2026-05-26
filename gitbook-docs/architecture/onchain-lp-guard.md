@@ -20,6 +20,8 @@ Permissions: `afterInitialize` + `beforeSwap` + `afterSwap`. The hook address is
 - **`beforeSwap`** — computes the fee and returns `fee | OVERRIDE_FEE_FLAG`, overriding the pool's LP fee for this swap. Emits `FeeApplied(poolId, feePips)`.
 - **`afterSwap`** — reads the post-swap tick via `StateLibrary.getSlot0`, folds `|tickΔ|` into the per-pool EWMA, stores `lastTick`, emits `VolUpdated(poolId, tick, ewmaVolBps)`.
 
+All three callbacks are guarded by `onlyPoolManager` (`revert NotPoolManager` otherwise) so only the PoolManager can mutate the EWMA — an arbitrary caller cannot skew the fee. A public `currentTick(PoolId)` view returns the live pool tick (`getSlot0`) so off-chain readers get the current price, not the last-swap cache.
+
 ### Fee formula
 
 Fees are in **pips** (1e-6), so the clamp band is **0.30%–1.00%**:
@@ -62,12 +64,12 @@ The EWMA is the running signal the off-chain side reads for display and breach c
 
 | Entity                      | Address                                                              |
 | --------------------------- | -------------------------------------------------------------------- |
-| hook (`DistroGuardHook`)    | `0xc567825Da89E42529E3b4359d8310C4F87a0D0c0`                         |
-| PoolManager                 | `0x933a9F248be97bd0964bbd55Aa8aa1330c650154`                         |
-| token0 (mWETH)              | `0xA0bEb7969E3c6daFAFd5f01813261ee61ec6753b`                         |
-| token1 (mUSDC)              | `0xE7998A16570cb12be37daAEa8f11a5813b26e55C`                         |
-| swapRouter (`PoolSwapTest`) | `0xeb3326ce92f382FD5b1d5cA38F244E1C6bdB210E`                         |
-| poolId                      | `0xe6d570f5d75318142a44ff50c345bbdca0e57786430d14adb7786d39dec6a2b7` |
+| hook (`DistroGuardHook`)    | `0xD8eB6573A3192387dd71c2e646ad23E8DB36d0c0`                         |
+| PoolManager                 | `0x822DdD95fC087c840e646F82432BE9e8276AF648`                         |
+| token0 (mWETH)              | `0xE51CD983c36CaB22cc3756bb8537489157ce758a`                         |
+| token1 (mUSDC)              | `0xf090d274518Fcd9202694a3306997d1672C54d7C`                         |
+| swapRouter (`PoolSwapTest`) | `0x22CE7B3031fEAF5e4af2c056EAA8327965165c69`                         |
+| poolId                      | `0x126278a4094f9fa5d6a1494b1d8e60293837f02a2cf1eaf821c8f47dc725afbc` |
 | tickSpacing                 | 60                                                                   |
 
 ## Backend

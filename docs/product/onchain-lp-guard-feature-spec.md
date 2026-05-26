@@ -12,7 +12,7 @@ Companion to the [PRD](./onchain-lp-guard-prd.md). Engineering detail in [Onchai
 
 ## Acceptance criteria
 
-- [x] **Hook deployed + verifiable on X Layer.** `DistroGuardHook` live at `0xc567825Da89E42529E3b4359d8310C4F87a0D0c0` on chainId 1952; pool `0xe6d570f5…` initialized as a dynamic-fee pool.
+- [x] **Hook deployed + verifiable on X Layer.** `DistroGuardHook` live at `0xD8eB6573A3192387dd71c2e646ad23E8DB36d0c0` on chainId 1952; pool `0xe6d570f5…` initialized as a dynamic-fee pool.
 - [x] **Fee rises with volatility on-chain.** Demo swaps emitted `FeeApplied` rising `3000 → 3250` as `VolUpdated` `ewmaVolBps` climbed to 53; live snapshot reported `feeBps` 57. Fee = `clamp(3000 + 50×ewmaVolBps + 20×sizeUnit, 3000, 10000)` pips.
 - [x] **Range breach → terminal alert.** The 1-min read-only evaluator detects tick outside `[lower, upper]` and pushes a `range_breach` alert through the real ticker alert pipeline; the daemon renders the alert (red) slot variant.
 - [x] **One-click hedge broadcasts.** `distro onchain hedge` resolves the active position, fetches unsigned calldata, signs with the local key, and broadcast real swaps (e.g. tx `0xf14c0c9d…`) that moved the hook's on-chain volatility.
