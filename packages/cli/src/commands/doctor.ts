@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { Command } from "commander"
 import { NotAuthenticatedError, reportError } from "../lib/api-client.js"
 import { detectColor, dim, green, red, yellow } from "../lib/ansi.js"
-import { readConfig } from "../lib/config.js"
+import { readConfig, telemetryEnabled } from "../lib/config.js"
 import { runDoctorHealthCheck, type Probe } from "../lib/health.js"
 
 function claudeSettingsPath(): string {
@@ -72,6 +72,12 @@ export const doctorCmd = new Command("doctor")
         process.exit(1)
       }
       const probes = await runDoctorHealthCheck(cfg, claudeSettingsPath())
+      const telemetryProbe: Probe = {
+        name: "telemetry",
+        ok: true,
+        detail: telemetryEnabled(cfg) ? "on (anonymous crash reports)" : "off",
+      }
+      probes.push(telemetryProbe)
       const ok = probes.every((p) => p.ok)
       if (opts.json) {
         process.stdout.write(`${JSON.stringify({ ok, probes } satisfies DoctorPayload)}\n`)
