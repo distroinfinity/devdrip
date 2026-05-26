@@ -10,7 +10,7 @@ import { registerPosition, stopWatchingPosition } from "./actions"
 
 const POOL_ID_RE = /^0x[0-9a-fA-F]{64}$/
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/
-const BASE_SEPOLIA = 84532
+const XLAYER_TESTNET = 1952
 
 function shortAddr(a: string): string {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a
@@ -76,7 +76,7 @@ export function OnchainClient({ initial, snapshot, demoPoolId }: Props) {
 
     start(async () => {
       const result = await registerPosition({
-        chainId: BASE_SEPOLIA,
+        chainId: XLAYER_TESTNET,
         poolId: poolId.trim(),
         tickLower: lower,
         tickUpper: upper,
@@ -329,7 +329,7 @@ export function OnchainClient({ initial, snapshot, demoPoolId }: Props) {
               {pending ? "registering…" : "register position"}
             </SharpButton>
             <span className="font-[var(--font-data)] text-[10px] text-[var(--ink-faint)]">
-              base sepolia · chainId {BASE_SEPOLIA}
+              x layer testnet · chainId {XLAYER_TESTNET}
             </span>
           </div>
         </form>
