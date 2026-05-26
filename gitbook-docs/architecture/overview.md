@@ -29,7 +29,9 @@ flowchart LR
 - `packages/shared`
   Shared enums, slot payload types, channel-mode constants, and the `env-bundle` for cross-package URL resolution.
 - `packages/cli`
-  Commander-based CLI. Binary: `distro` (alias: `dtv`). Distributed via curl + GitHub Releases.
+  Commander-based CLI. Binary: `distro` (alias: `dtv`). Distributed via curl + GitHub Releases. Also hosts the `distro onchain` control surface for CH 03 (local testnet signing key + one-click LP actions).
+- `packages/contracts`
+  Foundry project for `CH 03 ONCHAIN — LP GUARD`: the Uniswap v4 hook (`DistroGuardHook`) with a volatility/size-aware dynamic fee, plus a self-deploy script. Live on X Layer testnet (chainId 1952). See [Onchain LP Guard](onchain-lp-guard.md).
 - `packages/dashboard`
   Merged into `frontend/` — there is no separate dashboard package. The dashboard lives at `frontend/app/dashboard/`.
 
@@ -102,3 +104,4 @@ claude hooks fire (PreToolUse / UserPromptSubmit)
 - `/health` returns `200` when DB is healthy, even if Redis is degraded
 - news fetcher worker runs on `*/5 * * * *` inside `packages/api/src/worker.ts`
 - ticker fetcher worker runs on `*/1 * * * *` alongside the news cron
+- onchain range-breach evaluator (`runOnchainEvaluation`) runs on `*/1 * * * *` (gated by `ONCHAIN_ENABLED`, registered in `lib/background-jobs.ts`) — **read-only**: reads the live tick per active position via a viem read client and pushes range-breach alerts through the existing alert pipeline; no keeper, no server signing key. See [Onchain LP Guard](onchain-lp-guard.md).
