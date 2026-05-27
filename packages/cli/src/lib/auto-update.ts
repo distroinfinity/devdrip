@@ -21,22 +21,26 @@ import {
   versionsDir,
   writeUpdateState,
 } from "./install-layout.js"
+import { compareSemver } from "./upgrade-check.js"
 
 // ── shared types ────────────────────────────────────────────────────────────
 
 export interface ExecResult {
   code: number
   stdout: string
+  stderr: string
 }
 export type ExecFn = (node: string, args: string[]) => Promise<ExecResult>
 
 const defaultExec: ExecFn = (node, args) =>
   new Promise((resolve) => {
-    const child = spawn(node, args, { stdio: ["ignore", "pipe", "ignore"] })
+    const child = spawn(node, args, { stdio: ["ignore", "pipe", "pipe"] })
     let out = ""
+    let err = ""
     child.stdout.on("data", (d: Buffer) => (out += d.toString()))
-    child.on("error", () => resolve({ code: 127, stdout: "" }))
-    child.on("close", (code) => resolve({ code: code ?? 1, stdout: out }))
+    child.stderr.on("data", (d: Buffer) => (err += d.toString()))
+    child.on("error", () => resolve({ code: 127, stdout: "", stderr: "" }))
+    child.on("close", (code) => resolve({ code: code ?? 1, stdout: out, stderr: err }))
   })
 
 export interface AutoUpdateDeps {
@@ -76,38 +80,48 @@ export async function downloadAndStage(
   mkdirSync(versionsDir(), { recursive: true, mode: 0o700 })
   const staged = join(versionsDir(), `.staging-${version}-${Date.now()}`)
   mkdirSync(staged, { recursive: true })
-  const res = await fetchImpl(url)
-  if (!res.ok || !res.body) throw new Error(`download failed: ${res.status}`)
-  const tgz = join(staged, "cli.tar.gz")
-  await pipeline(
-    Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]),
-    createWriteStream(tgz)
-  )
-  await tar.x({ file: tgz, cwd: staged })
-  rmSync(tgz, { force: true })
-  const exec = deps.exec ?? defaultExec
-  const npm = await exec("npm", [
-    "install",
-    "--omit=dev",
-    "--no-audit",
-    "--no-fund",
-    "--prefix",
-    staged,
-  ])
-  if (npm.code !== 0) throw new Error("npm install failed in staging")
-  return staged
+  try {
+    const res = await fetchImpl(url)
+    if (!res.ok || !res.body) throw new Error(`download failed: ${res.status}`)
+    const tgz = join(staged, "cli.tar.gz")
+    await pipeline(
+      Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]),
+      createWriteStream(tgz)
+    )
+    await tar.x({ file: tgz, cwd: staged })
+    rmSync(tgz, { force: true })
+    const exec = deps.exec ?? defaultExec
+    const npm = await exec("npm", [
+      "install",
+      "--omit=dev",
+      "--no-audit",
+      "--no-fund",
+      "--prefix",
+      staged,
+    ])
+    if (npm.code !== 0)
+      throw new Error("npm install failed in staging: " + npm.stderr.slice(0, 500))
+    return staged
+  } catch (err) {
+    rmSync(staged, { recursive: true, force: true })
+    throw err
+  }
 }
 
 export function activate(stagedDir: string, version: string, now: () => number = Date.now): void {
   const previous = readActiveVersion()
-  renameSync(stagedDir, versionDir(version))
-  swapCurrent(version)
+  const dest = versionDir(version)
+  rmSync(dest, { recursive: true, force: true }) // clear any orphaned prior attempt
+  renameSync(stagedDir, dest)
+  // record rollback state BEFORE the swap: if swapCurrent throws, current still
+  // points at the previous (good) version AND we have the info to recover.
   writeUpdateState({
     phase: "probation",
     previousVersion: previous,
     newVersion: version,
     swappedAt: now(),
   })
+  swapCurrent(version)
 }
 
 export function rollback(): void {
@@ -128,7 +142,7 @@ export function pruneOldVersions(keep = KEEP_VERSIONS): void {
   } catch {
     return
   }
-  const removable = dirs.filter((d) => !protectedV.has(d)).sort()
+  const removable = dirs.filter((d) => !protectedV.has(d)).sort(compareSemver)
   const toRemove = removable.slice(0, Math.max(0, removable.length - keep))
   for (const d of toRemove) rmSync(versionDir(d), { recursive: true, force: true })
 }

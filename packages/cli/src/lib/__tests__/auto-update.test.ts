@@ -23,7 +23,7 @@ import {
 function fakeExec(map: Record<string, { code: number; stdout: string }>) {
   return async (_node: string, args: string[]) => {
     const key = args.includes("--version") ? "version" : "self-check"
-    return map[key] ?? { code: 1, stdout: "" }
+    return { stderr: "", ...(map[key] ?? { code: 1, stdout: "" }) }
   }
 }
 
@@ -73,7 +73,7 @@ describe("pipeline", () => {
   it("activate moves staged into versions/<v>, swaps current, writes probation", () => {
     mkdirSync(versionDir("0.2.10"), { recursive: true })
     swapCurrent("0.2.10")
-    const staged = mkdtempSync(join(tmpdir(), "stage-"))
+    const staged = join(home, "stage-src")
     mkdirSync(join(staged, "dist"), { recursive: true })
     activate(staged, "0.2.11", () => 7)
     expect(readActiveVersion()).toBe("0.2.11")
@@ -98,6 +98,18 @@ describe("pipeline", () => {
     expect(readActiveVersion()).toBe("0.2.10")
     expect(isVersionBad("0.2.11")).toBe(true)
     expect(readUpdateState()?.phase).toBe("rolled-back")
+  })
+  it("rollback is a no-op when there is no previous version", () => {
+    mkdirSync(versionDir("0.2.11"), { recursive: true })
+    swapCurrent("0.2.11")
+    writeUpdateState({
+      phase: "probation",
+      previousVersion: null,
+      newVersion: "0.2.11",
+      swappedAt: 1,
+    })
+    rollback()
+    expect(readActiveVersion()).toBe("0.2.11") // unchanged
   })
   it("pruneOldVersions keeps the active + last N", () => {
     for (const v of ["0.2.8", "0.2.9", "0.2.10"]) {
