@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises"
 import { spawn } from "node:child_process"
 import { homedir } from "node:os"
-import { lstatSync, mkdirSync, realpathSync, statSync, symlinkSync, unlinkSync } from "node:fs"
+import { lstatSync, mkdirSync, symlinkSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
 import { Command } from "commander"
 import { intro, outro, log, note, spinner } from "@clack/prompts"
@@ -17,6 +17,7 @@ import {
   type MeResponse,
 } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
+import { currentEntryPath } from "../lib/install-layout.js"
 import { defaultDevdripPreferences } from "@distrotv/shared"
 import {
   readSettings,
@@ -66,20 +67,12 @@ function tryUnlink(p: string): void {
 }
 
 // returns a stable user-scoped path (~/.distro/bin/distro) that symlinks to
-// the currently running binary. writing this into settings.json hooks means a
-// worktree deletion can be recovered by re-running `distro init` from any
-// working build — the symlink retargets, the hook entries never change.
+// the stable current-version entry (~/.distrotv/current/dist/index.js). writing
+// this into settings.json hooks means the hook command survives version swaps —
+// `current` is retargeted by the auto-update swap, so hooks always invoke the
+// active version without needing to re-run `distro init`.
 function resolveBinPath(): string {
-  const arg = process.argv[1]
-  if (!arg) return ""
-
-  let source: string
-  try {
-    if (!statSync(arg).isFile()) return arg
-    source = realpathSync(arg)
-  } catch {
-    return arg
-  }
+  const source = currentEntryPath()
 
   const linkPath = distroBinLinkPath()
   const dtvPath = dtvBinLinkPath()

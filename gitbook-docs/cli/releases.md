@@ -107,6 +107,18 @@ wild keep working when the Vercel challenge isn't firing.
 3. Watch the Actions tab; the Release CLI workflow should produce the release.
 4. Verify `https://github.com/distroinfinity/devdrip/releases/latest/download/distrotv-cli.tar.gz` returns the tarball.
 
+## cli-v0.2.10 (2026-05-27)
+
+**Added:** CLI auto-update — the daemon now applies updates automatically on the ~15-min update-check tick instead of only nudging.
+
+- **versioned install layout:** each release lands in `~/.distrotv/versions/<v>/`; `~/.distrotv/current` symlink points at the active version. Shims and Claude hook entries always resolve through `current/dist/index.js`, so a version swap is invisible to them. Legacy flat `~/.distrotv/dist` installs are self-migrated on first boot.
+- **pipeline:** download tarball → extract → `npm install` native deps in staging → verify (`--version` + `daemon self-check`) → atomic rename into `versions/<v>` → repoint `current` → daemon restart.
+- **rollback:** probation phase written before the symlink swap; promotes to stable after ~60s healthy. If the new build crash-loops, the Claude hook respawn path auto-reverts `current` to the previous version (1h backoff on the bad version) with an fs-only check — hooks always exit 0.
+- **opt-out:** `DISTRO_NO_AUTOUPDATE=1` or `cli.autoUpdate: false` in config falls back to the passive nudge.
+- **`distro upgrade`** now actually installs (same pipeline) instead of printing a curl command.
+
+**Rollout caveat:** the auto-update mechanism only reaches existing users once they are on `cli-v0.2.10`+. Users on earlier releases must still take the first hop manually — either via the update nudge (`distro upgrade`) or the install one-liner (`curl -fsSL https://get.distrotv.xyz/install.sh | sh`). Subsequent updates will be fully automatic.
+
 ## cli-v0.2.9 (2026-05-25)
 
 **Fixed:** the `init`/`doctor` health check no longer reports false **GitHub sign-in** / **backend reachable** failures. The two network probes ran on a 500ms abort budget while every real request uses 10s; warm-prod TLS/DNS on a freshly-spawned process routinely blew past 500ms, so probes timed out even though the backend was reachable. Probes now use a 2.5s budget and retry once at 5s on transient failures (timeout / network / 5xx), skipping the retry on definitive answers (4xx, not-signed-in).
