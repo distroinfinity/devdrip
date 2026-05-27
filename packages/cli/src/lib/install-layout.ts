@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto"
 import {
+  existsSync,
   mkdirSync,
   readFileSync,
   readlinkSync,
@@ -81,4 +82,21 @@ export function tryUnlink(p: string): void {
   } catch {
     /* ignore */
   }
+}
+
+// Convert a pre-auto-update flat install (~/.distrotv/dist) into the versioned
+// layout. No-op if already migrated (current exists) or no flat dist present.
+// Best-effort: callers treat a throw as "stay on legacy layout", never crash.
+export function migrateFlatInstall(currentVersion: string): void {
+  const home = distrotvHome()
+  const flatDist = join(home, "dist")
+  if (existsSync(currentLink()) || !existsSync(flatDist)) return
+  const vdir = versionDir(currentVersion)
+  mkdirSync(vdir, { recursive: true, mode: 0o700 })
+  renameSync(flatDist, join(vdir, "dist"))
+  const flatModules = join(home, "node_modules")
+  if (existsSync(flatModules)) renameSync(flatModules, join(vdir, "node_modules"))
+  const flatPkg = join(home, "package.json")
+  if (existsSync(flatPkg)) renameSync(flatPkg, join(vdir, "package.json"))
+  swapCurrent(currentVersion)
 }

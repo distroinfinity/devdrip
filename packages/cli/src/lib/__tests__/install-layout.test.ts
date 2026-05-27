@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
-import { mkdtempSync, rmSync, mkdirSync, symlinkSync } from "node:fs"
+import { mkdtempSync, rmSync, mkdirSync, symlinkSync, writeFileSync, existsSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
@@ -12,6 +12,7 @@ import {
   readUpdateState,
   writeUpdateState,
   swapCurrent,
+  migrateFlatInstall,
 } from "../install-layout.js"
 
 let home: string
@@ -63,5 +64,17 @@ describe("install-layout", () => {
     expect(readActiveVersion()).toBe("0.2.10")
     swapCurrent("0.2.11")
     expect(readActiveVersion()).toBe("0.2.11")
+  })
+
+  it("migrates a legacy flat install into versions/<v> + current", () => {
+    mkdirSync(join(home, "dist"), { recursive: true })
+    writeFileSync(join(home, "dist", "index.js"), "// app")
+    mkdirSync(join(home, "node_modules"), { recursive: true })
+    migrateFlatInstall("0.2.9")
+    expect(readActiveVersion()).toBe("0.2.9")
+    expect(existsSync(join(versionDir("0.2.9"), "dist", "index.js"))).toBe(true)
+    expect(existsSync(join(home, "dist"))).toBe(false)
+    migrateFlatInstall("0.2.9") // idempotent
+    expect(readActiveVersion()).toBe("0.2.9")
   })
 })
