@@ -207,7 +207,9 @@ export async function runDaemon(): Promise<number> {
     .catch((err) => log.warn("device metadata refresh failed", { error: (err as Error).message }))
 
   // periodic update check drives the status-line "update available" nudge.
-  // maybeCheck has its own 7-day fetch cache, so the 6h interval is cheap.
+  // every 15 min so a freshly-published release surfaces fast — cheap at our
+  // scale, and maybeCheck's 10-min cache is shorter than this so each poll
+  // actually re-fetches (it also runs once here on daemon boot).
   const runUpdateCheck = (): void => {
     maybeCheck(cliVersion())
       .then((r) => {
@@ -217,7 +219,7 @@ export async function runDaemon(): Promise<number> {
       .catch((err) => log.debug("update check failed", { error: (err as Error).message }))
   }
   runUpdateCheck()
-  const updateCheckInterval = setInterval(runUpdateCheck, 6 * 60 * 60 * 1000)
+  const updateCheckInterval = setInterval(runUpdateCheck, 15 * 60 * 1000)
   updateCheckInterval.unref?.()
 
   // forward declaration: keyCapture.onKey closes over orchestrator, but
