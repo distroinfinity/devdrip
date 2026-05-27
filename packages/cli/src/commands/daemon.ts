@@ -438,3 +438,11 @@ export const daemonCmd = new Command("daemon")
         process.exit(code)
       })
   )
+  .addCommand(
+    new Command("self-check")
+      .description("verify this build can boot (used by auto-update before activating)")
+      .action(async () => {
+        const { runSelfCheck } = await import("../lib/self-check.js")
+        process.exit(await runSelfCheck())
+      })
+  )
