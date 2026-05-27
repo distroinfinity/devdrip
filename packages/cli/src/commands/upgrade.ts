@@ -1,8 +1,10 @@
 import { createRequire } from "node:module"
+import { rmSync } from "node:fs"
 import { Command } from "commander"
 import { detectColor, dim, green, yellow } from "../lib/ansi.js"
 import { compareSemver, maybeCheck } from "../lib/upgrade-check.js"
 import { downloadAndStage, verifyStaged, activate, TARBALL_URL } from "../lib/auto-update.js"
+import { readUpdateState, writeUpdateState } from "../lib/install-layout.js"
 
 const require = createRequire(import.meta.url)
 
@@ -42,10 +44,13 @@ export const upgradeCmd = new Command("upgrade")
         try {
           const staged = await downloadAndStage(TARBALL_URL, result.latest)
           if (!(await verifyStaged(staged, result.latest))) {
+            rmSync(staged, { recursive: true, force: true })
             console.error("update failed verification — not applied")
             process.exit(1)
           }
           activate(staged, result.latest)
+          const st = readUpdateState()
+          if (st) writeUpdateState({ ...st, phase: "stable" })
           process.stdout.write(
             `\n${green(`updated to ${result.latest}`, color)} — restart the daemon to run it: distro daemon stop && distro daemon start\n`
           )
