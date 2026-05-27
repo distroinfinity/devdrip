@@ -12,7 +12,7 @@
 - CORS: credentials enabled, origins from `ALLOWED_ORIGINS`
 - security headers: Helmet
 - logs: Pino + `pino-http`
-- rate limit: Upstash Redis, fail-open on Redis errors
+- rate limit: in-memory fixed-window per API instance (single Railway instance, so per-process counters are authoritative). Costs zero Redis commands — see [Rate Limit Tiers](#rate-limit-tiers).
 - `DISTRO_ENV` bundle: `local | staging | prod` resolves api/web/email URLs
 
 ## Layered Architecture
@@ -1293,6 +1293,8 @@ Headers set on limited routes:
 - `X-RateLimit-Remaining`
 - `X-RateLimit-Reset`
 - `Retry-After` on `429`
+
+**Backend: in-memory, not Redis.** `middleware/rate-limit.ts` keeps fixed-window counters in a per-process `Map`. The API runs as a single Railway instance, so per-process counters are authoritative. Previously each request spent 2+ Upstash commands here (often `global` + `user` stacked); combined with the daemon's per-slot now-playing writes, that silently drained the Upstash free-tier 500k commands/month quota and took `/devices/pair-init` down (writes started failing while reads still passed health checks). Revisit only if we ever run multiple API instances. Counters reset on deploy/restart — acceptable for abuse protection.
 
 ## World Chain Endpoints (pre-pivot — removed)
 

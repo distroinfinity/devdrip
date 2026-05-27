@@ -32,6 +32,10 @@ Current-state gaps that matter when working in this repo.
 - refresh token rotation has a documented transactional race TODO
 - refresh token cleanup job (prune expired rows) is still a TODO
 
+## CLI install — `distro` PATH collision
+
+- The Python `distro` library ships a `distro` console script (usage `distro [-h] [--json] [--root-dir ROOT_DIR]`). When a user has it on PATH ahead of `~/.local/bin` (common with Homebrew's `/opt/homebrew/bin` first), a bare `distro init` resolves to the Python tool and errors `unrecognized arguments: init`. The installer's own first run is unaffected (it calls `~/.local/bin/distro` by full path), so this only bites on a manual retry. `install.sh` only prints a PATH hint; it never edits shell rc. Deferred fix options: warn when `distro` already resolves elsewhere, fix PATH precedence, or steer users to the `dtv` alias.
+
 ## Validation And Tooling
 
 - root validation needs installed dependencies
