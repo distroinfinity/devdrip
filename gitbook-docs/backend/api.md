@@ -72,6 +72,48 @@ Response shape:
 }
 ```
 
+## `GET /cli/version-check`
+
+Purpose:
+server-driven update check for the CLI. Called by the daemon on boot and each tick, and by `distro upgrade` / `distro status`.
+
+Auth: none (public)
+
+Query params:
+
+- `current` — semver string of the installed CLI (e.g. `0.2.10`)
+
+Behavior:
+
+- reads `LATEST_CLI_VERSION` env var from the API process
+- if unset or empty → returns `outdated: false` (kill-switch / safe default; no update is advertised)
+- if set → compares `current` against `LATEST_CLI_VERSION` using semver; `outdated = current < latest`
+- `tarballUrl` is only included when `outdated: true`; it points at the version-specific GitHub Releases asset
+
+Response shape:
+
+```json
+{
+  "latest": "0.2.11",
+  "outdated": true,
+  "tarballUrl": "https://github.com/distroinfinity/devdrip/releases/download/cli-v0.2.11/distrotv-cli.tar.gz"
+}
+```
+
+When `outdated: false`:
+
+```json
+{ "latest": "0.2.11", "outdated": false }
+```
+
+When `LATEST_CLI_VERSION` is unset:
+
+```json
+{ "latest": null, "outdated": false }
+```
+
+Operational note: set `LATEST_CLI_VERSION` on the Railway API service after each CLI release to trigger auto-updates. Unset or lower it to halt a rollout. Tarballs remain on GitHub Releases — only the version signal lives here.
+
 ## `GET /auth/github/redirect`
 
 > **Historical.** This endpoint was the S1-era OAuth start route. It was removed in M1, re-introduced (with different shape) in the 2026-05-22 github-oauth cutover where the dashboard owns `/auth/github/start` and `/auth/github/callback`, and the API exposes `/auth/github/complete` (s2s only). Treat this section as archived; see [architecture/auth.md](../architecture/auth.md) for the current flow.

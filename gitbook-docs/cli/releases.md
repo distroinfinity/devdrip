@@ -107,6 +107,17 @@ wild keep working when the Vercel challenge isn't firing.
 3. Watch the Actions tab; the Release CLI workflow should produce the release.
 4. Verify `https://github.com/distroinfinity/devdrip/releases/latest/download/distrotv-cli.tar.gz` returns the tarball.
 
+## cli-v0.2.11 (2026-05-27)
+
+**Changed:** version check moved from GitHub Releases API to our own server.
+
+- **server-driven update check:** the daemon (and `distro upgrade` / `distro status`) now calls `GET /cli/version-check?current=<semver>` on the Distro TV API instead of polling `api.github.com/repos/.../releases/latest`. The server returns `{ latest, outdated, tarballUrl }`; the CLI downloads the server-provided `tarballUrl` (still a GitHub Releases asset).
+- **`LATEST_CLI_VERSION` rollout control:** the API env var gates whether any client sees an update. Unset → `outdated: false` (safe default, nothing auto-updates). Set to the released version → clients pick it up on their next tick. Unset or lower it to halt a rollout.
+- **no version-check file cache:** the previous 7-day / 10-min local cache file was removed. The server call runs on the daemon's existing tick and is cheap.
+- **`tar` bundled in tarball:** `tar` is now listed in tsup `noExternal` so it ships inside the release tarball. Previously it was resolved from `node_modules` at runtime and missing from the extracted bundle, which would have crashed the updater on a clean install.
+
+**Operational requirement:** after tagging a release, set `LATEST_CLI_VERSION=<version>` on the Railway API service. Until that variable is set, no connected client auto-updates (intentional — gives you time to verify the build before rolling out).
+
 ## cli-v0.2.10 (2026-05-27)
 
 **Added:** CLI auto-update — the daemon now applies updates automatically on the ~15-min update-check tick instead of only nudging.
