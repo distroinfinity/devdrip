@@ -64,8 +64,8 @@ export async function verifyStaged(
 
 // ── Task 7: pipeline ─────────────────────────────────────────────────────────
 
-export const TARBALL_URL =
-  "https://github.com/distroinfinity/devdrip/releases/latest/download/distrotv-cli.tar.gz"
+// the tarball URL is supplied per-update by the server's /cli/version-check
+// response (version-specific GitHub asset) — there is no hardcoded default.
 export const KEEP_VERSIONS = 1
 export const BAD_VERSION_BACKOFF_MS = 60 * 60_000
 
