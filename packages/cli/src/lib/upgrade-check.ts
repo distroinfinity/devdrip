@@ -7,9 +7,12 @@ import { configDir } from "./config.js"
 // check reads the latest release tag, not the npm registry. see cli/releases.md.
 const RELEASES_URL = "https://api.github.com/repos/distroinfinity/devdrip/releases/latest"
 const FETCH_TIMEOUT_MS = 1500
-// Sprint-5 ticket says "weekly" auto-check. 7 days keeps the nudge visible
-// without hammering the registry. overridden by --force in the upgrade cmd.
-export const CHECK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
+// At our scale (<10 users) we want a freshly-published release nudged almost
+// immediately, so the check is cheap + frequent. This cross-process cache only
+// dedupes bursts (e.g. running `distro status` twice in a minute); the daemon
+// re-runs the check every ~15 min (see daemon.ts), and this 10-min TTL is < that
+// interval so each scheduled poll actually re-fetches. Overridden by --force.
+export const CHECK_INTERVAL_MS = 10 * 60 * 1000
 
 export function upgradeCheckPath(): string {
   return join(configDir(), "upgrade-check.json")

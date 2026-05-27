@@ -119,7 +119,7 @@ Fetches one real slot from `/me/content/next`, renders with a `[DEMO]` badge. Va
 
 ## `distro upgrade`
 
-Checks the GitHub Releases API for a newer `distrotv-cli.tar.gz`. No auto-install; prints the download URL for the user's package manager / installer. 7-day cache at `~/.distro/upgrade-check.json`.
+Checks the GitHub Releases API for a newer `distrotv-cli.tar.gz`. No auto-install; prints the download URL for the user's package manager / installer. The daemon also runs this check on boot and every 15 min to drive the status-line "update available" nudge, with a short 10-min fetch cache at `~/.distro/upgrade-check.json` (was 7 days — shortened so a fresh release surfaces within ~15 min at our small scale). `distro upgrade --force` bypasses the cache.
 
 ## What is missing
 
