@@ -20,6 +20,11 @@ export interface Probe {
   // remediation hint shown on failure (and only on failure). undefined for
   // probes we don't have a clean fix command for.
   fix?: string
+  // network/backend probes that don't reflect whether local setup succeeded.
+  // a transient blip here must not fail `distro init` — onboarding (hooks +
+  // daemon) is already done by the time the probes run. `distro doctor` is the
+  // place to chase a persistent backend issue.
+  advisory?: boolean
 }
 
 // First-attempt timeout for the two network probes (/me, /health). 2.5s clears
@@ -46,7 +51,9 @@ async function probeWithRetry<T>(call: (timeoutMs: number) => Promise<T>): Promi
 
 function isRetryable(err: unknown): boolean {
   if (err instanceof NotAuthenticatedError) return false // instant, no network call made
-  if (err instanceof ApiError) return err.status >= 500 // 4xx is a definitive answer
+  // 429 is transient throttling, not a definitive answer; 5xx too. other 4xx
+  // (401/403/404) are definitive — no point retrying.
+  if (err instanceof ApiError) return err.status >= 500 || err.status === 429
   return true // AbortError (timeout) / fetch-failed (network) — worth a second shot
 }
 
@@ -54,13 +61,14 @@ async function probeAuth(): Promise<Probe> {
   try {
     const me = await probeWithRetry((timeoutMs) => apiFetch<MeResponse>("/me", { timeoutMs }))
     const login = me.githubLogin ? `@${me.githubLogin}` : me.id.slice(0, 8)
-    return { name: "GitHub sign-in", ok: true, detail: login }
+    return { name: "GitHub sign-in", ok: true, detail: login, advisory: true }
   } catch (err) {
     return {
       name: "GitHub sign-in",
       ok: false,
       detail: errDetail(err),
-      fix: "run `distro init` to sign in",
+      fix: "run `distro doctor` to recheck",
+      advisory: true,
     }
   }
 }
@@ -106,13 +114,14 @@ async function probeHooks(settingsPath: string, binPath: string): Promise<Probe>
 async function probeBackend(): Promise<Probe> {
   try {
     await probeWithRetry((timeoutMs) => apiFetchPublic<unknown>("/health", { timeoutMs }))
-    return { name: "backend reachable (GET /health)", ok: true, detail: "" }
+    return { name: "backend reachable (GET /health)", ok: true, detail: "", advisory: true }
   } catch (err) {
     return {
       name: "backend reachable (GET /health)",
       ok: false,
       detail: errDetail(err),
       fix: "check network / api url in config",
+      advisory: true,
     }
   }
 }

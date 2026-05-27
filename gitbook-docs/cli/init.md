@@ -11,6 +11,7 @@
 5. **GitHub OAuth (in the browser).** `/setup?pair=<code>` shows a "Continue with GitHub" button → `/auth/github/start?pair=<code>` → github.com → callback. The dashboard's `/auth/github/callback` route binds the pair → device → user via `POST /auth/github/complete` (s2s).
 6. **Persist.** Once `pair-poll` returns ready, the CLI writes `{ user, device }` into `~/.distro/config.json`.
 7. **Onboarding continues.** Channel-mode picker, channels picker, watchlist picker, hooks install, daemon start, slot preview. All run _after_ sign-in completes — no anonymous path.
+8. **Final health check (advisory).** Runs four probes (auth `/me`, device, hooks, backend `/health`). Only the **local setup** probes (device, hooks) are critical — if one fails, init exits non-zero with "setup incomplete". The **network** probes (auth, backend) are `advisory`: a transient blip there prints "you're all set — a network check didn't pass; run `distro doctor` to recheck" and exits 0. This stops a flaky `/me` or `/health` from reporting "health checks failed" on an install that actually worked.
 
 ## Headless / SSH
 
@@ -26,9 +27,11 @@ prints the `setupUrl` and pair code; finish OAuth in a browser on any device. Th
 
 ## Failure modes
 
-| Symptom                              | Cause                                               | Fix                             |
-| ------------------------------------ | --------------------------------------------------- | ------------------------------- |
-| `sign-in took too long`              | Pair-code TTL elapsed before OAuth completed        | Re-run `distro init`            |
-| `device unknown` on subsequent calls | Device deleted on backend (e.g. via `/admin/users`) | Re-run `distro init`            |
-| `pair_init_failed`                   | Redis down on the API                               | Wait + retry; check API status  |
-| `oauth_user_denied`                  | User cancelled on github.com                        | Re-click "Continue with GitHub" |
+| Symptom                                     | Cause                                                     | Fix                                                                  |
+| ------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
+| `sign-in took too long`                     | Pair-code TTL elapsed before OAuth completed              | Re-run `distro init`                                                 |
+| `device unknown` on subsequent calls        | Device deleted on backend (e.g. via `/admin/users`)       | Re-run `distro init`                                                 |
+| `pair_init_failed`                          | Redis write failed on the API (down / quota)              | CLI shows "temporarily unavailable — re-run"; wait + retry           |
+| `oauth_user_denied`                         | User cancelled on github.com                              | Re-click "Continue with GitHub"                                      |
+| `health checks failed` on a working install | Pre-fix: any ✗ (incl. transient network probe) exited 1   | Fixed — network probes are now advisory; only device/hooks are fatal |
+| `unrecognized arguments: <cmd>`             | Bare `distro` shadowed by the Python `distro` CLI on PATH | Use `dtv <cmd>`, or put `~/.local/bin` first on PATH                 |
