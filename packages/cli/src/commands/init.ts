@@ -31,7 +31,7 @@ import { getMyWatchlists, putMyWatchlists } from "../lib/watchlists-client.js"
 import { pickChannelMode } from "../lib/prompts/preferences.js"
 import { pickChannels } from "../lib/prompts/channels.js"
 import { pickWatchlistTickers } from "../lib/prompts/watchlist.js"
-import { runInitHealthCheck } from "../lib/health.js"
+import { runInitHealthCheck, type Probe } from "../lib/health.js"
 import { runDemo } from "./demo.js"
 import { validateDeviceToken } from "../lib/device.js"
 
@@ -289,9 +289,9 @@ async function previewSlot(): Promise<void> {
   }
 }
 
-async function runHealthCheck(): Promise<boolean> {
+async function runHealthCheck(): Promise<Probe[]> {
   const cfg = await readConfig()
-  if (!cfg) return false
+  if (!cfg) return []
   const probes = await runInitHealthCheck(cfg, claudeSettingsPath())
   const lines = probes
     .map((p) => {
@@ -301,7 +301,7 @@ async function runHealthCheck(): Promise<boolean> {
     })
     .join("\n")
   note(lines, "health check")
-  return probes.every((p) => p.ok)
+  return probes
 }
 
 async function openUrl(url: string): Promise<void> {
@@ -408,12 +408,23 @@ export async function runInit(): Promise<void> {
   await ensureDaemonRunning()
   await previewSlot()
 
-  const ok = await runHealthCheck()
+  const probes = await runHealthCheck()
   printSummary()
 
-  if (!ok) {
-    outro("one or more health checks failed — see ✗ above")
+  // onboarding is already done here (hooks merged, daemon started). only a
+  // local setup probe (device/hooks) failing means init didn't finish — a
+  // transient network probe (auth/backend) must not abort an otherwise-good
+  // setup, which is what produced "health checks failed" on working installs.
+  const criticalFail = probes.some((p) => !p.ok && !p.advisory)
+  const advisoryFail = probes.some((p) => !p.ok && p.advisory)
+
+  if (criticalFail) {
+    outro("setup incomplete — see ✗ above. re-run `distro init` to finish.")
     process.exit(1)
+  }
+  if (advisoryFail) {
+    outro("you're all set. a network check didn't pass just now — run `distro doctor` to recheck.")
+    return
   }
   outro("all set — open a new Claude Code session to start earning")
 }
