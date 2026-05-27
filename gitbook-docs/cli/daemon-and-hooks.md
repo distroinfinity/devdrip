@@ -210,6 +210,16 @@ Ad-only side effects (campaign cap, hourly/daily fatigue caps, ad ledger writes,
 
 The save keybind `b` writes to `reading_pending` (local SQLite) and syncs to `/me/reading`.
 
+## Auto-update + rollback
+
+The daemon runs the GitHub-Releases update check on boot and every ~15 min (same tick as the existing nudge). When a newer release is found it runs the full pipeline automatically: download tarball → extract → `npm install` native deps in a staging dir → verify (`node <staged>/dist/index.js --version` matches the tag, `daemon self-check` exits 0) → atomic `rename` into `~/.distrotv/versions/<v>/` → repoint `~/.distrotv/current` symlink → spawn a fresh daemon through `current` and exit.
+
+**Probation / promotion:** before the symlink swap, the daemon writes `update-state.json` (phase `probation`, `previousVersion`). After restart the new daemon runs on probation; once it has been heartbeating cleanly for ~60s it promotes itself to `stable` and prunes old versions (keeps 1, semver-aware).
+
+**Crash-loop rollback:** if the new daemon never produces a heartbeat within ~90s of the swap, the next time the Claude hook fires and fails to reach the daemon (`sendHookEvent` returns `"unreachable"`), the hook respawn path runs `shouldRollbackOnRespawn` / `preflightRollbackIfStuck` (`lib/daemon/lifecycle.ts`, wired in `commands/hook.ts`). This is a pure fs check — it reads `update-state.json`, reverts `current` to `previousVersion`, marks the bad version with a 1h backoff, then spawns the old daemon. The hook always exits 0. See the [activity gate](#activity-gate-per-tty) section for where respawning fits in the hook fast path.
+
+**Opt-out:** `DISTRO_NO_AUTOUPDATE=1` or `cli.autoUpdate: false` disables the auto-install step; the daemon falls back to the passive status-line nudge. No server-side gate — to halt a bad release, yank or replace the GitHub release asset.
+
 ## What's next
 
 - **`distro doctor`** — checks heartbeat age, hooks, backend reachability.
