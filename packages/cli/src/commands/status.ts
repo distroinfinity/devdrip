@@ -6,7 +6,7 @@ import { readConfig, type DevdripConfig } from "../lib/config.js"
 import { readDaemonStatus, type DaemonStatus } from "../lib/daemon/lifecycle.js"
 import { ledgerPath, openLedger } from "../lib/ledger.js"
 import { slotCachePath } from "../lib/slot-cache.js"
-import { maybeCheck } from "../lib/upgrade-check.js"
+import { checkForUpdate } from "../lib/upgrade-check.js"
 
 const require = createRequire(import.meta.url)
 
@@ -67,7 +67,7 @@ export const statusCmd = new Command("status")
 async function runPassiveUpgradeCheck(): Promise<{ latest: string; outdated: boolean } | null> {
   try {
     const { version = "0.0.0" } = require("../package.json") as { version?: string }
-    return await maybeCheck(version, { timeoutMs: 500 })
+    return await checkForUpdate(version, { timeoutMs: 500 })
   } catch {
     return null
   }
