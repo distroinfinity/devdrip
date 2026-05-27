@@ -31,12 +31,14 @@
     "better-sqlite3": "^11.8.1",
     "cli-table3": "^0.6.5",
     "commander": "^13.0.0",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "tar": "^7.5.15"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^20",
     "@types/qrcode-terminal": "^0.12.2",
+    "@types/tar": "^7.0.87",
     "eslint": "^9.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.8.0",
