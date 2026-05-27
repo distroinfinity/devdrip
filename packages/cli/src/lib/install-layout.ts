@@ -1,5 +1,13 @@
 import { randomBytes } from "node:crypto"
-import { mkdirSync, readFileSync, readlinkSync, renameSync, writeFileSync } from "node:fs"
+import {
+  mkdirSync,
+  readFileSync,
+  readlinkSync,
+  renameSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs"
 import { basename, join } from "node:path"
 import { homedir } from "node:os"
 
@@ -58,4 +66,19 @@ export function atomicWrite(target: string, contents: string): void {
   const tmp = join(distrotvHome(), `.${basename(target)}.${randomBytes(6).toString("hex")}.tmp`)
   writeFileSync(tmp, contents, { mode: 0o600 })
   renameSync(tmp, target)
+}
+
+// write a temp symlink then rename over `current` — rename is atomic on POSIX.
+export function swapCurrent(version: string): void {
+  mkdirSync(distrotvHome(), { recursive: true, mode: 0o700 })
+  const tmp = join(distrotvHome(), `.current.${randomBytes(6).toString("hex")}`)
+  symlinkSync(versionDir(version), tmp)
+  renameSync(tmp, currentLink())
+}
+export function tryUnlink(p: string): void {
+  try {
+    unlinkSync(p)
+  } catch {
+    /* ignore */
+  }
 }

@@ -11,6 +11,7 @@ import {
   readActiveVersion,
   readUpdateState,
   writeUpdateState,
+  swapCurrent,
 } from "../install-layout.js"
 
 let home: string
@@ -53,5 +54,14 @@ describe("install-layout", () => {
       newVersion: "0.2.11",
       swappedAt: 5,
     })
+  })
+
+  it("swapCurrent atomically repoints current and is idempotent", () => {
+    mkdirSync(versionDir("0.2.10"), { recursive: true })
+    mkdirSync(versionDir("0.2.11"), { recursive: true })
+    swapCurrent("0.2.10")
+    expect(readActiveVersion()).toBe("0.2.10")
+    swapCurrent("0.2.11")
+    expect(readActiveVersion()).toBe("0.2.11")
   })
 })
