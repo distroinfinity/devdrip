@@ -1,26 +1,76 @@
-import { Ratelimit } from "@upstash/ratelimit"
 import type { Request, Response, NextFunction } from "express"
-import { getRedis } from "../lib/redis.js"
-import { logger } from "../lib/logger.js"
 
 const isTest = process.env.NODE_ENV === "test"
 
-// cache ratelimit instances per tier
-const limiterCache = new Map<string, Ratelimit>()
+// In-memory fixed-window rate limiting. The API runs as a single Railway
+// instance, so per-process counters are authoritative — and they cost zero
+// Redis commands. Every request used to spend 2+ Upstash commands here (often
+// stacked global+user), which silently drained the free-tier 500k/mo quota and
+// took pairing down. Revisit only if we ever run multiple API instances.
 
 type LimiterConfig = {
   requests: number
   window: `${number} s` | `${number} m` | `${number} h`
 }
 
-function getLimiter(name: string, config: LimiterConfig): Ratelimit {
+type LimitResult = {
+  success: boolean
+  limit: number
+  remaining: number
+  reset: number
+}
+
+function windowMs(window: LimiterConfig["window"]): number {
+  const [n, unit] = window.split(" ") as [string, "s" | "m" | "h"]
+  const value = Number(n)
+  const factor = unit === "h" ? 3_600_000 : unit === "m" ? 60_000 : 1_000
+  return value * factor
+}
+
+type Bucket = { count: number; resetAt: number }
+
+class MemoryLimiter {
+  private buckets = new Map<string, Bucket>()
+  private readonly windowMs: number
+
+  constructor(
+    private readonly requests: number,
+    window: LimiterConfig["window"]
+  ) {
+    this.windowMs = windowMs(window)
+  }
+
+  limit(key: string): LimitResult {
+    const now = Date.now()
+    let bucket = this.buckets.get(key)
+    if (!bucket || bucket.resetAt <= now) {
+      // roll the window; opportunistically prune to bound memory under churn
+      if (this.buckets.size > 10_000) this.prune(now)
+      bucket = { count: 0, resetAt: now + this.windowMs }
+      this.buckets.set(key, bucket)
+    }
+    bucket.count += 1
+    return {
+      success: bucket.count <= this.requests,
+      limit: this.requests,
+      remaining: Math.max(0, this.requests - bucket.count),
+      reset: bucket.resetAt,
+    }
+  }
+
+  private prune(now: number): void {
+    for (const [key, bucket] of this.buckets) {
+      if (bucket.resetAt <= now) this.buckets.delete(key)
+    }
+  }
+}
+
+const limiterCache = new Map<string, MemoryLimiter>()
+
+function getLimiter(name: string, config: LimiterConfig): MemoryLimiter {
   let limiter = limiterCache.get(name)
   if (!limiter) {
-    limiter = new Ratelimit({
-      redis: getRedis(),
-      limiter: Ratelimit.slidingWindow(config.requests, config.window),
-      prefix: `rl:${name}`,
-    })
+    limiter = new MemoryLimiter(config.requests, config.window)
     limiterCache.set(name, limiter)
   }
   return limiter
@@ -47,26 +97,21 @@ function createLimiter(name: string, config: LimiterConfig, extractKey: KeyExtra
     const key = extractKey(req, res)
     if (!key) return next()
 
-    try {
-      const limiter = getLimiter(name, config)
-      const { success, limit, remaining, reset } = await limiter.limit(key)
+    const limiter = getLimiter(name, config)
+    const { success, limit, remaining, reset } = limiter.limit(key)
 
-      res.setHeader("X-RateLimit-Limit", limit)
-      res.setHeader("X-RateLimit-Remaining", remaining)
-      res.setHeader("X-RateLimit-Reset", Math.floor(reset / 1000))
+    res.setHeader("X-RateLimit-Limit", limit)
+    res.setHeader("X-RateLimit-Remaining", remaining)
+    res.setHeader("X-RateLimit-Reset", Math.floor(reset / 1000))
 
-      if (!success) {
-        const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000))
-        res.setHeader("Retry-After", retryAfter)
-        await res.status(429).json({ error: "rate_limit_exceeded", tier: name, retryAfter })
-        return
-      }
-
-      next()
-    } catch (err) {
-      logger.warn({ err, tier: name }, "redis error, failing open")
-      next()
+    if (!success) {
+      const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000))
+      res.setHeader("Retry-After", retryAfter)
+      await res.status(429).json({ error: "rate_limit_exceeded", tier: name, retryAfter })
+      return
     }
+
+    next()
   }
 }
 
