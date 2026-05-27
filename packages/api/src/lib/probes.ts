@@ -17,6 +17,14 @@ export async function probeDb(): Promise<void> {
   await withTimeout(getDb().execute(sql`SELECT 1`), "db")
 }
 
+// platform/monitoring can poll /health every few seconds; cache a successful
+// redis PING for 30s so we don't spend a Redis command on every probe. redis is
+// non-critical (health treats it as fail-open), so 30s of staleness is fine.
+const REDIS_PING_CACHE_MS = 30_000
+let lastRedisOkAt = 0
+
 export async function probeRedis(): Promise<void> {
+  if (Date.now() - lastRedisOkAt < REDIS_PING_CACHE_MS) return
   await withTimeout(getRedis().ping(), "redis")
+  lastRedisOkAt = Date.now()
 }
