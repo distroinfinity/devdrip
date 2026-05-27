@@ -1,6 +1,7 @@
 // M1: ad slots ripped. M3 extends news; M4 adds "ticker" branch.
 import { randomUUID } from "node:crypto"
 import {
+  ACTIVE_WINDOW_MS,
   MAX_AD_DURATION_MS,
   MAX_ADS_PER_CONTINUOUS_SESSION,
   NIGHT_MODE_DEFAULT_START_HOUR,
@@ -15,7 +16,7 @@ import type { SlotCache, CachedSlot } from "../slot-cache.js"
 import type { Ledger, LocalNewsImpression } from "../ledger.js"
 import type { KeyCapture } from "./input.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
-import { writeNowPlaying, clearNowPlaying } from "../now-playing-writer.js"
+import { writeNowPlaying } from "../now-playing-writer.js"
 
 export interface DisplayHandleApi {
   vanish: () => { latencyMs: number }
@@ -144,6 +145,10 @@ interface Session {
   // re-anchored on every clearSessionState so sessionWarmupMs applies per
   // Claude Code invocation, not per daemon lifetime.
   sessionStartAt: number
+  // wall-clock of the last real hook/key event on this tty (NOT internal timer
+  // ticks). drives the ACTIVE_WINDOW_MS render gate + now-playing ownership so
+  // idle/background terminals stop generating API traffic.
+  lastActivityAt: number
   // set true when discover-key fires while a news slot is showing; carried
   // into the recordNewsImpression effect so openedUrl is accurate (the state
   // machine can't know this — it doesn't own key-intercept logic).
@@ -187,11 +192,28 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       sessionKilled: false,
       adsInCurrentBusyWindow: 0,
       sessionStartAt: now(),
+      lastActivityAt: now(),
       openedNewsUrl: false,
       savedNews: false,
     }
     sessions.set(key, s)
     return s
+  }
+
+  // internal timer ticks must NOT count as activity — otherwise the rotation
+  // loop would keep a session "active" forever. only external hook/key events do.
+  function isActivityEvent(kind: Event["kind"]): boolean {
+    return kind !== "grace-elapsed" && kind !== "inter-ad-elapsed" && kind !== "vanish-elapsed"
+  }
+
+  // the device's now-playing key is singular (one machine = one TV), so only the
+  // session the user most recently touched should own it — otherwise N busy
+  // sessions clobber the same key every rotation.
+  function isMostRecentlyActive(session: Session): boolean {
+    for (const s of sessions.values()) {
+      if (s !== session && s.lastActivityAt > session.lastActivityAt) return false
+    }
+    return true
   }
 
   // Resolve which session an event targets. For `idle-start`, always use the
@@ -289,6 +311,10 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     if (!session) {
       deps.log.debug("dispatch skipped — no matching session", { eventKind: event.kind })
       return
+    }
+
+    if (isActivityEvent(event.kind)) {
+      session.lastActivityAt = now()
     }
 
     if (event.kind === "idle-end" || event.kind === "dismiss") {
@@ -430,8 +456,13 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             displayTimeMs,
             tty: session.tty,
           })
-          // fire-and-forget: write now-playing to API so dashboard can mirror
-          if (effect.ad.kind === "news" || effect.ad.kind === "ticker") {
+          // fire-and-forget: write now-playing to API so dashboard can mirror.
+          // only the most-recently-active session owns the singular device key,
+          // so concurrent busy sessions don't clobber it every rotation.
+          if (
+            (effect.ad.kind === "news" || effect.ad.kind === "ticker") &&
+            isMostRecentlyActive(session)
+          ) {
             const startedAt = new Date(now()).toISOString()
             const endsAt = new Date(now() + displayTimeMs).toISOString()
             void writeNowPlaying(deps.deviceId, {
@@ -518,8 +549,8 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           adsShownCount += 1
           session.currentDisplay = null
           session.currentSlotKind = null
-          // fire-and-forget: clear now-playing so dashboard knows slot ended
-          void clearNowPlaying(deps.deviceId)
+          // no explicit clear — now-playing self-expires via NOW_PLAYING_TTL_SEC
+          // (~20s), so we save a Redis DEL on every rotation.
         }
         return
       case "recordImpression":
@@ -597,6 +628,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   }
 
   type Reason =
+    | "inactive"
     | "warmup"
     | "quiet-hours"
     | "muted"
@@ -625,6 +657,8 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   }
 
   function suppressionReason(session: Session, nowMs: number): Reason | null {
+    // skip terminals the user isn't actively on — no recent hook/key event.
+    if (nowMs - session.lastActivityAt > ACTIVE_WINDOW_MS) return "inactive"
     if (nowMs - session.sessionStartAt < preferences.sessionWarmupMs) return "warmup"
     const window = resolveQuietWindow(preferences)
     if (window) {

@@ -51,6 +51,12 @@ The ticket body uses `idle-start` as both the subcommand and the event. The code
 
 `UserPromptSubmit` and `PreToolUse` both send `idle-start` so the rotation begins the moment the developer hands control to Claude — including pure thinking time before the first tool call. `idle-start` is idempotent in `GRACE` and `SHOWING`, so the duplicate from a later `PreToolUse` is a no-op.
 
+### Activity gate (per-tty)
+
+Each tty session tracks `lastActivityAt` — the wall-clock of its last real hook/key event (internal timer ticks don't count). A session only renders a slot if it had activity within `ACTIVE_WINDOW_MS` (60s); otherwise `pickNextSlot` suppresses with reason `inactive`. This stops idle, stalled, and background terminals (e.g. an agent mid-long-tool-call, or sessions you're not on) from rotating slots — which is what drives `/me/content/next` and now-playing API traffic. Returning to a terminal re-activates it on the next hook.
+
+**now-playing ownership:** the device's now-playing key is singular (one machine = one TV), so only the **most-recently-active** session writes it (`isMostRecentlyActive`) — concurrent busy sessions no longer clobber the same key every rotation. There's no explicit clear on vanish; the key self-expires via `NOW_PLAYING_TTL_SEC` (~20s), saving a Redis `DEL` per rotation.
+
 ## State machine
 
 Three states: `IDLE → GRACE → SHOWING`. Pure reducer in `lib/daemon/state-machine.ts`. Every row of the transition table has a unit test. See [the spec](../../docs/superpowers/specs/2026-04-22-cli-daemon-and-hooks-design.md) for the full table.

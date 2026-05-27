@@ -31,9 +31,11 @@ export function resetSlotIndex(): void {
   _slotIndex = 0
 }
 
-const CACHE_TTL_MS = 8 * 60 * 1000
+// 15 min (was 8) + larger batch (was 10) → fewer /me/content/next round-trips
+// per slot consumed, which cuts the per-call Redis ops on the server.
+const CACHE_TTL_MS = 15 * 60 * 1000
 const REFRESH_THRESHOLD = 3
-const BATCH_SIZE = 10
+const BATCH_SIZE = 20
 // Bumped to 3: cache now stores SlotPayload (discriminated union), not just CachedAd.
 // Old "ad-cache.json" (version 2) will fail the check and be silently dropped.
 const CACHE_FILE_VERSION = 3
