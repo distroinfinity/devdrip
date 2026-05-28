@@ -1051,6 +1051,20 @@ Terminal per-item errors → CLI marks `synced_at = -1` (tombstone, stops retryi
 - `DELETE /me/reading/:id` — 204 on success, 404 if not owned.
 - `GET /me/news-stats` — returns `{ thisWeek, lastWeek }`. 60s in-memory cache.
 
+## Onchain endpoints (CH 03 — LP GUARD)
+
+The onchain channel's routes. The server is **read-only on-chain — it never holds a signing key**. Actions return unsigned calldata that the CLI signs + broadcasts. See [Onchain LP Guard](../architecture/onchain-lp-guard.md).
+
+- `GET /me/onchain/positions` — list the authenticated user's tracked LP positions.
+- `POST /me/onchain/positions` — register a position (`poolId`, `tickLower`/`tickUpper`, `walletAddress`, `label`, …).
+- `DELETE /me/onchain/positions/:id` — remove a position (scoped to the user).
+- `GET /onchain/pools/:poolId` — **public** pool snapshot: `price`, `tick`, live `feeBps`, `volBps`. `feeBpsFromVol` mirrors the on-chain hook fee math off-chain for display (no swap simulation).
+- `POST /me/onchain/actions/prepare` — returns **unsigned** swap calldata targeting the swapRouter for the resolved position. **Only `hedge` is implemented**; `exit` / `rebalance` return an error.
+
+Selection: `GET /me/content/next` with `channelMode === 'onchain_only'` dispatches to `nextOnchainForDevice` — LPOPs a pending alert from the existing alert pipeline key, else builds an `OnchainPayload` from a live `readVol`.
+
+Demo trigger: `POST /__test/fire-onchain` (production-gated; 404 in `NODE_ENV=production`) forces a `range_breach` alert through the real pipeline.
+
 ## /ingest extension
 
 Body now also accepts:

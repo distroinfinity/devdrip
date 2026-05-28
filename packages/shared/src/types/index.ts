@@ -25,6 +25,7 @@ export enum ChannelMode {
   Balanced = "balanced", // 1:1 news:ticker (default; replaces "mix")
   TickerHeavy = "ticker_heavy", // 1:3 news:ticker
   TickerOnly = "ticker_only",
+  OnchainOnly = "onchain_only",
 }
 
 import type { NewsTopic } from "./news.js"
@@ -82,6 +83,7 @@ export interface Device {
 export type { NewsPayload } from "./NewsPayload.js"
 export type { TickerPayload, TickerStats } from "./TickerPayload.js"
 export type { SlotPayload, SlotKind, SlotLayout } from "./SlotPayload.js"
+export type { OnchainPayload, OnchainAlert } from "./OnchainPayload.js"
 export type { WatchlistDto, WatchlistTickerDto, AssetClass } from "./WatchlistDto.js"
 export type { AlertDto, AlertScope, PendingAlert, AlertReplacement } from "./AlertDto.js"
 export type { ChannelDto } from "./ChannelDto.js"

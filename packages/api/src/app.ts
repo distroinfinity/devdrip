@@ -28,9 +28,12 @@ import { meActivitySummaryRouter } from "./routes/me-activity-summary.js"
 import { meNowPlayingRouter } from "./routes/me-now-playing.js"
 import { cliVersionRouter } from "./routes/cli-version.js"
 import { meRecentNewsRouter } from "./routes/me-recent-news.js"
+import { meOnchainRouter } from "./routes/me-onchain.js"
+import { onchainPublicRouter } from "./routes/onchain-public.js"
 import { ingestRouter } from "./routes/ingest.js"
 import { adminRouter } from "./routes/admin.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
+import { testOnchainRouter } from "./routes/__test-onchain.js"
 import { requireAuth } from "./middleware/auth.js"
 import { globalLimiter, userLimiter } from "./middleware/rate-limit.js"
 import { getDb } from "./db/index.js"
@@ -66,12 +69,14 @@ app.use("/health", healthRouter)
 // at the mount site; the route handler also short-circuits in production.
 if (env.nodeEnv !== "production") {
   app.use("/__test", testHelpersRouter)
+  app.use("/__test", testOnchainRouter)
 }
 
 app.use(globalLimiter)
 
 app.use("/channels", channelsPublicRouter)
 app.use("/tickers", tickersRouter)
+app.use("/onchain", onchainPublicRouter)
 app.use("/cli", cliVersionRouter)
 
 app.use("/auth", authRouter)
@@ -122,6 +127,7 @@ app.use("/me/alerts", requireAuth, userLimiter, meAlertsRouter)
 app.use("/me/activity-summary", requireAuth, userLimiter, meActivitySummaryRouter)
 app.use("/me/devices/:id/now", requireAuth, userLimiter, meNowPlayingRouter)
 app.use("/me/recent-news", requireAuth, userLimiter, meRecentNewsRouter)
+app.use("/me/onchain", requireAuth, userLimiter, meOnchainRouter)
 app.use("/ingest", requireAuth, userLimiter, ingestRouter)
 app.use("/admin", adminRouter)
 

@@ -336,6 +336,11 @@ export async function runDaemon(): Promise<number> {
         case "chart":
           orchestrator.dispatch({ kind: "chart-key", now, tty })
           return
+        case "hedge":
+        case "exit":
+        case "rebalance":
+          orchestrator.onchainAction(action, tty)
+          return
       }
     },
     log,

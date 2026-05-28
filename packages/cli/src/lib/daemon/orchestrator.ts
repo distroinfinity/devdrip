@@ -17,6 +17,7 @@ import type { Ledger, LocalNewsImpression } from "../ledger.js"
 import type { KeyCapture } from "./input.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
 import { writeNowPlaying } from "../now-playing-writer.js"
+import type { OnchainAction } from "../onchain/actions.js"
 
 export interface DisplayHandleApi {
   vanish: () => { latencyMs: number }
@@ -57,6 +58,10 @@ export interface OrchestratorDeps {
 
 export interface Orchestrator {
   dispatch(event: Event): void
+  // hedge/exit/rebalance act on the onchain slot currently showing on `tty`.
+  // not a state-machine event — like save-key it flashes + side-effects without
+  // a transition, so it lives outside dispatch().
+  onchainAction(action: OnchainAction, tty: string | null): void
   currentState(): State
   adsShown(): number
   hooksReceived(): number
@@ -389,6 +394,74 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     applyStep(session, event)
   }
 
+  // [h]edge / [e]xit / [r]ebalance act on the onchain slot currently on `tty`.
+  // mirrors save-key: no state transition, just flash + a fire-and-forget
+  // side-effect. ignored (no-op) unless an onchain slot with a positionId is
+  // showing — same as how chart/save ignore non-applicable slots.
+  function onchainAction(action: OnchainAction, tty: string | null): void {
+    const session = resolveSessionForTty(tty)
+    if (!session) {
+      deps.log.debug("onchain action skipped — no session", { action, tty })
+      return
+    }
+    const showing = session.state.kind === "SHOWING" ? session.state : null
+    const slot = showing?.ad ?? null
+    if (!slot || slot.kind !== "onchain" || !slot.positionId) {
+      deps.log.debug("onchain action ignored — no active onchain slot", { action, tty })
+      return
+    }
+    const positionId = slot.positionId
+    // flash the box so the keystroke reads as captured, same as save-key.
+    if (session.currentDisplay) {
+      try {
+        session.currentDisplay.flash()
+      } catch {
+        /* non-fatal */
+      }
+    }
+    deps.log.info("onchain action sent", { action, positionId, tty })
+    // fire-and-forget: signing + broadcast can take seconds; never block the
+    // render loop. only `hedge` succeeds server-side today — exit/rebalance
+    // reject with action_not_implemented, which we surface cleanly.
+    // dynamic import so the eager viem client in onchain/clients.js is only
+    // constructed when an action actually fires (it throws at module-load if
+    // no RPC URL is configured — must not poison the daemon's import graph).
+    import("../onchain/actions.js")
+      .then(({ runAction }) => runAction(positionId, action))
+      .then((hash) => {
+        const short = `${hash.slice(0, 6)}…${hash.slice(-4)}`
+        deps.log.info("onchain action confirmed", { action, positionId, hash })
+        deps.log.info(`🔔 ${action} sent · ${short}`)
+        if (session.currentDisplay) {
+          try {
+            session.currentDisplay.flash()
+          } catch {
+            /* non-fatal */
+          }
+        }
+      })
+      .catch((err: Error) => {
+        deps.log.warn(`${action} failed: ${err.message}`, { action, positionId })
+      })
+  }
+
+  // resolve the session a tty-targeted action belongs to, mirroring the
+  // non-idle-start path of resolveSession: explicit tty wins, otherwise infer
+  // the single active session (single-terminal / piped contexts).
+  function resolveSessionForTty(tty: string | null): Session | null {
+    if (tty !== null) return getOrCreateSession(ttyKey(tty), tty)
+    const active: Session[] = []
+    for (const s of sessions.values()) {
+      if (s.state.kind !== "IDLE") active.push(s)
+    }
+    if (active.length === 1) return active[0] ?? null
+    if (sessions.size === 1) {
+      const first = sessions.values().next().value as Session | undefined
+      return first ?? null
+    }
+    return null
+  }
+
   function runEffect(session: Session, effect: Effect): void {
     switch (effect.kind) {
       case "startGraceTimer":
@@ -422,7 +495,12 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         }
         return
       case "displayAd": {
-        const payloadId = effect.ad.kind === "news" ? effect.ad.id : effect.ad.symbol
+        const payloadId =
+          effect.ad.kind === "news"
+            ? effect.ad.id
+            : effect.ad.kind === "ticker"
+              ? effect.ad.symbol
+              : effect.ad.poolId
         if (!effect.tty) {
           deps.log.warn("display skipped: no tty path", { payloadId })
           queueMicrotask(() => dispatch({ kind: "dismiss", now: now(), tty: session.tty }))
@@ -748,6 +826,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
 
   return {
     dispatch,
+    onchainAction,
     currentState,
     adsShown: () => adsShownCount,
     hooksReceived: () => hooksReceivedCount,

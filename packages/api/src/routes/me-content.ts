@@ -6,6 +6,7 @@ import { getDb } from "../db/index.js"
 import { preferences } from "../db/schema/preferences.js"
 import { nextPicksForDevice } from "../services/news-selection.service.js"
 import { nextTickerForDevice } from "../services/ticker-selection.service.js"
+import { nextOnchainForDevice } from "../services/onchain-selection.service.js"
 import { touchDeviceHeartbeat } from "../services/device-heartbeat.service.js"
 
 export const meContentRouter: ReturnType<typeof Router> = Router()
@@ -38,6 +39,11 @@ meContentRouter.get("/next", async (req, res, next) => {
     let items: SlotPayload[]
     if (mode === ChannelMode.NewsOnly) {
       items = await nextPicksForDevice({ userId, deviceId, n })
+    } else if (mode === ChannelMode.OnchainOnly) {
+      // one onchain position renders as a single slot; looping n times just
+      // re-returned the same first active position (n dup slots + n extra RPC reads).
+      const p = await nextOnchainForDevice({ userId, deviceId })
+      items = p ? [p] : []
     } else if (mode === ChannelMode.TickerOnly) {
       items = await onlyTicker(userId, deviceId, n)
     } else {
