@@ -11,7 +11,9 @@ const xlayer = defineChain({
   rpcUrls: { default: { http: [RPC] } },
 })
 
-export const publicClient = createPublicClient({ transport: http(RPC), chain: xlayer })
+export function publicClient() {
+  return createPublicClient({ transport: http(RPC), chain: xlayer })
+}
 
 export function walletClient() {
   return createWalletClient({ account: loadAccount(), transport: http(RPC), chain: xlayer })

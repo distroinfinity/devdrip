@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises"
 import { spawn } from "node:child_process"
 import { homedir } from "node:os"
-import { lstatSync, mkdirSync, realpathSync, statSync, symlinkSync, unlinkSync } from "node:fs"
+import { lstatSync, mkdirSync, symlinkSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
 import { Command } from "commander"
 import { intro, outro, log, note, spinner } from "@clack/prompts"
@@ -17,6 +17,7 @@ import {
   type MeResponse,
 } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
+import { currentEntryPath } from "../lib/install-layout.js"
 import { defaultDevdripPreferences } from "@distrotv/shared"
 import {
   readSettings,
@@ -31,7 +32,7 @@ import { getMyWatchlists, putMyWatchlists } from "../lib/watchlists-client.js"
 import { pickChannelMode } from "../lib/prompts/preferences.js"
 import { pickChannels } from "../lib/prompts/channels.js"
 import { pickWatchlistTickers } from "../lib/prompts/watchlist.js"
-import { runInitHealthCheck } from "../lib/health.js"
+import { runInitHealthCheck, type Probe } from "../lib/health.js"
 import { runDemo } from "./demo.js"
 import { validateDeviceToken } from "../lib/device.js"
 
@@ -66,20 +67,12 @@ function tryUnlink(p: string): void {
 }
 
 // returns a stable user-scoped path (~/.distro/bin/distro) that symlinks to
-// the currently running binary. writing this into settings.json hooks means a
-// worktree deletion can be recovered by re-running `distro init` from any
-// working build — the symlink retargets, the hook entries never change.
+// the stable current-version entry (~/.distrotv/current/dist/index.js). writing
+// this into settings.json hooks means the hook command survives version swaps —
+// `current` is retargeted by the auto-update swap, so hooks always invoke the
+// active version without needing to re-run `distro init`.
 function resolveBinPath(): string {
-  const arg = process.argv[1]
-  if (!arg) return ""
-
-  let source: string
-  try {
-    if (!statSync(arg).isFile()) return arg
-    source = realpathSync(arg)
-  } catch {
-    return arg
-  }
+  const source = currentEntryPath()
 
   const linkPath = distroBinLinkPath()
   const dtvPath = dtvBinLinkPath()
@@ -106,6 +99,21 @@ async function ensureClaudeDir(): Promise<void> {
   }
 }
 
+// a 5xx from pair-init means our service is down, not the user's fault. trade
+// the raw `503 pair_init_failed` for a message that says what to do next.
+async function pairInitOrFriendly() {
+  try {
+    return await pairInit()
+  } catch (err) {
+    if (err instanceof ApiError && err.status >= 500) {
+      throw new Error(
+        "sign-in is temporarily unavailable — the Distro TV service is having a moment. re-run `distro init` in a minute."
+      )
+    }
+    throw err
+  }
+}
+
 async function ensureSignedInOrPair(): Promise<{ user: MeResponse }> {
   const cfg = await readConfig()
 
@@ -120,7 +128,7 @@ async function ensureSignedInOrPair(): Promise<{ user: MeResponse }> {
   }
 
   // 2) Fresh OAuth pair flow.
-  const init = await pairInit()
+  const init = await pairInitOrFriendly()
   log.success(`pair code requested: ${init.code.slice(0, 8)}…`)
 
   await openOrPrintSetup(init.setupUrl, init.code)
@@ -274,9 +282,9 @@ async function previewSlot(): Promise<void> {
   }
 }
 
-async function runHealthCheck(): Promise<boolean> {
+async function runHealthCheck(): Promise<Probe[]> {
   const cfg = await readConfig()
-  if (!cfg) return false
+  if (!cfg) return []
   const probes = await runInitHealthCheck(cfg, claudeSettingsPath())
   const lines = probes
     .map((p) => {
@@ -286,7 +294,7 @@ async function runHealthCheck(): Promise<boolean> {
     })
     .join("\n")
   note(lines, "health check")
-  return probes.every((p) => p.ok)
+  return probes
 }
 
 async function openUrl(url: string): Promise<void> {
@@ -393,12 +401,23 @@ export async function runInit(): Promise<void> {
   await ensureDaemonRunning()
   await previewSlot()
 
-  const ok = await runHealthCheck()
+  const probes = await runHealthCheck()
   printSummary()
 
-  if (!ok) {
-    outro("one or more health checks failed — see ✗ above")
+  // onboarding is already done here (hooks merged, daemon started). only a
+  // local setup probe (device/hooks) failing means init didn't finish — a
+  // transient network probe (auth/backend) must not abort an otherwise-good
+  // setup, which is what produced "health checks failed" on working installs.
+  const criticalFail = probes.some((p) => !p.ok && !p.advisory)
+  const advisoryFail = probes.some((p) => !p.ok && p.advisory)
+
+  if (criticalFail) {
+    outro("setup incomplete — see ✗ above. re-run `distro init` to finish.")
     process.exit(1)
+  }
+  if (advisoryFail) {
+    outro("you're all set. a network check didn't pass just now — run `distro doctor` to recheck.")
+    return
   }
   outro("all set — open a new Claude Code session to start earning")
 }

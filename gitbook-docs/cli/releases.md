@@ -18,9 +18,15 @@ git push origin cli-v0.1.0
 1. Checks out the tagged commit.
 2. Installs deps via pnpm (frozen lockfile).
 3. Builds `@distrotv/cli` via `pnpm turbo run build --filter=@distrotv/cli`.
-4. Stages `packages/cli/dist`, `package.json`, `LICENSE`, and `README.md` (if present) into `.release-staging/`.
+4. Stages `packages/cli/dist`, a generated runtime `package.json`, `LICENSE`, and `README.md` (if present) into `.release-staging/`.
 5. Tars to `distrotv-cli.tar.gz`.
 6. Creates a GitHub Release with the tarball attached and the short HEAD SHA in the release notes.
+
+### Version is derived from the tag, not committed `package.json`
+
+The staged runtime `package.json` `version` is taken from the **release tag** (`cli-vX.Y.Z` → `X.Y.Z`), not from the committed `packages/cli/package.json`. The tag is the single source of truth.
+
+This matters because the installed CLI's `version` is what the update check compares against the latest release tag (`upgrade-check.ts`). If the tarball shipped a version that disagreed with its tag, users would be nudged to upgrade and the nudge would **never clear after upgrading** (installed version stays behind the tag forever). Deriving from the tag makes `installed version == tag` by construction, so a clean upgrade always clears the nudge. Bumping the committed `package.json` is still good hygiene (keeps source-built `distro` honest) but is no longer load-bearing for the release artifact.
 
 ## install.sh
 
@@ -100,6 +106,30 @@ wild keep working when the Vercel challenge isn't firing.
 2. Tag and push: `git tag cli-v0.1.0 -m "cli v0.1.0" && git push origin cli-v0.1.0`.
 3. Watch the Actions tab; the Release CLI workflow should produce the release.
 4. Verify `https://github.com/distroinfinity/devdrip/releases/latest/download/distrotv-cli.tar.gz` returns the tarball.
+
+## cli-v0.2.10 (2026-05-27)
+
+First auto-update-capable release (bundles everything since 0.2.8, including the 0.2.9 health-check fix below). Two headline pieces: **CLI auto-update** and a **server-driven version signal**.
+
+**Server-driven update check:** the daemon (and `distro upgrade` / `distro status`) calls `GET /cli/version-check?current=<semver>` on the Distro TV API instead of polling GitHub. The server returns `{ latest, outdated, tarballUrl }` and gates rollout via the `LATEST_CLI_VERSION` env var — unset → `outdated:false` (safe default, nothing auto-updates); set to the released version → clients pick it up on their next tick; unset/lower it to halt a rollout. The old 7-day/10-min version-check file cache was removed. `tar` is bundled into the tarball (tsup `noExternal`) so the updater works on a clean install (it was previously external and missing from the artifact).
+
+**Operational requirement:** after tagging the release, set `LATEST_CLI_VERSION=<version>` on the Railway API. Until then no client auto-updates (intentional — verify the build first).
+
+**Auto-update:** the daemon now applies updates automatically on the ~15-min update-check tick instead of only nudging.
+
+- **versioned install layout:** each release lands in `~/.distrotv/versions/<v>/`; `~/.distrotv/current` symlink points at the active version. Shims and Claude hook entries always resolve through `current/dist/index.js`, so a version swap is invisible to them. Legacy flat `~/.distrotv/dist` installs are self-migrated on first boot.
+- **pipeline:** download tarball → extract → `npm install` native deps in staging → verify (`--version` + `daemon self-check`) → atomic rename into `versions/<v>` → repoint `current` → daemon restart.
+- **rollback:** probation phase written before the symlink swap; promotes to stable after ~60s healthy. If the new build crash-loops, the Claude hook respawn path auto-reverts `current` to the previous version (1h backoff on the bad version) with an fs-only check — hooks always exit 0.
+- **opt-out:** `DISTRO_NO_AUTOUPDATE=1` or `cli.autoUpdate: false` in config falls back to the passive nudge.
+- **`distro upgrade`** now actually installs (same pipeline) instead of printing a curl command.
+
+**Rollout caveat:** the auto-update mechanism only reaches existing users once they are on `cli-v0.2.10`+. Users on earlier releases must still take the first hop manually — either via the update nudge (`distro upgrade`) or the install one-liner (`curl -fsSL https://get.distrotv.xyz/install.sh | sh`). Subsequent updates will be fully automatic.
+
+## cli-v0.2.9 (2026-05-25)
+
+**Fixed:** the `init`/`doctor` health check no longer reports false **GitHub sign-in** / **backend reachable** failures. The two network probes ran on a 500ms abort budget while every real request uses 10s; warm-prod TLS/DNS on a freshly-spawned process routinely blew past 500ms, so probes timed out even though the backend was reachable. Probes now use a 2.5s budget and retry once at 5s on transient failures (timeout / network / 5xx), skipping the retry on definitive answers (4xx, not-signed-in).
+
+**Release hygiene:** `release-cli.yml` now derives the published `version` from the release tag (`cli-vX.Y.Z`) instead of the committed `package.json`, so the installed CLI always reports the exact version users were nudged to and a clean upgrade reliably clears the update nudge.
 
 ## cli-v0.2.7 (2026-05-25)
 

@@ -12,6 +12,7 @@ import { pendingAlertsKey } from "../lib/alert-keys.js"
 import { isInQuietHours } from "../lib/quiet-hours.js"
 import { logger } from "../lib/logger.js"
 import { fetchTickerSnapshot } from "../lib/yahoo-chart.js"
+import { ONLINE_WINDOW_MINUTES } from "./device-heartbeat.service.js"
 
 const PENDING_TTL_SEC = 60 * 60 // 60 minutes — same as the debounce window
 
@@ -74,6 +75,12 @@ async function loadCandidates(): Promise<AlertCandidate[]> {
   // pairs from watchlists, then fetch the current snapshot for each unique
   // symbol from Yahoo (Redis-cached ~5 min so the evaluation cycle costs at
   // most ~N upstream calls per 5-min window).
+  //
+  // Only consider users with a recently-online device — a user who isn't coding
+  // can't see alerts anyway, and skipping them keeps the per-tick snapshot reads
+  // (the dominant Redis cost) proportional to *online* users, not total users.
+  // Self-healing: the moment a device's heartbeat refreshes (next content
+  // fetch) the user re-enters this set.
   const rows = await db
     .select({
       userId: watchlists.userId,
@@ -82,6 +89,9 @@ async function loadCandidates(): Promise<AlertCandidate[]> {
     })
     .from(watchlistTickers)
     .innerJoin(watchlists, eq(watchlists.id, watchlistTickers.watchlistId))
+    .where(
+      sql`EXISTS (SELECT 1 FROM ${devices} d WHERE d.user_id = ${watchlists.userId} AND d.last_heartbeat > now() - interval '${sql.raw(String(ONLINE_WINDOW_MINUTES))} minutes')`
+    )
 
   // Resolve each unique symbol once.
   const uniqueSymbols = new Map<string, "equity" | "crypto">()

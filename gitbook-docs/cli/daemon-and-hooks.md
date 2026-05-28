@@ -51,6 +51,12 @@ The ticket body uses `idle-start` as both the subcommand and the event. The code
 
 `UserPromptSubmit` and `PreToolUse` both send `idle-start` so the rotation begins the moment the developer hands control to Claude — including pure thinking time before the first tool call. `idle-start` is idempotent in `GRACE` and `SHOWING`, so the duplicate from a later `PreToolUse` is a no-op.
 
+### Activity gate (per-tty)
+
+Each tty session tracks `lastActivityAt` — the wall-clock of its last real hook/key event (internal timer ticks don't count). A session only renders a slot if it had activity within `ACTIVE_WINDOW_MS` (60s); otherwise `pickNextSlot` suppresses with reason `inactive`. This stops idle, stalled, and background terminals (e.g. an agent mid-long-tool-call, or sessions you're not on) from rotating slots — which is what drives `/me/content/next` and now-playing API traffic. Returning to a terminal re-activates it on the next hook.
+
+**now-playing ownership:** the device's now-playing key is singular (one machine = one TV), so only the **most-recently-active** session writes it (`isMostRecentlyActive`) — concurrent busy sessions no longer clobber the same key every rotation. There's no explicit clear on vanish; the key self-expires via `NOW_PLAYING_TTL_SEC` (~20s), saving a Redis `DEL` per rotation.
+
 ## State machine
 
 Three states: `IDLE → GRACE → SHOWING`. Pure reducer in `lib/daemon/state-machine.ts`. Every row of the transition table has a unit test. See [the spec](../../docs/superpowers/specs/2026-04-22-cli-daemon-and-hooks-design.md) for the full table.
@@ -203,6 +209,18 @@ The daemon's cache holds `CachedSlot[]` (discriminated union of ad + news, see [
 Ad-only side effects (campaign cap, hourly/daily fatigue caps, ad ledger writes, click tracking, viewability beacons) are gated on `slot.kind === "ad"`. News slots write to a separate `news_impressions_pending` SQLite table and sync via the same `/ingest` POST.
 
 The save keybind `b` writes to `reading_pending` (local SQLite) and syncs to `/me/reading`.
+
+## Auto-update + rollback
+
+The daemon checks for updates on boot and on its regular tick by calling `GET /cli/version-check?current=<semver>` on our API. The server returns `{ latest, outdated, tarballUrl }` — no local version-cache file; the server is the single source of truth. When `outdated: true` the daemon runs the full pipeline automatically: download the server-provided `tarballUrl` → extract → `npm install` native deps in a staging dir → verify (`node <staged>/dist/index.js --version` matches the tag, `daemon self-check` exits 0) → atomic `rename` into `~/.distrotv/versions/<v>/` → repoint `~/.distrotv/current` symlink → spawn a fresh daemon through `current` and exit.
+
+**Server-driven rollout:** the API reads `LATEST_CLI_VERSION` env var. Unset → `outdated: false` (no update advertised, safe default). Set to the target version → all connected clients pick it up on their next tick. To halt a rollout, unset or lower `LATEST_CLI_VERSION`. Tarballs still come from GitHub Releases; only the version signal moved to the server.
+
+**Probation / promotion:** before the symlink swap, the daemon writes `update-state.json` (phase `probation`, `previousVersion`). After restart the new daemon runs on probation; once it has been heartbeating cleanly for ~60s it promotes itself to `stable` and prunes old versions (keeps 1, semver-aware).
+
+**Crash-loop rollback:** if the new daemon never produces a heartbeat within ~90s of the swap, the next time the Claude hook fires and fails to reach the daemon (`sendHookEvent` returns `"unreachable"`), the hook respawn path runs `shouldRollbackOnRespawn` / `preflightRollbackIfStuck` (`lib/daemon/lifecycle.ts`, wired in `commands/hook.ts`). This is a pure fs check — it reads `update-state.json`, reverts `current` to `previousVersion`, marks the bad version with a 1h backoff, then spawns the old daemon. The hook always exits 0. See the [activity gate](#activity-gate-per-tty) section for where respawning fits in the hook fast path.
+
+**Opt-out:** `DISTRO_NO_AUTOUPDATE=1` or `cli.autoUpdate: false` disables the auto-install step; the daemon falls back to the passive status-line nudge.
 
 ## What's next
 

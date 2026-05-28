@@ -54,7 +54,7 @@ export function Footer() {
           <div className="max-w-[30ch]">
             <Wordmark size="md" />
             <p className="font-body text-[13px] leading-[1.5] text-[var(--ink-secondary)] mt-3 mb-5">
-              Channels for the moments your agent runs the keyboard.
+              Channels for your agent&apos;s idle minutes.
             </p>
             <div className="flex items-center gap-2">
               {SOCIALS.map(({ label, href, Icon }) => (

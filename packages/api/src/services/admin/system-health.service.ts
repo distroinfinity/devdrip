@@ -17,7 +17,6 @@ export interface SystemHealthDto {
   tickerProviders: Array<{
     provider: "finnhub" | "coingecko"
     lastQuoteAt: string | null
-    enabledSymbolCount: number
     status: "green" | "amber" | "red"
   }>
 }
@@ -59,26 +58,14 @@ export async function getSystemHealth(): Promise<SystemHealthDto> {
     FROM ticker_quotes
     GROUP BY provider
   `)
-  const enabledByProvider = await db.execute(sql`
-    SELECT provider, COUNT(*) FILTER (WHERE enabled) AS enabled_count
-    FROM ticker_symbol_map
-    GROUP BY provider
-  `)
 
   // Neon HTTP driver returns { rows: [...] }; pg driver returns the array directly
   const lastQuoteRows =
     (lastQuotes as unknown as { rows?: unknown[] }).rows ?? (lastQuotes as unknown as unknown[])
-  const enabledRows =
-    (enabledByProvider as unknown as { rows?: unknown[] }).rows ??
-    (enabledByProvider as unknown as unknown[])
 
   const lastQuoteMap = new Map<string, Date>()
   for (const r of lastQuoteRows as Array<{ provider: string; last_quote_at: string | null }>) {
     if (r.last_quote_at) lastQuoteMap.set(r.provider, new Date(r.last_quote_at))
-  }
-  const enabledMap = new Map<string, number>()
-  for (const r of enabledRows as Array<{ provider: string; enabled_count: string | number }>) {
-    enabledMap.set(r.provider, Number(r.enabled_count))
   }
 
   const tickerProviders: SystemHealthDto["tickerProviders"] = (
@@ -92,7 +79,6 @@ export async function getSystemHealth(): Promise<SystemHealthDto> {
     return {
       provider: p,
       lastQuoteAt: last?.toISOString() ?? null,
-      enabledSymbolCount: enabledMap.get(p) ?? 0,
       status,
     }
   })

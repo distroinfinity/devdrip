@@ -26,6 +26,7 @@ import { meActivitySummaryRouter } from "./routes/me-activity-summary.js"
 // removed: /me/watchlist/sparklines — historical price series fetched on
 // demand from Yahoo (spec §12).
 import { meNowPlayingRouter } from "./routes/me-now-playing.js"
+import { cliVersionRouter } from "./routes/cli-version.js"
 import { meRecentNewsRouter } from "./routes/me-recent-news.js"
 import { meOnchainRouter } from "./routes/me-onchain.js"
 import { onchainPublicRouter } from "./routes/onchain-public.js"
@@ -76,6 +77,7 @@ app.use(globalLimiter)
 app.use("/channels", channelsPublicRouter)
 app.use("/tickers", tickersRouter)
 app.use("/onchain", onchainPublicRouter)
+app.use("/cli", cliVersionRouter)
 
 app.use("/auth", authRouter)
 // public — anon device registration retained for legacy v0.1.x CLIs (deprecated)

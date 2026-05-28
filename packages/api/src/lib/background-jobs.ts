@@ -6,7 +6,7 @@ import { runOnchainEvaluation } from "../services/onchain-evaluator.service.js"
 import { ONCHAIN_ENABLED } from "../config/onchain.js"
 
 // schedules the periodic jobs: news fetch (populates news_items) every 5 min
-// with an immediate tick on start, and alert evaluation every 1 min. used by
+// with an immediate tick on start, and alert evaluation every 5 min. used by
 // both the standalone worker (worker.ts) and, for now, the api process in-line
 // (no dedicated worker service is deployed yet — fine at current scale).
 export function startBackgroundJobs(): void {
@@ -20,7 +20,10 @@ export function startBackgroundJobs(): void {
     }
   })
 
-  cron.schedule("*/1 * * * *", async () => {
+  // every 5 min (was 1): aligns with the ~5 min ticker-snapshot cache TTL so
+  // most ticks are Redis cache hits, and evaluation only scans online users
+  // (see alert-evaluator). cuts the dominant constant Redis drain ~5x+.
+  cron.schedule("*/5 * * * *", async () => {
     try {
       await runAlertEvaluation()
     } catch (err) {
@@ -38,5 +41,7 @@ export function startBackgroundJobs(): void {
     })
   }
 
-  logger.info("background jobs scheduled — news fetch every 5 min, alert eval every 1 min")
+  logger.info(
+    `background jobs scheduled — news fetch every 5 min, alert eval every 5 min${ONCHAIN_ENABLED ? ", onchain eval every 1 min" : ""}`
+  )
 }

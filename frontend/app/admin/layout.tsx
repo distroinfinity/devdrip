@@ -6,8 +6,12 @@ import { SystemStateReadout } from "@/components/admin/system-state-readout"
 import { AdminPathnameShell } from "./pathname-shell"
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const h = await headers()
   const session = await getSession()
-  if (!session) redirect("/sign-in?next=/")
+  if (!session) {
+    const next = h.get("x-pathname") || "/admin"
+    redirect(`/sign-in?next=${encodeURIComponent(next)}`)
+  }
 
   let overview: Awaited<ReturnType<typeof adminApi.overview>> | null = null
   let systemHealth: Awaited<ReturnType<typeof adminApi.systemHealth>> | null = null
@@ -20,7 +24,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   if (!isAdminOk) {
-    const h = await headers()
     const host = h.get("host") ?? ""
     const userHost = host.startsWith("admin.") ? host.slice("admin.".length) : host
     const proto = h.get("x-forwarded-proto") ?? "https"

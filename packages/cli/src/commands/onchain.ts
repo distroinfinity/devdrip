@@ -1,7 +1,8 @@
 import { Command } from "commander"
 import { hasKey, createKey, loadAccount } from "../lib/onchain/keystore.js"
 import { apiFetch } from "../lib/api-client.js"
-import { runAction, type OnchainAction } from "../lib/onchain/actions.js"
+
+type OnchainAction = "hedge" | "exit" | "rebalance"
 
 export const onchainCmd = new Command("onchain").description(
   "LP GUARD — monitor + act on a v4 position"
@@ -35,6 +36,7 @@ async function actCmd(action: OnchainAction, opts: { position?: string }): Promi
   }
   console.log(`${action} → position ${positionId}  (signer ${loadAccount().address})`)
   try {
+    const { runAction } = await import("../lib/onchain/actions.js")
     const hash = await runAction(positionId, action)
     console.log(`🔔 ${action} sent · ${hash}`)
   } catch (err) {

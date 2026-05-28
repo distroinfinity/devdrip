@@ -19,6 +19,6 @@ export async function runAction(positionId: string, action: OnchainAction): Prom
   })
   const wc = walletClient()
   const hash = await wc.sendTransaction({ to: tx.to, data: tx.data, value: BigInt(tx.value) })
-  await publicClient.waitForTransactionReceipt({ hash })
+  await publicClient().waitForTransactionReceipt({ hash })
   return hash
 }

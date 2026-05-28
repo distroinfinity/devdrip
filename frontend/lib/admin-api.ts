@@ -35,7 +35,6 @@ export interface SystemHealthDto {
   tickerProviders: Array<{
     provider: "finnhub" | "coingecko"
     lastQuoteAt: string | null
-    enabledSymbolCount: number
     status: "green" | "amber" | "red"
   }>
 }
@@ -62,24 +61,6 @@ export interface NewsSourceCreate {
   url: string
   halfLifeHours: number
   fetchIntervalMin: number
-  enabled?: boolean
-}
-
-export interface TickerSymbolRow {
-  symbol: string
-  assetClass: "equity" | "crypto"
-  provider: "finnhub" | "coingecko"
-  providerId: string
-  enabled: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-export interface TickerSymbolCreate {
-  symbol: string
-  assetClass: "equity" | "crypto"
-  provider: "finnhub" | "coingecko"
-  providerId: string
   enabled?: boolean
 }
 
@@ -145,20 +126,6 @@ export const adminApi = {
     }),
   deleteNewsSource: (id: string) =>
     apiFetchOrRefresh<unknown>(`/admin/news-sources/${id}`, "/", { method: "DELETE" }),
-  tickerSymbols: () =>
-    apiFetchOrRefresh<{ symbols: TickerSymbolRow[] }>("/admin/ticker-symbols", "/"),
-  createTickerSymbol: (body: TickerSymbolCreate) =>
-    apiFetchOrRefresh<TickerSymbolRow>("/admin/ticker-symbols", "/", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-  updateTickerSymbol: (symbol: string, body: Partial<TickerSymbolCreate>) =>
-    apiFetchOrRefresh<TickerSymbolRow>(`/admin/ticker-symbols/${symbol}`, "/", {
-      method: "PATCH",
-      body: JSON.stringify(body),
-    }),
-  deleteTickerSymbol: (symbol: string) =>
-    apiFetchOrRefresh<unknown>(`/admin/ticker-symbols/${symbol}`, "/", { method: "DELETE" }),
   users: (page: number, limit: number) =>
     apiFetchOrRefresh<{ users: UserListRow[]; total: number; page: number; limit: number }>(
       `/admin/users?page=${page}&limit=${limit}`,
