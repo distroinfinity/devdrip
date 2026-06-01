@@ -5,6 +5,7 @@ import { platform } from "node:os"
 import { Command } from "commander"
 import { configPath, readConfig, writeConfig } from "../lib/config.js"
 import { openSlotCache } from "../lib/slot-cache.js"
+import { createUtilityProvider } from "../lib/utility-slot.js"
 import { openLedger } from "../lib/ledger.js"
 import { showAd } from "../lib/daemon/display.js"
 import { cliVersion, refreshDeviceMetadata } from "../lib/device.js"
@@ -357,8 +358,16 @@ export async function runDaemon(): Promise<number> {
     await writeConfig({ ...current, preferences: next })
   }
 
+  // CH 03: locally-built utility panel injected into the rotation. Layout pref
+  // is read live so file-watch reloads take effect without a daemon restart.
+  let livePrefs = cfg.preferences
+  const utilityProvider = createUtilityProvider({
+    getLayoutPref: () => livePrefs.utilitiesLayout,
+  })
+
   orchestrator = createOrchestrator({
     slotCache,
+    utilityProvider,
     ledger,
     display: { show: showAd },
     keyCapture,
@@ -382,6 +391,7 @@ export async function runDaemon(): Promise<number> {
     try {
       const next = await readConfig()
       if (!next) return
+      livePrefs = next.preferences
       orchestrator.updatePreferences(next.preferences)
       const nextFp = fingerprintPrefs(next.preferences)
       if (nextFp !== lastPrefsFingerprint) {

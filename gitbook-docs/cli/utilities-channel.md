@@ -1,0 +1,93 @@
+# CH 03 — Utilities (dev instrument panel)
+
+CH 03 is a third rotating slot alongside **CH 01 NEWS** and **CH 02 MARKETS**.
+Where those surface _external_ feeds, Utilities is _inward-looking_: a compact
+instrument panel of local, real-time stats a developer wants to glance at while
+Claude Code works — Claude usage/limits, git state, machine vitals, and service
+health. It rotates in the same flow (news → markets → utils → …).
+
+Unlike news/ticker slots, the utility slot is **built locally by the daemon**
+every time it's that slot's turn — it never round-trips `/me/content/next`, and
+usage/cost data never leaves the machine.
+
+## The telemetry feed (and the status-line fix it rode in on)
+
+Claude Code pipes a rich JSON blob to its `statusLine` command on stdin every
+render: `rate_limits.five_hour/.seven_day.{used_percentage,resets_at}`,
+`context_window.{used_percentage,context_window_size}`, `cost.total_cost_usd`,
+cache token counts, `model.display_name`, `effort.level`, and
+`workspace.current_dir`. We previously discarded this.
+
+`distro statusline` now parses it into a local snapshot
+(`~/.distro/claude-usage.json`, latest fields + a short rolling history) which
+the utility slot reads. See `lib/claude-usage.ts`.
+
+### Status-line chaining (append, never clobber)
+
+Claude Code's `statusLine` is a **single command slot**. When Distro takes it
+over, `setStatusLine` (`lib/claude-settings.ts`) now first stashes any
+pre-existing user command in `~/.distro/wrapped-statusline.json`
+(`lib/wrapped-statusline.ts`). `distro statusline` then:
+
+1. snapshots the stdin telemetry,
+2. runs the wrapped command (feeding it the same stdin, 800 ms timeout) and
+   emits its output,
+3. appends our current slot line **below** it.
+
+`removeStatusLine` (uninstall) restores the wrapped command instead of deleting
+the entry. Net effect: a user's custom status line keeps working untouched, with
+the Distro line added beneath it.
+
+## Buckets
+
+All buckets are optional — an unavailable source is omitted, never shown as a
+fake zeroed gauge (`UtilityPayload` in `@distrotv/shared`).
+
+| Bucket      | Source                                               | Fields                                                                                        |
+| ----------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **ai**      | statusline snapshot + derived history                | 5h/7d limit % + reset, ctx %, cost, cache %, burn $/min, time-to-limit, model/effort, lines ± |
+| **git**     | `git` in the snapshot's `cwd` (cached 10 s)          | branch, ahead/behind, dirty files, uncommitted lines, last-commit age                         |
+| **machine** | `os` + `pmset` + `statfs` (cached 15 s)              | cpu %, mem %, battery %, disk free %                                                          |
+| **health**  | status.anthropic.com summary + latency (cached 60 s) | Anthropic status (ok/degraded/down), API latency, online                                      |
+
+Burn rate and time-to-limit are derived from the rolling cost/limit history in
+`deriveUsage`.
+
+## Generation & rotation
+
+`createUtilityProvider` (`lib/utility-slot.ts`) caches probe results and
+refreshes stale ones **in the background** so `build()` stays synchronous and
+fast. The orchestrator (`lib/daemon/orchestrator.ts`) injects a utility slot
+every `UTILITY_SLOT_EVERY_N` (=3) non-suppressed picks, gated on the
+`utilitiesEnabled` pref. If the provider has no data yet (cold start, no Claude
+session), `build()` returns `null` and the rotation falls through to a normal
+slot rather than skipping a beat.
+
+The slot is tagged `cacheSource: "local"`; the orchestrator skips the
+`writeNowPlaying` API mirror for it, so usage data stays on-device.
+
+## Layouts
+
+- **full** — the complete gauge grid (ctx / 5h / 7d) plus econ, git, machine,
+  health lines.
+- **complement** — drops the raw ctx/5h/7d/cost gauges (a user's own status line
+  likely already shows them) and leads with the derived stats (burn, time-to-
+  limit) instead.
+
+Layout is the `utilitiesLayout` pref: `auto` (default) → `complement` when a
+custom status line was wrapped at install, else `full`; `full`/`complement`
+force it. Gauges turn red + `⚠` at/above `UTILITY_LIMIT_WARN_PCT` (90%) for
+limits / `UTILITY_CTX_WARN_PCT` (90%) for context.
+
+## Preferences
+
+`distro preferences` → **utilities panel** toggles `utilitiesEnabled` and picks
+the layout. Both are CLI-local (never uploaded), so they write straight to the
+config file. The daemon reads `utilitiesLayout` live via the file-watch reload —
+no restart needed.
+
+## Out of scope (v1)
+
+Backend sync / dashboard usage history; a persistent always-on grid; cross-tool
+(Cursor/Copilot) aggregation. CI/build + deploy status are reserved for their own
+future channels.

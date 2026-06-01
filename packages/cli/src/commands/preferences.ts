@@ -16,6 +16,7 @@ type Action =
   | "channels"
   | "watchlist"
   | "alerts"
+  | "utilities"
   | "quiet-hours"
   | "tz"
   | "topics"
@@ -51,6 +52,7 @@ async function showMenu(currentMode: ChannelMode): Promise<Action> {
       { value: "channels", label: "channels (tech / finance / crypto / …)" },
       { value: "watchlist", label: "watchlist (add / remove tickers)" },
       { value: "alerts", label: "alerts (global threshold)" },
+      { value: "utilities", label: "utilities panel (CH 03 — usage, git, machine, health)" },
       { value: "quiet-hours", label: "quiet hours (set start / end, blank to disable)" },
       { value: "tz", label: "tz offset (auto-detect or manual)" },
       { value: "topics", label: "news topics (v1.1 — coming soon)" },
@@ -116,6 +118,47 @@ async function tzAction(current: SyncedPreferences): Promise<void> {
   if (isCancel(manual)) return
   await putPreferences({ tzOffsetMinutes: Number(manual) })
   log.success(`tz offset set to ${manual} minutes`)
+}
+
+// utilitiesEnabled / utilitiesLayout are CLI-local (never uploaded), so this
+// writes straight to the config file rather than through the preferences API.
+async function utilitiesAction(): Promise<void> {
+  const cfg = await readConfig()
+  if (!cfg) {
+    log.warn("not initialized — run `distro init` first")
+    return
+  }
+  const cur = cfg.preferences
+  const enabled = await confirm({
+    message: `utilities panel is ${cur.utilitiesEnabled ? "on" : "off"} — keep it on?`,
+    initialValue: cur.utilitiesEnabled,
+  })
+  if (isCancel(enabled)) return
+
+  let layout = cur.utilitiesLayout
+  if (enabled) {
+    const pick = await select({
+      message: "panel layout",
+      initialValue: cur.utilitiesLayout,
+      options: [
+        { value: "auto", label: "auto (complement if you have a custom status line, else full)" },
+        { value: "full", label: "full (all gauges)" },
+        { value: "complement", label: "complement (skip gauges your status line already shows)" },
+      ],
+    })
+    if (isCancel(pick)) return
+    layout = pick as "auto" | "full" | "complement"
+  }
+
+  await writeConfig({
+    apiUrl: cfg.apiUrl,
+    auth: cfg.auth,
+    user: cfg.user,
+    device: cfg.device,
+    cli: cfg.cli,
+    preferences: { ...cur, utilitiesEnabled: enabled === true, utilitiesLayout: layout },
+  })
+  log.success(`utilities ${enabled ? `on · ${layout}` : "off"}`)
 }
 
 async function runPreferences(): Promise<void> {
@@ -202,6 +245,11 @@ async function runPreferences(): Promise<void> {
       ]
       await putMyAlerts(replacement)
       log.success(`global threshold → ${next}%`)
+      continue
+    }
+
+    if (action === "utilities") {
+      await utilitiesAction()
       continue
     }
 

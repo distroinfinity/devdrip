@@ -63,6 +63,12 @@ export interface SyncedPreferences {
 export interface LocalPreferences {
   // epoch ms; null = not muted. cleared when now >= muteUntil.
   muteUntil: number | null
+  // CH 03 Utilities: gate the locally-injected utility slot. Local-first +
+  // session-independent — not derived from a server subscription in v1.
+  utilitiesEnabled: boolean
+  // "auto" → "complement" when a custom status line was detected at install,
+  // else "full". Explicit values override the auto detection.
+  utilitiesLayout: "auto" | "full" | "complement"
 }
 
 export type DevdripPreferences = SyncedPreferences & LocalPreferences
@@ -82,6 +88,15 @@ export interface Device {
 export type { NewsPayload } from "./NewsPayload.js"
 export type { TickerPayload, TickerStats } from "./TickerPayload.js"
 export type { SlotPayload, SlotKind, SlotLayout } from "./SlotPayload.js"
+export type {
+  UtilityPayload,
+  UtilityLayout,
+  UtilityAi,
+  UtilityGit,
+  UtilityMachine,
+  UtilityHealth,
+  AnthropicHealth,
+} from "./UtilityPayload.js"
 export type { WatchlistDto, WatchlistTickerDto, AssetClass } from "./WatchlistDto.js"
 export type { AlertDto, AlertScope, PendingAlert, AlertReplacement } from "./AlertDto.js"
 export type { ChannelDto } from "./ChannelDto.js"
