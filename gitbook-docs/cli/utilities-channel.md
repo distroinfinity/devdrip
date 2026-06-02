@@ -76,7 +76,7 @@ down. Each column owns a hue (fill + a dark "unfilled" track tint):
 ▍ utils
 ⎇ organic-bread ↑3 ↓1 │ $0.29 · $0.19/m · ~5m │ Opus 4.8 / high │ ⚠ api degraded
 ctx ███░░░░░ 42%      │ cache ████████ 99%    │ week █░░░ 14% · 3d │ 5h █░░░ 9% · 4h 6m
-
+──────────────────────────────────────────────────────────────────────────────────
 cpu ███░░░░░ 38       │ mem ████░░░░ 44       │ disk ███░░░░░ 43
 ```
 
@@ -87,9 +87,10 @@ violet, week teal, 5h periwinkle.
 - **context row** — git `⎇ branch ↑ahead ↓behind` (git-CLI style, no dirty count) ·
   cost · burn · `~time-to-limit` · model/effort · **api line only on an incident**
 - **gauge row** — ctx · cache · weekly limit (`week`) · 5-hour limit (`5h`)
-- a **blank separator row** sits between the gauge row and the machine row —
-  Claude's statusLine collapses a zero-width empty line, so it's a row of
-  non-breaking spaces (renders blank, but carries width so it survives)
+- a **faint dim rule** separates the gauge row from the machine row. A truly
+  blank line can't be used: Claude's statusLine collapses a zero-width line, and
+  a whitespace/non-breaking-space row makes it **drop every row after it** — so a
+  thin rule is the lightest separator that renders reliably
 - **machine row** — cpu / mem / disk, gray bars that redden ≥90% (battery dropped —
   not useful in a terminal)
 
