@@ -66,18 +66,41 @@ slot rather than skipping a beat.
 The slot is tagged `cacheSource: "local"`; the orchestrator skips the
 `writeNowPlaying` API mirror for it, so usage data stays on-device.
 
-## Layouts
+## Layout — the instrument-panel grid
 
-- **full** — the complete gauge grid (ctx / 5h / 7d) plus econ, git, machine,
-  health lines.
-- **complement** — drops the raw ctx/5h/7d/cost gauges (a user's own status line
-  likely already shows them) and leads with the derived stats (burn, time-to-
-  limit) instead.
+`renderUtilityPanel` (`render-line.ts`) draws three rows on **one shared
+4-column grid**, so bars line up vertically and the `│` separators run straight
+down. Each column owns a hue (fill + a dark "unfilled" track tint):
 
-Layout is the `utilitiesLayout` pref: `auto` (default) → `complement` when a
-custom status line was wrapped at install, else `full`; `full`/`complement`
-force it. Gauges turn red + `⚠` at/above `UTILITY_LIMIT_WARN_PCT` (90%) for
-limits / `UTILITY_CTX_WARN_PCT` (90%) for context.
+```
+▍ utils · live
+⎇ organic-bread ↑3 ↓1 · 5 dirty │ $0.29 · $0.19/m · ~5m │ Opus 4.8 / high │ ⚠ api degraded
+7d  ███░░░░░ 22% · 6d            │ ctx ███░░░░░ 41%      │ cache ██████░ 79% │ 5h ███░░ 36% · 1h 9m
+cpu ██░░░░░░ 30                  │ mem ████████ 99       │ disk █████░░ 57   │ batt ████████ 100
+distro tv · utils
+```
+
+- **col 1 · teal** — 7d limit (gauge) / git: `⎇ branch ↑ahead ↓behind · N dirty`
+- **col 2 · amber** — ctx (gauge) / cost · burn · `~time-to-limit`
+- **col 3 · violet** — cache (gauge) / model · effort
+- **col 4 · periwinkle** — 5h limit (gauge) / **api line only on an incident**
+- machine row (cpu/mem/disk/batt) uses gray bars; **mem turns red ≥90%**
+
+Per-column label fields (`COL_FIELD`) are uniform so every bar starts at the same
+x in its column. Bars turn red + `⚠` at/above `UTILITY_LIMIT_WARN_PCT` (90%, for
+5h/7d) and `UTILITY_CTX_WARN_PCT` (90%, ctx). The **API health line is hidden
+when Anthropic is healthy** and only appears (red) during a `degraded`/`down`
+incident.
+
+Bar width scales with the terminal width the daemon reads off the tty, and the
+panel degrades progressively on narrow terminals: full → drop machine row → drop
+context detail → **gauges-only** (the four core gauges always fit). Absent
+buckets (no git repo, stale snapshot) are omitted, never shown as zeroed bars.
+
+The `utilitiesLayout` pref (`auto`/`full`/`complement`) and the `layout` field on
+`UtilityPayload` are retained but the renderer currently draws the same grid
+regardless — bars are always shown, including when appended below a user's own
+status line.
 
 ## Preferences
 

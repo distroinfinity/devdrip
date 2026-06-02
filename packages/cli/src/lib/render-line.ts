@@ -97,7 +97,7 @@ export function renderSlotLine(
   const nudge = updateLatest ? [updateNudge(updateLatest, mode)] : []
 
   if (slot.kind === "utility") {
-    return renderUtilityPanel(slot, mode, nudge, dot)
+    return renderUtilityPanel(slot, mode, W, nudge)
   }
 
   if (slot.kind === "ticker") {
@@ -151,32 +151,43 @@ export function renderSlotLine(
 }
 
 // ── CH 03 utility panel ─────────────────────────────────────────────────────
+// "instrument panel": context / gauge / machine rows share one 4-column grid
+// (col hues teal · amber · violet · periwinkle), fill+track bars that line up
+// across rows, branch + ahead/behind, and an api line only on an incident.
 
 type Rgb = readonly [number, number, number]
+interface Hue {
+  fill: Rgb
+  track: Rgb
+}
 
-// per-gauge accent hues (echoing an instrument-panel feel, in our palette)
-const GAUGE_CTX: Rgb = [255, 150, 40] // amber — context (focal)
-const GAUGE_5H: Rgb = [132, 165, 240] // periwinkle — 5h limit
-const GAUGE_7D: Rgb = [94, 200, 188] // teal — weekly limit
-const TRACK: Rgb = [60, 64, 74] // shared neutral track
-const WARN: Rgb = [240, 97, 109] // red — at/over threshold
+// per-column hue + its dark "unfilled" track tint (tuned for a dark terminal).
+const H_TEAL: Hue = { fill: [94, 200, 188], track: [34, 65, 62] }
+const H_AMBER: Hue = { fill: [255, 150, 40], track: [67, 51, 30] }
+const H_VIOLET: Hue = { fill: [170, 132, 235], track: [51, 42, 71] }
+const H_PERI: Hue = { fill: [132, 165, 240], track: [38, 52, 86] }
+const H_GRAY: Hue = { fill: [107, 114, 128], track: [35, 39, 47] }
+const H_RED: Hue = { fill: [240, 97, 109], track: [65, 34, 42] }
+const FG_RGB: Rgb = [233, 235, 242]
 
-const BAR_W = 8
+// per-column label field (max label + a space) so bars start at the same x in
+// their column on every row.
+const COL_FIELD = [4, 4, 6, 5] as const
 
-// Colored progress bar: bg blocks in truecolor, fg block chars otherwise.
-function renderBar(pct: number, width: number, fill: Rgb, mode: ColorMode): string {
+// fill + track bar. truecolor → bg blocks; else █/░ fallback.
+function renderBar(pct: number, width: number, h: Hue, mode: ColorMode): string {
   const p = Math.max(0, Math.min(100, pct))
   const filled = Math.min(width, Math.round((p * width) / 100))
   const empty = width - filled
   if (mode === "truecolor") {
     return (
-      bgRgb(" ".repeat(filled), fill[0], fill[1], fill[2], mode) +
-      bgRgb(" ".repeat(empty), TRACK[0], TRACK[1], TRACK[2], mode)
+      bgRgb(" ".repeat(filled), h.fill[0], h.fill[1], h.fill[2], mode) +
+      bgRgb(" ".repeat(empty), h.track[0], h.track[1], h.track[2], mode)
     )
   }
   return (
-    rgb("█".repeat(filled), fill[0], fill[1], fill[2], mode) +
-    color("muted", "░".repeat(empty), mode)
+    rgb("█".repeat(filled), h.fill[0], h.fill[1], h.fill[2], mode) +
+    rgb("░".repeat(empty), h.track[0], h.track[1], h.track[2], mode)
   )
 }
 
@@ -192,117 +203,208 @@ function fmtReset(at: number | undefined, now: number): string {
   return `${m}m`
 }
 
-// label + bar + "NN%[ · suffix]"; turns red + ⚠ at/over the warn threshold.
-function gauge(
+// right-pad a (possibly colored) string to `n` visible columns.
+function padEndVis(s: string, n: number): string {
+  return s + " ".repeat(Math.max(0, n - visLen(s)))
+}
+
+// one grid cell: label(padded to its column field) + bar + value(+suffix).
+function gcell(
   label: string,
-  pct: number | undefined,
-  warnAt: number,
-  accent: Rgb,
-  suffix: string,
-  mode: ColorMode
-): string | null {
-  if (pct === undefined) return null
-  const warned = pct >= warnAt
-  const fill = warned ? WARN : accent
-  const bar = renderBar(pct, BAR_W, fill, mode)
-  const pctTok = warned ? "negative" : "muted"
-  const pre = warned ? color("warning", "⚠ ", mode) : ""
-  const tail = suffix ? ` ${color("muted", `· ${suffix}`, mode)}` : ""
-  return `${pre}${color("muted", label, mode)} ${bar} ${color(pctTok, `${pct}%`, mode)}${tail}`
+  col: number,
+  pct: number,
+  barW: number,
+  h: Hue,
+  value: string,
+  valueRgb: Rgb,
+  mode: ColorMode,
+  suffix?: string
+): string {
+  const lab = color("muted", label.padEnd(COL_FIELD[col] ?? 4), mode)
+  const val = rgb(value, valueRgb[0], valueRgb[1], valueRgb[2], mode)
+  const suf = suffix ? color("muted", ` · ${suffix}`, mode) : ""
+  return `${lab}${renderBar(pct, barW, h, mode)} ${val}${suf}`
 }
 
 function renderUtilityPanel(
   slot: UtilityPayload,
   mode: ColorMode,
-  nudge: string[],
-  dot: string
+  W: number,
+  nudge: string[]
 ): string {
   const now = Date.now()
-  const sep = `   ${dot}   `
-  const header = `${color("indigo", "▍", mode)} ${color("indigo", "utils", mode)} ${dot} ${color("muted", "live", mode)}`
-  const lines: string[] = [...nudge, header]
-  const complement = slot.layout === "complement"
-
+  const header = `${color("indigo", "▍", mode)} ${color("indigo", "utils", mode)} ${color("muted", "· live", mode)}`
+  const footer = `${LEFT_PAD}${color("muted", "distro tv · utils", mode)}`
+  const sep = color("muted", " │ ", mode)
   const { ai, git, machine, health } = slot
 
-  if (ai) {
-    if (!complement) {
-      // full: raw gauges the user doesn't already have on screen
-      const gauges = [
-        gauge("ctx", ai.ctxPct, UTILITY_CTX_WARN_PCT, GAUGE_CTX, "", mode),
-        gauge(
-          "5h",
-          ai.fiveHourPct,
-          UTILITY_LIMIT_WARN_PCT,
-          GAUGE_5H,
-          fmtReset(ai.fiveHourResetAt, now),
-          mode
-        ),
-        gauge(
-          "7d",
-          ai.sevenDayPct,
-          UTILITY_LIMIT_WARN_PCT,
-          GAUGE_7D,
-          fmtReset(ai.sevenDayResetAt, now),
-          mode
-        ),
-      ].filter((g): g is string => g !== null)
-      if (gauges.length > 0) lines.push(`${LEFT_PAD}${gauges.join(sep)}`)
-    }
+  // bar width scales with the terminal width the daemon read off the tty.
+  const barW = W >= 110 ? 8 : W >= 90 ? 7 : W >= 72 ? 6 : 5
 
-    // derived/econ line — useful in both layouts (basic status lines rarely show these)
-    const econ: string[] = []
-    if (ai.costUsd !== undefined) econ.push(`$${ai.costUsd.toFixed(2)}`)
-    if (ai.cachePct !== undefined) econ.push(`cache ${ai.cachePct}%`)
-    if (ai.burnUsdPerMin !== undefined) econ.push(`burn $${ai.burnUsdPerMin.toFixed(2)}/m`)
-    if (ai.timeToLimitMin !== undefined) econ.push(`~${fmtMins(ai.timeToLimitMin)} to limit`)
-    if (ai.model) econ.push(ai.effort ? `${ai.model}/${ai.effort}` : ai.model)
-    if (econ.length > 0) {
-      lines.push(`${LEFT_PAD}${color("muted", econ.join(" · "), mode)}`)
-    }
-  }
-
-  if (git) {
-    const parts: string[] = []
-    if (git.branch) parts.push(color("fg", git.branch, mode))
+  // ── context row ── git | cost/burn/proj | model | api(incident only)
+  const ctx: string[] = ["", "", "", ""]
+  if (git?.branch) {
     const ab: string[] = []
     if (git.ahead) ab.push(`↑${git.ahead}`)
     if (git.behind) ab.push(`↓${git.behind}`)
-    if (ab.length > 0) parts.push(color("muted", ab.join(" "), mode))
-    if (git.dirtyFiles !== undefined) {
-      parts.push(color(git.dirtyFiles > 0 ? "warning" : "muted", `${git.dirtyFiles} dirty`, mode))
+    const metaParts: string[] = []
+    if (ab.length) metaParts.push(ab.join(" "))
+    if (git.dirtyFiles !== undefined) metaParts.push(`${git.dirtyFiles} dirty`)
+    const meta = metaParts.length ? color("muted", ` ${metaParts.join(" · ")}`, mode) : ""
+    ctx[0] = rgb(`⎇ ${git.branch}`, H_TEAL.fill[0], H_TEAL.fill[1], H_TEAL.fill[2], mode) + meta
+  }
+  if (ai) {
+    const econ: string[] = []
+    if (ai.costUsd !== undefined) econ.push(`$${ai.costUsd.toFixed(2)}`)
+    if (ai.burnUsdPerMin !== undefined) econ.push(`$${ai.burnUsdPerMin.toFixed(2)}/m`)
+    let e = econ.length ? color("muted", econ.join(" · "), mode) : ""
+    if (ai.timeToLimitMin !== undefined) {
+      const proj = rgb(
+        `~${fmtMins(ai.timeToLimitMin)}`,
+        H_AMBER.fill[0],
+        H_AMBER.fill[1],
+        H_AMBER.fill[2],
+        mode
+      )
+      e += (e ? color("muted", " · ", mode) : "") + proj
     }
-    if (git.uncommittedLines) parts.push(color("muted", `±${git.uncommittedLines}`, mode))
-    if (git.lastCommitAgeSec !== undefined) {
-      parts.push(color("muted", `${age(git.lastCommitAgeSec)} ago`, mode))
+    ctx[1] = e
+    if (ai.model) {
+      ctx[2] = rgb(
+        ai.effort ? `${ai.model} / ${ai.effort}` : ai.model,
+        H_VIOLET.fill[0],
+        H_VIOLET.fill[1],
+        H_VIOLET.fill[2],
+        mode
+      )
     }
-    if (parts.length > 0) lines.push(`${LEFT_PAD}${parts.join(`  ${dot}  `)}`)
+  }
+  if (health?.anthropic && health.anthropic !== "ok") {
+    ctx[3] = color("negative", `⚠ api ${health.anthropic}`, mode)
+  } else if (health && health.online === false) {
+    ctx[3] = color("negative", "⚠ offline", mode)
   }
 
-  const tail: string[] = []
+  // ── gauge row ── 7d | ctx | cache | 5h
+  const gau: string[] = ["", "", "", ""]
+  if (ai) {
+    if (ai.sevenDayPct !== undefined) {
+      const w = ai.sevenDayPct >= UTILITY_LIMIT_WARN_PCT
+      gau[0] = gcell(
+        "7d",
+        0,
+        ai.sevenDayPct,
+        barW,
+        w ? H_RED : H_TEAL,
+        `${ai.sevenDayPct}%`,
+        w ? H_RED.fill : H_TEAL.fill,
+        mode,
+        ai.sevenDayResetAt ? fmtReset(ai.sevenDayResetAt, now) : undefined
+      )
+    }
+    if (ai.ctxPct !== undefined) {
+      const w = ai.ctxPct >= UTILITY_CTX_WARN_PCT
+      gau[1] = gcell(
+        "ctx",
+        1,
+        ai.ctxPct,
+        barW,
+        w ? H_RED : H_AMBER,
+        `${ai.ctxPct}%`,
+        w ? H_RED.fill : H_AMBER.fill,
+        mode
+      )
+    }
+    if (ai.cachePct !== undefined) {
+      gau[2] = gcell(
+        "cache",
+        2,
+        ai.cachePct,
+        barW,
+        H_VIOLET,
+        `${ai.cachePct}%`,
+        H_VIOLET.fill,
+        mode
+      )
+    }
+    if (ai.fiveHourPct !== undefined) {
+      const w = ai.fiveHourPct >= UTILITY_LIMIT_WARN_PCT
+      const pre = w ? color("negative", "⚠ ", mode) : ""
+      gau[3] =
+        pre +
+        gcell(
+          "5h",
+          3,
+          ai.fiveHourPct,
+          barW,
+          w ? H_RED : H_PERI,
+          `${ai.fiveHourPct}%`,
+          w ? H_RED.fill : H_PERI.fill,
+          mode,
+          ai.fiveHourResetAt ? fmtReset(ai.fiveHourResetAt, now) : undefined
+        )
+    }
+  }
+
+  // ── machine row ── cpu | mem | disk | batt (gray; turns red ≥90%)
+  const mac: string[] = ["", "", "", ""]
   if (machine) {
-    const m: string[] = []
-    if (machine.cpuPct !== undefined) m.push(`cpu ${machine.cpuPct}%`)
-    if (machine.memPct !== undefined) m.push(`mem ${machine.memPct}%`)
-    if (machine.battPct !== undefined) m.push(`batt ${machine.battPct}%`)
-    if (machine.diskFreePct !== undefined) m.push(`disk ${machine.diskFreePct}%`)
-    if (m.length > 0) tail.push(color("muted", m.join(" · "), mode))
-  }
-  if (health) {
-    const h: string[] = []
-    if (health.anthropic) {
-      const tok = health.anthropic === "ok" ? "positive" : "warning"
-      h.push(`${color("muted", "api", mode)} ${color(tok, health.anthropic, mode)}`)
-    } else if (health.online === false) {
-      h.push(color("negative", "offline", mode))
+    const mc = (label: string, col: number, pct: number | undefined): string => {
+      if (pct === undefined) return ""
+      const hot = pct >= 90
+      return gcell(
+        label,
+        col,
+        pct,
+        barW,
+        hot ? H_RED : H_GRAY,
+        String(pct),
+        hot ? H_RED.fill : FG_RGB,
+        mode
+      )
     }
-    if (health.apiLatencyMs !== undefined) h.push(color("muted", `${health.apiLatencyMs}ms`, mode))
-    if (h.length > 0) tail.push(h.join(" "))
+    mac[0] = mc("cpu", 0, machine.cpuPct)
+    mac[1] = mc("mem", 1, machine.memPct)
+    mac[2] = mc("disk", 2, machine.diskFreePct)
+    mac[3] = mc("batt", 3, machine.battPct)
   }
-  if (tail.length > 0) lines.push(`${LEFT_PAD}${tail.join(sep)}`)
 
-  lines.push(`${LEFT_PAD}${color("muted", "distro tv · utils", mode)}`)
-  return lines.join("\n")
+  // pad cols 0-2 to their widest cell across the rendered rows (col 3 is the
+  // tail — its cells already start at the same x, so they align unpadded).
+  const build = (rows: string[][]): { lines: string[]; max: number } => {
+    const present = rows.filter((r) => r.some((c) => c.length > 0))
+    const w = [0, 0, 0]
+    for (const r of present)
+      for (let i = 0; i < 3; i++) w[i] = Math.max(w[i] ?? 0, visLen(r[i] ?? ""))
+    const lines = present.map((r) => {
+      let s =
+        padEndVis(r[0] ?? "", w[0] ?? 0) +
+        sep +
+        padEndVis(r[1] ?? "", w[1] ?? 0) +
+        sep +
+        padEndVis(r[2] ?? "", w[2] ?? 0)
+      if ((r[3] ?? "").length > 0) s += sep + r[3]
+      return `${LEFT_PAD}${s}`
+    })
+    const max = lines.reduce((mx, l) => Math.max(mx, visLen(l)), 0)
+    return { lines, max }
+  }
+
+  // progressive degradation so the core gauges always fit: full → drop machine
+  // → drop context detail (keep git + api) → gauges only.
+  const slimCtx = [ctx[0] ?? "", "", "", ctx[3] ?? ""]
+  const attempts = [[ctx, gau, mac], [ctx, gau], [slimCtx, gau], [gau]]
+  let chosen = build(attempts[attempts.length - 1] as string[][])
+  for (const rows of attempts) {
+    const r = build(rows)
+    if (r.max <= W) {
+      chosen = r
+      break
+    }
+    chosen = r
+  }
+
+  return [...nudge, header, ...chosen.lines, footer].join("\n")
 }
 
 // "90m" → "1h 30m", "45m" → "45m"
