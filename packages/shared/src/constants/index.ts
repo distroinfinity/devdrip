@@ -7,6 +7,21 @@ export const GRACE_PERIOD_MS = 0
 // every slot (news + ticker) shows for this long before rotating.
 export const MAX_AD_DURATION_MS = 12_000
 
+// ── CH 03 Utilities ────────────────────────────────────────────────────────
+// Inject a locally-built utility panel every Nth slot pick (news → ticker →
+// utils → …). 3 keeps it present without crowding out news/markets.
+export const UTILITY_SLOT_EVERY_N = 3
+// AI telemetry snapshot is considered stale past this — Claude only writes it
+// while it's actively rendering the status line, so an idle gap goes stale.
+export const UTILITY_SNAPSHOT_STALE_MS = 5 * 60_000
+// probe caches — keep the render path cheap, refresh in the background.
+export const UTILITY_GIT_CACHE_MS = 10_000
+export const UTILITY_MACHINE_CACHE_MS = 15_000
+export const UTILITY_HEALTH_CACHE_MS = 60_000
+// gauge turns red + ⚠ at/above these thresholds.
+export const UTILITY_LIMIT_WARN_PCT = 90
+export const UTILITY_CTX_WARN_PCT = 90
+
 // A tty session only renders slots if it saw a real hook/key event within this
 // window. Stops idle/stalled/background terminals from rotating slots (and the
 // now-playing + content API traffic that drives) when the user isn't on them.
@@ -97,6 +112,8 @@ export function defaultPreferences(): DevdripPreferences {
     // Sentinel "never synced" — first GET /me/preferences will replace it.
     updatedAt: new Date(0).toISOString(),
     muteUntil: null,
+    utilitiesEnabled: true,
+    utilitiesLayout: "auto",
   }
 }
 

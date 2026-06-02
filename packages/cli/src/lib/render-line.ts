@@ -1,5 +1,6 @@
+import { UTILITY_CTX_WARN_PCT, UTILITY_LIMIT_WARN_PCT, type UtilityPayload } from "@distrotv/shared"
 import type { CachedSlot } from "./slot-cache.js"
-import { color, type ColorMode } from "./ansi.js"
+import { bgRgb, color, rgb, type ColorMode } from "./ansi.js"
 import { renderChip, getBrandName, chipLabelFor } from "./brand-colors.js"
 import { renderChart, directionFor } from "./sparkline.js"
 
@@ -95,6 +96,10 @@ export function renderSlotLine(
   const dot = color("muted", "·", mode)
   const nudge = updateLatest ? [updateNudge(updateLatest, mode)] : []
 
+  if (slot.kind === "utility") {
+    return renderUtilityPanel(slot, mode, W, nudge)
+  }
+
   if (slot.kind === "ticker") {
     const header = `${color("indigo", "▍", mode)} ${color("indigo", "markets", mode)} ${dot} ${color("muted", "live", mode)}`
 
@@ -143,4 +148,287 @@ export function renderSlotLine(
 
   const footer = `${LEFT_PAD}${color("muted", "distro tv · news", mode)}`
   return [...nudge, header, metaLine, ...hlLines, footer].join("\n")
+}
+
+// ── CH 03 utility panel ─────────────────────────────────────────────────────
+// "instrument panel": context / gauge / machine rows share one 4-column grid
+// (col hues teal · amber · violet · periwinkle), fill+track bars that line up
+// across rows, branch + ahead/behind, and an api line only on an incident.
+
+type Rgb = readonly [number, number, number]
+// one row of the utility grid; `sepBefore` draws a faint divider above it.
+interface GridRow {
+  cells: string[]
+  sepBefore?: boolean
+}
+interface Hue {
+  fill: Rgb
+  track: Rgb
+}
+
+// per-column hue + its dark "unfilled" track tint (tuned for a dark terminal).
+const H_TEAL: Hue = { fill: [94, 200, 188], track: [34, 65, 62] }
+const H_AMBER: Hue = { fill: [255, 150, 40], track: [67, 51, 30] }
+const H_VIOLET: Hue = { fill: [170, 132, 235], track: [51, 42, 71] }
+const H_PERI: Hue = { fill: [132, 165, 240], track: [38, 52, 86] }
+const H_GRAY: Hue = { fill: [107, 114, 128], track: [35, 39, 47] }
+const H_RED: Hue = { fill: [240, 97, 109], track: [65, 34, 42] }
+const FG_RGB: Rgb = [233, 235, 242]
+
+// per-column label field (max label + a space) so bars start at the same x in
+// their column on every row.
+// columns: ctx(0) · cache(1) · week(2) · 5h(3); machine cpu(0)/mem(1)/disk(2).
+const COL_FIELD = [4, 6, 5, 3] as const
+
+// fill + track bar. truecolor → bg blocks; else █/░ fallback.
+function renderBar(pct: number, width: number, h: Hue, mode: ColorMode): string {
+  const p = Math.max(0, Math.min(100, pct))
+  const filled = Math.min(width, Math.round((p * width) / 100))
+  const empty = width - filled
+  if (mode === "truecolor") {
+    return (
+      bgRgb(" ".repeat(filled), h.fill[0], h.fill[1], h.fill[2], mode) +
+      bgRgb(" ".repeat(empty), h.track[0], h.track[1], h.track[2], mode)
+    )
+  }
+  return (
+    rgb("█".repeat(filled), h.fill[0], h.fill[1], h.fill[2], mode) +
+    rgb("░".repeat(empty), h.track[0], h.track[1], h.track[2], mode)
+  )
+}
+
+// "1h 1m" / "4d 18h" / "12m" / "-" countdown to an epoch-ms reset.
+function fmtReset(at: number | undefined, now: number): string {
+  if (at === undefined) return "-"
+  const diff = Math.max(0, at - now)
+  const d = Math.floor(diff / 86_400_000)
+  const h = Math.floor((diff % 86_400_000) / 3_600_000)
+  const m = Math.floor((diff % 3_600_000) / 60_000)
+  if (d > 0) return `${d}d ${h}h`
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
+
+// right-pad a (possibly colored) string to `n` visible columns.
+function padEndVis(s: string, n: number): string {
+  return s + " ".repeat(Math.max(0, n - visLen(s)))
+}
+
+// one grid cell: label(padded to its column field) + bar + value(+suffix).
+function gcell(
+  label: string,
+  col: number,
+  pct: number,
+  barW: number,
+  h: Hue,
+  value: string,
+  valueRgb: Rgb,
+  mode: ColorMode,
+  suffix?: string
+): string {
+  const lab = color("muted", label.padEnd(COL_FIELD[col] ?? 4), mode)
+  const val = rgb(value, valueRgb[0], valueRgb[1], valueRgb[2], mode)
+  const suf = suffix ? color("muted", ` · ${suffix}`, mode) : ""
+  return `${lab}${renderBar(pct, barW, h, mode)} ${val}${suf}`
+}
+
+function renderUtilityPanel(
+  slot: UtilityPayload,
+  mode: ColorMode,
+  W: number,
+  nudge: string[]
+): string {
+  const now = Date.now()
+  const header = `${color("indigo", "▍", mode)} ${color("indigo", "utils", mode)}`
+  const sep = color("muted", " │ ", mode)
+  const { ai, git, machine, health } = slot
+
+  // bar width scales with the terminal width the daemon read off the tty.
+  const barW = W >= 110 ? 8 : W >= 90 ? 7 : W >= 72 ? 6 : 5
+
+  // ── context row ── git | cost/burn/proj | model | api(incident only)
+  const ctx: string[] = ["", "", "", ""]
+  if (git?.branch) {
+    // git-CLI style: just the branch + ↑ahead/↓behind vs remote (no dirty count).
+    const ab: string[] = []
+    if (git.ahead) ab.push(`↑${git.ahead}`)
+    if (git.behind) ab.push(`↓${git.behind}`)
+    const meta = ab.length ? color("muted", ` ${ab.join(" ")}`, mode) : ""
+    ctx[0] = rgb(`⎇ ${git.branch}`, H_TEAL.fill[0], H_TEAL.fill[1], H_TEAL.fill[2], mode) + meta
+  }
+  if (ai) {
+    const econ: string[] = []
+    if (ai.costUsd !== undefined) econ.push(`$${ai.costUsd.toFixed(2)}`)
+    if (ai.burnUsdPerMin !== undefined) econ.push(`$${ai.burnUsdPerMin.toFixed(2)}/m`)
+    let e = econ.length ? color("muted", econ.join(" · "), mode) : ""
+    if (ai.timeToLimitMin !== undefined) {
+      const proj = rgb(
+        `~${fmtMins(ai.timeToLimitMin)}`,
+        H_AMBER.fill[0],
+        H_AMBER.fill[1],
+        H_AMBER.fill[2],
+        mode
+      )
+      e += (e ? color("muted", " · ", mode) : "") + proj
+    }
+    ctx[1] = e
+    if (ai.model) {
+      ctx[2] = rgb(
+        ai.effort ? `${ai.model} / ${ai.effort}` : ai.model,
+        H_VIOLET.fill[0],
+        H_VIOLET.fill[1],
+        H_VIOLET.fill[2],
+        mode
+      )
+    }
+  }
+  if (health?.anthropic && health.anthropic !== "ok") {
+    ctx[3] = color("negative", `⚠ api ${health.anthropic}`, mode)
+  } else if (health && health.online === false) {
+    ctx[3] = color("negative", "⚠ offline", mode)
+  }
+
+  // ── gauge row ── ctx | cache | week | 5h  (the two limits kept together)
+  const gau: string[] = ["", "", "", ""]
+  if (ai) {
+    if (ai.ctxPct !== undefined) {
+      const w = ai.ctxPct >= UTILITY_CTX_WARN_PCT
+      gau[0] = gcell(
+        "ctx",
+        0,
+        ai.ctxPct,
+        barW,
+        w ? H_RED : H_AMBER,
+        `${ai.ctxPct}%`,
+        w ? H_RED.fill : H_AMBER.fill,
+        mode
+      )
+    }
+    if (ai.cachePct !== undefined) {
+      gau[1] = gcell(
+        "cache",
+        1,
+        ai.cachePct,
+        barW,
+        H_VIOLET,
+        `${ai.cachePct}%`,
+        H_VIOLET.fill,
+        mode
+      )
+    }
+    if (ai.sevenDayPct !== undefined) {
+      const w = ai.sevenDayPct >= UTILITY_LIMIT_WARN_PCT
+      gau[2] = gcell(
+        "week",
+        2,
+        ai.sevenDayPct,
+        barW,
+        w ? H_RED : H_TEAL,
+        `${ai.sevenDayPct}%`,
+        w ? H_RED.fill : H_TEAL.fill,
+        mode,
+        ai.sevenDayResetAt ? fmtReset(ai.sevenDayResetAt, now) : undefined
+      )
+    }
+    if (ai.fiveHourPct !== undefined) {
+      const w = ai.fiveHourPct >= UTILITY_LIMIT_WARN_PCT
+      const pre = w ? color("negative", "⚠ ", mode) : ""
+      gau[3] =
+        pre +
+        gcell(
+          "5h",
+          3,
+          ai.fiveHourPct,
+          barW,
+          w ? H_RED : H_PERI,
+          `${ai.fiveHourPct}%`,
+          w ? H_RED.fill : H_PERI.fill,
+          mode,
+          ai.fiveHourResetAt ? fmtReset(ai.fiveHourResetAt, now) : undefined
+        )
+    }
+  }
+
+  // ── machine row ── cpu | mem | disk (gray; redden when full ≥90%).
+  const mac: string[] = ["", "", "", ""]
+  if (machine) {
+    const mc = (label: string, col: number, pct: number | undefined): string => {
+      if (pct === undefined) return ""
+      const hot = pct >= 90
+      return gcell(
+        label,
+        col,
+        pct,
+        barW,
+        hot ? H_RED : H_GRAY,
+        String(pct),
+        hot ? H_RED.fill : FG_RGB,
+        mode
+      )
+    }
+    mac[0] = mc("cpu", 0, machine.cpuPct)
+    mac[1] = mc("mem", 1, machine.memPct)
+    mac[2] = mc("disk", 2, machine.diskUsedPct)
+  }
+
+  // pad cols 0-2 to their widest cell across the rendered rows (col 3 is the
+  // tail — its cells already start at the same x, so they align unpadded).
+  const build = (rows: GridRow[]): { lines: string[]; max: number } => {
+    const present = rows.filter((r) => r.cells.some((c) => c.length > 0))
+    const w = [0, 0, 0]
+    for (const r of present)
+      for (let i = 0; i < 3; i++) w[i] = Math.max(w[i] ?? 0, visLen(r.cells[i] ?? ""))
+    const lines: string[] = []
+    let max = 0
+    for (const r of present) {
+      // `sepBefore` rows get a faint divider above them. A truly-blank line is
+      // collapsed by Claude's statusLine, so we draw a dim rule instead.
+      if (r.sepBefore && lines.length > 0) {
+        const ruleW = Math.max(1, max - LEFT_PAD.length)
+        lines.push(`${LEFT_PAD}${rgb("─".repeat(ruleW), 60, 64, 74, mode)}`)
+      }
+      const c = r.cells
+      let s =
+        padEndVis(c[0] ?? "", w[0] ?? 0) +
+        sep +
+        padEndVis(c[1] ?? "", w[1] ?? 0) +
+        sep +
+        padEndVis(c[2] ?? "", w[2] ?? 0)
+      if ((c[3] ?? "").length > 0) s += sep + c[3]
+      const line = `${LEFT_PAD}${s}`
+      lines.push(line)
+      max = Math.max(max, visLen(line))
+    }
+    return { lines, max }
+  }
+
+  // progressive degradation so the core gauges always fit: full -> drop machine
+  // -> drop context detail (keep git + api) -> gauges only.
+  const ctxRow: GridRow = { cells: ctx }
+  const gauRow: GridRow = { cells: gau }
+  const macRow: GridRow = { cells: mac, sepBefore: true }
+  const slimCtxRow: GridRow = { cells: [ctx[0] ?? "", "", "", ctx[3] ?? ""] }
+  const attempts: GridRow[][] = [
+    [ctxRow, gauRow, macRow],
+    [ctxRow, gauRow],
+    [slimCtxRow, gauRow],
+    [gauRow],
+  ]
+  // pre-seed with the narrowest layout; only replace it when one actually fits.
+  let chosen = build(attempts[attempts.length - 1] as GridRow[])
+  for (const rows of attempts) {
+    const r = build(rows)
+    if (r.max <= W) {
+      chosen = r
+      break
+    }
+  }
+
+  return [...nudge, header, ...chosen.lines].join("\n")
+}
+
+// "90m" → "1h 30m", "45m" → "45m"
+function fmtMins(min: number): string {
+  if (min >= 60) return `${Math.floor(min / 60)}h ${min % 60}m`
+  return `${min}m`
 }

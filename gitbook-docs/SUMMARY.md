@@ -26,6 +26,7 @@
 - [News and Reading (CLI)](cli/news-and-reading.md)
 - [Slot Cache](cli/ad-cache.md)
 - [Local Ledger](cli/local-ledger.md)
+- [Utilities Channel (CH 03)](cli/utilities-channel.md)
 - [Dashboard Current State](dashboard/current-state.md)
 - [Reading List (Dashboard)](dashboard/reading.md)
 - [Dev Workflow](engineering/dev-workflow.md)

@@ -1,6 +1,11 @@
 import { randomBytes } from "node:crypto"
 import { copyFile, readFile, rename, stat, writeFile } from "node:fs/promises"
 import { basename, dirname, join } from "node:path"
+import {
+  clearWrappedStatusLine,
+  readWrappedStatusLine,
+  writeWrappedStatusLine,
+} from "./wrapped-statusline.js"
 
 export interface HookCommand {
   type: "command"
@@ -212,39 +217,72 @@ function buildStatusLineCommand(binPath: string): string {
 // matches "<bin> statusline" (bare / single / double quoted), capturing the bin
 const STATUSLINE_COMMAND_RE = /^\s*(?:"((?:\\.|[^"])*)"|'([^']*)'|(\S+))\s+statusline\s*$/
 
+// True when `command` is our own "<distro-bin> statusline".
+function isOurStatusLineCommand(command: unknown): boolean {
+  if (typeof command !== "string") return false
+  const m = STATUSLINE_COMMAND_RE.exec(command)
+  if (!m) return false
+  const bin = m[1] !== undefined ? unescapeDoubleQuoted(m[1]) : (m[2] ?? m[3] ?? "")
+  return DISTRO_BIN_RE.test(basename(bin))
+}
+
 // Point Claude Code's statusLine at `distro statusline` so it renders the
 // current slot at the bottom. Idempotent — no-op if already pointed at binPath.
+//
+// Claude's statusLine is a SINGLE command slot, so before we take it over we
+// stash any pre-existing user command (see wrapped-statusline.ts); `distro
+// statusline` then runs it and appends our line below, and uninstall restores
+// it. Re-captures if the user later swaps in a new custom command.
 export function setStatusLine(
   settings: Settings,
   binPath: string
 ): { next: Settings; changed: boolean } {
   const command = buildStatusLineCommand(binPath)
-  const current = settings.statusLine as { type?: unknown; command?: unknown } | undefined
-  if (
-    current &&
-    typeof current === "object" &&
-    current.type === "command" &&
-    current.command === command
-  ) {
-    return { next: settings, changed: false }
+  const current = settings.statusLine as
+    | { type?: unknown; command?: unknown; padding?: unknown }
+    | undefined
+
+  if (current && typeof current === "object" && typeof current.command === "string") {
+    if (isOurStatusLineCommand(current.command)) {
+      // already ours — leave any previously-captured wrapped command intact.
+      if (current.command === command) return { next: settings, changed: false }
+    } else {
+      // foreign command — preserve it so we can chain + later restore it.
+      writeWrappedStatusLine({
+        type: typeof current.type === "string" ? current.type : "command",
+        command: current.command,
+        ...(typeof current.padding === "number" ? { padding: current.padding } : {}),
+      })
+    }
   }
+
   return {
     next: { ...settings, statusLine: { type: "command", command, padding: 0 } },
     changed: true,
   }
 }
 
-// Strip the statusLine entry only when it's ours ("<distro-bin> statusline"),
-// so we never clobber a user's custom status line.
+// On uninstall, restore the user's original status line if we wrapped one;
+// otherwise strip the entry — but only when it's ours, so we never clobber a
+// custom status line the user added after us.
 export function removeStatusLine(settings: Settings): { next: Settings; changed: boolean } {
   const current = settings.statusLine as { command?: unknown } | undefined
   if (!current || typeof current !== "object" || typeof current.command !== "string") {
     return { next: settings, changed: false }
   }
-  const m = STATUSLINE_COMMAND_RE.exec(current.command)
-  if (!m) return { next: settings, changed: false }
-  const bin = m[1] !== undefined ? unescapeDoubleQuoted(m[1]) : (m[2] ?? m[3] ?? "")
-  if (!DISTRO_BIN_RE.test(basename(bin))) return { next: settings, changed: false }
+  if (!isOurStatusLineCommand(current.command)) return { next: settings, changed: false }
+
+  const wrapped = readWrappedStatusLine()
+  if (wrapped) {
+    const restored: StatusLineConfig = {
+      type: "command",
+      command: wrapped.command,
+      ...(typeof wrapped.padding === "number" ? { padding: wrapped.padding } : {}),
+    }
+    clearWrappedStatusLine()
+    return { next: { ...settings, statusLine: restored }, changed: true }
+  }
+
   const next = { ...settings }
   delete next.statusLine
   return { next, changed: true }
