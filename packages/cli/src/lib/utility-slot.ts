@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process"
-import { statfs } from "node:fs/promises"
-import { cpus, freemem, loadavg, platform, totalmem } from "node:os"
+import { readFile, statfs } from "node:fs/promises"
+import { cpus, platform } from "node:os"
 import { promisify } from "node:util"
 import {
   UTILITY_GIT_CACHE_MS,
@@ -87,6 +87,55 @@ async function probeGit(cwd: string, now: number): Promise<UtilityGit | null> {
 
 // ── machine probe ─────────────────────────────────────────────────────────
 
+function cpuSnapshot(): { idle: number; total: number } {
+  let idle = 0
+  let total = 0
+  for (const c of cpus()) {
+    for (const k of Object.keys(c.times) as (keyof typeof c.times)[]) total += c.times[k]
+    idle += c.times.idle
+  }
+  return { idle, total }
+}
+
+// real instantaneous CPU% busy: sample cpu times twice ~250ms apart. loadavg
+// is not a % and overstates on multi-core boxes, so we never use it.
+async function probeCpu(): Promise<number | undefined> {
+  const a = cpuSnapshot()
+  await new Promise((r) => setTimeout(r, 250))
+  const b = cpuSnapshot()
+  const dt = b.total - a.total
+  if (dt <= 0) return undefined
+  return Math.max(0, Math.min(100, Math.round((1 - (b.idle - a.idle) / dt) * 100)))
+}
+
+// real memory pressure: os.freemem() is meaningless on macOS (reports ~3% free
+// because the OS uses RAM for cache), so use memory_pressure / MemAvailable.
+async function probeMem(): Promise<number | undefined> {
+  if (platform() === "darwin") {
+    try {
+      const { stdout } = await execFileAsync("memory_pressure", [], { timeout: 1500 })
+      const m = /System-wide memory free percentage:\s*([\d.]+)%/.exec(stdout)
+      if (m) return Math.max(0, Math.min(100, Math.round(100 - Number.parseFloat(m[1] as string))))
+    } catch {
+      /* omit */
+    }
+    return undefined
+  }
+  if (platform() === "linux") {
+    try {
+      const txt = await readFile("/proc/meminfo", "utf8")
+      const tot = /MemTotal:\s+(\d+)/.exec(txt)
+      const avail = /MemAvailable:\s+(\d+)/.exec(txt)
+      if (tot && avail) {
+        return Math.round((1 - Number(avail[1]) / Number(tot[1])) * 100)
+      }
+    } catch {
+      /* omit */
+    }
+  }
+  return undefined // never show a misleading fallback
+}
+
 async function probeBattery(): Promise<number | undefined> {
   if (platform() !== "darwin") return undefined
   try {
@@ -99,22 +148,15 @@ async function probeBattery(): Promise<number | undefined> {
 }
 
 async function probeMachine(cwd: string | undefined): Promise<UtilityMachine> {
+  const [cpuPct, memPct, battPct] = await Promise.all([probeCpu(), probeMem(), probeBattery()])
   const out: UtilityMachine = {}
-
-  // 1-min load average normalized by core count — a cheap CPU-pressure proxy.
-  const cores = cpus().length || 1
-  const load1 = loadavg()[0] ?? 0
-  if (load1 > 0) out.cpuPct = Math.min(100, Math.round((load1 / cores) * 100))
-
-  const total = totalmem()
-  if (total > 0) out.memPct = Math.round(((total - freemem()) / total) * 100)
-
-  out.battPct = await probeBattery()
-
+  if (cpuPct !== undefined) out.cpuPct = cpuPct
+  if (memPct !== undefined) out.memPct = memPct
+  if (battPct !== undefined) out.battPct = battPct
   try {
     const stats = await statfs(cwd || process.env["HOME"] || "/")
     const blocks = Number(stats.blocks)
-    if (blocks > 0) out.diskFreePct = Math.round((Number(stats.bavail) / blocks) * 100)
+    if (blocks > 0) out.diskUsedPct = Math.round((1 - Number(stats.bavail) / blocks) * 100)
   } catch {
     /* omit */
   }

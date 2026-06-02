@@ -43,12 +43,12 @@ the Distro line added beneath it.
 All buckets are optional — an unavailable source is omitted, never shown as a
 fake zeroed gauge (`UtilityPayload` in `@distrotv/shared`).
 
-| Bucket      | Source                                               | Fields                                                                                        |
-| ----------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **ai**      | statusline snapshot + derived history                | 5h/7d limit % + reset, ctx %, cost, cache %, burn $/min, time-to-limit, model/effort, lines ± |
-| **git**     | `git` in the snapshot's `cwd` (cached 10 s)          | branch, ahead/behind, dirty files, uncommitted lines, last-commit age                         |
-| **machine** | `os` + `pmset` + `statfs` (cached 15 s)              | cpu %, mem %, battery %, disk free %                                                          |
-| **health**  | status.anthropic.com summary + latency (cached 60 s) | Anthropic status (ok/degraded/down), API latency, online                                      |
+| Bucket      | Source                                                                     | Fields                                                                                        |
+| ----------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **ai**      | statusline snapshot + derived history                                      | 5h/7d limit % + reset, ctx %, cost, cache %, burn $/min, time-to-limit, model/effort, lines ± |
+| **git**     | `git` in the snapshot's `cwd` (cached 10 s)                                | branch, ahead/behind, dirty files, uncommitted lines, last-commit age                         |
+| **machine** | sampled cpu + `memory_pressure`/`MemAvailable` + `pmset` + `statfs` (15 s) | cpu % busy (sampled), mem % used (real pressure), battery %, disk % used                      |
+| **health**  | status.anthropic.com summary (cached 60 s)                                 | Anthropic status (ok/degraded/down), online                                                   |
 
 Burn rate and time-to-limit are derived from the rolling cost/limit history in
 `deriveUsage`.
@@ -73,23 +73,26 @@ The slot is tagged `cacheSource: "local"`; the orchestrator skips the
 down. Each column owns a hue (fill + a dark "unfilled" track tint):
 
 ```
-▍ utils · live
-⎇ organic-bread ↑3 ↓1 · 5 dirty │ $0.29 · $0.19/m · ~5m │ Opus 4.8 / high │ ⚠ api degraded
-7d  ███░░░░░ 22% · 6d            │ ctx ███░░░░░ 41%      │ cache ██████░ 79% │ 5h ███░░ 36% · 1h 9m
-cpu ██░░░░░░ 30                  │ mem ████████ 99       │ disk █████░░ 57   │ batt ████████ 100
-distro tv · utils
+▍ utils
+⎇ organic-bread ↑3 ↓1 · 2 dirty │ $0.29 · $0.19/m · ~5m │ Opus 4.8 / high │ ⚠ api degraded
+week █░░░░░░░ 14% · 3d 16h       │ ctx ███░░░░░ 42%      │ cache ████████ 99% │ 5h ███░░ 36% · 1h 9m
+
+cpu  ███░░░░░ 38                 │ mem ████░░░░ 44       │ disk ███░░░░░ 43   │ batt ████████ 100
 ```
 
-- **col 1 · teal** — 7d limit (gauge) / git: `⎇ branch ↑ahead ↓behind · N dirty`
+- **col 1 · teal** — weekly limit (gauge, labeled `week`) / git: `⎇ branch ↑ahead ↓behind · N dirty`
 - **col 2 · amber** — ctx (gauge) / cost · burn · `~time-to-limit`
 - **col 3 · violet** — cache (gauge) / model · effort
 - **col 4 · periwinkle** — 5h limit (gauge) / **api line only on an incident**
-- machine row (cpu/mem/disk/batt) uses gray bars; **mem turns red ≥90%**
+- a blank line separates the gauge row from the machine row
+- machine bars (cpu/mem/disk/batt) are gray; **cpu/mem/disk redden ≥90%**, but
+  **battery reddens only when low (≤20%)** since a full charge is good
 
-Per-column label fields (`COL_FIELD`) are uniform so every bar starts at the same
-x in its column. Bars turn red + `⚠` at/above `UTILITY_LIMIT_WARN_PCT` (90%, for
-5h/7d) and `UTILITY_CTX_WARN_PCT` (90%, ctx). The **API health line is hidden
-when Anthropic is healthy** and only appears (red) during a `degraded`/`down`
+No header `· live` suffix and no footer line. Per-column label fields
+(`COL_FIELD`) are uniform so every bar starts at the same x in its column. Limit
+gauges turn red + `⚠` at/above `UTILITY_LIMIT_WARN_PCT` (90%, for 5h/week) and
+`UTILITY_CTX_WARN_PCT` (90%, ctx). The **API health line is hidden when Anthropic
+is healthy** and only appears (red) during a `degraded`/`down`
 incident.
 
 Bar width scales with the terminal width the daemon reads off the tty, and the

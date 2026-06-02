@@ -172,7 +172,7 @@ const FG_RGB: Rgb = [233, 235, 242]
 
 // per-column label field (max label + a space) so bars start at the same x in
 // their column on every row.
-const COL_FIELD = [4, 4, 6, 5] as const
+const COL_FIELD = [5, 4, 6, 5] as const
 
 // fill + track bar. truecolor → bg blocks; else █/░ fallback.
 function renderBar(pct: number, width: number, h: Hue, mode: ColorMode): string {
@@ -233,8 +233,7 @@ function renderUtilityPanel(
   nudge: string[]
 ): string {
   const now = Date.now()
-  const header = `${color("indigo", "▍", mode)} ${color("indigo", "utils", mode)} ${color("muted", "· live", mode)}`
-  const footer = `${LEFT_PAD}${color("muted", "distro tv · utils", mode)}`
+  const header = `${color("indigo", "▍", mode)} ${color("indigo", "utils", mode)}`
   const sep = color("muted", " │ ", mode)
   const { ai, git, machine, health } = slot
 
@@ -291,7 +290,7 @@ function renderUtilityPanel(
     if (ai.sevenDayPct !== undefined) {
       const w = ai.sevenDayPct >= UTILITY_LIMIT_WARN_PCT
       gau[0] = gcell(
-        "7d",
+        "week",
         0,
         ai.sevenDayPct,
         barW,
@@ -346,12 +345,12 @@ function renderUtilityPanel(
     }
   }
 
-  // ── machine row ── cpu | mem | disk | batt (gray; turns red ≥90%)
+  // ── machine row ── cpu | mem | disk | batt. cpu/mem/disk redden when full
+  // (≥90%); battery reddens when LOW (≤20%) since a full charge is good.
   const mac: string[] = ["", "", "", ""]
   if (machine) {
-    const mc = (label: string, col: number, pct: number | undefined): string => {
+    const mc = (label: string, col: number, pct: number | undefined, hot: boolean): string => {
       if (pct === undefined) return ""
-      const hot = pct >= 90
       return gcell(
         label,
         col,
@@ -363,10 +362,10 @@ function renderUtilityPanel(
         mode
       )
     }
-    mac[0] = mc("cpu", 0, machine.cpuPct)
-    mac[1] = mc("mem", 1, machine.memPct)
-    mac[2] = mc("disk", 2, machine.diskFreePct)
-    mac[3] = mc("batt", 3, machine.battPct)
+    mac[0] = mc("cpu", 0, machine.cpuPct, (machine.cpuPct ?? 0) >= 90)
+    mac[1] = mc("mem", 1, machine.memPct, (machine.memPct ?? 0) >= 90)
+    mac[2] = mc("disk", 2, machine.diskUsedPct, (machine.diskUsedPct ?? 0) >= 90)
+    mac[3] = mc("batt", 3, machine.battPct, (machine.battPct ?? 100) <= 20)
   }
 
   // pad cols 0-2 to their widest cell across the rendered rows (col 3 is the
@@ -376,7 +375,11 @@ function renderUtilityPanel(
     const w = [0, 0, 0]
     for (const r of present)
       for (let i = 0; i < 3; i++) w[i] = Math.max(w[i] ?? 0, visLen(r[i] ?? ""))
-    const lines = present.map((r) => {
+    const lines: string[] = []
+    let max = 0
+    for (const r of present) {
+      // blank line between the gauge row and the machine row for readability.
+      if (r === mac && lines.length > 0) lines.push("")
       let s =
         padEndVis(r[0] ?? "", w[0] ?? 0) +
         sep +
@@ -384,9 +387,10 @@ function renderUtilityPanel(
         sep +
         padEndVis(r[2] ?? "", w[2] ?? 0)
       if ((r[3] ?? "").length > 0) s += sep + r[3]
-      return `${LEFT_PAD}${s}`
-    })
-    const max = lines.reduce((mx, l) => Math.max(mx, visLen(l)), 0)
+      const line = `${LEFT_PAD}${s}`
+      lines.push(line)
+      max = Math.max(max, visLen(line))
+    }
     return { lines, max }
   }
 
@@ -404,7 +408,7 @@ function renderUtilityPanel(
     chosen = r
   }
 
-  return [...nudge, header, ...chosen.lines, footer].join("\n")
+  return [...nudge, header, ...chosen.lines].join("\n")
 }
 
 // "90m" → "1h 30m", "45m" → "45m"

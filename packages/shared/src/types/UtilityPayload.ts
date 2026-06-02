@@ -42,10 +42,10 @@ export interface UtilityGit {
 }
 
 export interface UtilityMachine {
-  cpuPct?: number
-  memPct?: number
-  battPct?: number
-  diskFreePct?: number
+  cpuPct?: number // instantaneous % busy (sampled), not load average
+  memPct?: number // % used — real pressure (macOS memory_pressure / linux MemAvailable)
+  battPct?: number // charge %
+  diskUsedPct?: number // % used (100 - free), so a fuller disk reads as a fuller bar
 }
 
 export type AnthropicHealth = "ok" | "degraded" | "down"
