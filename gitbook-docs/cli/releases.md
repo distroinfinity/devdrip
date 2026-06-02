@@ -2,6 +2,55 @@
 
 CLI versions are distributed via GitHub Releases, not npm.
 
+## Release runbook (do this for EVERY cli-affecting change)
+
+> Merging code to `main` ships **nothing** to users on its own. A release is two
+> coupled actions: **(1)** publish the GitHub artifact (new installs) **and**
+> **(2)** arm the server signal (existing installs auto-update). Skipping (1)
+> means `curl install.sh` still serves the old version; skipping (2) means no
+> existing daemon ever updates. Do both, in order.
+
+1. **Merge** the feature PR to `main`.
+2. **Bump** `packages/cli/package.json` `version` (hygiene — the tag is the
+   load-bearing source of truth for the artifact, but keep source honest).
+3. **Tag + push from `main`** → triggers `.github/workflows/release-cli.yml`,
+   which builds the CLI and publishes a GitHub Release with `distrotv-cli.tar.gz`:
+   ```sh
+   git fetch origin main
+   git tag cli-vX.Y.Z "$(git rev-parse origin/main)" -m "cli vX.Y.Z — <summary>"
+   git push origin cli-vX.Y.Z
+   gh run watch "$(gh run list --workflow release-cli.yml -L1 --json databaseId -q '.[0].databaseId')" --exit-status
+   ```
+4. **Verify the artifact** (this is what new users get):
+   ```sh
+   curl -fsSL -o /tmp/t.tgz https://github.com/distroinfinity/devdrip/releases/latest/download/distrotv-cli.tar.gz
+   tar -xzf /tmp/t.tgz -C /tmp && node -p "require('/tmp/package.json').version"   # → X.Y.Z
+   ```
+5. **Arm auto-update for existing users** — set the server signal on Railway
+   (production API). This is the gate the daemon's `/cli/version-check` reads;
+   until it's set, nothing auto-updates (safe default / kill-switch):
+   ```sh
+   railway link --project devdrip-api --environment production   # once per machine
+   railway variable set LATEST_CLI_VERSION=X.Y.Z --service devdrip-api --environment production
+   ```
+   (Setting the var triggers an API redeploy so the running process picks it up.)
+6. **Verify the signal** (this is what existing daemons get):
+   ```sh
+   curl -s "https://api.distrotv.xyz/cli/version-check?current=<previous-version>"   # → {"latest":"X.Y.Z","outdated":true,"tarballUrl":"…/cli-vX.Y.Z/…"}
+   curl -s "https://api.distrotv.xyz/cli/version-check?current=X.Y.Z"                # → outdated:false  (nudge clears post-update)
+   ```
+7. **Rollback / halt:** lower or unset `LATEST_CLI_VERSION` to stop advertising.
+   Crash-looping new builds self-revert via the probation + mark-bad path (see
+   the cli-v0.2.10 notes); the GitHub artifact stays published.
+
+**Who gets what**
+
+| Audience                                   | Path                                                                         | Armed by  |
+| ------------------------------------------ | ---------------------------------------------------------------------------- | --------- |
+| New install (`curl install.sh`)            | GitHub `releases/latest/download/distrotv-cli.tar.gz`                        | steps 3–4 |
+| Existing daemon (15-min tick + boot)       | server `/cli/version-check` → tarball from GitHub                            | step 5    |
+| Users on `< cli-v0.2.10` (pre-auto-update) | must take the first hop manually (`distro upgrade` or the install one-liner) | —         |
+
 ## Tag convention
 
 Releases are triggered by git tags matching `cli-v*`:
@@ -106,6 +155,19 @@ wild keep working when the Vercel challenge isn't firing.
 2. Tag and push: `git tag cli-v0.1.0 -m "cli v0.1.0" && git push origin cli-v0.1.0`.
 3. Watch the Actions tab; the Release CLI workflow should produce the release.
 4. Verify `https://github.com/distroinfinity/devdrip/releases/latest/download/distrotv-cli.tar.gz` returns the tarball.
+
+## cli-v0.2.11 (2026-06-02)
+
+**CH 03 Utilities channel + status-line append fix.** A third rotating slot —
+an instrument panel of local dev telemetry (Claude usage/limits/cost, git
+ahead/behind, cpu/mem/disk, Anthropic API health) injected every 3rd slot,
+rendered locally (no API calls). Plus the status-line wrap fix: Distro now
+**stashes** a user's existing `statusLine` command and **appends** below it
+instead of clobbering it (restored on uninstall). Includes the PR-review
+follow-ups (single snapshot read per rotation, correct cache-hit-rate formula,
+accurate sampled CPU + `memory_pressure` memory, probe-failure logging). See
+`cli/utilities-channel.md`. Rollout: `LATEST_CLI_VERSION=0.2.11` set on
+production after verifying the artifact.
 
 ## cli-v0.2.10 (2026-05-27)
 
