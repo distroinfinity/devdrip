@@ -375,12 +375,13 @@ function renderUtilityPanel(
       for (let i = 0; i < 3; i++) w[i] = Math.max(w[i] ?? 0, visLen(r[i] ?? ""))
     const lines: string[] = []
     let max = 0
+    const NBSP = String.fromCharCode(0xa0) // renders blank, carries width
     for (const r of present) {
-      // a dim horizontal rule separates the gauge row from the machine row —
-      // a blank line gets collapsed by Claude's statusLine, a rule always shows.
+      // a blank separator row sits between the gauge and machine rows —
+      // an empty line gets collapsed, so we emit non-breaking spaces (blank, width-bearing).
       if (r === mac && max > 0) {
-        const ruleW = Math.max(0, max - LEFT_PAD.length)
-        lines.push(`${LEFT_PAD}${rgb("─".repeat(ruleW), 72, 78, 92, mode)}`)
+        const gapW = Math.max(1, max - LEFT_PAD.length)
+        lines.push(`${LEFT_PAD}${NBSP.repeat(gapW)}`)
       }
       let s =
         padEndVis(r[0] ?? "", w[0] ?? 0) +
