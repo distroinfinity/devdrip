@@ -172,7 +172,8 @@ const FG_RGB: Rgb = [233, 235, 242]
 
 // per-column label field (max label + a space) so bars start at the same x in
 // their column on every row.
-const COL_FIELD = [5, 4, 6, 5] as const
+// columns: ctx(0) · cache(1) · week(2) · 5h(3); machine cpu(0)/mem(1)/disk(2).
+const COL_FIELD = [4, 6, 5, 3] as const
 
 // fill + track bar. truecolor → bg blocks; else █/░ fallback.
 function renderBar(pct: number, width: number, h: Hue, mode: ColorMode): string {
@@ -243,13 +244,11 @@ function renderUtilityPanel(
   // ── context row ── git | cost/burn/proj | model | api(incident only)
   const ctx: string[] = ["", "", "", ""]
   if (git?.branch) {
+    // git-CLI style: just the branch + ↑ahead/↓behind vs remote (no dirty count).
     const ab: string[] = []
     if (git.ahead) ab.push(`↑${git.ahead}`)
     if (git.behind) ab.push(`↓${git.behind}`)
-    const metaParts: string[] = []
-    if (ab.length) metaParts.push(ab.join(" "))
-    if (git.dirtyFiles !== undefined) metaParts.push(`${git.dirtyFiles} dirty`)
-    const meta = metaParts.length ? color("muted", ` ${metaParts.join(" · ")}`, mode) : ""
+    const meta = ab.length ? color("muted", ` ${ab.join(" ")}`, mode) : ""
     ctx[0] = rgb(`⎇ ${git.branch}`, H_TEAL.fill[0], H_TEAL.fill[1], H_TEAL.fill[2], mode) + meta
   }
   if (ai) {
@@ -284,28 +283,14 @@ function renderUtilityPanel(
     ctx[3] = color("negative", "⚠ offline", mode)
   }
 
-  // ── gauge row ── 7d | ctx | cache | 5h
+  // ── gauge row ── ctx | cache | week | 5h  (the two limits kept together)
   const gau: string[] = ["", "", "", ""]
   if (ai) {
-    if (ai.sevenDayPct !== undefined) {
-      const w = ai.sevenDayPct >= UTILITY_LIMIT_WARN_PCT
-      gau[0] = gcell(
-        "week",
-        0,
-        ai.sevenDayPct,
-        barW,
-        w ? H_RED : H_TEAL,
-        `${ai.sevenDayPct}%`,
-        w ? H_RED.fill : H_TEAL.fill,
-        mode,
-        ai.sevenDayResetAt ? fmtReset(ai.sevenDayResetAt, now) : undefined
-      )
-    }
     if (ai.ctxPct !== undefined) {
       const w = ai.ctxPct >= UTILITY_CTX_WARN_PCT
-      gau[1] = gcell(
+      gau[0] = gcell(
         "ctx",
-        1,
+        0,
         ai.ctxPct,
         barW,
         w ? H_RED : H_AMBER,
@@ -315,15 +300,29 @@ function renderUtilityPanel(
       )
     }
     if (ai.cachePct !== undefined) {
-      gau[2] = gcell(
+      gau[1] = gcell(
         "cache",
-        2,
+        1,
         ai.cachePct,
         barW,
         H_VIOLET,
         `${ai.cachePct}%`,
         H_VIOLET.fill,
         mode
+      )
+    }
+    if (ai.sevenDayPct !== undefined) {
+      const w = ai.sevenDayPct >= UTILITY_LIMIT_WARN_PCT
+      gau[2] = gcell(
+        "week",
+        2,
+        ai.sevenDayPct,
+        barW,
+        w ? H_RED : H_TEAL,
+        `${ai.sevenDayPct}%`,
+        w ? H_RED.fill : H_TEAL.fill,
+        mode,
+        ai.sevenDayResetAt ? fmtReset(ai.sevenDayResetAt, now) : undefined
       )
     }
     if (ai.fiveHourPct !== undefined) {
@@ -345,12 +344,12 @@ function renderUtilityPanel(
     }
   }
 
-  // ── machine row ── cpu | mem | disk | batt. cpu/mem/disk redden when full
-  // (≥90%); battery reddens when LOW (≤20%) since a full charge is good.
+  // ── machine row ── cpu | mem | disk (gray; redden when full ≥90%).
   const mac: string[] = ["", "", "", ""]
   if (machine) {
-    const mc = (label: string, col: number, pct: number | undefined, hot: boolean): string => {
+    const mc = (label: string, col: number, pct: number | undefined): string => {
       if (pct === undefined) return ""
+      const hot = pct >= 90
       return gcell(
         label,
         col,
@@ -362,10 +361,9 @@ function renderUtilityPanel(
         mode
       )
     }
-    mac[0] = mc("cpu", 0, machine.cpuPct, (machine.cpuPct ?? 0) >= 90)
-    mac[1] = mc("mem", 1, machine.memPct, (machine.memPct ?? 0) >= 90)
-    mac[2] = mc("disk", 2, machine.diskUsedPct, (machine.diskUsedPct ?? 0) >= 90)
-    mac[3] = mc("batt", 3, machine.battPct, (machine.battPct ?? 100) <= 20)
+    mac[0] = mc("cpu", 0, machine.cpuPct)
+    mac[1] = mc("mem", 1, machine.memPct)
+    mac[2] = mc("disk", 2, machine.diskUsedPct)
   }
 
   // pad cols 0-2 to their widest cell across the rendered rows (col 3 is the
@@ -378,8 +376,12 @@ function renderUtilityPanel(
     const lines: string[] = []
     let max = 0
     for (const r of present) {
-      // blank line between the gauge row and the machine row for readability.
-      if (r === mac && lines.length > 0) lines.push("")
+      // a dim horizontal rule separates the gauge row from the machine row —
+      // a blank line gets collapsed by Claude's statusLine, a rule always shows.
+      if (r === mac && max > 0) {
+        const ruleW = Math.max(0, max - LEFT_PAD.length)
+        lines.push(`${LEFT_PAD}${rgb("─".repeat(ruleW), 72, 78, 92, mode)}`)
+      }
       let s =
         padEndVis(r[0] ?? "", w[0] ?? 0) +
         sep +

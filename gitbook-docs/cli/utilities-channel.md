@@ -74,26 +74,29 @@ down. Each column owns a hue (fill + a dark "unfilled" track tint):
 
 ```
 ▍ utils
-⎇ organic-bread ↑3 ↓1 · 2 dirty │ $0.29 · $0.19/m · ~5m │ Opus 4.8 / high │ ⚠ api degraded
-week █░░░░░░░ 14% · 3d 16h       │ ctx ███░░░░░ 42%      │ cache ████████ 99% │ 5h ███░░ 36% · 1h 9m
-
-cpu  ███░░░░░ 38                 │ mem ████░░░░ 44       │ disk ███░░░░░ 43   │ batt ████████ 100
+⎇ organic-bread ↑3 ↓1 │ $0.29 · $0.19/m · ~5m │ Opus 4.8 / high │ ⚠ api degraded
+ctx ███░░░░░ 42%      │ cache ████████ 99%    │ week █░░░ 14% · 3d │ 5h █░░░ 9% · 4h 6m
+──────────────────────────────────────────────────────────────────────────────────
+cpu ███░░░░░ 38       │ mem ████░░░░ 44       │ disk ███░░░░░ 43
 ```
 
-- **col 1 · teal** — weekly limit (gauge, labeled `week`) / git: `⎇ branch ↑ahead ↓behind · N dirty`
-- **col 2 · amber** — ctx (gauge) / cost · burn · `~time-to-limit`
-- **col 3 · violet** — cache (gauge) / model · effort
-- **col 4 · periwinkle** — 5h limit (gauge) / **api line only on an incident**
-- a blank line separates the gauge row from the machine row
-- machine bars (cpu/mem/disk/batt) are gray; **cpu/mem/disk redden ≥90%**, but
-  **battery reddens only when low (≤20%)** since a full charge is good
+Gauge order is **ctx · cache · week · 5h** — the two Claude limits (weekly +
+5-hour) sit **together** as columns 3 & 4. Per-metric hues: ctx amber, cache
+violet, week teal, 5h periwinkle.
+
+- **context row** — git `⎇ branch ↑ahead ↓behind` (git-CLI style, no dirty count) ·
+  cost · burn · `~time-to-limit` · model/effort · **api line only on an incident**
+- **gauge row** — ctx · cache · weekly limit (`week`) · 5-hour limit (`5h`)
+- a **dim horizontal rule** separates the gauge row from the machine row (a blank
+  line gets collapsed by Claude's statusLine, so we draw a rule)
+- **machine row** — cpu / mem / disk, gray bars that redden ≥90% (battery dropped —
+  not useful in a terminal)
 
 No header `· live` suffix and no footer line. Per-column label fields
 (`COL_FIELD`) are uniform so every bar starts at the same x in its column. Limit
-gauges turn red + `⚠` at/above `UTILITY_LIMIT_WARN_PCT` (90%, for 5h/week) and
+gauges turn red + `⚠` at/above `UTILITY_LIMIT_WARN_PCT` (90%, for week/5h) and
 `UTILITY_CTX_WARN_PCT` (90%, ctx). The **API health line is hidden when Anthropic
-is healthy** and only appears (red) during a `degraded`/`down`
-incident.
+is healthy** and only appears (red) during a `degraded`/`down` incident.
 
 Bar width scales with the terminal width the daemon reads off the tty, and the
 panel degrades progressively on narrow terminals: full → drop machine row → drop

@@ -136,23 +136,11 @@ async function probeMem(): Promise<number | undefined> {
   return undefined // never show a misleading fallback
 }
 
-async function probeBattery(): Promise<number | undefined> {
-  if (platform() !== "darwin") return undefined
-  try {
-    const { stdout } = await execFileAsync("pmset", ["-g", "batt"], { timeout: 1500 })
-    const m = /(\d+)%/.exec(stdout)
-    return m ? Number.parseInt(m[1] as string, 10) : undefined
-  } catch {
-    return undefined
-  }
-}
-
 async function probeMachine(cwd: string | undefined): Promise<UtilityMachine> {
-  const [cpuPct, memPct, battPct] = await Promise.all([probeCpu(), probeMem(), probeBattery()])
+  const [cpuPct, memPct] = await Promise.all([probeCpu(), probeMem()])
   const out: UtilityMachine = {}
   if (cpuPct !== undefined) out.cpuPct = cpuPct
   if (memPct !== undefined) out.memPct = memPct
-  if (battPct !== undefined) out.battPct = battPct
   try {
     const stats = await statfs(cwd || process.env["HOME"] || "/")
     const blocks = Number(stats.blocks)
