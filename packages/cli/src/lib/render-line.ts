@@ -156,6 +156,11 @@ export function renderSlotLine(
 // across rows, branch + ahead/behind, and an api line only on an incident.
 
 type Rgb = readonly [number, number, number]
+// one row of the utility grid; `sepBefore` draws a faint divider above it.
+interface GridRow {
+  cells: string[]
+  sepBefore?: boolean
+}
 interface Hue {
   fill: Rgb
   track: Rgb
@@ -368,27 +373,28 @@ function renderUtilityPanel(
 
   // pad cols 0-2 to their widest cell across the rendered rows (col 3 is the
   // tail — its cells already start at the same x, so they align unpadded).
-  const build = (rows: string[][]): { lines: string[]; max: number } => {
-    const present = rows.filter((r) => r.some((c) => c.length > 0))
+  const build = (rows: GridRow[]): { lines: string[]; max: number } => {
+    const present = rows.filter((r) => r.cells.some((c) => c.length > 0))
     const w = [0, 0, 0]
     for (const r of present)
-      for (let i = 0; i < 3; i++) w[i] = Math.max(w[i] ?? 0, visLen(r[i] ?? ""))
+      for (let i = 0; i < 3; i++) w[i] = Math.max(w[i] ?? 0, visLen(r.cells[i] ?? ""))
     const lines: string[] = []
     let max = 0
     for (const r of present) {
-      // a faint divider between the gauge and machine rows —
-      // a truly-blank line makes Claude drop the rows after it, so we use a dim rule.
-      if (r === mac && max > 0) {
+      // `sepBefore` rows get a faint divider above them. A truly-blank line is
+      // collapsed by Claude's statusLine, so we draw a dim rule instead.
+      if (r.sepBefore && lines.length > 0) {
         const ruleW = Math.max(1, max - LEFT_PAD.length)
-        lines.push(`${LEFT_PAD}${rgb("\u2500".repeat(ruleW), 60, 64, 74, mode)}`)
+        lines.push(`${LEFT_PAD}${rgb("─".repeat(ruleW), 60, 64, 74, mode)}`)
       }
+      const c = r.cells
       let s =
-        padEndVis(r[0] ?? "", w[0] ?? 0) +
+        padEndVis(c[0] ?? "", w[0] ?? 0) +
         sep +
-        padEndVis(r[1] ?? "", w[1] ?? 0) +
+        padEndVis(c[1] ?? "", w[1] ?? 0) +
         sep +
-        padEndVis(r[2] ?? "", w[2] ?? 0)
-      if ((r[3] ?? "").length > 0) s += sep + r[3]
+        padEndVis(c[2] ?? "", w[2] ?? 0)
+      if ((c[3] ?? "").length > 0) s += sep + c[3]
       const line = `${LEFT_PAD}${s}`
       lines.push(line)
       max = Math.max(max, visLen(line))
@@ -396,18 +402,26 @@ function renderUtilityPanel(
     return { lines, max }
   }
 
-  // progressive degradation so the core gauges always fit: full → drop machine
-  // → drop context detail (keep git + api) → gauges only.
-  const slimCtx = [ctx[0] ?? "", "", "", ctx[3] ?? ""]
-  const attempts = [[ctx, gau, mac], [ctx, gau], [slimCtx, gau], [gau]]
-  let chosen = build(attempts[attempts.length - 1] as string[][])
+  // progressive degradation so the core gauges always fit: full -> drop machine
+  // -> drop context detail (keep git + api) -> gauges only.
+  const ctxRow: GridRow = { cells: ctx }
+  const gauRow: GridRow = { cells: gau }
+  const macRow: GridRow = { cells: mac, sepBefore: true }
+  const slimCtxRow: GridRow = { cells: [ctx[0] ?? "", "", "", ctx[3] ?? ""] }
+  const attempts: GridRow[][] = [
+    [ctxRow, gauRow, macRow],
+    [ctxRow, gauRow],
+    [slimCtxRow, gauRow],
+    [gauRow],
+  ]
+  // pre-seed with the narrowest layout; only replace it when one actually fits.
+  let chosen = build(attempts[attempts.length - 1] as GridRow[])
   for (const rows of attempts) {
     const r = build(rows)
     if (r.max <= W) {
       chosen = r
       break
     }
-    chosen = r
   }
 
   return [...nudge, header, ...chosen.lines].join("\n")

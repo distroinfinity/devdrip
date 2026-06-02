@@ -15,14 +15,11 @@ export interface UtilityAi {
   // context window
   ctxPct?: number
   ctxSize?: number
-  // % at which auto-compact kicks in (for the "compaction imminent" cue)
-  compactAtPct?: number
   // session economics
   costUsd?: number
   cachePct?: number
-  // derived from the rolling snapshot history
+  // burn rate ($/min), derived from the rolling snapshot history
   burnUsdPerMin?: number
-  burnTokPerMin?: number
   // projected minutes until the nearest limit (5h or 7d) is hit at current burn
   timeToLimitMin?: number
   // identity / session deltas

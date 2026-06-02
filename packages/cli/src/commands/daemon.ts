@@ -363,6 +363,7 @@ export async function runDaemon(): Promise<number> {
   let livePrefs = cfg.preferences
   const utilityProvider = createUtilityProvider({
     getLayoutPref: () => livePrefs.utilitiesLayout,
+    log: (msg, fields) => log.debug(msg, fields),
   })
 
   orchestrator = createOrchestrator({

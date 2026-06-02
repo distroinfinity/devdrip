@@ -14,7 +14,7 @@ import {
   type UtilityPayload,
 } from "@distrotv/shared"
 import type { CachedSlot } from "./slot-cache.js"
-import { deriveUsage, readUsageSnapshot, type UsageLatest } from "./claude-usage.js"
+import { loadUsage, type UsageDerived, type UsageLatest } from "./claude-usage.js"
 import { hasWrappedStatusLine } from "./wrapped-statusline.js"
 
 const execFileAsync = promisify(execFile)
@@ -26,6 +26,9 @@ export interface UtilityProviderDeps {
   // CLI-local pref: "auto" picks complement when a custom status line was
   // wrapped at install, else full.
   getLayoutPref?: () => LayoutPref
+  // optional debug logger; background probe failures are reported here (never
+  // thrown). Without it, failures are silent.
+  log?: (msg: string, fields?: Record<string, unknown>) => void
 }
 
 export interface UtilityProvider {
@@ -196,12 +199,18 @@ interface Cell<T> {
 export function createUtilityProvider(deps: UtilityProviderDeps = {}): UtilityProvider {
   const now = deps.now ?? (() => Date.now())
   const getLayoutPref = deps.getLayoutPref ?? (() => "auto" as LayoutPref)
+  const log = deps.log ?? (() => {})
 
   const gitCell: Cell<UtilityGit> = { value: null, at: 0, inFlight: false }
   const machineCell: Cell<UtilityMachine> = { value: null, at: 0, inFlight: false }
   const healthCell: Cell<UtilityHealth> = { value: null, at: 0, inFlight: false }
 
-  function refresh<T>(cell: Cell<T>, ttl: number, run: () => Promise<T | null>): void {
+  function refresh<T>(
+    label: string,
+    cell: Cell<T>,
+    ttl: number,
+    run: () => Promise<T | null>
+  ): void {
     if (cell.inFlight) return
     if (cell.value !== null && now() - cell.at < ttl) return
     cell.inFlight = true
@@ -210,7 +219,11 @@ export function createUtilityProvider(deps: UtilityProviderDeps = {}): UtilityPr
         cell.value = v
         cell.at = now()
       })
-      .catch(() => {})
+      .catch((err: unknown) => {
+        // probes must never throw into the render path, but the failure
+        // shouldn't be invisible either — report it for diagnosis.
+        log(`utility probe failed: ${label}`, { error: (err as Error)?.message })
+      })
       .finally(() => {
         cell.inFlight = false
       })
@@ -222,9 +235,11 @@ export function createUtilityProvider(deps: UtilityProviderDeps = {}): UtilityPr
     return hasWrappedStatusLine() ? "complement" : "full"
   }
 
-  function aiFrom(usage: UsageLatest | null): UtilityPayload["ai"] | undefined {
+  function aiFrom(
+    usage: UsageLatest | null,
+    derived: UsageDerived
+  ): UtilityPayload["ai"] | undefined {
     if (!usage) return undefined
-    const derived = deriveUsage(now(), UTILITY_SNAPSHOT_STALE_MS)
     const ai: NonNullable<UtilityPayload["ai"]> = {
       fiveHourPct: usage.fiveHourPct,
       fiveHourResetAt: usage.fiveHourResetAt,
@@ -247,17 +262,17 @@ export function createUtilityProvider(deps: UtilityProviderDeps = {}): UtilityPr
   return {
     build() {
       const t = now()
-      const usage = readUsageSnapshot(t, UTILITY_SNAPSHOT_STALE_MS)
+      const { latest: usage, derived } = loadUsage(t, UTILITY_SNAPSHOT_STALE_MS)
 
       // kick stale probes off in the background; use whatever's cached now.
-      refresh(machineCell, UTILITY_MACHINE_CACHE_MS, () => probeMachine(usage?.cwd))
-      refresh(healthCell, UTILITY_HEALTH_CACHE_MS, () => probeHealth(now))
+      refresh("machine", machineCell, UTILITY_MACHINE_CACHE_MS, () => probeMachine(usage?.cwd))
+      refresh("health", healthCell, UTILITY_HEALTH_CACHE_MS, () => probeHealth(now))
       if (usage?.cwd) {
         const cwd = usage.cwd
-        refresh(gitCell, UTILITY_GIT_CACHE_MS, () => probeGit(cwd, t))
+        refresh("git", gitCell, UTILITY_GIT_CACHE_MS, () => probeGit(cwd, t))
       }
 
-      const ai = aiFrom(usage)
+      const ai = aiFrom(usage, derived)
       const git = gitCell.value ?? undefined
       const machine = machineCell.value ?? undefined
       const health = healthCell.value ?? undefined

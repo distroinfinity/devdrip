@@ -47,8 +47,13 @@ export const statuslineCmd = new Command("statusline")
           timeout: 800,
           maxBuffer: 1024 * 1024,
         })
-        const out = (res.stdout ?? "").replace(/\n+$/, "")
-        if (out.length > 0) parts.push(out)
+        // res.error is set on spawn failure / timeout (and stdout may be a
+        // partial chunk) — skip it then so we never emit a half-rendered line.
+        // stderr from the wrapped command is intentionally dropped.
+        if (!res.error) {
+          const out = (res.stdout ?? "").replace(/\n+$/, "")
+          if (out.length > 0) parts.push(out)
+        }
       } catch {
         /* fall through — show our line alone */
       }

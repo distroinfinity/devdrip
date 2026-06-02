@@ -102,11 +102,13 @@ export function parseStatuslineInput(raw: string, now: number): UsageLatest {
     return cur
   }
 
+  // cache hit rate = reads / (reads + fresh uncached input). cache_creation
+  // tokens are writes (being stored for the first time), not reads — counting
+  // them in the denominator deflated the % while a session was building its
+  // cache, so they're excluded.
   const cacheRead = num(pick(["context_window", "current_usage", "cache_read_input_tokens"])) ?? 0
-  const cacheCreate =
-    num(pick(["context_window", "current_usage", "cache_creation_input_tokens"])) ?? 0
   const inTok = num(pick(["context_window", "current_usage", "input_tokens"])) ?? 0
-  const cacheDenom = cacheRead + cacheCreate + inTok
+  const cacheDenom = cacheRead + inTok
   const cachePct = cacheDenom > 0 ? Math.round((cacheRead * 100) / cacheDenom) : undefined
 
   return {
@@ -166,20 +168,27 @@ export function recordUsage(latest: UsageLatest): void {
   writeSnapshot({ version: SNAPSHOT_VERSION, latest, history })
 }
 
-// Read the latest snapshot, or null when none/stale.
-export function readUsageSnapshot(now: number, staleMs: number): UsageLatest | null {
+// Read the snapshot once and return both the latest fields (or null when stale)
+// and the derived burn-rate / time-to-limit — a single file read per call, so
+// the per-rotation render path doesn't read the same file twice.
+export function loadUsage(
+  now: number,
+  staleMs: number
+): { latest: UsageLatest | null; derived: UsageDerived } {
   const snap = readSnapshot()
-  if (!snap) return null
-  if (now - snap.latest.ts > staleMs) return null
-  return snap.latest
+  if (!snap) return { latest: null, derived: {} }
+  const latest = now - snap.latest.ts > staleMs ? null : snap.latest
+  return { latest, derived: deriveFromSnapshot(snap, now) }
 }
 
-// Burn rate ($/min) from cumulative cost over the history window, and a
+// Rolling window for burn-rate / projection — deliberately independent of the
+// snapshot staleness cutoff.
+const BURN_RATE_WINDOW_MS = 10 * 60_000
+
+// Burn rate ($/min) from cumulative cost over BURN_RATE_WINDOW_MS, and a
 // projection of minutes until the nearest rate-limit window hits 100%.
-export function deriveUsage(now: number, staleMs: number): UsageDerived {
-  const snap = readSnapshot()
-  if (!snap) return {}
-  const hist = snap.history.filter((s) => now - s.ts <= Math.max(staleMs, 10 * 60_000))
+function deriveFromSnapshot(snap: UsageSnapshot, now: number): UsageDerived {
+  const hist = snap.history.filter((s) => now - s.ts <= BURN_RATE_WINDOW_MS)
   if (hist.length < 2) return {}
   const first = hist[0]
   const last = hist[hist.length - 1]
