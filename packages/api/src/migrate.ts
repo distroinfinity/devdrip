@@ -16,14 +16,21 @@ const migrationsFolder = [join(here, "migrations"), join(here, "../src/db/migrat
   existsSync(join(p, "meta/_journal.json"))
 )
 
-const target = process.env["DB_TARGET"] === "neon" ? "neon" : "local"
-const url =
-  target === "neon"
-    ? (process.env["DATABASE_URL_UNPOOLED"] ?? process.env["DATABASE_URL"])
-    : (process.env["DATABASE_URL_LOCAL_UNPOOLED"] ?? process.env["DATABASE_URL_LOCAL"])
+export function resolveMigrateUrl(e: NodeJS.ProcessEnv = process.env): {
+  target: "local" | "remote"
+  url: string | undefined
+} {
+  const target = (e["DB_TARGET"] ?? "local") === "local" ? "local" : "remote"
+  const url =
+    target === "remote"
+      ? (e["DATABASE_URL_UNPOOLED"] ?? e["DATABASE_URL"])
+      : (e["DATABASE_URL_LOCAL_UNPOOLED"] ?? e["DATABASE_URL_LOCAL"])
+  return { target, url }
+}
 
 async function main(): Promise<void> {
   if (!migrationsFolder) throw new Error("migrate: migrations folder not found")
+  const { target, url } = resolveMigrateUrl()
   if (!url) throw new Error(`migrate: database url required for DB_TARGET=${target}`)
   const sql = postgres(url, { max: 1 })
   try {
@@ -34,7 +41,11 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
-  console.error("[migrate] failed:", err)
-  process.exit(1)
-})
+// only auto-run when invoked directly (node dist/migrate.js); importing for
+// tests must not trigger a live migration.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((err) => {
+    console.error("[migrate] failed:", err)
+    process.exit(1)
+  })
+}

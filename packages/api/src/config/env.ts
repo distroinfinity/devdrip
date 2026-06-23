@@ -26,10 +26,10 @@ export const env = {
   distroEnv: bundle.env,
   apiUrl: bundle.apiUrl,
   webUrl: bundle.webUrl,
-  get dbTarget(): "local" | "neon" {
+  get dbTarget(): "local" | "neon" | "railway" {
     const val = optionalEnv("DB_TARGET", "local")
-    if (val !== "local" && val !== "neon")
-      throw new Error(`DB_TARGET must be "local" or "neon", got "${val}"`)
+    if (val !== "local" && val !== "neon" && val !== "railway")
+      throw new Error(`DB_TARGET must be "local", "neon", or "railway", got "${val}"`)
     return val
   },
 
@@ -95,20 +95,15 @@ export const env = {
 
 // PostHog deferred.
 
-/**
- * Refuses to boot if we'd be pointing a dev process at the deployed Neon DB.
- * Escape hatch: DISTROTV_ALLOW_NEON_IN_DEV=1 for deliberate integration testing
- * against Neon from a dev machine.
- */
 export function assertEnvSafe(): void {
   if (env.nodeEnv !== "development") return
-  if (env.dbTarget !== "neon") return
+  if (env.dbTarget === "local") return
   if (process.env["DISTROTV_ALLOW_NEON_IN_DEV"] === "1") return
 
   throw new Error(
-    "refusing to start: NODE_ENV=development with DB_TARGET=neon. " +
+    `refusing to start: NODE_ENV=development with DB_TARGET=${env.dbTarget}. ` +
       "switch to local (set DB_TARGET=local and run `docker compose up -d postgres` " +
-      "from the repo root), or, to deliberately test against neon, re-run with " +
+      "from the repo root), or, to deliberately test against a remote DB, re-run with " +
       "DISTROTV_ALLOW_NEON_IN_DEV=1"
   )
 }
