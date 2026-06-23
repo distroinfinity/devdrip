@@ -7,7 +7,7 @@ Distro TV is an ambient **channel surface** that runs in the developer's termina
 ## Architecture
 
 - **CLI + Daemon** — `@distrotv/cli` distributed via GitHub Releases + `curl ... | sh` install script (NOT npm). Binary: `distro`, alias `dtv`. Hooks into Claude Code via settings.json (PreToolUse, Stop, UserPromptSubmit). Daemon on Unix socket manages slot display, key capture, local ledger (SQLite).
-- **Backend API** — Express + Drizzle ORM + Neon PostgreSQL + Upstash Redis. Auth, device registration, channels, watchlists, alerts, slot impression ingestion.
+- **Backend API** — Express + Drizzle ORM + Railway Postgres + Upstash Redis. Auth, device registration, channels, watchlists, alerts, slot impression ingestion.
 - **Dashboard** — Next.js 14, App Router, Tailwind. Reading list, watchlist management, preferences.
 - **Payments** — deferred post-M1. Base Sepolia testnet targeted for M6+.
 
@@ -15,7 +15,7 @@ Distro TV is an ambient **channel surface** that runs in the developer's termina
 
 - **everything TypeScript** — monorepo via Turborepo + pnpm workspaces
 - packages: `cli`, `api`, `dashboard`, `shared`
-- Express, Drizzle, Neon, Upstash, better-sqlite3, commander, tsup
+- Express, Drizzle, Railway Postgres, Upstash, better-sqlite3, commander, tsup
 - deploy: Railway GitHub autodeploy (API), Vercel (frontend + landing at distrotv.xyz), GitHub Releases (CLI tarball — tag `cli-v*` triggers `.github/workflows/release-cli.yml`) + GitHub Pages at `get.distrotv.xyz` for `install.sh` (`.github/workflows/deploy-install.yml`)
 
 ## Milestones
