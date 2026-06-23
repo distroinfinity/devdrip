@@ -135,7 +135,7 @@ Copy values from `packages/api/.env.example`.
 Important toggles:
 
 - `DB_TARGET=local` (default in dev) uses `DATABASE_URL_LOCAL` → Docker Postgres
-- `DB_TARGET=railway` (prod) uses `DATABASE_URL` → Railway Postgres; `neon` is still accepted for backward compat (deployed envs; requires `DISTROTV_ALLOW_NEON_IN_DEV=1` in dev)
+- `DB_TARGET=railway` (prod) uses `DATABASE_URL` → Railway Postgres; `neon` is still accepted for backward compat. Any non-`local` DB_TARGET in dev requires `DISTROTV_ALLOW_NEON_IN_DEV=1`.
 
 Important runtime vars:
 

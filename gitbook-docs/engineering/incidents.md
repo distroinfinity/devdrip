@@ -2,7 +2,7 @@
 
 ## 2026-06-23 — prod DB offline (Neon free-tier quota exhausted)
 
-**Symptom:** all CLI users saw `offline demo (backend not reachable)`; no news/markets.
+**Symptom:** all CLI users saw `offline demo (backend not reachable)`; no channel content.
 
 **Root cause:** Neon free-tier compute-time quota exhausted (HTTP 402) → `devdrip`
 compute suspended (Jun 19) + branch archived (Jun 20) → API DB connections timed out →
