@@ -12,48 +12,39 @@ const REMEMBER_PREFIX = "pair-remember:"
 // 3. browser POSTs /auth/exchange-pair { code } → returns 7-day session JWT
 // 4. exchangePairingCode also writes a "pair-remember" key (30 min TTL) so a
 //    subsequent magic-link verify can re-point that device to the email user
+//
+// upstash auto-serializes objects on set + auto-deserializes on get/getdel —
+// pass payloads as objects, never as JSON.stringify'd strings (would double-encode).
+
+export interface PairingExchange {
+  deviceId: string
+  userId: string
+  createdAt: number
+}
 
 export async function createPairingCode(input: {
   deviceId: string
   userId: string
 }): Promise<string> {
   const code = randomBytes(16).toString("hex")
-  await getRedis().set(
-    `${PAIR_PREFIX}${code}`,
-    JSON.stringify({ deviceId: input.deviceId, userId: input.userId, createdAt: Date.now() }),
-    { ex: PAIR_TTL_SECONDS }
-  )
+  const payload: PairingExchange = {
+    deviceId: input.deviceId,
+    userId: input.userId,
+    createdAt: Date.now(),
+  }
+  await getRedis().set(`${PAIR_PREFIX}${code}`, payload, { ex: PAIR_TTL_SECONDS })
   return code
 }
 
-export interface PairingExchange {
-  deviceId: string
-  userId: string
-}
-
 export async function exchangePairingCode(code: string): Promise<PairingExchange | null> {
-  const raw = await getRedis().getdel<string>(`${PAIR_PREFIX}${code}`)
-  if (!raw) return null
-  let parsed: PairingExchange
-  try {
-    parsed = JSON.parse(raw) as PairingExchange
-  } catch {
-    return null
-  }
+  const payload = await getRedis().getdel<PairingExchange>(`${PAIR_PREFIX}${code}`)
+  if (!payload) return null
   // store longer-lived "remember" entry for magic-link verify
-  await getRedis().set(`${REMEMBER_PREFIX}${code}`, JSON.stringify(parsed), {
-    ex: REMEMBER_TTL_SECONDS,
-  })
-  return parsed
+  await getRedis().set(`${REMEMBER_PREFIX}${code}`, payload, { ex: REMEMBER_TTL_SECONDS })
+  return payload
 }
 
 export async function exchangePairingCodeForDeviceId(code: string): Promise<string | null> {
-  const raw = await getRedis().get<string>(`${REMEMBER_PREFIX}${code}`)
-  if (!raw) return null
-  try {
-    const parsed = JSON.parse(raw) as PairingExchange
-    return parsed.deviceId
-  } catch {
-    return null
-  }
+  const payload = await getRedis().get<PairingExchange>(`${REMEMBER_PREFIX}${code}`)
+  return payload?.deviceId ?? null
 }
