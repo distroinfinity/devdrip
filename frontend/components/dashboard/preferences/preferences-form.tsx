@@ -9,6 +9,7 @@ import { savePreferences, saveChannels, saveAlerts } from "@/app/dashboard/prefe
 import { SortableList } from "@/components/dashboard/dnd/sortable-list"
 import { ChannelRow } from "./channels-grid"
 import { AlertsBlock } from "./alerts-block"
+import { FeedsRow } from "./feeds-row"
 import { QuietHoursBlock } from "./quiet-hours-block"
 import { ModePill } from "@/components/dashboard/mode-pill"
 import { SectionRule } from "@/components/v5/section-rule"
@@ -143,6 +144,13 @@ export function PreferencesForm({ initial, initialChannels, initialAlerts }: Pre
 
   return (
     <div className="flex flex-col pb-32">
+      {/* Feeds — saves on toggle, independent of the save bar */}
+      <PrefsSection eyebrow="what plays" subtitle="feeds that rotate in your terminal">
+        <FeedsRow initial={initial.enabledFeeds} />
+      </PrefsSection>
+
+      <SectionRule />
+
       {/* Mode */}
       <PrefsSection eyebrow="mode" subtitle="bias your feed toward news or ticker">
         <ModePill initial={initial.channelMode} />
