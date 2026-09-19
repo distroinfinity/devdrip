@@ -1,5 +1,6 @@
 import type { SlotLayout } from "./SlotPayload.js"
 import type { AssetClass } from "./WatchlistDto.js"
+import type { PendingAlert } from "./AlertDto.js"
 
 export interface TickerStats {
   d1Pct: number
@@ -22,4 +23,6 @@ export interface TickerPayload {
   layout: SlotLayout
   stale: boolean
   asOf: string
+  // populated when this slot was promoted by an alert fire — daemon renders the glow variant.
+  alert?: PendingAlert
 }

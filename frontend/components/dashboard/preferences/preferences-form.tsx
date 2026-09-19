@@ -1,16 +1,18 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import type { ChannelDto, SyncedPreferences } from "@distrotv/shared"
+import type { AlertDto, AlertReplacement, ChannelDto, SyncedPreferences } from "@distrotv/shared"
 import { cn } from "@distrotv/design-system/utils"
-import { savePreferences, saveChannels } from "@/app/dashboard/preferences/actions"
+import { savePreferences, saveChannels, saveAlerts } from "@/app/dashboard/preferences/actions"
 import { QuietHoursPicker } from "./quiet-hours-picker"
 import { AdvancedBlock } from "./advanced-block"
 import { ChannelsGrid } from "./channels-grid"
+import { AlertsBlock } from "./alerts-block"
 
 interface PreferencesFormProps {
   initial: SyncedPreferences
   initialChannels: ChannelDto[]
+  initialAlerts: AlertDto[]
 }
 
 type Status =
@@ -19,11 +21,13 @@ type Status =
   | { kind: "saved"; at: number }
   | { kind: "error"; message: string }
 
-export function PreferencesForm({ initial, initialChannels }: PreferencesFormProps) {
+export function PreferencesForm({ initial, initialChannels, initialAlerts }: PreferencesFormProps) {
   const [prefs, setPrefs] = useState<SyncedPreferences>(initial)
   const [savedSnapshot, setSavedSnapshot] = useState<SyncedPreferences>(initial)
   const [channels, setChannels] = useState<ChannelDto[]>(initialChannels)
   const [savedChannels, setSavedChannels] = useState<ChannelDto[]>(initialChannels)
+  const [alerts, setAlerts] = useState<AlertDto[]>(initialAlerts)
+  const [savedAlerts, setSavedAlerts] = useState<AlertDto[]>(initialAlerts)
   const [status, setStatus] = useState<Status>({ kind: "idle" })
   const [pending, startTransition] = useTransition()
 
@@ -31,7 +35,14 @@ export function PreferencesForm({ initial, initialChannels }: PreferencesFormPro
     const s = savedChannels[i]
     return c.key !== s?.key || c.subscribed !== s?.subscribed || c.priority !== s?.priority
   })
-  const dirty = JSON.stringify(prefs) !== JSON.stringify(savedSnapshot) || channelsDirty
+  const alertsDirty =
+    alerts.length !== savedAlerts.length ||
+    alerts.some((a, i) => {
+      const s = savedAlerts[i]
+      return !s || a.scope !== s.scope || a.symbol !== s.symbol || a.thresholdPct !== s.thresholdPct
+    })
+  const dirty =
+    JSON.stringify(prefs) !== JSON.stringify(savedSnapshot) || channelsDirty || alertsDirty
 
   function patch(p: Partial<SyncedPreferences>): void {
     setPrefs((cur) => ({ ...cur, ...p }))
@@ -65,13 +76,25 @@ export function PreferencesForm({ initial, initialChannels }: PreferencesFormPro
       }
 
       const channelResult = await saveChannels(subscribedKeys)
-      if (channelResult.ok && channelResult.channels) {
-        setSavedChannels(channelResult.channels)
-        setChannels(channelResult.channels)
+      if (!channelResult.ok || !channelResult.channels) {
+        setStatus({ kind: "error", message: channelResult.error ?? "channels save failed" })
+        return
+      }
+      setSavedChannels(channelResult.channels)
+      setChannels(channelResult.channels)
+
+      const alertsReplacement: AlertReplacement[] = alerts.map((a) => ({
+        scope: a.scope,
+        symbol: a.symbol,
+        thresholdPct: a.thresholdPct,
+      }))
+      const alertsResult = await saveAlerts(alertsReplacement)
+      if (alertsResult.ok && alertsResult.alerts) {
+        setSavedAlerts(alertsResult.alerts)
+        setAlerts(alertsResult.alerts)
         setStatus({ kind: "saved", at: Date.now() })
       } else {
-        // prefs saved successfully; surface channels error but keep prefs snapshot
-        setStatus({ kind: "error", message: channelResult.error ?? "channels save failed" })
+        setStatus({ kind: "error", message: alertsResult.error ?? "alerts save failed" })
       }
     })
   }
@@ -79,6 +102,7 @@ export function PreferencesForm({ initial, initialChannels }: PreferencesFormPro
   function reset(): void {
     setPrefs(savedSnapshot)
     setChannels(savedChannels)
+    setAlerts(savedAlerts)
     setStatus({ kind: "idle" })
   }
 
@@ -86,6 +110,10 @@ export function PreferencesForm({ initial, initialChannels }: PreferencesFormPro
     <div className="flex flex-col gap-6 pb-32">
       <Section title="Channels" subtitle="which feeds appear in your slot rotation">
         <ChannelsGrid channels={channels} onChange={setChannels} disabled={pending} />
+      </Section>
+
+      <Section title="Alerts" subtitle="fire when |daily move| ≥ threshold; bumps the next slot">
+        <AlertsBlock alerts={alerts} onChange={setAlerts} disabled={pending} />
       </Section>
 
       <Section title="Quiet hours" subtitle="silence specific hours of the day">
