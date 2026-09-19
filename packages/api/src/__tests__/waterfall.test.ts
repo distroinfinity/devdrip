@@ -162,4 +162,26 @@ describe("waterfall orchestration", () => {
     const result = await fetchServedAds(baseRequest())
     expect(result[0]).toHaveProperty("deliveryToken", "mock-token")
   })
+
+  // ── beacon URLs ─────────────────────────────────────────────────────────
+
+  it("propagates beacon URLs from provider through to served ads", async () => {
+    const adWithBeacons: AdPayload = {
+      ...fakeAd("c1", "carbon"),
+      impressionBeaconUrl: "https://srv.carbonads.net/ads/viewable/x/abc",
+      clickTrackingUrl: "https://srv.carbonads.net/ads/click/x/abc",
+    }
+    mockCarbonFetchAds.mockResolvedValue([adWithBeacons])
+
+    const result = await fetchServedAds(baseRequest())
+    expect(result[0]?.impressionBeaconUrl).toBe("https://srv.carbonads.net/ads/viewable/x/abc")
+    expect(result[0]?.clickTrackingUrl).toBe("https://srv.carbonads.net/ads/click/x/abc")
+  })
+
+  it("handles ads without beacon URLs (undefined)", async () => {
+    mockCarbonFetchAds.mockResolvedValue([fakeAd("c1", "carbon")])
+    const result = await fetchServedAds(baseRequest())
+    expect(result[0]?.impressionBeaconUrl).toBeUndefined()
+    expect(result[0]?.clickTrackingUrl).toBeUndefined()
+  })
 })

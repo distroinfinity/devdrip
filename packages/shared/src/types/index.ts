@@ -146,6 +146,8 @@ export interface AdPayload {
   body?: string
   url: string
   displayTimeMs: number
+  impressionBeaconUrl?: string
+  clickTrackingUrl?: string
 }
 
 export interface ServedAdPayload extends AdPayload {

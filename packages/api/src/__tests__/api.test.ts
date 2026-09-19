@@ -93,6 +93,38 @@ describe("POST /auth/refresh", () => {
 
 // ── ad serving endpoints ────────────────────────────────────────────────────
 
+describe("GET /ads/next", () => {
+  it("returns 401 without auth token", async () => {
+    const res = await request(app).get("/ads/next")
+    expect(res.status).toBe(401)
+    expect(res.body.error).toBe("missing_token")
+  })
+
+  it("returns 401 with invalid token", async () => {
+    const res = await request(app)
+      .get("/ads/next")
+      .query({ deviceId: "00000000-0000-0000-0000-000000000000", surface: "terminal-tv" })
+      .set("Authorization", "Bearer invalid-token")
+    expect(res.status).toBe(401)
+  })
+})
+
+describe("GET /ads/batch", () => {
+  it("returns 401 without auth token", async () => {
+    const res = await request(app).get("/ads/batch")
+    expect(res.status).toBe(401)
+    expect(res.body.error).toBe("missing_token")
+  })
+
+  it("returns 401 with invalid token", async () => {
+    const res = await request(app)
+      .get("/ads/batch")
+      .query({ deviceId: "00000000-0000-0000-0000-000000000000", surface: "terminal-tv", count: 3 })
+      .set("Authorization", "Bearer invalid-token")
+    expect(res.status).toBe(401)
+  })
+})
+
 describe("POST /ads/next", () => {
   it("returns 401 without auth token", async () => {
     const res = await request(app).post("/ads/next").send({})

@@ -136,6 +136,8 @@ describe("CarbonAdProvider", () => {
       body: "Build faster with Acme developer tools.",
       url: ad.link,
       displayTimeMs: MAX_AD_DURATION_MS,
+      impressionBeaconUrl: ad.statviewUrl,
+      clickTrackingUrl: ad.statlink,
     })
   })
 
