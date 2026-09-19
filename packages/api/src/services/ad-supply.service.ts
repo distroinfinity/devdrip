@@ -11,7 +11,6 @@ import type { NormalizedAd } from "./carbon-ad.provider.js"
 import { houseAd } from "./house-ads.js"
 
 let houseCursor = 0
-let directCursor = 0
 
 // how much of a batch direct (advertiser-written) ads may take. the rest stays
 // network + house fill so one advertiser can't own every slot.
@@ -40,8 +39,7 @@ export async function nextAds(args: {
     const fillCpm = env.adCpmRate
 
     const directSlots = direct.length > 0 ? Math.max(1, Math.floor(args.n * DIRECT_SHARE)) : 0
-    const directPicks = pickDirect(direct, directSlots, directCursor)
-    directCursor += directPicks.length
+    const directPicks = pickDirect(direct, directSlots)
 
     const picked: Picked[] = directPicks.map((d) => ({
       ad: {
