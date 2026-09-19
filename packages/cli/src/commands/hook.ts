@@ -21,7 +21,7 @@ export async function handleStop(socketPath: string = daemonSocketPath()): Promi
 
 export async function handlePromptSubmit(socketPath: string = daemonSocketPath()): Promise<void> {
   try {
-    await sendHookEvent({ type: "dismiss" }, socketPath)
+    await sendHookEvent({ type: "idle-start", tty: resolveTty() }, socketPath)
   } catch {
     /* never escapes */
   }
