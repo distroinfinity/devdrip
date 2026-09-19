@@ -55,7 +55,7 @@ export function SlotPreview({
         </div>
       </div>
       <figcaption className="mt-2 font-body text-[13px] text-[var(--ink-secondary)]">
-        How it looks in the terminal. Clicks go through a short Distro TV link to yours.
+        Clicks go through a short Distro TV link to yours.
       </figcaption>
     </figure>
   )
