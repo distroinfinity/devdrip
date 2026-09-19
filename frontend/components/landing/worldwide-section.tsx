@@ -117,11 +117,11 @@ export function WorldwideSection() {
     <section
       id="worldwide"
       aria-labelledby="worldwide-heading"
-      className="relative bg-[var(--bg-primary)] overflow-hidden"
+      className="relative bg-[var(--bg-primary)] overflow-hidden scroll-mt-20"
     >
-      <DotGrid opacity={0.3} variant="heartbeat" />
+      <DotGrid opacity={0.35} variant="heartbeat" />
 
-      <div className="relative mx-auto max-w-grid px-6 py-16 lg:py-24">
+      <div className="relative mx-auto max-w-grid px-6 py-20">
         <div className="flex flex-col items-center text-center gap-8 lg:gap-12">
           {/* header */}
           <BlurFade inView>

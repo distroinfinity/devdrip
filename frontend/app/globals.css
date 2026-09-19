@@ -9,11 +9,38 @@
 
   html {
     transition: background-color 250ms ease, color 250ms ease;
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px;
+    scrollbar-width: none; /* firefox */
+  }
+
+  html::-webkit-scrollbar {
+    display: none; /* chrome, safari, edge */
   }
 
   body {
     background-color: var(--bg-primary);
     color: var(--ink-primary);
+  }
+
+  /* gpu-composited layer for scroll-linked transforms */
+  .will-animate {
+    will-change: transform, opacity;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
   /* shadcn base variables */
@@ -77,6 +104,12 @@
 @keyframes blink-cursor {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
+}
+
+/* subtle bounce for scroll nudge arrow */
+@keyframes nudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
 }
 
 /* shimmer sweep across headline text */

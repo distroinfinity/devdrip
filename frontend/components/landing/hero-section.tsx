@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { BlurFade } from "@/components/ui/blur-fade";
+import { DotGrid } from "@/components/shared/dot-grid";
 import { EncryptedText } from "@/components/ui/encrypted-text";
 import { WaitlistButton } from "@/components/shared/waitlist-button";
 import { HeroVisual } from "./hero-visual";
@@ -9,14 +10,16 @@ import { HeroDataStrip } from "./hero-data-strip";
 
 export function HeroSection() {
   return (
-    <section className="mx-auto max-w-grid px-6 pt-10 pb-16 lg:pt-10 lg:pb-20">
-      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-14 items-center">
+    <section className="relative overflow-hidden mx-auto max-w-grid px-6 pt-10 pb-16 lg:pt-10 lg:pb-20">
+      <DotGrid opacity={0.15} variant="static" />
+
+      <div className="relative grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-14 items-center">
         {/* left column: headline + subhead + cta */}
         <div>
           {/* headline */}
           <div className="mb-5">
-            {/* money figure */}
-            <div className="mb-2">
+            {/* money figure — min-h prevents CLS during decryption */}
+            <div className="mb-2 min-h-[48px] md:min-h-[72px] xl:min-h-[96px]">
               <EncryptedText
                 text="$14.72"
                 className={cn(
@@ -70,6 +73,7 @@ export function HeroSection() {
       <div className="mt-14 lg:mt-16">
         <HeroDataStrip />
       </div>
+
     </section>
   );
 }
