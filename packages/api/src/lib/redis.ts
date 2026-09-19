@@ -28,9 +28,17 @@ class TestRedis {
     return "PONG"
   }
 
-  async set(key: string, value: string, opts?: { ex?: number }): Promise<"OK"> {
+  async set(
+    key: string,
+    value: unknown,
+    opts?: { ex?: number; nx?: boolean }
+  ): Promise<"OK" | null> {
+    if (opts?.nx && this.read(key)) return null
     const expiresAt = opts?.ex ? Date.now() + opts.ex * 1000 : undefined
-    this.store.set(key, { value, expiresAt })
+    this.store.set(key, {
+      value: typeof value === "string" ? value : JSON.stringify(value),
+      expiresAt,
+    })
     return "OK"
   }
 
@@ -74,6 +82,30 @@ class TestRedis {
     if (!entry) return 0
     this.store.set(key, { ...entry, expiresAt: Date.now() + seconds * 1000 })
     return 1
+  }
+
+  private setStore = new Map<string, Set<string>>()
+
+  async sadd(key: string, member: unknown, ...rest: unknown[]): Promise<number> {
+    let s = this.setStore.get(key)
+    if (!s) {
+      s = new Set()
+      this.setStore.set(key, s)
+    }
+    const members = [member, ...rest]
+    let added = 0
+    for (const m of members) {
+      const str = String(m)
+      if (!s.has(str)) {
+        s.add(str)
+        added += 1
+      }
+    }
+    return added
+  }
+
+  async smembers(key: string): Promise<string[]> {
+    return Array.from(this.setStore.get(key) ?? [])
   }
 
   pipeline() {
