@@ -3,7 +3,10 @@ import { neon } from "@neondatabase/serverless";
 import { Resend } from "resend";
 import { render } from "@react-email/render";
 import { BetaAccessEmail } from "@/lib/emails/beta-access";
+import { EMAIL_RE, VALID_TOOL_VALUES, MONTHLY_SPEND_OPTIONS } from "@/lib/waitlist";
 import type { WaitlistResponse, WaitlistSource } from "@/lib/waitlist";
+
+const VALID_SPEND: Set<string> = new Set(MONTHLY_SPEND_OPTIONS.map((o) => o.value));
 
 // lazy-init — Resend throws if API key is missing at import time (breaks build)
 const getSql = () => neon(process.env.DATABASE_URL!);
@@ -15,7 +18,6 @@ const RATE_LIMIT = 5;
 const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 const VALID_SOURCES: WaitlistSource[] = ["hero", "nav", "bottom"];
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function hashIp(ip: string): Promise<string> {
   const salt = process.env.IP_HASH_SALT || "devdrip";
@@ -31,6 +33,7 @@ function checkRateLimit(ipHash: string): boolean {
   const timestamps = (rateMap.get(ipHash) || []).filter(
     (t) => now - t < RATE_WINDOW_MS,
   );
+  if (timestamps.length === 0) { rateMap.delete(ipHash); }
   if (timestamps.length >= RATE_LIMIT) return false;
   timestamps.push(now);
   rateMap.set(ipHash, timestamps);
@@ -63,9 +66,9 @@ export async function POST(req: NextRequest) {
     // validate source
     const validSource = VALID_SOURCES.includes(source) ? source : "bottom";
 
-    // validate ai_tools — filter to known values
+    // validate ai_tools — filter to known tool/sub-option values
     const validTools = Array.isArray(aiTools)
-      ? aiTools.filter((t: string) => typeof t === "string")
+      ? aiTools.filter((t: unknown) => typeof t === "string" && VALID_TOOL_VALUES.has(t as string))
       : [];
 
     // rate limit by ip hash
@@ -85,13 +88,13 @@ export async function POST(req: NextRequest) {
 
     const db = getSql();
 
-    // derive boolean from spend selection, store spend tier in monthly_spend
-    const paysForAiTools = typeof monthlySpend === "string" && monthlySpend !== "";
-    const spendTier = paysForAiTools ? monthlySpend : null;
+    // validate + derive spend tier
+    const spendTier = typeof monthlySpend === "string" && VALID_SPEND.has(monthlySpend) ? monthlySpend : null;
+    const paysForAiTools = spendTier !== null;
 
     const inserted = await db`
       INSERT INTO waitlist (email, ai_tools, ok_with_ads, pays_for_ai_tools, monthly_spend, source, ip_hash)
-      VALUES (${trimmedEmail}, ${validTools}, ${false}, ${paysForAiTools}, ${spendTier}, ${validSource}, ${ipHash})
+      VALUES (${trimmedEmail}, ${validTools}, ${false} /* ok_with_ads: collected in a later phase */, ${paysForAiTools}, ${spendTier}, ${validSource}, ${ipHash})
       ON CONFLICT (email) DO NOTHING
       RETURNING id
     `;
@@ -114,8 +117,8 @@ export async function POST(req: NextRequest) {
     }
 
     // fire-and-forget confirmation email
-    sendConfirmationEmail(trimmedEmail, position).catch(() => {
-      // email failure shouldn't affect the response
+    sendConfirmationEmail(trimmedEmail, position).catch((err) => {
+      console.error("email send failed:", err);
     });
 
     return NextResponse.json<WaitlistResponse>({

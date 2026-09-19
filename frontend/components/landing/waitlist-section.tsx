@@ -6,7 +6,7 @@ import { BlurFade } from "@/components/ui/blur-fade";
 import { DotGrid } from "@/components/shared/dot-grid";
 import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-vanish-input";
 import { cn } from "@/lib/utils";
-import { AI_TOOLS, MONTHLY_SPEND_OPTIONS, submitWaitlist } from "@/lib/waitlist";
+import { AI_TOOLS, MONTHLY_SPEND_OPTIONS, isValidEmail, submitWaitlist } from "@/lib/waitlist";
 import type { AiTool, MonthlySpend, WaitlistResponse } from "@/lib/waitlist";
 
 const EMAIL_PLACEHOLDERS = [
@@ -15,8 +15,6 @@ const EMAIL_PLACEHOLDERS = [
   "coder@bangalore.dev",
   "hacker@localhost",
 ];
-
-const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
 // smooth easing used across sections
 const EASE_SMOOTH = [0.16, 1, 0.3, 1] as const;
@@ -74,26 +72,26 @@ export function WaitlistSection() {
   // tools with sub-options → only send selected sub-values ("claude:terminal")
   // if a tool with sub-options is selected but no sub-option chosen → send parent value
   const buildAiToolsPayload = (): string[] => {
-    const result: string[] = [];
+    const tools: string[] = [];
     for (const toolValue of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolValue);
       if (!tool) continue;
 
       if (!tool.subOptions) {
-        result.push(tool.value);
+        tools.push(tool.value);
       } else {
         const selected = tool.subOptions.filter((s) =>
           selectedSubOptions.includes(s.value),
         );
         if (selected.length > 0) {
-          result.push(...selected.map((s) => s.value));
+          tools.push(...selected.map((s) => s.value));
         } else {
           // selected parent but no sub-option — store parent
-          result.push(tool.value);
+          tools.push(tool.value);
         }
       }
     }
-    return result;
+    return tools;
   };
 
   // tools that have sub-options and are currently selected
@@ -113,6 +111,7 @@ export function WaitlistSection() {
 
     setStep("transitioning");
     // wait for vanish particle animation to finish (~500-700ms)
+    clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setStep("questions"), 700);
   };
 
@@ -137,11 +136,13 @@ export function WaitlistSection() {
       } else {
         setValidationError(res.message);
         setStep("error");
+        clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => setStep("questions"), 3000);
       }
     } catch {
       setValidationError("Something went wrong. Try again.");
       setStep("error");
+      clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => setStep("questions"), 3000);
     }
   };
@@ -215,6 +216,7 @@ export function WaitlistSection() {
                   >
                     <PlaceholdersAndVanishInput
                       placeholders={EMAIL_PLACEHOLDERS}
+                      defaultValue={email}
                       onChange={(e) => {
                         setEmail(e.target.value);
                         if (validationError) setValidationError("");
