@@ -79,9 +79,13 @@ class TestRedis {
 
   async expire(key: string, seconds: number): Promise<number> {
     const entry = this.read(key)
-    if (!entry) return 0
-    this.store.set(key, { ...entry, expiresAt: Date.now() + seconds * 1000 })
-    return 1
+    if (entry) {
+      this.store.set(key, { ...entry, expiresAt: Date.now() + seconds * 1000 })
+      return 1
+    }
+    // stub: TTLs on sets are not actually tracked, but acknowledge the key exists
+    if (this.setStore?.has(key)) return Promise.resolve(1)
+    return 0
   }
 
   private setStore = new Map<string, Set<string>>()
