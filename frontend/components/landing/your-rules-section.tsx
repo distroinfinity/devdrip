@@ -391,11 +391,11 @@ export function YourRulesSection() {
     <section
       id="your-rules"
       aria-labelledby="your-rules-heading"
-      className="relative bg-[var(--bg-secondary)] overflow-hidden"
+      className="relative bg-[var(--bg-secondary)] overflow-hidden scroll-mt-20"
     >
-      <DotGrid opacity={0.3} variant="heartbeat" />
+      <DotGrid opacity={0.18} variant="heartbeat" />
 
-      <div className="relative mx-auto max-w-grid px-6 py-16 lg:py-24">
+      <div className="relative mx-auto max-w-grid px-6 py-20">
         {/* heading */}
         <BlurFade inView delay={0}>
           <div className="font-body text-[10px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.1em] mb-3">
