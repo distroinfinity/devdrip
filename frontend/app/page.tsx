@@ -4,6 +4,7 @@ import { InlineNavbar } from "@/components/landing/inline-navbar";
 import { HeroSection } from "@/components/landing/hero-section";
 import { DeadTimeSection } from "@/components/landing/dead-time-section";
 import { HowItWorksSection } from "@/components/landing/how-it-works-section";
+import { YourRulesSection } from "@/components/landing/your-rules-section";
 
 export default function Home() {
   return (
@@ -29,7 +30,11 @@ export default function Home() {
 
         <HowItWorksSection />
 
-        {/* future sections: P0-006 through P0-013 */}
+        {/* P0-006: SurfacesSection goes here */}
+
+        <YourRulesSection />
+
+        {/* future sections: P0-008 through P0-013 */}
       </div>
     </main>
   );
