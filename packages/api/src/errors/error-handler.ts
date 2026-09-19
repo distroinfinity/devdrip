@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express"
 import { ApiError, pgErrorCode } from "./index.js"
 import { env } from "../config/env.js"
 import { logger } from "../lib/logger.js"
+import { captureApiException } from "../lib/telemetry.js"
 
 function isDev(): boolean {
   return env.nodeEnv !== "production"
@@ -62,6 +63,12 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
   }
 
   logger.error({ err: serialized, method: req.method, url: req.originalUrl }, "unhandled error")
+  captureApiException(err, {
+    userId: typeof res.locals["userId"] === "string" ? (res.locals["userId"] as string) : undefined,
+    route: req.originalUrl,
+    method: req.method,
+    statusCode: 500,
+  })
 
   // In dev, surface the real error back to the client so the CLI / curl
   // caller sees why. Prod keeps the opaque "internal_error" to avoid
