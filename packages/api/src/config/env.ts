@@ -54,6 +54,18 @@ export const env = {
   get jwtSecret() {
     return requireEnv("JWT_SECRET")
   },
+  get githubOAuthClientId() {
+    return requireEnv("GITHUB_OAUTH_CLIENT_ID")
+  },
+  get githubOAuthClientSecret() {
+    return requireEnv("GITHUB_OAUTH_CLIENT_SECRET")
+  },
+  get githubOAuthRedirectUri() {
+    return requireEnv("GITHUB_OAUTH_REDIRECT_URI")
+  },
+  get apiInternalSecret() {
+    return requireEnv("API_INTERNAL_SECRET")
+  },
   get upstashRedisRestUrl() {
     return requireEnv("UPSTASH_REDIS_REST_URL")
   },
