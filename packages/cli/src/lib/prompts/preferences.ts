@@ -13,15 +13,15 @@ const CATEGORY_LABELS: Record<AdCategory, string> = {
 
 const ALL_CATEGORIES = Object.values(AdCategory) as AdCategory[]
 
-// select prompt for channel mode. order: learn → earn → both, default both.
+// select prompt for channel mode. order: news → markets → mix, default mix.
 export async function pickChannelMode(current?: ChannelMode): Promise<ChannelMode> {
   const initialValue = current ?? ChannelMode.Mix
   const choice = await select<ChannelMode>({
-    message: "how would you like to use distro tv?",
+    message: "pick a channel mode",
     options: [
-      { value: ChannelMode.Learn, label: "📰 learn — tech news only" },
-      { value: ChannelMode.Earn, label: "📺 ads — sponsored slots only" },
-      { value: ChannelMode.Mix, label: "🎭 both — alternates news and ads" },
+      { value: ChannelMode.News, label: "news — every slot is news (HN, TechCrunch, Bloomberg)" },
+      { value: ChannelMode.Markets, label: "markets — every slot is a watchlist ticker (M4)" },
+      { value: ChannelMode.Mix, label: "mix — alternates news + markets (recommended)" },
     ],
     initialValue,
   })

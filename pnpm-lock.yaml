@@ -74,6 +74,9 @@ importers:
       framer-motion:
         specifier: ^12.34.3
         version: 12.38.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      jose:
+        specifier: ^6.2.2
+        version: 6.2.2
       lucide-react:
         specifier: ^0.575.0
         version: 0.575.0(react@18.3.1)
@@ -177,6 +180,12 @@ importers:
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
+      resend:
+        specifier: ^6.9.3
+        version: 6.10.0(@react-email/render@2.0.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -4994,6 +5003,9 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
 snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
@@ -9700,3 +9712,5 @@ snapshots:
   yaml@2.8.3: {}
 
   yocto-queue@0.1.0: {}
+
+  zod@3.25.76: {}

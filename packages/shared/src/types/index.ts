@@ -20,9 +20,9 @@ export enum ImpressionResult {
 // ── channel mode + news ────────────────────────────────────────────────────
 
 export enum ChannelMode {
-  Earn = "earn", // ads only
-  Learn = "learn", // news only
-  Mix = "mix", // alternates 1:1 (default)
+  News = "news", // news only (default once markets is wired in M3)
+  Markets = "markets", // markets only (M4)
+  Mix = "mix", // alternates news + markets (recommended; default)
 }
 
 export { NewsSource, NewsTopic } from "./news.js"

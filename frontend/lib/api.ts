@@ -1,6 +1,6 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { ACCESS_COOKIE } from "./cookies"
+import { COOKIE_NAME } from "./session"
 import { API_URL } from "./env"
 
 export class ApiError extends Error {
@@ -23,7 +23,8 @@ export class UnauthenticatedError extends Error {
 // reads dd_access cookie, adds Authorization: Bearer, and throws on 401 so the
 // caller can redirect to /auth/refresh. all other non-2xx responses throw ApiError.
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = cookies().get(ACCESS_COOKIE)?.value
+  const jar = await cookies()
+  const token = jar.get(COOKIE_NAME)?.value
 
   const headers = new Headers(init.headers)
   headers.set("Accept", "application/json")

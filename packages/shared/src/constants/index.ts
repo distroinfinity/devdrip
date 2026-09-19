@@ -77,7 +77,7 @@ export const NIGHT_MODE_DEFAULT_END_HOUR = 7
 export const IDLE_SENSITIVITY_MS = 10_000
 
 // ── default DevdripPreferences for fresh v2→v3 migration / --reset ─────────
-export function defaultDevdripPreferences(): DevdripPreferences {
+export function defaultPreferences(): DevdripPreferences {
   return {
     blockedCategories: [],
     maxPerHour: MAX_ADS_PER_HOUR_TOTAL,
@@ -95,3 +95,6 @@ export function defaultDevdripPreferences(): DevdripPreferences {
     muteUntil: null,
   }
 }
+
+// alias for legacy callers; safe to remove in M3
+export const defaultDevdripPreferences = defaultPreferences

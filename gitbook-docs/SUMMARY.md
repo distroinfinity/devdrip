@@ -3,6 +3,7 @@
 - [Distro TV Engineering Docs](README.md)
 - [Architecture Overview](architecture/overview.md)
 - [Monorepo Layout](architecture/monorepo.md)
+- [Identity & Auth](architecture/identity.md)
 - [Channel Modes](architecture/channel-modes.md)
 - [Slot Content](architecture/slot-content.md)
 - [Backend API](backend/api.md)

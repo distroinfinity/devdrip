@@ -222,6 +222,17 @@ export async function postReadingSave(body: SaveReadingItemBody): Promise<void> 
   await apiFetch("/me/reading", { method: "POST", body })
 }
 
+export async function requestPairingCode(): Promise<{
+  pairingCode: string
+  ttlSeconds: number
+  setupUrl: string
+}> {
+  return apiFetch<{ pairingCode: string; ttlSeconds: number; setupUrl: string }>("/devices/pair", {
+    method: "POST",
+    body: {},
+  })
+}
+
 export function reportError(err: unknown): never {
   if (err instanceof NotAuthenticatedError) {
     console.error(err.message)
