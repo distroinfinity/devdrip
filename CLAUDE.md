@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Distro TV shows **sponsored slots in the developer's terminal while AI coding tools work**, and shares the ad revenue with the developer. Ads are on by default. **CH 01 NEWS**, **CH 02 MARKETS** and **CH 03 UTILITIES** are opt-in channels on the same surface for people who'd rather not see ads. Long-term: an **open ad exchange for AI agent surfaces** — anyone can bid for slots the way they do for web display or a billboard; the terminal is the first inventory. History: launched as DevDrip (opt-in ads + USDC micropayments), pivoted to channels-only Distro TV in May 2026, re-centered on ads in Sep 2026 — without crypto.
+Distro is **the ad exchange for AI agent surfaces**. Agents do the work while people wait; that wait is a new attention surface with no market layer. The first surface is the developer's terminal: Distro TV shows **sponsored slots while AI coding tools work** and shares the ad revenue with the viewer (ads are the default feed). **CH 01 NEWS**, **CH 02 MARKETS** and **CH 03 UTILITIES** are opt-in channels on the same surface for people who'd rather not see ads. Long-term: an **open ad exchange for AI agent surfaces** — anyone can bid for slots the way they do for web display or a billboard; the terminal is the first inventory. History: launched as DevDrip (opt-in ads + USDC micropayments), pivoted to channels-only Distro TV in May 2026, re-centered on ads in Sep 2026 — without crypto.
 
 ## Architecture
 
@@ -37,7 +37,7 @@ Distro TV shows **sponsored slots in the developer's terminal while AI coding to
 - hooks always exit 0 — never block Claude Code
 - local ledger is ground truth — backend can be down
 - no grace period before showing slots — surface as soon as Claude takes over (`GRACE_PERIOD_MS = 0`). Fast tool calls are gated by the slot vanish timer + frequency caps, not by a pre-show delay.
-- **lead with _ads in the terminal that pay the developer_.** Channels (news, markets, utilities) are the opt-in alternative, never the headline. The long-term noun is the _exchange_: open, biddable ad inventory across AI agent surfaces. Marketing, docs, and product copy must reflect this.
+- **lead with the exchange, and tell the story — never pitch.** Headline: _"The ad exchange for AI agent surfaces."_ The arc: every new medium grew an ad market → AI agents created a new attention surface (the wait) → nothing serves it → Distro is the open exchange for it → the terminal is the first surface, live today. Read like infrastructure, not a consumer offer: no "get paid" headlines, no benefit-led selling. Never surface product defaults (e.g. "ads on by default") in marketing. Channels (news, markets, utilities) appear as "the slot isn't only for ads", never as the headline. Status tags must be honest: _live_ / _next_ / _planned_ — never imply bidding or self-serve exists.
 - **money is always labeled _estimated_** until real payouts exist. No crypto, wallet, or USDC language anywhere.
 - **ad clicks go through our redirect** (`/c/:code` or `/ads/click/:deliveryId`). The redirect target comes only from the server-side delivery row, never from the request.
 - **an ad pays only if it was on screen ≥ 1s and not skipped.** The same rule lives in the API (`computeEarned`) and the CLI ledger (`sumTodayOptimistic`) — change both together.
