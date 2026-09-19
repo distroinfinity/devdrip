@@ -1,9 +1,5 @@
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 
-const NAV_LINKS = [
-  { label: "Twitter", href: "https://x.com/devdrip_" },
-] as const;
-
 export function Footer() {
   return (
     <footer className="border-t border-[var(--rule-default)] bg-[var(--bg-primary)]">
@@ -15,15 +11,17 @@ export function Footer() {
 
         {/* nav links */}
         <nav className="flex items-center gap-4">
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              className="font-body text-[13px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors"
-            >
-              {link.label}
-            </a>
-          ))}
+          <a
+            href="https://x.com/devdrip_"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="X (Twitter)"
+            className="text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+          </a>
           <span className="h-3.5 w-px bg-[var(--rule-default)]" />
           <ThemeToggle className="font-body text-[13px] font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors" />
         </nav>
