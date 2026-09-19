@@ -85,16 +85,72 @@ On exit from SHOWING the state machine emits a `recordImpression` effect carryin
 - Skips the ledger write entirely if `impression.source === "demo"` (matches the rule in [ad-cache.md](./ad-cache.md)).
 - Catches ledger write errors and warns to `daemon.log`.
 
+## Renderer (S3-01, shipped)
+
+`renderBox()` produces a width-adaptive Unicode box with:
+
+- **Header**: `DEV DRIP TV` + cumulative `$X.XXXX earned` on the left, `via {source}` on the right. Right segment is dropped automatically when terminal width is too tight to fit both without breaking alignment.
+- **Body**: word-wrapped headline + body, sanitized for ANSI escapes and control characters before printing so ad copy can't corrupt the screen.
+- **URL**: emitted on its own line, unwrapped, outside the box (terminal emulators autodetect the link).
+- **Action footer**: `[D]iscover [S]kip [K]ill [M]ute` — the bindings honored by the key-capture reader (S3-03).
+- **Progress bar**: filled cells proportional to elapsed display time.
+
+Width clamps at `[40, 120]` columns; ASCII fallback (`+` / `|`) kicks in when the tty is non-color or `NO_COLOR=1` is set.
+
+## Key capture (S3-03, shipped)
+
+While SHOWING, the daemon opens the tty in raw mode (`/dev/<ttyN>`) via `tty.ReadStream` and listens for keystrokes. Mapping (`packages/cli/src/lib/daemon/input.ts`):
+
+| Key                       | Action   | State machine event                                         |
+| ------------------------- | -------- | ----------------------------------------------------------- |
+| `d` / `D`                 | discover | opens advertiser URL; impression = `completed`; rotates     |
+| `s` / `S`                 | skip     | impression = `skipped` (or `completed` if ≥ 1s); rotates    |
+| `k` / `K`                 | kill     | dismisses + sets `sessionKilled` until next `session-start` |
+| `m` / `M`                 | mute     | dismisses + writes `muteUntil = now + MUTE_DURATION_MS`     |
+| `Enter` / `Space` / `Esc` | dismiss  | impression = `completed` if ≥ 1s, else `skipped`            |
+
+`mute` and `kill` are also honored during the GRACE window (the previous ad's footer was visible up to ~1.5s ago, so a key press here is intentional).
+
+Multi-byte chunks starting with `0x1b` (ESC) are treated as terminal control sequences (focus-in/out, arrow keys) and dropped — never our keys. A lone `0x1b` is the user pressing Escape.
+
+CLI fallbacks (`devdrip skip|mute|kill-session|discover`) dispatch the same wire actions for users whose keystrokes lose the tty race with Claude.
+
+## Anchor strategy (real-session hardening)
+
+Earlier MVP rendered at the cursor and vanished via `\x1b[<n>A\x1b[0J`. That broke the moment Claude Code redrew its TUI between show and vanish — ad fragments interleaved with Claude's box-drawing.
+
+`packages/cli/src/lib/daemon/display.ts` now uses **DECSTBM** (Set Top and Bottom Margins, `\x1b[1;<scrollBottom>r`) to carve the screen into two regions:
+
+- Upper region (rows 1..scrollBottom): Claude's scroll buffer.
+- Lower region (scrollBottom+1..rows): the ad pane. Cleared with `\x1b[0J` after `\x1b7` cursor-save and re-anchored on every render with `\x1b8` cursor-restore so Claude's prompt position survives.
+
+On terminal resize, the daemon proactively dismisses the current ad (the next rotation re-anchors with fresh row counts).
+
+## Frequency caps (defaults)
+
+Defaults bias toward "show ads aggressively"; users dial down with `devdrip config --set maxPerHour=N`:
+
+| Constant                         | Value                |
+| -------------------------------- | -------------------- |
+| `MAX_ADS_PER_HOUR_PER_SURFACE`   | `9_999`              |
+| `MAX_ADS_PER_HOUR_TOTAL`         | `9_999`              |
+| `MAX_ADS_PER_DAY`                | `99_999`             |
+| `MAX_ADS_PER_CONTINUOUS_SESSION` | `9_999`              |
+| `SESSION_WARMUP_MS`              | `0`                  |
+| `LATE_NIGHT_FREQUENCY_REDUCTION` | `1.0` (no reduction) |
+| `INTER_AD_GAP_MS`                | `500`                |
+
+Quiet hours and `nightMode` remain available as opt-in throttles.
+
 ## Known limitations (MVP)
 
 - **Last-writer-wins tty.** A user running Claude in two terminals will only see ads in whichever one last sent `idle-start`. Tracked; supporting concurrent ttys requires a `ttyPath → state` map.
-- **No alt-screen buffer.** Ads render at the current cursor position and vanish via `\x1b[<n>A\x1b[0J`. If another process writes to the same tty between show and vanish, the cursor-math is wrong. In practice agent output is paused during tool calls, which is when ads show. Alt-screen handling can be layered on later without touching the state machine.
+- **DECSTBM only.** If the host TUI switches to the alternate screen buffer (`\x1b[?1049h`), the scroll region is discarded and the ad anchor is lost. Modern Claude Code stays on the primary screen during tool calls, so this is fine in practice.
+- **Raw mode persists across stop.** `setRawMode(false)` is deliberately NOT called in `input.ts:stop()` because Claude Code owns its REPL's raw-mode setting and toggling it broke Claude's stdin. SIGKILL recovery still requires `reset` if the terminal is left in raw mode.
 - **No hook auto-restart.** A stale daemon means hooks silently exit 0. `devdrip daemon start` restarts it. Auto-restart belongs to `devdrip doctor` (S5-02).
 
 ## What's next
 
-- **S3-01 ANSI box renderer** — upgrades `renderBox()` to width-adaptive + source badge + progress bar. No change to the daemon's display I/O.
-- **S3-03 Key capture** — adds a raw-tty stdin reader active only during SHOWING, emitting `skip | kill | mute | discover` events through the existing state machine.
-- **S3-07 Auto-sync + devdrip sync** — reads the ledger, chunks, POSTs, marks synced, prunes. The daemon exposes `orchestrator` + `ledger` refs so the sync loop can inject into the same process.
-- **S5-02 doctor** — checks heartbeat age and offers to restart.
-- **S5-04 devdrip demo** — `[DEMO]` badge + vanish-timing stats.
+- **S3-07 Auto-sync + `devdrip sync`** — reads the ledger, chunks, POSTs, marks synced, prunes. The daemon exposes `orchestrator` + `ledger` refs so the sync loop can inject into the same process.
+- **S5-02 `devdrip doctor`** — checks heartbeat age and offers to restart.
+- **S5-04 `devdrip demo`** — `[DEMO]` badge + vanish-timing stats.
