@@ -3,6 +3,7 @@ import { FloatingNav } from "@/components/ui/floating-navbar";
 import { InlineNavbar } from "@/components/landing/inline-navbar";
 import { HeroSection } from "@/components/landing/hero-section";
 import { HowItWorksSection } from "@/components/landing/how-it-works-section";
+import { YourRulesSection } from "@/components/landing/your-rules-section";
 
 export default function Home() {
   return (
@@ -26,7 +27,9 @@ export default function Home() {
 
         <HowItWorksSection />
 
-        {/* future sections: P0-004, P0-006 through P0-013 */}
+        <YourRulesSection />
+
+        {/* future sections: P0-004, P0-006, P0-008 through P0-013 */}
       </div>
     </main>
   );
