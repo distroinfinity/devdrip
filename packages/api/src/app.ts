@@ -28,6 +28,7 @@ import { meActivitySummaryRouter } from "./routes/me-activity-summary.js"
 import { meNowPlayingRouter } from "./routes/me-now-playing.js"
 import { meRecentNewsRouter } from "./routes/me-recent-news.js"
 import { meOnchainRouter } from "./routes/me-onchain.js"
+import { onchainPublicRouter } from "./routes/onchain-public.js"
 import { ingestRouter } from "./routes/ingest.js"
 import { adminRouter } from "./routes/admin.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
@@ -72,6 +73,7 @@ app.use(globalLimiter)
 
 app.use("/channels", channelsPublicRouter)
 app.use("/tickers", tickersRouter)
+app.use("/onchain", onchainPublicRouter)
 
 app.use("/auth", authRouter)
 // public — anon device registration retained for legacy v0.1.x CLIs (deprecated)
