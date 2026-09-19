@@ -80,6 +80,6 @@ export interface Device {
 export type { NewsPayload } from "./NewsPayload.js"
 export type { TickerPayload, TickerStats } from "./TickerPayload.js"
 export type { SlotPayload, SlotKind, SlotLayout } from "./SlotPayload.js"
-export type { WatchlistDto } from "./WatchlistDto.js"
+export type { WatchlistDto, WatchlistTickerDto, AssetClass } from "./WatchlistDto.js"
 export type { AlertDto } from "./AlertDto.js"
 export type { ChannelDto } from "./ChannelDto.js"

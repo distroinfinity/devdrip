@@ -7,6 +7,7 @@ import { env, assertEnvSafe } from "./config/env.js"
 import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
 import { runFetchTick } from "./services/news-fetchers/coordinator.js"
+import { runTickerTick } from "./services/ticker-fetchers/coordinator.js"
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("[worker] unhandledRejection at:", promise, "reason:", reason)
@@ -45,7 +46,17 @@ async function start(): Promise<void> {
     }
   })
 
-  logger.info("worker running — news fetch every 5 min")
+  void runTickerTick().catch((err) => logger.error({ err }, "initial ticker tick failed"))
+
+  cron.schedule("*/1 * * * *", async () => {
+    try {
+      await runTickerTick()
+    } catch (err) {
+      logger.error({ err }, "ticker tick failed")
+    }
+  })
+
+  logger.info("worker running — news fetch every 5 min, ticker fetch every 1 min")
 }
 
 start().catch((err) => {

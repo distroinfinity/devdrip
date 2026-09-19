@@ -1,4 +1,5 @@
 import type { SlotLayout } from "./SlotPayload.js"
+import type { AssetClass } from "./WatchlistDto.js"
 
 export interface TickerStats {
   d1Pct: number
@@ -12,12 +13,13 @@ export interface TickerStats {
 export interface TickerPayload {
   kind: "ticker"
   symbol: string
+  assetClass: AssetClass
   name: string | null
   price: number
   changePct: number
-  sparkline: number[] // 14-30 points, normalized
+  sparkline: number[]
   stats: TickerStats
   layout: SlotLayout
-  stale: boolean // true when served from cached Redis past freshness window
-  asOf: string // ISO timestamp from upstream provider
+  stale: boolean
+  asOf: string
 }

@@ -5,10 +5,12 @@ import { reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { getPreferences, putPreferences } from "../lib/preferences-client.js"
 import { getMyChannels, putMyChannels } from "../lib/channels-client.js"
+import { getMyWatchlists, putMyWatchlists } from "../lib/watchlists-client.js"
 import { pickChannelMode } from "../lib/prompts/preferences.js"
 import { pickChannels } from "../lib/prompts/channels.js"
+import { pickWatchlistTickers } from "../lib/prompts/watchlist.js"
 
-type Action = "mode" | "channels" | "caps" | "topics" | "cancel"
+type Action = "mode" | "channels" | "watchlist" | "caps" | "topics" | "cancel"
 
 async function mirrorToLocal(updated: SyncedPreferences): Promise<void> {
   const cfg = await readConfig()
@@ -29,6 +31,7 @@ async function showMenu(currentMode: ChannelMode): Promise<Action> {
     options: [
       { value: "mode", label: `channel mode (currently: ${currentMode})` },
       { value: "channels", label: "channels (tech / finance / crypto / …)" },
+      { value: "watchlist", label: "watchlist (add / remove tickers)" },
       { value: "caps", label: "caps & quiet hours (coming soon)" },
       { value: "topics", label: "news topics (v1.1 — coming soon)" },
       { value: "cancel", label: "cancel" },
@@ -75,6 +78,24 @@ async function runPreferences(): Promise<void> {
       await putMyChannels(next)
       const labels = current.filter((c) => next.includes(c.key)).map((c) => c.label)
       log.success(labels.join(", "))
+      continue
+    }
+
+    if (action === "watchlist") {
+      const tickers = await pickWatchlistTickers()
+      if (tickers.length === 0) {
+        log.warn("at least one ticker must stay — keeping previous selection")
+        continue
+      }
+      const lists = await getMyWatchlists()
+      const primaryName = lists[0]?.name ?? "Default"
+      // preserve secondary lists verbatim (multi-list schema; future ux will use)
+      const trailing = lists.slice(1).map((l) => ({
+        name: l.name,
+        tickers: l.tickers.map((t) => ({ symbol: t.symbol, assetClass: t.assetClass })),
+      }))
+      await putMyWatchlists([{ name: primaryName, tickers }, ...trailing])
+      log.success(tickers.map((t) => t.symbol).join(", "))
       continue
     }
 

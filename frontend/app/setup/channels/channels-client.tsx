@@ -22,7 +22,7 @@ export function ChannelsClientImpl({ initial }: { initial: ChannelDto[] }) {
     start(async () => {
       const result = await saveChannelsFromSetup(subscribedKeys)
       if (result.ok) {
-        router.push("/dashboard")
+        router.push("/setup/watchlist")
       } else {
         setError(result.error)
       }

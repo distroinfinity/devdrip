@@ -7,6 +7,8 @@
 - [Channel Modes](architecture/channel-modes.md)
 - [Slot Content](architecture/slot-content.md)
 - [News Pipeline](architecture/news-pipeline.md)
+- [Ticker Pipeline](architecture/ticker-pipeline.md)
+- [Slot Rendering](architecture/slot-rendering.md)
 - [Backend API](backend/api.md)
 - [Data Model](backend/data-model.md)
 - [Landing And Waitlist](frontend/landing-and-waitlist.md)
