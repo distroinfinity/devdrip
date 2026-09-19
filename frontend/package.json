@@ -30,6 +30,7 @@
     "lucide-react": "^0.575.0",
     "motion": "^12.34.3",
     "next": "^14.2.0",
+    "posthog-js": "^1.376.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "recharts": "^2.15.0",
