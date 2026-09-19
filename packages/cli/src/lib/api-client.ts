@@ -1,3 +1,4 @@
+import type { IngestImpressionItem } from "./ad-impression.js"
 import { resolveEnv } from "@distrotv/shared"
 import {
   CONFIG_VERSION,
@@ -198,16 +199,15 @@ export interface IngestNewsImpressionItem {
 }
 
 export interface IngestResponse {
-  // post-pivot: only newsImpressions are real. impressions/clicks kept as empty
-  // arrays so existing sync.ts applyResults loop doesn't break on index access.
+  // index-aligned with the request arrays
   impressions: { ok: boolean; deliveryToken: string; error?: string }[]
   clicks: { ok: boolean; deliveryToken: string; error?: string }[]
   newsImpressions?: IngestItemResultNewsImpression[]
 }
 
 export interface IngestRequest {
-  // legacy ad/click fields: CLI sends empty arrays; API accepts + ignores them
-  impressions: { deliveryToken: string }[]
+  // ad impressions; clicks are recorded server-side and stay an empty array
+  impressions: IngestImpressionItem[]
   clicks: { deliveryToken: string }[]
   newsImpressions?: IngestNewsImpressionItem[]
 }

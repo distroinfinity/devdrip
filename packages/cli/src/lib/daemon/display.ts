@@ -11,6 +11,9 @@ import type { CachedSlot } from "../slot-cache.js"
 // so force it on unless the user opted out via NO_COLOR.
 const RENDER_COLOR: ColorMode = process.env["NO_COLOR"] ? "none" : "truecolor"
 const FALLBACK_COLS = 80
+// OSC 8 links on the sponsor line. opt-in until verified against the status line
+// of the Claude Code version in use: DISTRO_HYPERLINKS=1.
+const HYPERLINKS = process.env["DISTRO_HYPERLINKS"] === "1"
 
 // Read the terminal width off the tty path the hook handed us, so the panel can
 // spread price/change/age across the real width. Best-effort — falls back to 80.
@@ -30,6 +33,8 @@ function readTtyCols(ttyPath: string): number {
 export interface RenderCtx {
   source?: string
   width?: number
+  // today's estimated developer share, shown on sponsored panels
+  earnedTodayUsd?: number
 }
 
 export interface DisplayHandle {
@@ -54,7 +59,12 @@ export interface DisplayHandle {
 export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): DisplayHandle {
   try {
     const width = ctx.width ?? readTtyCols(ttyPath) - 4
-    writeStatusLine(renderSlotLine(slot, RENDER_COLOR, width, getPendingUpdate() ?? undefined))
+    writeStatusLine(
+      renderSlotLine(slot, RENDER_COLOR, width, getPendingUpdate() ?? undefined, {
+        earnedTodayUsd: ctx.earnedTodayUsd,
+        hyperlinks: HYPERLINKS,
+      })
+    )
   } catch {
     /* display must never throw — the daemon stays up no matter what */
   }

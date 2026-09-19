@@ -15,7 +15,7 @@ import {
 } from "@distrotv/shared"
 import type { SlotCache, CachedSlot } from "../slot-cache.js"
 import type { UtilityProvider } from "../utility-slot.js"
-import type { Ledger, LocalNewsImpression } from "../ledger.js"
+import type { Ledger, LocalImpression, LocalNewsImpression } from "../ledger.js"
 import type { KeyCapture } from "./input.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
 import { writeNowPlaying } from "../now-playing-writer.js"
@@ -31,7 +31,7 @@ export interface DisplayApi {
   show(
     ttyPath: string,
     slot: CachedSlot,
-    ctx: { source?: string; width?: number }
+    ctx: { source?: string; width?: number; earnedTodayUsd?: number }
   ): DisplayHandleApi
 }
 
@@ -233,7 +233,14 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     }
     const ttyVal = "tty" in event ? event.tty : undefined
     if (ttyVal !== undefined) {
-      return getOrCreateSession(ttyKey(ttyVal), ttyVal)
+      // cli actions (`dtv open`, skip, mute…) are usually typed in a different
+      // terminal than the one showing the slot. if the invoking tty has nothing
+      // on screen, fall through and target the session that does.
+      const own = sessions.get(ttyKey(ttyVal))
+      const isKeyAction = event.kind.endsWith("-key")
+      if (!isKeyAction || own?.state.kind === "SHOWING") {
+        return getOrCreateSession(ttyKey(ttyVal), ttyVal)
+      }
     }
     // infer: single active (non-IDLE) session takes the event; otherwise the
     // single session overall; otherwise create/use the null-tty sentinel so
@@ -434,7 +441,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             ? effect.ad.id
             : effect.ad.kind === "ticker"
               ? effect.ad.symbol
-              : "utility"
+              : effect.ad.kind === "sponsored"
+                ? effect.ad.adId
+                : "utility"
         if (!effect.tty) {
           deps.log.warn("display skipped: no tty path", { payloadId })
           queueMicrotask(() => dispatch({ kind: "dismiss", now: now(), tty: session.tty }))
@@ -442,7 +451,15 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         }
         try {
           const source = effect.ad.cacheSource === "demo" ? "DEMO" : undefined
-          session.currentDisplay = deps.display.show(effect.tty, effect.ad, { source })
+          // sponsored panels show today's estimated share from the local ledger
+          const earnedTodayUsd =
+            effect.ad.kind === "sponsored"
+              ? deps.ledger.sumTodayOptimistic(preferences.tzOffsetMinutes)
+              : undefined
+          session.currentDisplay = deps.display.show(effect.tty, effect.ad, {
+            source,
+            earnedTodayUsd,
+          })
           session.currentSlotKind = effect.ad.kind
           // on terminal resize, proactively dismiss the current ad — the
           // display has already reset its scroll region to prevent content
@@ -621,21 +638,31 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             const url =
               effect.ad.chartUrl ?? buildBareSymbolUrl(effect.ad.symbol, effect.ad.assetClass)
             deps.openUrl(url)
+          } else if (effect.ad.kind === "sponsored") {
+            deps.openUrl(effect.ad.clickUrl)
           }
         } catch (err) {
           deps.log.warn("openUrl failed", { error: (err as Error).message })
         }
-        // news clicks recorded server-side via openedUrl flag on news impression
+        // news clicks ride the openedUrl flag on the news impression; ad clicks are
+        // recorded server-side by the /ads/click redirect.
         return
       }
     }
   }
 
-  function handleRecord(_imp: unknown, slot: CachedSlot): void {
-    if (slot.kind === "news") {
-      // news impressions are ledgered separately via recordNewsImpression
-      deps.log.debug("skipping ad-ledger write for news slot", { newsId: slot.id })
-      return
+  function handleRecord(imp: LocalImpression, slot: CachedSlot): void {
+    // only sponsored slots use the ad ledger; news is ledgered via recordNewsImpression
+    if (slot.kind !== "sponsored") return
+    try {
+      deps.ledger.record(imp)
+      deps.log.info("ad impression recorded", {
+        adId: imp.adId,
+        result: imp.result,
+        durationMs: imp.durationMs,
+      })
+    } catch (err) {
+      deps.log.warn("ad impression ledger write failed", { error: (err as Error).message })
     }
   }
 
