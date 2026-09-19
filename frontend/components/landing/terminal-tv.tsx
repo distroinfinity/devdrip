@@ -17,6 +17,16 @@ export interface TickerItem {
 export type ChannelBlock =
   | { kind: "news"; id: string; title: string; status: string; items: NewsItem[] }
   | { kind: "markets"; id: string; title: string; status: string; rows: TickerItem[] }
+  | {
+      kind: "sponsored"
+      id: string
+      title: string
+      status: string
+      advertiser: string
+      copy: string
+      host: string
+      est: string
+    }
 
 interface TerminalTVProps {
   pathLabel?: string
@@ -32,8 +42,8 @@ export function TerminalTV({
   pathLabel = "~ · distro tv · ambient",
   statusLabel = "● broadcasting",
   blocks,
-  footerKeys = "[S]kip   [K]ill   [M]ute 30m",
-  footerRight = "~/.distrotv/config.toml",
+  footerKeys = "dtv open   ·   dtv mute   ·   dtv preferences",
+  footerRight = "~/.distro/config.json",
   className,
   variant = "card",
 }: TerminalTVProps) {
@@ -75,31 +85,30 @@ export function TerminalTV({
               (isPreview ? "border-b border-[#1E1E22]" : "border-b border-[var(--rule-subtle)]")
           )}
         >
+          {block.kind === "sponsored" && <SponsoredBlock block={block} isPreview={isPreview} />}
+
           {/* block head */}
-          <div
-            className={cn(
-              "flex justify-between items-center mb-2 text-[10px] tracking-wider",
-              isPreview ? "text-[#8A8A94]" : "text-[var(--ink-secondary)]"
-            )}
-          >
-            <span
+          {block.kind !== "sponsored" && (
+            <div
               className={cn(
-                "font-bold",
-                isPreview ? "text-[#EDEDF0]" : "text-[var(--ink-primary)]"
+                "flex justify-between items-center mb-2 text-[10px] tracking-wider",
+                isPreview ? "text-[#8A8A94]" : "text-[var(--ink-secondary)]"
               )}
             >
               <span
                 className={cn(
-                  "inline-block w-1.5 h-1.5 rounded-full mr-2 align-middle",
-                  "bg-[var(--accent-color)]"
+                  "font-bold",
+                  isPreview ? "text-[#EDEDF0]" : "text-[var(--ink-primary)]"
                 )}
-              />
-              {block.title}
-            </span>
-            <span className={isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]"}>
-              {block.status}
-            </span>
-          </div>
+              >
+                <span className="inline-block w-1.5 h-1.5 rounded-full mr-2 align-middle bg-[var(--accent-color)]" />
+                {block.title}
+              </span>
+              <span className={isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]"}>
+                {block.status}
+              </span>
+            </div>
+          )}
 
           {block.kind === "news" &&
             (isPreview ? (
@@ -204,14 +213,66 @@ export function TerminalTV({
       {/* frame foot */}
       <div
         className={cn(
-          "mt-auto flex justify-between px-3 py-1.5 text-[10px]",
+          "mt-auto flex flex-wrap justify-between gap-x-4 gap-y-0.5 px-3 py-1.5 text-[10px]",
           isPreview
             ? "border-t border-[#1E1E22] text-[#5C5C66]"
             : "border-t border-[var(--rule-default)] text-[var(--ink-tertiary)]"
         )}
       >
-        <span>{footerKeys}</span>
+        <span className="whitespace-pre-wrap">{footerKeys}</span>
         <span>{footerRight}</span>
+      </div>
+    </div>
+  )
+}
+
+// mirrors the cli sponsored panel: bar + label left, estimate right, then advertiser, copy, link
+function SponsoredBlock({
+  block,
+  isPreview,
+}: {
+  block: Extract<ChannelBlock, { kind: "sponsored" }>
+  isPreview: boolean
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-3 text-[10px] tracking-wider">
+        <span className="min-w-0 truncate">
+          <span className="mr-1.5 text-[var(--accent-color)]">▍</span>
+          <span className="font-bold text-[var(--accent-color)]">{block.title}</span>
+          <span
+            className={cn("mx-1.5", isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]")}
+          >
+            ·
+          </span>
+          <span className={isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]"}>
+            {block.status}
+          </span>
+        </span>
+        <span className="shrink-0 font-bold text-[var(--status-positive)]">{block.est}</span>
+      </div>
+      <div
+        className={cn(
+          "text-[10px] uppercase tracking-wider",
+          isPreview ? "text-[#8A8A94]" : "text-[var(--ink-secondary)]"
+        )}
+      >
+        {block.advertiser}
+      </div>
+      <div
+        className={cn(
+          "mt-0.5 text-[13px] font-bold leading-snug",
+          isPreview ? "text-[#EDEDF0]" : "text-[var(--ink-primary)]"
+        )}
+      >
+        {block.copy}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 text-[10px] tracking-wider">
+        <span className="text-[var(--accent-color)]">↗ {block.host}</span>
+        <span className={isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]"}>·</span>
+        <span className={isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]"}>
+          dtv open
+        </span>
       </div>
     </div>
   )

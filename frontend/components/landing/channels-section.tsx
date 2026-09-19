@@ -24,13 +24,15 @@ export function ChannelsSection() {
               className="font-display text-[24px] md:text-[28px] tracking-[-0.02em] text-[var(--ink-primary)]"
               style={{ fontWeight: 400 }}
             >
-              Two live. More queued.
+              Don&apos;t want ads? Tune to a channel.
             </h2>
           </div>
-          <p className="font-data text-[10px] tracking-[0.04em] text-[var(--ink-tertiary)]">
-            opt-in per channel · subscribe to one or both · vanish with one key
-          </p>
         </motion.div>
+
+        <p className="-mt-3 mb-8 max-w-[70ch] font-body text-[14px] leading-[1.6] text-[var(--ink-secondary)]">
+          News, markets and more run on the same surface. Subscribe to a channel and it rotates in —
+          or switch ads off entirely and watch only channels. Channels don&apos;t pay; ads do.
+        </p>
 
         {/* two cards */}
         <motion.div
@@ -46,7 +48,7 @@ export function ChannelsSection() {
             title="Top stories."
             blurb="Ranked tech & finance, fresh every 30 min."
             sources={["Hacker News", "TechCrunch", "Bloomberg", "Reuters"]}
-            previewFooterKeys="[S]kip   [O]pen   [L]ater   [K]ill"
+            previewFooterKeys="dtv open   ·   dtv skip   ·   dtv mute"
             preview={{
               kind: "news",
               id: "ch1-preview",
@@ -78,7 +80,7 @@ export function ChannelsSection() {
             title="Your watchlist, while you wait."
             blurb="Live stock & crypto ticks with sparklines."
             sources={["Stocks", "Crypto", "FX", "Indices"]}
-            previewFooterKeys="[S]kip   [A]lert   [+]add   [K]ill"
+            previewFooterKeys="dtv skip   ·   dtv mute   ·   dtv watchlist"
             preview={{
               kind: "markets",
               id: "ch2-preview",
