@@ -8,6 +8,11 @@ export interface RenderExtras {
   hyperlinks?: boolean
 }
 
+// sub-dollar totals keep 4 decimals so per-ad progress stays visible
+export function formatEarned(usd: number): string {
+  return usd < 1 ? usd.toFixed(4) : usd.toFixed(2)
+}
+
 export function perImpressionUsd(cpmRate: number): number {
   return (cpmRate / 1000) * REVENUE_SHARE_DEVELOPER
 }
@@ -46,7 +51,7 @@ export function renderSponsoredPanel(
   const host = link(color("indigo", `↗ ${clean(slot.displayUrl)}`, mode), slot.clickUrl, useLinks)
   const today =
     extras.earnedTodayUsd != null
-      ? `  ${dot}  ${color("muted", `today $${extras.earnedTodayUsd.toFixed(2)}`, mode)}`
+      ? `  ${dot}  ${color("muted", `today $${formatEarned(extras.earnedTodayUsd)}`, mode)}`
       : ""
   // no spread() on this line — OSC 8 bytes would break its width maths
   const action = `${LEFT_PAD}${host}  ${dot}  ${color("muted", "dtv open", mode)}${today}`
