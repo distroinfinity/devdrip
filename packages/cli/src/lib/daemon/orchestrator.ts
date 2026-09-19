@@ -151,6 +151,8 @@ interface Session {
   progressTimer: NodeJS.Timeout | null
   // the display handle for whatever ad is currently on THIS session's tty
   currentDisplay: DisplayHandleApi | null
+  // kind of the slot currently showing ("ad" | "news"), or null when idle
+  currentSlotKind: "ad" | "news" | null
   // per-session suppression bits
   sessionKilled: boolean
   adsInCurrentBusyWindow: number
@@ -189,6 +191,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       interAdTimer: null,
       progressTimer: null,
       currentDisplay: null,
+      currentSlotKind: null,
       sessionKilled: false,
       adsInCurrentBusyWindow: 0,
       sessionStartAt: now(),
@@ -352,36 +355,37 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         }
         return
       case "displayAd": {
-        const slotId = effect.ad.payload.id
+        const payloadId = effect.ad.payload.id
         if (!effect.tty) {
-          deps.log.warn("display skipped: no tty path", { slotId })
+          deps.log.warn("display skipped: no tty path", { payloadId })
           queueMicrotask(() => dispatch({ kind: "dismiss", now: now(), tty: session.tty }))
           return
         }
         try {
           const source = effect.ad.cacheSource === "demo" ? "DEMO" : undefined
           session.currentDisplay = deps.display.show(effect.tty, effect.ad, { source })
+          session.currentSlotKind = effect.ad.kind
           // on terminal resize, proactively dismiss the current ad — the
           // display has already reset its scroll region to prevent content
           // loss, and the next rotation tick will re-anchor with fresh rows.
           session.currentDisplay.onResize(() => {
             deps.log.info("resize detected — dismissing slot to re-anchor", {
-              slotId,
+              payloadId,
               tty: session.tty,
             })
             dispatch({ kind: "dismiss", now: now(), tty: session.tty })
           })
           deps.keyCapture.start(effect.tty)
-          session.adsInCurrentBusyWindow += 1
           // caps are ad-fatigue guards, not slot-fatigue. news doesn't count.
           if (effect.ad.kind === "ad") {
+            session.adsInCurrentBusyWindow += 1
             const nowMs = now()
             hourlyTimestamps.push(nowMs)
             dailyTimestamps.push(nowMs)
           }
           const displayTimeMs = effect.ad.kind === "ad" ? effect.ad.payload.displayTimeMs : 0
           deps.log.info("showing slot", {
-            slotId,
+            payloadId,
             kind: effect.ad.kind,
             source: effect.ad.cacheSource,
             displayTimeMs,
@@ -389,11 +393,12 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           })
         } catch (err) {
           deps.log.warn("display failed", {
-            slotId,
+            payloadId,
             error: (err as Error).message,
             tty: session.tty,
           })
           session.currentDisplay = null
+          session.currentSlotKind = null
           if (session.tty) deps.keyCapture.stop(session.tty)
           queueMicrotask(() => dispatch({ kind: "dismiss", now: now(), tty: session.tty }))
         }
@@ -465,10 +470,11 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           } catch (err) {
             deps.log.warn("vanish failed", { error: (err as Error).message })
           }
+          // only count ad slots; news slots must not inflate the ads-shown metric.
+          // only count when something was actually rendered (null-tty paths skip this).
+          if (session.currentSlotKind === "ad") adsShownCount += 1
           session.currentDisplay = null
-          // only count ads that were actually rendered; null-tty paths
-          // synthesize a dismiss → vanishDisplay but nothing hit the screen.
-          adsShownCount += 1
+          session.currentSlotKind = null
         }
         return
       case "recordImpression":
@@ -481,6 +487,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       case "clearSessionState":
         session.sessionKilled = false
         session.adsInCurrentBusyWindow = 0
+        session.currentSlotKind = null
         session.sessionStartAt = now()
         deps.log.info("session state cleared", { tty: session.tty })
         return

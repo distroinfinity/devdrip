@@ -253,26 +253,6 @@ function endShowing(
 ): StepResult {
   const durationMs = Math.max(0, Math.min(now - state.shownAt, MAX_AD_DURATION_MS))
   const slot = state.ad
-  // impression fields are ad-specific; news slots pass through with placeholder values
-  // (handleRecord in orchestrator will skip ledger write for news — Task 22).
-  const adPayload = slot.kind === "ad" ? slot.payload : null
-  const cpmRate = adPayload?.cpmRate ?? 0
-  const impression: LocalImpression = {
-    id: randomUUID(),
-    adId: adPayload?.id ?? slot.payload.id,
-    campaignId: adPayload?.campaignId ?? "",
-    surface: "terminal-tv",
-    source: slot.cacheSource,
-    deliveryToken: adPayload?.deliveryToken ?? "",
-    startedAt: state.shownAt,
-    durationMs,
-    result,
-    deviceId: ctx.deviceId,
-    // carry the server-advertised CPM into the ledger row so today's running
-    // total stays accurate without an API round-trip. backend recomputes
-    // authoritative earnings at sync time.
-    cpmRate: slot.cacheSource === "api" ? cpmRate : null,
-  }
 
   // effect order matters. the orchestrator interprets `snapProgressToComplete`
   // as "flush a 100% frame, then pause PROGRESS_SNAP_HOLD_MS before running
@@ -283,8 +263,28 @@ function endShowing(
     { kind: "snapProgressToComplete" },
     { kind: "vanishDisplay" },
     { kind: "cancelVanishTimer" },
-    { kind: "recordImpression", impression, ad: state.ad },
   ]
+  // only emit recordImpression for ad slots — news slots have no ledger row
+  if (slot.kind === "ad") {
+    const adPayload = slot.payload
+    const impression: LocalImpression = {
+      id: randomUUID(),
+      adId: adPayload.id,
+      campaignId: adPayload.campaignId,
+      surface: "terminal-tv",
+      source: slot.cacheSource,
+      deliveryToken: adPayload.deliveryToken,
+      startedAt: state.shownAt,
+      durationMs,
+      result,
+      deviceId: ctx.deviceId,
+      // carry the server-advertised CPM into the ledger row so today's running
+      // total stays accurate without an API round-trip. backend recomputes
+      // authoritative earnings at sync time.
+      cpmRate: slot.cacheSource === "api" ? (adPayload.cpmRate ?? 0) : null,
+    }
+    cleanup.push({ kind: "recordImpression", impression, ad: slot })
+  }
 
   if (goToInterAd) {
     return {
