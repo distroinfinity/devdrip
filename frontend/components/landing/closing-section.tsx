@@ -46,14 +46,22 @@ export function ClosingSection() {
             A new surface to buy.
           </h2>
           <p className="mb-6 max-w-[44ch] font-body text-[15px] leading-[1.6] text-[var(--ink-secondary)]">
-            Developers, waiting on their agent. Early campaigns run by hand.
+            Developers, waiting on their agent. Write an ad and it runs there.
           </p>
-          <Link
-            href="/advertisers"
-            className="inline-block bg-[var(--ink-primary)] px-4 py-2 font-body text-[13px] font-medium text-[var(--bg-primary)] no-underline transition-colors duration-150 hover:bg-[var(--em-hover)]"
-          >
-            See the exchange
-          </Link>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+            <Link
+              href="/advertisers/portal"
+              className="inline-block bg-[var(--ink-primary)] px-4 py-2 font-body text-[13px] font-medium text-[var(--bg-primary)] no-underline transition-colors duration-150 hover:bg-[var(--em-hover)]"
+            >
+              Open the ad portal
+            </Link>
+            <Link
+              href="/advertisers"
+              className="border-b border-[var(--rule-strong)] pb-0.5 font-body text-[13px] text-[var(--ink-secondary)] no-underline transition-colors hover:text-[var(--ink-primary)]"
+            >
+              How it works
+            </Link>
+          </div>
         </div>
       </div>
     </section>

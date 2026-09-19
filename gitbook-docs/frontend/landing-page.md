@@ -17,7 +17,36 @@ The home page is a Next.js App Router page composed of the following sections, i
 9. **install** — full install command block and the "what does this script do?" details
 10. **footer** — brand block + tagline, social icon links (X, WhatsApp, GitHub), link columns, copyright
 
-`/advertisers` (`frontend/app/advertisers/page.tsx`) is the advertiser-facing page: hero ("Reach developers while their agent works.", status `distro exchange · pilot`), why this inventory, how bidding will work (tagged `planned`), surfaces roadmap, three disabled "coming soon" campaign buttons (text labels only — no third-party logos), and an honest "today" status line. No forms, no backend; the only CTA is a `mailto:`.
+### Advertiser side
+
+`/advertisers` (`frontend/app/advertisers/page.tsx`) is the public advertiser page, four blocks:
+
+1. hero — "Reach developers while their agent works." and one button, `Open the ad portal`
+2. **start from an ad you already run** — Google Ads and Meta Ads first (`coming soon`), Amazon Ads (`next`). text labels only, no third-party marks. one line under them: read-only, we copy the ad, we never touch campaigns
+3. **or write one now** — the composer with a live slot preview. client-only here: `Run this ad` hands the copy to the portal as `?brand=…&line=…&url=…` (ad copy only, nothing personal)
+4. **how it runs** — three numbered steps (a real sequence) and one status line (live / next / pilot, nothing charged)
+
+There is no contact link or `mailto:` on the page.
+
+`/advertisers/portal` (`frontend/app/advertisers/portal/`) is the signed-in ad portal. It reuses the landing `Nav` + `Footer`, not the dashboard shell.
+
+- gate: `middleware.ts` sends a visitor with no session cookie to `/sign-in?next=<path + query>`, so a prefilled composer survives sign-in; the page re-checks the session server-side
+- first thing on the page is the start row: `Connect Google Ads`, `Connect Meta Ads`, `Amazon Ads` (real `disabled` + `aria-disabled`) and `Write one` (selected)
+- composer: brand, one line (live counter), link, bid. the bid is the advertiser's own number — our rates and the revenue split never appear. writes go through the `createAd` / `setAdStatus` server actions in `portal/actions.ts`
+- your ads: newest first, with views, clicks, CTR, est. spend and Pause / Resume. the table scrolls inside its own container on narrow screens. `AutoRefresh` re-runs the server components every 5s while the tab is visible
+- data layer (`frontend/lib/advertiser-api.ts`): a 404 or any api error from `GET /advertiser/ads` renders the empty state instead of crashing; a 401 goes to sign-in. api error codes map to a short message beside the field they belong to (`frontend/lib/advertiser-ads.ts`, which is client-safe: types, limits, messages)
+
+Shared components live in `frontend/components/advertisers/`:
+
+| file               | description                                                                  |
+| ------------------ | ---------------------------------------------------------------------------- |
+| `ad-composer.tsx`  | the form + preview. with a `submit` prop it saves; without, it links onward  |
+| `slot-preview.tsx` | the CLI panel, row for row. the right side of row one stays empty on purpose |
+| `start-row.tsx`    | where an ad comes from: imports first, `Write one` selected                  |
+| `ads-table.tsx`    | the advertiser's ads with pause / resume                                     |
+| `auto-refresh.tsx` | generic visible-tab `router.refresh()` interval                              |
+
+The slot preview never shows what the viewer earns.
 
 ### Motion
 
@@ -117,28 +146,27 @@ Voice is **plain, observational, confident, sentence case**. It should read like
 
 Canonical copy (keep these in sync if you touch the components):
 
-| surface             | copy                                                                                                                                                                                                      |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| hero H1             | The ad exchange for AI agent surfaces.                                                                                                                                                                    |
-| hero sub            | Agents do the work now; people wait and watch. That wait is a new attention surface, and nothing serves it yet. Distro is building the open exchange that does, starting in the terminal.                 |
-| hero CTA label      | Run the first surface                                                                                                                                                                                     |
-| demo title bar      | surface 01 — terminal (left), live (right)                                                                                                                                                                |
-| meta title          | Distro TV — the ad exchange for AI agent surfaces                                                                                                                                                         |
-| meta description    | AI agents do the work while people wait. Distro is the open exchange for that attention: slots inside agent tools, an opted-in audience, and revenue shared with the viewer. First surface: the terminal. |
-| shift H2            | Work moved to the agent. Attention stayed put.                                                                                                                                                            |
-| lineage H2          | Every medium grew an ad market.                                                                                                                                                                           |
-| sides H2            | Three sides, one slot.                                                                                                                                                                                    |
-| terminal H2         | Surface 01: the terminal.                                                                                                                                                                                 |
-| terminal sub        | Works with Claude Code today. More agent tools next.                                                                                                                                                      |
-| rules H2            | Rules the exchange runs on.                                                                                                                                                                               |
-| advertisers H2      | A new surface to buy.                                                                                                                                                                                     |
-| install H2          | Run the first surface.                                                                                                                                                                                    |
-| CH 01 title         | Top stories.                                                                                                                                                                                              |
-| CH 02 title         | Your watchlist, while you wait.                                                                                                                                                                           |
-| coming-channels     | Next on the dial.                                                                                                                                                                                         |
-| footer tagline      | The ad exchange for AI agent surfaces.                                                                                                                                                                    |
-| /advertisers H1     | Reach developers while their agent works.                                                                                                                                                                 |
-| /advertisers status | distro exchange · pilot                                                                                                                                                                                   |
+| surface          | copy                                                                                                                                                                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| hero H1          | The ad exchange for AI agent surfaces.                                                                                                                                                                    |
+| hero sub         | Agents do the work now; people wait and watch. That wait is a new attention surface, and nothing serves it yet. Distro is building the open exchange that does, starting in the terminal.                 |
+| hero CTA label   | Run the first surface                                                                                                                                                                                     |
+| demo title bar   | surface 01 — terminal (left), live (right)                                                                                                                                                                |
+| meta title       | Distro TV — the ad exchange for AI agent surfaces                                                                                                                                                         |
+| meta description | AI agents do the work while people wait. Distro is the open exchange for that attention: slots inside agent tools, an opted-in audience, and revenue shared with the viewer. First surface: the terminal. |
+| shift H2         | Work moved to the agent. Attention stayed put.                                                                                                                                                            |
+| lineage H2       | Every medium grew an ad market.                                                                                                                                                                           |
+| sides H2         | Three sides, one slot.                                                                                                                                                                                    |
+| terminal H2      | Surface 01: the terminal.                                                                                                                                                                                 |
+| terminal sub     | Works with Claude Code today. More agent tools next.                                                                                                                                                      |
+| rules H2         | Rules the exchange runs on.                                                                                                                                                                               |
+| advertisers H2   | A new surface to buy.                                                                                                                                                                                     |
+| install H2       | Run the first surface.                                                                                                                                                                                    |
+| CH 01 title      | Top stories.                                                                                                                                                                                              |
+| CH 02 title      | Your watchlist, while you wait.                                                                                                                                                                           |
+| coming-channels  | Next on the dial.                                                                                                                                                                                         |
+| footer tagline   | The ad exchange for AI agent surfaces.                                                                                                                                                                    |
+| /advertisers H1  | Reach developers while their agent works.                                                                                                                                                                 |
 
 Stay tool-agnostic in product copy ("your agent", not "Claude"). The one exception is compatibility: the terminal section's sub-line and the install sub-line name Claude Code, because that is what the first surface works with today.
 
