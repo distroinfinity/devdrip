@@ -1,4 +1,4 @@
-import { lstat, readFile, rm, stat, unlink, writeFile } from "node:fs/promises"
+import { lstat, rm, unlink } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { Command } from "commander"
@@ -33,32 +33,14 @@ function installHomeDir(): string {
   return process.env["DISTROTV_HOME"] ?? join(homedir(), ".distrotv")
 }
 
-async function restoreOrStripHooks(): Promise<{ restored: boolean; stripped: boolean }> {
+// always a surgical strip: remove our hooks + status line and leave everything else
+// exactly as the user has it now. the install-time backup is NOT restored — by the
+// time someone uninstalls it can be months old, and writing it back would silently
+// wipe every setting (model, theme, plugins, other tools' hooks) changed since.
+export async function restoreOrStripHooks(): Promise<{ stripped: boolean }> {
   const settingsPath = claudeSettingsPath()
   const backupPath = claudeBackupPath()
 
-  let backupRaw: string | null = null
-  try {
-    await stat(backupPath)
-    backupRaw = await readFile(backupPath, "utf8")
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
-  }
-
-  if (backupRaw !== null) {
-    // restore verbatim so the user gets their exact pre-install settings back.
-    // skip JSON round-trip: the backup was produced by copyFile of the same
-    // file, so byte-for-byte rewrite is the most honest recovery.
-    await writeFile(settingsPath, backupRaw)
-    try {
-      await unlink(backupPath)
-    } catch {
-      /* non-fatal: the next init would overwrite it anyway */
-    }
-    return { restored: true, stripped: false }
-  }
-
-  // no backup — surgical strip (hooks + our statusLine)
   const current = await readSettings(settingsPath)
   const hooks = removeDevdripHooks(current)
   const status = removeStatusLine(hooks.next)
@@ -66,7 +48,14 @@ async function restoreOrStripHooks(): Promise<{ restored: boolean; stripped: boo
   if (changed) {
     await writeSettingsAtomic(settingsPath, status.next)
   }
-  return { restored: false, stripped: changed }
+
+  // drop the stale snapshot so nothing can restore it later
+  try {
+    await unlink(backupPath)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
+  }
+  return { stripped: changed }
 }
 
 async function pathExists(p: string): Promise<boolean> {
@@ -129,9 +118,8 @@ export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Pr
 
   // 2. restore or strip claude code hooks
   try {
-    const { restored, stripped } = await restoreOrStripHooks()
-    if (restored) log.success("restored ~/.claude/settings.json from backup")
-    else if (stripped) log.success("removed distro hooks from ~/.claude/settings.json")
+    const { stripped } = await restoreOrStripHooks()
+    if (stripped) log.success("removed distro hooks from ~/.claude/settings.json")
     else log.info("no distro hooks found in settings.json")
   } catch (err) {
     log.warn(`hook removal failed: ${(err as Error).message}`)
