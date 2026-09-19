@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
-import { byteToAction, processByteChunk } from "../input.js"
+import { letterToAction, processByteChunk } from "../input.js"
 
-describe("byteToAction", () => {
+describe("letterToAction", () => {
   it.each([
     ["d", "discover"],
     ["D", "discover"],
@@ -13,43 +13,51 @@ describe("byteToAction", () => {
     ["M", "mute"],
     ["b", "save"],
     ["B", "save"],
-    ["\r", "dismiss"],
-    ["\n", "dismiss"],
-    [" ", "dismiss"],
-    ["\x1b", "dismiss"],
-    ["\x03", "dismiss"],
+    ["c", "chart"],
+    ["C", "chart"],
   ])("maps %j → %s", (input, expected) => {
-    expect(byteToAction(input)).toBe(expected)
+    expect(letterToAction(input)).toBe(expected)
   })
 
-  it.each(["a", "x", "1", "?"])("returns null for unmapped byte %j", (input) => {
-    expect(byteToAction(input)).toBeNull()
+  it.each(["a", "x", "1", "?"])("returns null for non-action letter %j", (input) => {
+    expect(letterToAction(input)).toBeNull()
   })
 })
 
 describe("processByteChunk", () => {
-  it("maps a single action byte", () => {
-    expect(processByteChunk(Buffer.from("d"))).toBe("discover")
-    expect(processByteChunk(Buffer.from("S"))).toBe("skip")
-    expect(processByteChunk(Buffer.from("k"))).toBe("kill")
-    expect(processByteChunk(Buffer.from("M"))).toBe("mute")
-    expect(processByteChunk(Buffer.from("\r"))).toBe("dismiss")
-    expect(processByteChunk(Buffer.from("\x03"))).toBe("dismiss")
+  it("maps Meta (Alt/Option) chords ESC+letter to actions", () => {
+    expect(processByteChunk(Buffer.from([0x1b, 0x64]))).toBe("discover") // ⌥d
+    expect(processByteChunk(Buffer.from([0x1b, 0x53]))).toBe("skip") // ⌥S
+    expect(processByteChunk(Buffer.from([0x1b, 0x6b]))).toBe("kill") // ⌥k
+    expect(processByteChunk(Buffer.from([0x1b, 0x6d]))).toBe("mute") // ⌥m
+    expect(processByteChunk(Buffer.from([0x1b, 0x62]))).toBe("save") // ⌥b
+    expect(processByteChunk(Buffer.from([0x1b, 0x63]))).toBe("chart") // ⌥c
   })
 
-  it("returns null for unmapped single byte (e.g. backspace 0x7f)", () => {
-    expect(processByteChunk(Buffer.from([0x7f]))).toBeNull()
+  it("ignores bare letters — they belong to Claude Code, not Distro", () => {
+    expect(processByteChunk(Buffer.from("d"))).toBeNull()
+    expect(processByteChunk(Buffer.from("S"))).toBeNull()
+    expect(processByteChunk(Buffer.from("k"))).toBeNull()
+    expect(processByteChunk(Buffer.from("hello"))).toBeNull()
+  })
+
+  it("ignores Enter / Space / Ctrl+C so Claude's prompt and interrupt work", () => {
+    expect(processByteChunk(Buffer.from("\r"))).toBeNull()
+    expect(processByteChunk(Buffer.from("\n"))).toBeNull()
+    expect(processByteChunk(Buffer.from(" "))).toBeNull()
+    expect(processByteChunk(Buffer.from([0x03]))).toBeNull()
+  })
+
+  it("ignores Meta + non-action letter (e.g. ⌥a)", () => {
+    expect(processByteChunk(Buffer.from([0x1b, 0x61]))).toBeNull()
   })
 
   it("lone ESC (1-byte chunk) is dismiss — the user pressed Escape", () => {
     expect(processByteChunk(Buffer.from([0x1b]))).toBe("dismiss")
   })
 
-  it("drops terminal focus-in control sequence `\\x1b[I` (was dismissing ads!)", () => {
+  it("drops terminal focus control sequences `\\x1b[I` / `\\x1b[O`", () => {
     expect(processByteChunk(Buffer.from([0x1b, 0x5b, 0x49]))).toBeNull()
-  })
-
-  it("drops terminal focus-out control sequence `\\x1b[O`", () => {
     expect(processByteChunk(Buffer.from([0x1b, 0x5b, 0x4f]))).toBeNull()
   })
 
@@ -62,17 +70,5 @@ describe("processByteChunk", () => {
 
   it("drops SS3 function-key sequences (F1 = `\\x1bOP`)", () => {
     expect(processByteChunk(Buffer.from([0x1b, 0x4f, 0x50]))).toBeNull()
-  })
-
-  it("drops Alt+letter sequences (ESC + letter is Meta on macOS)", () => {
-    expect(processByteChunk(Buffer.from([0x1b, 0x64]))).toBeNull() // Alt+d, not our 'd'
-  })
-
-  it("first mapped byte wins on paste / held key", () => {
-    expect(processByteChunk(Buffer.from("ddd"))).toBe("discover")
-  })
-
-  it("ignores leading noise to find the first mapped byte", () => {
-    expect(processByteChunk(Buffer.from("xd"))).toBe("discover")
   })
 })

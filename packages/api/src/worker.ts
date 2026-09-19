@@ -1,14 +1,14 @@
-// Worker process — runs the news fetcher coordinator on a 5-min tick.
-// M4 will add the ticker fetcher cron alongside this one.
+// Standalone worker entrypoint — boots the shared scheduler (news fetch + alert
+// eval + health sweep) in its own process. The same startScheduler() also runs
+// in-process from the API (see index.ts) so prod doesn't need this as a separate
+// Railway service; keep it for local `worker:dev` and future scale-out.
 
 import "dotenv/config"
-import cron from "node-cron"
 import { env, assertEnvSafe } from "./config/env.js"
 import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
 import { sendSlackAlert } from "./lib/slack.js"
-import { runFetchTick } from "./services/news-fetchers/coordinator.js"
-import { runAlertEvaluation } from "./services/alert-evaluator.service.js"
+import { startScheduler } from "./scheduler.js"
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("[worker] unhandledRejection at:", promise, "reason:", reason)
@@ -36,32 +36,10 @@ async function start(): Promise<void> {
     logger.warn({ err: redisResult.reason }, "redis connection failed (worker continues)")
   }
 
-  void runFetchTick(0).catch((err) => logger.error({ err }, "initial fetch tick failed"))
-
-  cron.schedule("*/5 * * * *", async () => {
-    const minuteBucket = new Date().getMinutes()
-    try {
-      await runFetchTick(minuteBucket)
-    } catch (err) {
-      logger.error({ err }, "fetch tick failed")
-    }
-  })
-
-  // Per spec §12 we don't persist quote/history data — Yahoo is fetched on
-  // demand by the request path. Alert evaluation still needs a periodic
-  // pulse: it polls upstream per unique watchlist symbol (Redis-cached), so
-  // a 1-min cron is generous without pummeling Yahoo.
-  cron.schedule("*/1 * * * *", async () => {
-    try {
-      await runAlertEvaluation()
-    } catch (err) {
-      logger.error({ err }, "alert evaluation tick failed")
-    }
-  })
+  startScheduler()
 
   const sha = env.commitSha?.slice(0, 7) ?? "unknown"
   void sendSlackAlert(`worker booted · sha=${sha}`, { severity: "info" })
-  logger.info("worker running — news fetch every 5 min, alert evaluation every 1 min")
 }
 
 start().catch((err) => {

@@ -38,10 +38,8 @@ function nowClock(): string {
 }
 
 function marketsFooter(innerWidth: number, isAlert: boolean): string {
-  const full = isAlert
-    ? "[O] open · [A] ack · [T] tune · [S] skip"
-    : "[C] chart · [W] watch · [S] skip · [K] kill"
-  const short = isAlert ? "[O] · [A] · [T] · [S]" : "[C] · [W] · [S] · [K]"
+  const full = isAlert ? "⌥D open · ⌥S skip · ⌥K kill" : "⌥C chart · ⌥D open · ⌥S skip · ⌥K kill"
+  const short = isAlert ? "⌥D · ⌥S · ⌥K" : "⌥C · ⌥D · ⌥S · ⌥K"
   return innerWidth >= full.length ? full : short
 }
 

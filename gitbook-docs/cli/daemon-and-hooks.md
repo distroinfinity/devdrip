@@ -92,28 +92,30 @@ On exit from SHOWING the state machine emits a `recordImpression` effect carryin
 - **Header**: `DISTRO TV` + slot source label on the left. Right segment dropped when width is tight.
 - **Body**: word-wrapped headline + body, sanitized for ANSI escapes and control characters before printing so ad copy can't corrupt the screen.
 - **URL**: emitted on its own line, unwrapped, outside the box (terminal emulators autodetect the link).
-- **Action footer**: `[D]iscover [S]kip [K]ill [M]ute` — the bindings honored by the key-capture reader (S3-03).
+- **Action footer**: `⌥D open · ⌥B save · ⌥S skip · ⌥K kill` — the Alt/Option chord bindings honored by the key-capture reader (S3-03).
 - **Progress bar**: filled cells proportional to elapsed display time.
 
 Width clamps at `[40, 120]` columns; ASCII fallback (`+` / `|`) kicks in when the tty is non-color or `NO_COLOR=1` is set.
 
-## Key capture (S3-03, shipped)
+## Key capture (Alt/Option chords)
 
-While SHOWING, the daemon opens the tty in raw mode (`/dev/<ttyN>`) via `tty.ReadStream` and listens for keystrokes. Mapping (`packages/cli/src/lib/daemon/input.ts`):
+The daemon and Claude Code read the **same tty** — every keystroke is a race, and a bare `d` is ambiguous (Claude's prompt vs. our `discover`). So Distro only claims **Alt/Option chords** (Meta = `ESC` + letter); bare letters, Enter, Space, and Ctrl+C pass straight through to Claude. Mapping (`packages/cli/src/lib/daemon/input.ts`, `processByteChunk` / `letterToAction`):
 
-| Key                       | Action   | State machine event                                         |
-| ------------------------- | -------- | ----------------------------------------------------------- |
-| `d` / `D`                 | discover | opens advertiser URL; impression = `completed`; rotates     |
-| `s` / `S`                 | skip     | impression = `skipped` (or `completed` if ≥ 1s); rotates    |
-| `k` / `K`                 | kill     | dismisses + sets `sessionKilled` until next `session-start` |
-| `m` / `M`                 | mute     | dismisses + writes `muteUntil = now + MUTE_DURATION_MS`     |
-| `Enter` / `Space` / `Esc` | dismiss  | impression = `completed` if ≥ 1s, else `skipped`            |
+| Bytes         | Key | Action   | Notes                                                       |
+| ------------- | --- | -------- | ----------------------------------------------------------- |
+| `0x1b` + `d`  | ⌥D  | discover | opens the item URL; impression = `completed`; rotates       |
+| `0x1b` + `s`  | ⌥S  | skip     | impression = `skipped` (or `completed` if ≥ 1s); rotates    |
+| `0x1b` + `k`  | ⌥K  | kill     | dismisses + sets `sessionKilled` until next `session-start` |
+| `0x1b` + `m`  | ⌥M  | mute     | dismisses + writes `muteUntil = now + MUTE_DURATION_MS`     |
+| `0x1b` + `b`  | ⌥B  | save     | adds to reading list (flash only, no state change)          |
+| `0x1b` + `c`  | ⌥C  | chart    | ticker slots only; no-op on news                            |
+| `0x1b` (lone) | Esc | dismiss  | impression = `completed` if ≥ 1s, else `skipped`            |
 
-`mute` and `kill` are also honored during the GRACE window (the previous ad's footer was visible up to ~1.5s ago, so a key press here is intentional).
+Letters are case-insensitive, so ⌥D and ⌥⇧D both fire. `ESC` followed by `[` (CSI: arrows, focus, mouse, bracketed paste) or `O` (SS3: function keys) is a terminal control sequence and is dropped — never ours. A lone `ESC` (1-byte chunk) is the user pressing Escape → dismiss.
 
-Multi-byte chunks starting with `0x1b` (ESC) are treated as terminal control sequences (focus-in/out, arrow keys) and dropped — never our keys. A lone `0x1b` is the user pressing Escape.
+**macOS caveat:** Option+letter only emits `ESC`+letter when the terminal sends Meta — iTerm: _Profiles → Keys → Left/Right Option key = Esc+_; Apple Terminal: _Use Option as Meta key_. With Meta off, Option+D produces `∂` (just text) and is correctly ignored. The race-free CLI subcommands (`distro discover|skip|kill-session|mute`) always work regardless of terminal config.
 
-CLI fallbacks (`distro skip|mute|kill-session|discover`) dispatch the same wire actions for users whose keystrokes lose the tty race with Claude.
+**Capture window:** key capture starts on `displayAd` and stops on `vanishDisplay`. The `Stop` hook (Claude finishes its turn → `idle-end`) vanishes the slot and stops capture, so typing the next prompt is never intercepted — `endShowing` emits `vanishDisplay`, and the orchestrator calls `keyCapture.stop(tty)` there.
 
 ## Anchor strategy (real-session hardening)
 

@@ -19,48 +19,47 @@ export interface KeyCaptureDeps {
   log: LoggerApi
 }
 
+const ESC = 0x1b
+
 // pure: classify a single raw-mode read chunk into at most one action.
-// - multi-byte chunks starting with ESC are terminal control sequences
-//   (focus-in/out, arrow keys, mouse events, function keys) — never ours.
-// - lone ESC (chunk.length === 1, byte = 0x1b) is the user pressing Escape.
-// - first mapped byte wins; remaining bytes in the chunk are discarded
-//   (paste protection / held-key deduplication).
+//
+// Distro only claims Alt/Option chords (Meta = ESC + letter) plus a lone ESC
+// for dismiss. Bare letters, Enter, Space, Ctrl+C are deliberately left alone:
+// the user is typing into Claude Code on the same tty, and a bare `d` must reach
+// Claude, not fire `discover`. That ambiguity was the whole bug.
+//
+// - lone ESC (length 1, 0x1b) → dismiss (the user pressed Escape).
+// - ESC + <action letter> (Option+letter on macOS) → that action.
+// - ESC + `[` (CSI) or ESC + `O` (SS3) → control sequence (arrows, function
+//   keys, focus/mouse events, bracketed paste) → ignored.
+// - anything else → ignored (passes through to Claude untouched).
 export function processByteChunk(chunk: Buffer): KeyAction | null {
-  if (chunk.length > 1 && chunk[0] === 0x1b) return null
-  const str = chunk.toString("utf8")
-  for (const ch of str) {
-    const action = byteToAction(ch)
-    if (action) return action
+  if (chunk.length === 1 && chunk[0] === ESC) return "dismiss"
+  if (chunk.length >= 2 && chunk[0] === ESC) {
+    const second = chunk[1]
+    if (second === 0x5b /* [ */ || second === 0x4f /* O */) return null
+    return letterToAction(String.fromCharCode(second as number))
   }
   return null
 }
 
-export function byteToAction(byte: string): KeyAction | null {
-  switch (byte) {
+// Maps the letter following a Meta (ESC) prefix to an action. Case-insensitive
+// so Option+D and Option+Shift+D both work. Returns null for any non-action
+// letter (e.g. Alt+a) so it's ignored rather than mis-fired.
+export function letterToAction(letter: string): KeyAction | null {
+  switch (letter.toLowerCase()) {
     case "d":
-    case "D":
       return "discover"
     case "s":
-    case "S":
       return "skip"
     case "k":
-    case "K":
       return "kill"
     case "m":
-    case "M":
       return "mute"
     case "b":
-    case "B":
       return "save"
     case "c":
-    case "C":
       return "chart"
-    case "\r":
-    case "\n":
-    case " ":
-    case "\x1b":
-    case "\x03":
-      return "dismiss"
     default:
       return null
   }

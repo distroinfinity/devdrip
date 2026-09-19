@@ -6,6 +6,7 @@ import * as sources from "../services/admin/news-sources.service.js"
 // per spec §12; there's no internal map table to administer.
 import * as usersService from "../services/admin/users.service.js"
 import { getSystemHealth } from "../services/admin/system-health.service.js"
+import { getNewsHealth } from "../services/news-health.service.js"
 import { getOverview } from "../services/admin/overview.service.js"
 import { getMetrics } from "../services/admin/metrics.service.js"
 import { getAuditEvents } from "../services/admin/audit.service.js"
@@ -72,6 +73,13 @@ router.get("/users/:id", async (req, res, next) => {
 router.get("/system-health", async (_req, res, next) => {
   try {
     res.json(await getSystemHealth())
+  } catch (e) {
+    next(e)
+  }
+})
+router.get("/news-health", async (_req, res, next) => {
+  try {
+    res.json(await getNewsHealth())
   } catch (e) {
     next(e)
   }

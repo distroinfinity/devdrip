@@ -74,8 +74,8 @@ function wrapHeadline(text: string, w: number, maxLines: number): string[] {
 }
 
 function newsFooter(innerWidth: number): string {
-  const full = "[D] open · [B] save · [S] skip · [K] kill"
-  const short = "[D] · [B] · [S] · [K]"
+  const full = "⌥D open · ⌥B save · ⌥S skip · ⌥K kill"
+  const short = "⌥D · ⌥B · ⌥S · ⌥K"
   return innerWidth >= full.length ? full : short
 }
 
