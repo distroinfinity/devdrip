@@ -4,8 +4,9 @@ import { getDb } from "../db/index.js"
 import { users } from "../db/schema/users.js"
 import { requireAuth } from "../middleware/auth.js"
 
-// M2: full auth (magic-link via Resend) lives in M2.
-// M1 auth surface: /auth/me only — device bearer tokens handle CLI auth.
+// Sign-in lives in the dashboard (`/auth/github/start` + `/auth/github/callback`),
+// not on the API. This router exposes only `/auth/me` for clients that want a
+// lightweight identity probe with an existing bearer.
 
 export const authRouter: ReturnType<typeof Router> = Router()
 

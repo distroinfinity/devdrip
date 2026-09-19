@@ -9,7 +9,8 @@ export const CONFIG_VERSION = 6
 export interface DevdripConfig {
   version: 6
   apiUrl: string
-  // null for anon devices; populated post-M2 magic-link sign-in
+  // always null post github-oauth cutover; field kept for backward-compat with
+  // legacy configs (v1..v4 stored a refresh+access pair here).
   auth: {
     accessToken: string
     accessTokenExpiresAt: string

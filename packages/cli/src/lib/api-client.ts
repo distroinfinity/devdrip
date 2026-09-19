@@ -62,7 +62,7 @@ export function resolveApiUrl(cfg?: DevdripConfig | null): string {
 
 // resolve the Authorization header to send for a given config:
 // 1. device bearer (device.secret) — M1 primary path for all anon devices
-// 2. JWT (auth.accessToken) — M2 magic-link sign-in (not yet live)
+// 2. JWT (auth.accessToken) — legacy field, no longer minted
 // 3. undefined — no auth header (only valid for /devices/register)
 function resolveAuthHeader(cfg: DevdripConfig): string | undefined {
   if (cfg.device.secret) return `Bearer device.${cfg.device.secret}`

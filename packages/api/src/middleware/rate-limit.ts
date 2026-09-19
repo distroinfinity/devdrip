@@ -84,14 +84,14 @@ export const publicLimiter = createLimiter(
   (req) => `ip:${ipKey(req)}`
 )
 
-// kept for M2 magic-link rate limits (sign-in + refresh endpoints)
+// applied to POST /devices (re-registration) and any per-ip-throttled auth endpoint
 export const authLimiter = createLimiter(
   "auth",
   { requests: 10, window: "60 s" },
   (req) => `ip:${ipKey(req)}`
 )
 
-// kept for M2 magic-link rate limits
+// reserved; currently no callers post github-oauth cutover
 export const refreshLimiter = createLimiter(
   "refresh",
   { requests: 20, window: "60 s" },
