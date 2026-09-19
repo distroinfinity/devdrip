@@ -15,12 +15,14 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "test": "vitest run",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@types/node": "^20",
     "typescript": "^5.8.0",
     "typescript-eslint": "^8.0.0",
-    "eslint": "^9.0.0"
+    "eslint": "^9.0.0",
+    "vitest": "^2.1.0"
   }
 }

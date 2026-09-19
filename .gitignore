@@ -41,3 +41,7 @@ pnpm-debug.log*
 
 # superset worktree tool metadata
 .superset/
+
+# superpowers workflow specs and plans — kept local, not tracked
+docs/superpowers/specs/
+docs/superpowers/plans/
