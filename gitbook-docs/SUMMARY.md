@@ -7,6 +7,7 @@
 - [Admin Dashboard](architecture/admin.md)
 - [Channel Modes](architecture/channel-modes.md)
 - [Dashboard](architecture/dashboard.md)
+- [Ads](architecture/ads.md)
 - [Slot Content](architecture/slot-content.md)
 - [News Pipeline](architecture/news-pipeline.md)
 - [Ticker Pipeline](architecture/ticker-pipeline.md)
