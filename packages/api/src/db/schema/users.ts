@@ -6,6 +6,8 @@ export const users = pgTable("users", {
   githubLogin: varchar("github_login", { length: 255 }),
   email: varchar("email", { length: 255 }).unique().notNull(),
   avatarUrl: varchar("avatar_url", { length: 512 }),
+  reposCount: integer("repos_count"),
+  primaryLanguage: varchar("primary_language", { length: 100 }),
   walletAddress: varchar("wallet_address", { length: 42 }),
   referralCode: varchar("referral_code", { length: 20 }).unique().notNull(),
   tosAcceptedAt: timestamp("tos_accepted_at", { withTimezone: true }),
