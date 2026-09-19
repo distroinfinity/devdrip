@@ -174,8 +174,7 @@ export function WaitlistSection() {
                 Dev Drip is in active development.
               </h2>
               <p className="font-body text-body text-[var(--ink-secondary)] max-w-[520px]">
-                The idle engine works. Terminal TV renders. The payment rail is
-                integrated. We&rsquo;re onboarding developers in waves.
+                We&rsquo;re onboarding developers in waves.
               </p>
             </div>
           </BlurFade>

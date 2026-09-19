@@ -142,9 +142,7 @@ export function WorldwideSection() {
           <BlurFade inView delay={0.1}>
             <div className="max-w-content text-left lg:text-center">
               <p className="font-body text-body text-[var(--ink-secondary)] mb-4">
-                A $20/month AI subscription is 0.2% of a US developer&apos;s
-                annual income. For a developer in Bangalore, Lagos, or São
-                Paulo, it&apos;s closer to 3–5%.
+                $20/month is 0.2% in the US. In Bangalore, Lagos, or São Paulo, it&apos;s 3–5%.
               </p>
               <p className="font-body text-body font-semibold text-[var(--ink-primary)]">
                 Dev Drip exists so the cost of AI tools doesn&apos;t determine

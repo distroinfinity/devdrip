@@ -1,6 +1,6 @@
 import dynamic from "next/dynamic";
 import { FloatingNav } from "@/components/ui/floating-navbar";
-import { ScrollNudge } from "@/components/landing/scroll-nudge";
+
 import { InlineNavbar } from "@/components/landing/inline-navbar";
 import { HeroSection } from "@/components/landing/hero-section";
 import { DeadTimeSection } from "@/components/landing/dead-time-section";
@@ -50,8 +50,6 @@ export default function Home() {
         />
 
         <HeroSection />
-
-        <ScrollNudge />
 
         <DeadTimeSection />
 

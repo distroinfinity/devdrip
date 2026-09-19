@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 // --- data ---
 
 const RAIL_METRICS = [
-  { label: "fee per tx", value: "$0.002" },
   { label: "min payout", value: "$1.00" },
   { label: "settlement", value: "instant" },
 ];
@@ -18,21 +17,33 @@ const RAIL_METRICS = [
 const TRUST_FACTS = [
   "Cash out to your bank anytime",
   "Real-time balance in dashboard + CLI",
-  "No token, no speculation — just dollars",
 ] as const;
 
 // --- brand logos (inline SVG, currentColor) ---
 
 function BaseLogo({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={cn("w-6 h-6", className)}
-      aria-hidden="true"
-    >
-      <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2Zm0 15.556a5.556 5.556 0 1 1 0-11.112v5.556h5.556A5.556 5.556 0 0 1 12 17.556Z" />
-    </svg>
+    <img
+      src="/baselogo.png"
+      alt="Base"
+      width={28}
+      height={28}
+      className={cn("rounded-full object-cover shrink-0", className)}
+      style={{ width: 28, height: 28 }}
+    />
+  );
+}
+
+function CeloLogo({ className }: { className?: string }) {
+  return (
+    <img
+      src="/celochainlogo.jpg"
+      alt="Celo"
+      width={34}
+      height={34}
+      className={cn("rounded-full object-cover shrink-0", className)}
+      style={{ width: 34, height: 34 }}
+    />
   );
 }
 
@@ -180,16 +191,16 @@ function HubNode({ nodeRef }: { nodeRef?: Ref<HTMLDivElement> }) {
 
 interface RailConfig {
   name: string;
-  logo: FC<{ className?: string }>;
+  logos: FC<{ className?: string }>[];
   active: boolean;
   badge: string;
 }
 
 const RAILS: RailConfig[] = [
-  { name: "Base", logo: BaseLogo, active: true, badge: "$0.002/tx" },
-  { name: "Stripe", logo: StripeLogo, active: false, badge: "soon" },
-  { name: "PayPal", logo: PayPalLogo, active: false, badge: "soon" },
-  { name: "UPI", logo: UpiLogo, active: false, badge: "soon" },
+  { name: "", logos: [BaseLogo, CeloLogo], active: true, badge: "live" },
+  { name: "Stripe", logos: [StripeLogo], active: false, badge: "soon" },
+  { name: "PayPal", logos: [PayPalLogo], active: false, badge: "soon" },
+  { name: "UPI", logos: [UpiLogo], active: false, badge: "soon" },
 ];
 
 function RailNode({
@@ -199,8 +210,6 @@ function RailNode({
   rail: RailConfig;
   nodeRef?: Ref<HTMLDivElement>;
 }) {
-  const Logo = rail.logo;
-
   return (
     <div
       ref={nodeRef}
@@ -212,23 +221,26 @@ function RailNode({
           : "border-dashed border-[var(--rule-default)] opacity-40"
       )}
     >
-      <Logo
-        className={
-          rail.active
-            ? "text-[var(--ink-primary)]"
-            : "text-[var(--ink-faint)]"
-        }
-      />
-      <span
-        className={cn(
-          "font-body text-[15px] font-semibold leading-tight",
-          rail.active
-            ? "text-[var(--ink-primary)]"
-            : "text-[var(--ink-faint)]"
-        )}
-      >
-        {rail.name}
-      </span>
+      <div className="flex items-center gap-1.5">
+        {rail.logos.map((Logo, i) => (
+          <Logo
+            key={i}
+            className={rail.active ? "text-[var(--ink-primary)]" : "text-[var(--ink-faint)] opacity-50"}
+          />
+        ))}
+      </div>
+      {rail.name && (
+        <span
+          className={cn(
+            "font-body text-[15px] font-semibold leading-tight",
+            rail.active
+              ? "text-[var(--ink-primary)]"
+              : "text-[var(--ink-faint)]"
+          )}
+        >
+          {rail.name}
+        </span>
+      )}
       <span
         className={cn(
           "ml-auto",
@@ -387,11 +399,11 @@ export function PaymentRailSection() {
                 id="payment-rail-heading"
                 className="font-display text-h2 md:text-h1 font-bold text-[var(--ink-primary)] tracking-[-0.02em] mb-4"
               >
-                Your money, your way.
+                Sub-cent fees. Real dollars.
               </h2>
               <p className="font-body text-body text-[var(--ink-secondary)] max-w-[480px]">
-                We start with USD on Base because micropayments demand sub-cent
-                fees. More rails are coming.
+                USD on Base and Celo. Micropayments need sub-cent fees.
+                More rails coming.
               </p>
             </div>
           </BlurFade>
