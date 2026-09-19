@@ -2,9 +2,11 @@
 
 Current-state docs for engineers working in this repo.
 
+> **Direction shift in flight.** DevDrip is pivoting to an agent-treasury model on Base Sepolia, powered by KeeperHub + Uniswap. World ID, World Chain, and the Mini App are being removed. Read [Agent Treasury Pivot](architecture/agent-treasury-pivot.md) before anything else — pages flagged "(deprecated)" describe surface that's being torn out on the `pivot/agent-treasury` branch.
+
 ## What DevDrip Is
 
-DevDrip is building an opt-in monetization layer around AI coding tool idle time.
+DevDrip is building an opt-in monetization layer around AI coding tool idle time. Earnings are routed into **vault rules** — recurring or conditional Uniswap swaps executed durably by KeeperHub workflows, surfaced to the user via dashboard, CLI, and an MCP server agents can call directly.
 
 In the repo today, the implemented product surface is split across these packages:
 

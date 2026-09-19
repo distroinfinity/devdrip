@@ -1,5 +1,7 @@
 # Mini App
 
+> **Deprecated.** The Mini App and its `/m/*` routes are being removed in the agent-treasury pivot. See [Agent Treasury Pivot](../architecture/agent-treasury-pivot.md). Signup, wallet linking, and claim move to the standard dashboard at `/dashboard/*` with Privy auth.
+
 The DevDrip Mini App lives at `frontend/app/m/*` as a route group inside the existing Next.js 14 app. It is the **canonical write surface** for chain-related actions: signup, wallet linking, and claim. Web dashboard (`/dashboard/*`) is read-only for chain state but write-capable for non-chain prefs.
 
 ## Why a route group, not a separate Next.js app

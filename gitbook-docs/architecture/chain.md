@@ -1,5 +1,7 @@
 # World Chain stack
 
+> **Deprecated.** DevDrip is moving payouts off World Chain Sepolia and onto **Base Sepolia** (`84532`) with execution routed through KeeperHub + Uniswap. See [Agent Treasury Pivot](agent-treasury-pivot.md). The hot-wallet broadcast worker, settlement loop, and auto-disburse cron documented below are all being replaced by KeeperHub workflows. Content kept here only as reference for the removal pass.
+
 DevDrip's payout side runs on **World Chain Sepolia** (chainId `4801`). USDC is the bridged Circle contract at `0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88` (6 decimals).
 
 This page is the operational runbook. PR1 laid the foundation (chain config, viem clients, schema), PR2 added the API endpoints (claim, balance, payouts list), PR3 lit up the settlement worker + auto-disburse cron + hot wallet ops.

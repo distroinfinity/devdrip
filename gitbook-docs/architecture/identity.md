@@ -1,5 +1,7 @@
 # World Identity
 
+> **Deprecated.** This page describes the World ID + walletAuth flow being removed in the agent-treasury pivot. See [Agent Treasury Pivot](agent-treasury-pivot.md). After the pivot lands, identity becomes Privy + optional GitHub on Base Sepolia. World code is preserved on the `archive/world-integration` branch.
+
 DevDrip binds three credentials per user before any USDC payout can happen:
 
 1. **World Wallet address** — proves the user controls a payout destination, captured via MiniKit `walletAuth` (SIWE).
