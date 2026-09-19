@@ -20,7 +20,7 @@ vi.mock("../db/index.js", () => ({
 
 // mock ad delivery service
 const mockFetchServedAds = vi.fn().mockResolvedValue([])
-vi.mock("../services/ad-delivery.service.js", () => ({
+vi.mock("../services/content-delivery.service.js", () => ({
   fetchServedAds: (...args: unknown[]) => mockFetchServedAds(...args),
 }))
 
