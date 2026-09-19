@@ -5,6 +5,7 @@ import { getDb } from "../db/index.js"
 import { adImpressions } from "../db/schema/ad_impressions.js"
 import { logger } from "../lib/logger.js"
 import { displayLabel, fetchCarbonAd } from "./carbon-ad.provider.js"
+import { clickCode } from "./ad-impression.service.js"
 import { houseAd } from "./house-ads.js"
 
 let houseCursor = 0
@@ -52,7 +53,8 @@ export async function nextAds(args: {
       headline: ad.headline,
       ctaText: ad.ctaText,
       displayUrl: displayLabel(ad.targetUrl, ad.advertiser),
-      clickUrl: `${env.apiUrl}/ads/click/${deliveryId}`,
+      // short form so the terminal can print it as a cmd-clickable url
+      clickUrl: `${env.apiUrl}/c/${clickCode(deliveryId)}`,
       deliveryId,
       cpmRate,
     }))

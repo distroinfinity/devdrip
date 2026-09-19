@@ -33,7 +33,7 @@ import { adminRouter } from "./routes/admin.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
 import { globalLimiter, userLimiter } from "./middleware/rate-limit.js"
-import { adsClickRouter } from "./routes/ads-click.js"
+import { adsClickRouter, adsShortClickRouter } from "./routes/ads-click.js"
 import { meEarningsRouter } from "./routes/me-earnings.js"
 import { getDb } from "./db/index.js"
 import { users } from "./db/schema/users.js"
@@ -75,6 +75,7 @@ app.use(globalLimiter)
 app.use("/channels", channelsPublicRouter)
 // public ad click redirect (global limiter applies)
 app.use("/ads", adsClickRouter)
+app.use("/c", adsShortClickRouter)
 app.use("/tickers", tickersRouter)
 app.use("/cli", cliVersionRouter)
 

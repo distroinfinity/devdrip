@@ -1,6 +1,7 @@
 // shared layout helpers for the status-line panels.
 
-const ANSI_RE = /\x1b\[[0-9;]*m/g
+// sgr colour codes and OSC 8 hyperlink wrappers are zero-width
+const ANSI_RE = /\x1b\[[0-9;]*m|\x1b\]8;;[^\x1b\x07]*(?:\x1b\\|\x07)/g
 export const LEFT_PAD = "  "
 
 export function visLen(s: string): number {
