@@ -1265,6 +1265,86 @@ Headers set on limited routes:
 - `X-RateLimit-Reset`
 - `Retry-After` on `429`
 
+## World Chain Endpoints (S4-WC1)
+
+Added across PR1–PR4 of the World Chain Payments epic. Group by surface:
+
+### Mini App auth (S4-WC1 PR2)
+
+All gated by the `dd_miniapp` HttpOnly cookie (`Path=/miniapp`, audience `devdrip-miniapp`) except `/wallet-auth/*` and `/github-oauth/callback` (which establish the session).
+
+- `POST /miniapp/wallet-auth/nonce` → `{ nonce }` (32-byte hex, 5-min TTL in Upstash).
+- `POST /miniapp/wallet-auth/verify` — body `{ payload: MiniAppWalletAuthPayload, nonce }`. Calls `verifySiweMessage()` from `@worldcoin/minikit-js`. Single-use nonce. Upserts user by recovered address. Sets `dd_miniapp` cookie; signup-state claim is `true` if user already has `signedUpAt` set, else `false`. Returns `{ user_id, world_wallet_address }`.
+- `POST /miniapp/world-id/verify` — body `{ proof }`. Forwards to `https://developer.world.org/api/v4/verify/${WORLD_APP_ID}` with `action=devdrip-signup`. On success, hex→BigInt nullifier, inserts into `nullifiers` (composite PK `(nullifier, action)`), binds `users.nullifier_hash` + `users.verification_level`. On `(nullifier, action)` collision returns `409 nullifier_already_used`.
+- `GET /miniapp/github-oauth/start` (gated) — mints state, stores in Upstash with user_id, redirects to GitHub authorize URL.
+- `GET /miniapp/github-oauth/callback?code&state` (no gate; uses state lookup) — exchanges code, fetches GitHub user, binds `users.github_id` + `github_login` + `email`, redirects to `${MINIAPP_BASE_URL}/m/signup?step=done`.
+- `POST /miniapp/signup/complete` (gated) — asserts all 3 credentials bound, sets `signed_up_at = now()`, re-mints cookie with `signup: true`. Returns `{ user_id, already_complete }`.
+- `GET /miniapp/me` (gated; S4-WC1 PR4) — Mini App equivalent of `/me`. Returns full user fields including World identity for the cookie's user_id.
+
+### CLI pairing (S4-WC1 PR2)
+
+- `POST /cli/pair` (anonymous) — mints Crockford-base32 code (`XXX-XXX-XXX`, no I/L/O/U) with 5-min TTL. Returns `{ code, link_url, qr_payload, expires_at }`.
+- `GET /cli/pair/:code` (anonymous, long-poll) — server polls every 1s up to 25s. Returns `200 { token, refresh_token, user }` once linked, `202 { status: "pending" }` while pending, `410 { error: "pair_session_expired" }` once expired.
+- `POST /miniapp/cli-link/:code` (gated by `requireCompletedMiniAppSession`) — atomic `UPDATE cli_pair_sessions SET status='linked'` with conditional `WHERE status='pending' AND expires_at > now`. Mints CLI tokens (byte-equivalent to `/auth/exchange` shape; same JWT issuer + audience + refresh_tokens row insert). Stashes `{ token, refresh_token, user }` in Redis under `cli:pair:tokens:<code>` with 5-min TTL for the long-poll to consume via `getdel`. Returns `{ ok: true, user }`.
+
+### Balance + claim (S4-WC1 PR2)
+
+All Bearer-auth (`requireAuth`).
+
+- `GET /me/balance` → `{ availableUsdc, lifetimeEarnedUsdc, pendingPayoutsUsdc }`. Single SQL CTE: confirmed earnings minus paid+pending payouts, clamped to non-negative.
+- `POST /me/payouts/claim` — header `Idempotency-Key: <uuid>` REQUIRED. Wrapped in `db.transaction(async tx => ...)` with `pg_advisory_xact_lock(hashtext('claim:' || user_id))` for per-user serialization. Replays with same key return existing row (with cross-user safety check → 409 if key collides across users). Validates balance ≥ `MIN_PAYOUT_USDC` (= $0.50). Inserts pending payout. Returns `{ id, status, amount_usdc, wallet_address }`.
+- `GET /me/payouts/:id` → full payout row scoped to user. 404 if not owned.
+- `GET /me/payouts?cursor=&limit=` — cursor pagination. Cursor format `<createdAt-iso>|<uuid>` for stable tuple ordering (the auto-disburse cron's batch INSERT can produce same-microsecond timestamps; the `id` tiebreaker prevents page-boundary skips/duplicates).
+
+### Hot wallet ops (S4-WC1 PR3)
+
+- `GET /admin/hot-wallet/balance` (gated by `requireAdmin` — timing-safe `x-admin-secret` header) — reads ETH + USDC balance via viem on World Chain Sepolia. Returns `{ address, chainId, ethWei, ethFormatted, usdcRaw, usdcFormatted }`.
+
+### `/me` extension (S4-WC1 PR4)
+
+The existing `GET /me` was extended to include World identity fields:
+
+- `walletAddress: string | null`
+- `verificationLevel: "device" | "orb" | null`
+- `signedUpAt: string | null` (ISO timestamp)
+
+Existing fields (`id`, `githubLogin`, `email`, `avatarUrl`) unchanged.
+
+### Test-only helpers (non-prod only)
+
+- `POST /__test/setup-paired-link` — mounted only when `nodeEnv !== "production"` (defense-in-depth: also short-circuits in handler if production). Body `{ code, userId, githubLogin }`. Inserts a synthetic user + atomically links the named pair_session. Used by PR2's daemon-compat integration test (`paired-token-prefs-sync.test.ts`) to bypass the full Mini App auth flow which needs real World ID + SIWE infra.
+
+## Settlement Worker (S4-WC1 PR3)
+
+The settlement worker is a **separate Railway service** spawned from `packages/api/src/worker.ts`. Same DB connection as the API; no HTTP listener.
+
+### Loop semantics
+
+Every 30s:
+
+1. `BEGIN; SELECT … FOR UPDATE SKIP LOCKED LIMIT 1` over `payouts` rows in `pending` status OR `processing` status with `updated_at < now() - interval '5 minutes'` (crash-recovery fallback so a worker dying mid-broadcast doesn't strand the row).
+2. Mark `status='processing'` inside the same tx, commit (releases the lock).
+3. Hand off to `broadcastPayout()` (no DB lock held during the on-chain wait).
+
+### Broadcast paths
+
+`broadcastPayout(row)` has two modes:
+
+- **Path A — fresh broadcast** (`row.tx_hash IS NULL`): pre-flight USDC balance check first (gas estimation simulates the transfer and would revert with "ERC20: transfer amount exceeds balance" if USDC is short — checking balance first surfaces `insufficient_funds` immediately). Then estimate gas, check ETH balance vs gas cost (else `insufficient_gas`). Sign + broadcast `transfer(to, amount)` via viem `walletClient.writeContract`. Stash `tx_hash` IMMEDIATELY so the next worker tick sees this attempt and switches to reconciliation. Wait up to 30s for receipt.
+- **Path B — reconciliation only** (`row.tx_hash IS NOT NULL`): a previous attempt already broadcast a tx. Poll for the receipt; **NEVER** sign a second tx. This is the safe-money invariant — once a tx hash exists for a payout we either confirm it, see it revert on-chain, or fail permanently after retries — but we never duplicate the send.
+
+### Retry semantics
+
+`MAX_RETRIES = 3`. Receipt timeout (30s) → `retry_count++`, status back to `pending`. After 3 retries → `status='failed'` with `failure_reason='broadcast_timeout_after_3_retries'`. Gas multiplier on retry: `1 + 0.2 × retry_count` (handles network congestion + replacement-by-fee).
+
+If a tx is genuinely dropped from the mempool, the row exhausts retries and lands in `failed`. **Operator recovery**: NULL out `tx_hash` + reset `status='pending'` to allow a fresh broadcast.
+
+### Auto-disburse cron
+
+`node-cron` schedule `0 0 * * 0` UTC. Single SQL `INSERT … SELECT` from a balance CTE for users with `confirmed earnings - (paid+pending) ≥ 5`. `ON CONFLICT (user_id, scheduled_for_week) DO NOTHING` — re-running the cron within the same week is a no-op.
+
+Manual trigger for testing: `pnpm --filter @devdrip/api worker:once-disburse` calls `runAutoDisburse()` directly (not the wrapper that swallows errors), exit code propagates.
+
 ## Test Coverage Today
 
 Current API tests cover:
