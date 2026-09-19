@@ -13,8 +13,8 @@ const sampleAd = {
 }
 
 describe("renderBox", () => {
-  it("produces a unicode box with headline, body, url, and dismiss hint", () => {
-    const out = renderBox(sampleAd, { source: "Carbon" })
+  it("produces a unicode box with headline, body, and action footer (URL opt-in)", () => {
+    const out = renderBox(sampleAd, { source: "Carbon", includeUrl: true })
     expect(out).toContain("DEV DRIP TV")
     expect(out).toContain("via Carbon")
     expect(out).toContain(sampleAd.headline)
@@ -53,17 +53,21 @@ describe("renderBox", () => {
     expect(out).toContain("…")
   })
 
-  it("emits long URLs on their own line, unwrapped, outside the box", () => {
+  it("does not emit the ad URL line by default (anchored pane can't risk overflow)", () => {
     const longUrl = "https://" + "x".repeat(200) + ".example.com"
     const out = renderBox({ ...sampleAd, url: longUrl }, { source: "Carbon" })
     const lines = out.split("\n")
-    // box lines must still be bounded
     const boxLines = lines.filter((l) => l.includes("║") || l.startsWith("|") || /^[╔╗╚╝+]/.test(l))
     for (const l of boxLines) {
       expect([...l].length).toBeLessThanOrEqual(72)
     }
-    // url line exists below the box, full URL intact
-    const urlLine = lines.find((l) => l.startsWith("→ "))
+    expect(lines.find((l) => l.startsWith("→ "))).toBeUndefined()
+  })
+
+  it("emits the ad URL on its own line when includeUrl is opted in (preview/demo path)", () => {
+    const longUrl = "https://" + "x".repeat(200) + ".example.com"
+    const out = renderBox({ ...sampleAd, url: longUrl }, { source: "Carbon", includeUrl: true })
+    const urlLine = out.split("\n").find((l) => l.startsWith("→ "))
     expect(urlLine).toBeDefined()
     expect(urlLine).toContain(longUrl)
     expect(urlLine).not.toContain("…")

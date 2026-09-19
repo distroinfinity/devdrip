@@ -5,19 +5,22 @@ import {
   PROGRESS_CAP,
   PROGRESS_SNAP_HOLD_MS,
   PROGRESS_TICK_MS,
+  REVENUE_SHARE_DEVELOPER,
   TOAST_HOLD_MS,
+  VALID_IMPRESSION_FOR_TOAST_MS,
   type DevdripPreferences,
 } from "@devdrip/shared"
 import type { AdCache, CachedAd } from "../ad-cache.js"
 import type { Ledger, LocalImpression } from "../ledger.js"
 import type { KeyCapture } from "./input.js"
+import type { EarningsPopup, PopupPhase } from "../render-box.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
 
 export interface DisplayHandleApi {
   vanish: () => { latencyMs: number }
   onResize: (cb: () => void) => void
   flash: () => void
-  updateProgress: (progress: number, elapsedMs: number) => void
+  updateProgress: (progress: number, elapsedMs: number, popup: EarningsPopup | null) => void
 }
 
 export interface DisplayApi {
@@ -26,9 +29,6 @@ export interface DisplayApi {
     ad: CachedAd,
     ctx: { earningsUsdc?: number; source?: string; width?: number }
   ): DisplayHandleApi
-  // S3-05: fire-and-forget toast renderer. called after vanishDisplay — opens
-  // its own fd so it doesn't depend on the ad handle's lifecycle.
-  showToast(ttyPath: string, deltaUsdc: number, todayUsdc: number, holdMs: number): void
 }
 
 export interface LoggerApi {
@@ -108,6 +108,26 @@ function sigmoidProgress(elapsedMs: number, displayTimeMs: number): number {
   return Math.min(PROGRESS_CAP, s * PROGRESS_CAP)
 }
 
+// S3-05: earnings popup lives inside the TV box at the top-right and
+// pop-then-fades over TOAST_HOLD_MS. phase keys off how long since the popup
+// started showing (elapsedMs - VALID_IMPRESSION_FOR_TOAST_MS):
+//   [0, 500):        enter — bright + bold, reads as "pop"
+//   [500, hold-500): hold  — bright green
+//   [hold-500, hold): exit — dim, fading out
+//   after hold:      null  — gone, row goes back to blank padding
+function computePopup(elapsedMs: number, cpmRate: number, isApi: boolean): EarningsPopup | null {
+  if (!isApi || cpmRate <= 0) return null
+  if (elapsedMs < VALID_IMPRESSION_FOR_TOAST_MS) return null
+  const popupElapsed = elapsedMs - VALID_IMPRESSION_FOR_TOAST_MS
+  if (popupElapsed >= TOAST_HOLD_MS) return null
+  const deltaUsdc = (cpmRate / 1000) * REVENUE_SHARE_DEVELOPER
+  let phase: PopupPhase
+  if (popupElapsed < 500) phase = "enter"
+  else if (popupElapsed >= TOAST_HOLD_MS - 500) phase = "exit"
+  else phase = "hold"
+  return { deltaUsdc, phase }
+}
+
 export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   let state: State = { kind: "IDLE" }
   let graceTimer: NodeJS.Timeout | null = null
@@ -115,9 +135,6 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   let interAdTimer: NodeJS.Timeout | null = null
   let progressTimer: NodeJS.Timeout | null = null
   let currentDisplay: DisplayHandleApi | null = null
-  // remembered across vanish() → showToast() so the toast can open a fresh
-  // fd against the same controlling tty that the ad used.
-  let lastDisplayTty: string | null = null
   let adsShownCount = 0
   let hooksReceivedCount = 0
   let preferences: DevdripPreferences = deps.preferences
@@ -151,8 +168,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       if (eff.kind === "snapProgressToComplete") {
         if (currentDisplay) {
           try {
-            // elapsedMs value doesn't matter here — progress=1 pins to 100%.
-            currentDisplay.updateProgress(1.0, 0)
+            // elapsedMs value doesn't matter here — progress=1 pins to 100%;
+            // popup=null so the 100% frame is clean of any mid-animation state.
+            currentDisplay.updateProgress(1.0, 0, null)
           } catch (err) {
             deps.log.warn("progress snap failed", { error: (err as Error).message })
           }
@@ -247,7 +265,6 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         try {
           const source = effect.ad.cacheSource === "demo" ? "DEMO" : undefined
           currentDisplay = deps.display.show(effect.tty, effect.ad, { source })
-          lastDisplayTty = effect.tty
           // on terminal resize, proactively dismiss the current ad — the
           // display has already reset its scroll region to prevent content
           // loss, and the next rotation tick will re-anchor with fresh rows.
@@ -281,12 +298,17 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         if (progressTimer) clearInterval(progressTimer)
         const shownAt = effect.shownAt
         const displayTimeMs = effect.displayTimeMs
+        // snapshot ad identity fields for the tick closure so the popup
+        // decision doesn't depend on state-machine state that may shift.
+        const tickAdCpm = effect.ad?.cpmRate ?? 0
+        const tickAdIsApi = (effect.ad?.cacheSource ?? "demo") === "api"
         progressTimer = setInterval(() => {
           if (!currentDisplay) return
           const elapsed = Math.max(0, now() - shownAt)
           const p = sigmoidProgress(elapsed, displayTimeMs)
+          const popup = computePopup(elapsed, tickAdCpm, tickAdIsApi)
           try {
-            currentDisplay.updateProgress(p, elapsed)
+            currentDisplay.updateProgress(p, elapsed, popup)
           } catch (err) {
             deps.log.warn("progress tick failed", { error: (err as Error).message })
           }
@@ -305,28 +327,6 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         // handled in runEffects — reaching here means no ad display was
         // active (e.g. null-tty path) so there's nothing to snap.
         return
-      case "showEarningsToast": {
-        const tty = lastDisplayTty
-        if (!tty) return
-        const todayUsdc = (() => {
-          try {
-            return deps.ledger.sumTodayOptimistic(preferences.tzOffsetMinutes, now())
-          } catch (err) {
-            deps.log.warn("today-sum read failed", { error: (err as Error).message })
-            return effect.deltaUsdc
-          }
-        })()
-        try {
-          deps.display.showToast(tty, effect.deltaUsdc, todayUsdc, TOAST_HOLD_MS)
-          deps.log.info("earnings toast", {
-            deltaUsdc: effect.deltaUsdc,
-            todayUsdc,
-          })
-        } catch (err) {
-          deps.log.warn("toast failed", { error: (err as Error).message })
-        }
-        return
-      }
       case "startVanishTimer":
         if (vanishTimer) clearTimeout(vanishTimer)
         vanishTimer = setTimeout(() => {

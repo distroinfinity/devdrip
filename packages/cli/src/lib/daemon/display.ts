@@ -1,7 +1,6 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
-import { renderBox, type RenderBoxOpts } from "../render-box.js"
-import { renderEarningsToast, type EarningsToastOpts } from "../render-toast.js"
+import { renderBox, type EarningsPopup, type RenderBoxOpts } from "../render-box.js"
 import type { CachedAd } from "../ad-cache.js"
 
 const MAX_WRITE_ATTEMPTS = 3
@@ -51,9 +50,10 @@ export interface DisplayHandle {
   // keystroke was captured by DevDrip and not consumed by Claude. The
   // highlight stays until the orchestrator vanishes the box (~150ms later).
   flash(): void
-  // S3-04: redraw the box with a new progress value. cheap re-render — we
-  // reuse the same scroll region anchor and just rewrite the pane contents.
-  updateProgress(progress: number, elapsedMs: number): void
+  // S3-04/05: redraw the box with a new progress value and optional earnings
+  // popup. cheap re-render — reuses the scroll region anchor. `popup` is the
+  // in-box earnings confirmation; null means "no popup this frame".
+  updateProgress(progress: number, elapsedMs: number, popup: EarningsPopup | null): void
 }
 
 export function writeWithRetry(fd: number, data: string): void {
@@ -161,12 +161,21 @@ export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): Disp
 
   function writePane(text: string, colorPrefix: string): void {
     if (closed || resizeFired) return
+    // Re-assert DECSTBM on every pane write. Claude Code's animated status
+    // banner periodically resets the default scroll region, and without this
+    // re-assert our next multi-line write spills past the (now full-screen)
+    // scroll region's bottom and scrolls the terminal — stacking old boxes
+    // above the new one. Cheap to include; ~7 bytes per tick.
+    const setRegion = `\x1b[1;${scrollBottom}r`
     const moveToBottomPane = `\x1b[${scrollBottom + 1};1H`
-    // \x1b7 save, move to pane top, erase pane, write new content, restore
-    // cursor back into Claude's scroll region. SGR reset (\x1b[0m) tail
-    // guarantees no color bleed into subsequent writes.
+    // \x1b7 save, re-assert region, move to pane top, erase pane, write new
+    // content, restore cursor back into Claude's scroll region. SGR reset
+    // (\x1b[0m) tail guarantees no color bleed into subsequent writes.
     try {
-      writeWithRetry(fd, `\x1b7${moveToBottomPane}\x1b[0J${colorPrefix}${text}\x1b[0m\x1b8`)
+      writeWithRetry(
+        fd,
+        `\x1b7${setRegion}${moveToBottomPane}\x1b[0J${colorPrefix}${text}\x1b[0m\x1b8`
+      )
     } catch {
       /* tty may be gone; ignore */
     }
@@ -203,61 +212,18 @@ export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): Disp
       // later, so the green pulse stays on until vanish — no revert needed.
       rewriteBox("\x1b[1;92m")
     },
-    updateProgress(progress: number, elapsedMs: number): void {
+    updateProgress(progress: number, elapsedMs: number, popup: EarningsPopup | null): void {
       if (closed || resizeFired) return
       // re-render with the new progress. keeps the ad layout identical so the
       // pane height stays constant — no scroll region drift.
-      const text = renderBox(ad, { ...baseOpts, progress, elapsedMs })
+      const text = renderBox(ad, {
+        ...baseOpts,
+        progress,
+        elapsedMs,
+        popup: popup ?? undefined,
+      })
       lastRenderedText = text
       writePane(text, "")
     },
-  }
-}
-
-// Standalone toast renderer. Opens its own fd so the caller can invoke it
-// AFTER the ad handle's vanish() — it sets up its own scroll region, writes a
-// single-line message, holds for `holdMs`, then releases. Runs asynchronously
-// so callers don't block on the hold; orchestrator never awaits it.
-export function showEarningsToast(ttyPath: string, opts: EarningsToastOpts, holdMs: number): void {
-  try {
-    const flags = fsConstants.O_WRONLY | fsConstants.O_NONBLOCK
-    const fd = fs.openSync(ttyPath, flags)
-    try {
-      const dims = readTtyDimensions(fd)
-      const toastHeight = 1
-      if (dims.rows < toastHeight + MIN_SCROLL_REGION_ROWS) {
-        // not enough headroom to carve a pane without risking clipping. skip.
-        fs.closeSync(fd)
-        return
-      }
-      const scrollBottom = dims.rows - toastHeight
-      const setRegion = `\x1b[1;${scrollBottom}r`
-      const moveToBottomPane = `\x1b[${scrollBottom + 1};1H`
-      const resetRegion = `\x1b[r`
-      const toastText = renderEarningsToast({ ...opts, width: dims.cols })
-
-      writeWithRetry(fd, `\x1b7${setRegion}${moveToBottomPane}\x1b[0J${toastText}\x1b[0m\x1b8`)
-
-      setTimeout(() => {
-        try {
-          writeWithRetry(fd, `\x1b7${resetRegion}${moveToBottomPane}\x1b[0J\x1b8`)
-        } catch {
-          /* tty may be gone */
-        }
-        try {
-          fs.closeSync(fd)
-        } catch {
-          /* ignore */
-        }
-      }, holdMs).unref()
-    } catch {
-      try {
-        fs.closeSync(fd)
-      } catch {
-        /* ignore */
-      }
-    }
-  } catch {
-    /* opening tty failed — nothing to show */
   }
 }

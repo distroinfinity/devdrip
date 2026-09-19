@@ -36,7 +36,11 @@ export async function runDemo(): Promise<void> {
   }
 
   const ad = (body as AdNextResponse).ad
-  console.log(renderBox({ headline: ad.headline, body: ad.body, url: ad.url }))
+  // demo prints directly to stdout (no anchored pane) so it's safe to echo
+  // the URL below the box. Anchored daemon renders skip it.
+  console.log(
+    renderBox({ headline: ad.headline, body: ad.body, url: ad.url }, { includeUrl: true })
+  )
 
   if (process.stdin.isTTY) {
     const rl = createInterface({ input: process.stdin, output: process.stdout })
