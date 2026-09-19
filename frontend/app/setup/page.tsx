@@ -63,6 +63,18 @@ function ChooseSignInState({ pairingCode, error }: { pairingCode: string; error?
           </div>
         )}
 
+        <form action="/auth/github/start" method="get" className="space-y-3">
+          <input type="hidden" name="pair" value={pairingCode} />
+          <input type="hidden" name="next" value="/setup/channels" />
+          <SharpButton type="submit" variant="primary" className="w-full">
+            Continue with GitHub
+          </SharpButton>
+        </form>
+
+        <div className="text-center font-[var(--font-data)] text-[10px] uppercase tracking-wider text-[var(--ink-tertiary)]">
+          — or sign in with email —
+        </div>
+
         <form
           action={async (formData: FormData) => {
             "use server"
@@ -83,15 +95,10 @@ function ChooseSignInState({ pairingCode, error }: { pairingCode: string; error?
             required
             className="w-full"
           />
-          <SharpButton type="submit" variant="primary" className="w-full">
+          <SharpButton type="submit" variant="secondary" className="w-full">
             Send sign-in link
           </SharpButton>
         </form>
-
-        <p className="text-[13px] font-[var(--font-body)] text-center text-[var(--ink-tertiary)]">
-          You&apos;re already using Distro TV anonymously. Sign-in is optional but enables dashboard
-          access.
-        </p>
 
         <SectionRule />
 
@@ -182,6 +189,17 @@ function describeError(code: string): string {
       return "Couldn't send the email. Please try again."
     case "network_error":
       return "Couldn't reach the server. Check your network and try again."
+    case "oauth_user_denied":
+      return "GitHub sign-in was cancelled."
+    case "oauth_csrf_failed":
+    case "oauth_state_expired":
+      return "Sign-in session expired. Please try again."
+    case "no_verified_email":
+      return "GitHub returned no verified primary email. Verify an email on GitHub and retry."
+    case "github_rate_limited":
+      return "GitHub is rate-limiting sign-in. Try again in a minute."
+    case "github_unavailable":
+      return "Couldn't reach GitHub. Try again in a moment."
     default:
       return `Something went wrong (${code}).`
   }
