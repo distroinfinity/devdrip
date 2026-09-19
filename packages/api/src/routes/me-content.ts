@@ -1,22 +1,29 @@
 import { Router } from "express"
 import { eq } from "drizzle-orm"
 import { ChannelMode } from "@distrotv/shared"
-import type { NewsPayload, SlotPayload, TickerPayload } from "@distrotv/shared"
+import type { Feed, NewsPayload, SlotPayload, TickerPayload } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { preferences } from "../db/schema/preferences.js"
 import { nextPicksForDevice } from "../services/news-selection.service.js"
 import { nextTickerForDevice } from "../services/ticker-selection.service.js"
 import { touchDeviceHeartbeat } from "../services/device-heartbeat.service.js"
+import {
+  contentPlan,
+  mixSlots,
+  normalizeFeeds,
+  splitCounts,
+  type ContentPlan,
+} from "../services/ad-mix.js"
+import { nextAds } from "../services/ad-supply.service.js"
 
 export const meContentRouter: ReturnType<typeof Router> = Router()
 
 // GET /me/content/next?n=N&deviceId=...&surface=terminal-tv
-// returns { items: SlotPayload[] } based on user's channelMode.
-//   news_only    → 100% news items
-//   ticker_only  → 100% ticker items
-//   news_heavy   → mix-ish (3:1 news:ticker; deterministic pattern deferred to Task 4)
-//   balanced     → mix-ish (1:1 news:ticker; deterministic pattern deferred to Task 4)
-//   ticker_heavy → mix-ish (1:3 news:ticker; deterministic pattern deferred to Task 4)
+// returns { items: SlotPayload[] } from the user's enabled feeds.
+//   ads only (default)  → all sponsored
+//   ads + news/markets  → alternate ad / content, starting with an ad
+//   ads off             → content only (news / ticker / interleaved per channelMode)
+//   nothing enabled     → []
 meContentRouter.get("/next", async (req, res, next) => {
   try {
     const userId = res.locals["userId"] as string
@@ -34,35 +41,43 @@ meContentRouter.get("/next", async (req, res, next) => {
     const n = Math.max(1, Math.min(Number.isFinite(nRaw) ? nRaw : 5, 20))
     void (req.query["surface"] as string | undefined) // M5 may use this
 
-    const mode = await getMode(userId)
-    let items: SlotPayload[]
-    if (mode === ChannelMode.NewsOnly) {
-      items = await nextPicksForDevice({ userId, deviceId, n })
-    } else if (mode === ChannelMode.TickerOnly) {
-      items = await onlyTicker(userId, deviceId, n)
-    } else {
-      // news_heavy | balanced | ticker_heavy — all treated as interleaved for now.
-      // Task 4 (slot-cache.ts) will refine per-device ratio using a counter.
-      items = await interleave(userId, deviceId, n)
-    }
+    const { mode, feeds } = await getModeAndFeeds(userId)
+    const plan = contentPlan(feeds, mode)
+    const counts = splitCounts(n, feeds.includes("ads"), plan !== "none")
 
-    res.json({ items })
+    const [ads, content] = await Promise.all([
+      nextAds({ userId, deviceId, n: counts.ads }),
+      fetchContent(plan, userId, deviceId, counts.content),
+    ])
+    res.json({ items: mixSlots<SlotPayload>(ads, content) })
   } catch (err) {
     next(err)
   }
 })
 
-async function getMode(userId: string): Promise<ChannelMode> {
+async function fetchContent(
+  plan: ContentPlan,
+  userId: string,
+  deviceId: string,
+  n: number
+): Promise<SlotPayload[]> {
+  if (n <= 0 || plan === "none") return []
+  if (plan === "news") return nextPicksForDevice({ userId, deviceId, n })
+  if (plan === "ticker") return onlyTicker(userId, deviceId, n)
+  return interleave(userId, deviceId, n)
+}
+
+async function getModeAndFeeds(userId: string): Promise<{ mode: ChannelMode; feeds: Feed[] }> {
   const db = getDb()
   const [row] = await db
-    .select({ mode: preferences.channelMode })
+    .select({ mode: preferences.channelMode, feeds: preferences.enabledFeeds })
     .from(preferences)
     .where(eq(preferences.userId, userId))
     .limit(1)
-  const m = row?.mode as string | undefined
   const valid = Object.values(ChannelMode) as string[]
-  if (m && valid.includes(m)) return m as ChannelMode
-  return ChannelMode.Balanced
+  const mode =
+    row?.mode && valid.includes(row.mode) ? (row.mode as ChannelMode) : ChannelMode.Balanced
+  return { mode, feeds: normalizeFeeds(row?.feeds) }
 }
 
 // fetch up to `n` tickers, skipping rotation indices that return null (missing quote

@@ -1,4 +1,4 @@
-import { AdCategory, ChannelMode, NewsTopic } from "@distrotv/shared"
+import { AdCategory, ChannelMode, FEEDS, NewsTopic, type Feed } from "@distrotv/shared"
 import { ValidationError } from "../errors/index.js"
 import { requireBody, validateEnumArray, validateEnumValue } from "./common.js"
 
@@ -18,6 +18,7 @@ export interface UpdatePreferencesInput {
   nightMode?: boolean
   channelMode?: ChannelMode
   newsTopics?: NewsTopic[]
+  enabledFeeds?: Feed[]
 }
 
 const ALLOWED_KEYS = new Set<string>([
@@ -32,6 +33,7 @@ const ALLOWED_KEYS = new Set<string>([
   "nightMode",
   "channelMode",
   "newsTopics",
+  "enabledFeeds",
 ])
 
 export function validateUpdatePreferences(body: unknown): UpdatePreferencesInput {
@@ -136,6 +138,12 @@ export function validateUpdatePreferences(body: unknown): UpdatePreferencesInput
   if (b["newsTopics"] !== undefined) {
     const topics = validateEnumArray(b["newsTopics"], NEWS_TOPICS, "news_topics")
     out.newsTopics = topics as NewsTopic[]
+  }
+
+  if (b["enabledFeeds"] !== undefined) {
+    // an empty list is valid — the user turned every feed off
+    const feeds = validateEnumArray(b["enabledFeeds"], FEEDS as string[], "enabled_feeds")
+    out.enabledFeeds = [...new Set(feeds)] as Feed[]
   }
 
   return out
