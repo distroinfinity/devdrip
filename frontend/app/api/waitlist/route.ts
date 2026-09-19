@@ -116,10 +116,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // fire-and-forget confirmation email
-    sendConfirmationEmail(trimmedEmail, position).catch((err) => {
+    // send confirmation email before returning (must await — Vercel kills the
+    // function once the response is sent, so fire-and-forget silently fails)
+    try {
+      await sendConfirmationEmail(trimmedEmail, position);
+    } catch (err) {
       console.error("email send failed:", err);
-    });
+    }
 
     return NextResponse.json<WaitlistResponse>({
       success: true,
@@ -136,14 +139,18 @@ export async function POST(req: NextRequest) {
 }
 
 async function sendConfirmationEmail(email: string, position: number) {
-  if (!process.env.RESEND_API_KEY) return;
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set, skipping email");
+    return;
+  }
 
   const html = await render(BetaAccessEmail({ position }));
 
-  await getResend().emails.send({
+  const result = await getResend().emails.send({
     from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
     to: email,
     subject: "Request for Beta Access - Dev Drip",
     html,
   });
+  console.log("email sent:", result);
 }
