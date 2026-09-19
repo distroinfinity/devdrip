@@ -126,8 +126,8 @@ export async function renderCard(
           letterSpacing: "-0.025em",
         }}
       >
-        <div style={{ display: "flex" }}>Channels for the moments</div>
-        <div style={{ display: "flex" }}>your agent runs the keyboard.</div>
+        <div style={{ display: "flex" }}>Channels for your agent&apos;s</div>
+        <div style={{ display: "flex" }}>idle minutes.</div>
       </div>
 
       {/* bottom: chips + meta */}
