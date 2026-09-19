@@ -55,7 +55,7 @@ function MarketBar({
           {market.country}
         </div>
         <div className="font-data text-[11px] text-[var(--ink-tertiary)] tabular-nums mt-0.5">
-          ${market.medianSalary.toLocaleString()}/yr
+          ${market.medianSalary.toLocaleString("en-US")}/yr
         </div>
       </div>
 

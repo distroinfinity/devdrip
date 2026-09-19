@@ -27,7 +27,7 @@ export function PayoutHistory({ items }: PayoutHistoryProps) {
             <div className="flex flex-col gap-1">
               <span className="font-medium tabular-nums">{formatUsdc(p.amountUsdc)}</span>
               <span className="text-xs text-[var(--ink-secondary)]">
-                {new Date(p.createdAt).toLocaleString()}
+                {new Date(p.createdAt).toLocaleString("en-US")}
               </span>
               {p.failureReason && <span className="text-xs text-red-500">{p.failureReason}</span>}
             </div>

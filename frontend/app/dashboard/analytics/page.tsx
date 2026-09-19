@@ -55,7 +55,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
               what&apos;s working
             </h1>
             <p className="mt-2 font-body text-[13px] text-[var(--ink-secondary)]">
-              last {days} days · {data.totals.impressions.toLocaleString()} impressions · $
+              last {days} days · {data.totals.impressions.toLocaleString("en-US")} impressions · $
               {data.totals.earned.toFixed(2)} earned
             </p>
           </div>
