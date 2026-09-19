@@ -2,7 +2,13 @@ import { existsSync } from "node:fs"
 import { createRequire } from "node:module"
 import { Command } from "commander"
 import { MIN_PAYOUT_USDC } from "@devdrip/shared"
-import { ApiError, apiFetch, NotAuthenticatedError, reportError } from "../lib/api-client.js"
+import {
+  ApiError,
+  apiFetch,
+  type MeResponse,
+  NotAuthenticatedError,
+  reportError,
+} from "../lib/api-client.js"
 import { readConfig, type DevdripConfig } from "../lib/config.js"
 import { readDaemonStatus, type DaemonStatus } from "../lib/daemon/lifecycle.js"
 import { ledgerPath, openLedger } from "../lib/ledger.js"
@@ -35,8 +41,19 @@ interface LocalLedgerState {
   todayOptimistic: number
 }
 
+interface StatusUser {
+  githubLogin: string | null
+  email: string
+  // World identity fields (populated from /me response when signed in; null
+  // until Mini App signup completes).
+  walletAddress: string | null
+  verificationLevel: "device" | "orb" | null
+  signedUpAt: string | null
+  miniAppComplete: boolean
+}
+
 interface StatusPayload {
-  user: { githubLogin: string | null; email: string } | null
+  user: StatusUser | null
   earnings: EarningsSummaryResponse | null
   earningsFromCache: boolean
   earningsCacheAgeMs: number | null
@@ -69,8 +86,24 @@ export const statusCmd = new Command("status")
       const { earnings, earningsFromCache, earningsCacheAgeMs, offline, offlineReason } =
         await fetchEarnings(cfg, opts.local ?? false)
 
+      // Fetch /me only when signed in + online — the new World identity fields
+      // (walletAddress, verificationLevel, signedUpAt) live there. On failure
+      // fall back to the cached config user fields (no World identity in that path).
+      const me = cfg && !opts.local ? await fetchMeSafe() : null
+
+      const user: StatusUser | null = cfg
+        ? {
+            githubLogin: me?.githubLogin ?? cfg.user.githubLogin ?? null,
+            email: me?.email ?? cfg.user.email,
+            walletAddress: me?.walletAddress ?? null,
+            verificationLevel: me?.verificationLevel ?? null,
+            signedUpAt: me?.signedUpAt ?? null,
+            miniAppComplete: !!me?.signedUpAt,
+          }
+        : null
+
       const payload: StatusPayload = {
-        user: cfg ? { githubLogin: cfg.user.githubLogin ?? null, email: cfg.user.email } : null,
+        user,
         earnings,
         earningsFromCache,
         earningsCacheAgeMs,
@@ -135,6 +168,16 @@ interface FetchResult {
   earningsCacheAgeMs: number | null
   offline: boolean
   offlineReason: string | null
+}
+
+async function fetchMeSafe(): Promise<MeResponse | null> {
+  try {
+    return await apiFetch<MeResponse>("/me")
+  } catch {
+    // /me failure is non-fatal here — the earnings fetch already gates the
+    // online/offline narrative; the World identity section just gets skipped.
+    return null
+  }
 }
 
 async function fetchEarnings(cfg: DevdripConfig | null, localOnly: boolean): Promise<FetchResult> {
@@ -214,6 +257,7 @@ function printHuman(p: StatusPayload): void {
 
   const handle = p.user.githubLogin ? `@${p.user.githubLogin}` : p.user.email
   console.log(`user:     ${handle} (${p.user.email})`)
+  printWorldIdentity(p.user)
 
   if (p.earnings) {
     const e = p.earnings
@@ -244,6 +288,17 @@ function printHuman(p: StatusPayload): void {
   } else if (p.offline && p.offlineReason !== "local-only") {
     console.log(`offline:  backend unreachable (${p.offlineReason})`)
   }
+}
+
+function printWorldIdentity(u: StatusUser): void {
+  const wallet = u.walletAddress
+    ? `${u.walletAddress.slice(0, 6)}…${u.walletAddress.slice(-4)}`
+    : "not bound"
+  const worldId = u.verificationLevel ?? "not verified"
+  const miniApp = u.miniAppComplete ? "complete" : "incomplete"
+  console.log(`wallet:   ${wallet}`)
+  console.log(`world id: ${worldId}`)
+  console.log(`mini app: ${miniApp}`)
 }
 
 function printUnsynced(u: StatusPayload["unsynced"]): void {

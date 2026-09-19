@@ -85,10 +85,38 @@ export const env = {
   get worldscanBase() {
     return optionalEnv("WORLDSCAN_BASE", "https://worldchain-sepolia.explorer.alchemy.com")
   },
-  // World developer-portal app_id — needed by Mini App auth (PR2) and links.
-  // Optional in PR1 (chain code path doesn't read it); required from PR2 on.
+  // World developer-portal app_id — used in deeplink URLs (frontend) and
+  // forwarded to MiniKit on the client. Optional in PR1; required from PR2 on.
   get worldAppId() {
     return optionalEnv("WORLD_APP_ID", "")
+  },
+  // World developer-portal rp_id — used in the cloud verify URL
+  // (POST /api/v4/verify/{rp_id}). Per the World 4.0 docs, prefer rp_id; the
+  // verify endpoint still accepts app_id for back-compat, so we fall back to
+  // worldAppId if WORLD_ID_RP_ID is not set.
+  get worldIdRpId() {
+    return optionalEnv("WORLD_ID_RP_ID", optionalEnv("WORLD_APP_ID", ""))
+  },
+  // World ID action namespace — same string passed to IDKit on the client and
+  // forwarded to developer.world.org/api/v4/verify in cloud verification.
+  // Hardcoded default; override only for staging environments.
+  get worldIdAction() {
+    return optionalEnv("WORLD_ID_ACTION", "devdrip-signup")
+  },
+  // Public base URL of the Mini App for OAuth callback redirects. In dev this
+  // is the ngrok tunnel pointing at frontend/. In prod this is the Vercel
+  // deploy URL. Falls back to clientRedirectUrl which is already set elsewhere.
+  get miniAppBaseUrl() {
+    return optionalEnv(
+      "MINIAPP_BASE_URL",
+      optionalEnv("CLIENT_REDIRECT_URL", "http://localhost:3000")
+    )
+  },
+  // Cookie domain for the Mini App session JWT. Empty string = no Domain
+  // attribute (cookie scoped to exact host), which is the right default for
+  // local dev and single-host prod.
+  get miniAppCookieDomain() {
+    return optionalEnv("MINIAPP_COOKIE_DOMAIN", "")
   },
 }
 

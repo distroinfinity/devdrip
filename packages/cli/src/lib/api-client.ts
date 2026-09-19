@@ -20,6 +20,10 @@ export interface MeResponse {
   githubLogin: string | null
   email: string
   avatarUrl: string | null
+  // World identity (nullable until Mini App signup completes — added in PR4)
+  walletAddress?: string | null
+  verificationLevel?: "device" | "orb" | null
+  signedUpAt?: string | null
 }
 
 export class ApiError extends Error {

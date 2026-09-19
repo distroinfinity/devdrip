@@ -50,6 +50,13 @@
       "when": 1777747200001,
       "tag": "0006_world_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777223270811,
+      "tag": "0007_pref_default_zero",
+      "breakpoints": true
     }
   ]
 }

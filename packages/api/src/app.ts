@@ -25,8 +25,19 @@ import { meImpressionsRouter } from "./routes/me-impressions.js"
 import { meContentRouter } from "./routes/me-content.js"
 import { meReadingRouter } from "./routes/me-reading.js"
 import { meNewsStatsRouter } from "./routes/me-news-stats.js"
+import { meBalanceRouter } from "./routes/me-balance.js"
+import { mePayoutsRouter } from "./routes/me-payouts.js"
 import { adminReportsRouter } from "./routes/admin-reports.js"
-import { requireAuth } from "./middleware/auth.js"
+import { miniappAuthRouter } from "./routes/miniapp-auth.js"
+import { miniappWorldIdRouter } from "./routes/miniapp-world-id.js"
+import { miniappGithubRouter } from "./routes/miniapp-github.js"
+import { miniappSignupRouter } from "./routes/miniapp-signup.js"
+import { cliPairRouter } from "./routes/cli-pair.js"
+import { miniappCliLinkRouter } from "./routes/miniapp-cli-link.js"
+import { miniappMeRouter } from "./routes/miniapp-me.js"
+import { adminHotWalletRouter } from "./routes/admin-hot-wallet.js"
+import { testHelpersRouter } from "./routes/__test-helpers.js"
+import { requireAuth, requireBearerOrMiniApp } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
 import { globalLimiter, userLimiter, adminLimiter } from "./middleware/rate-limit.js"
 import { getDb } from "./db/index.js"
@@ -57,15 +68,30 @@ app.use(
 
 app.use("/health", healthRouter)
 
+// Test-only routes — mounted ABOVE globalLimiter so the integration test
+// can hit them without rate-limiting interference. Hard-gated to non-prod
+// at the mount site; the route handler also short-circuits in production.
+if (env.nodeEnv !== "production") {
+  app.use("/__test", testHelpersRouter)
+}
+
 app.use(globalLimiter)
 
 app.use("/auth", authRouter)
+app.use("/miniapp/wallet-auth", miniappAuthRouter)
+app.use("/miniapp/world-id", miniappWorldIdRouter)
+app.use("/miniapp/github-oauth", miniappGithubRouter)
+app.use("/miniapp/signup", miniappSignupRouter)
+app.use("/cli/pair", cliPairRouter)
+app.use("/miniapp/cli-link", miniappCliLinkRouter)
+app.use("/miniapp/me", miniappMeRouter)
 app.use("/devices", requireAuth, devicesRouter)
 app.use("/advertisers", requireAdmin, adminLimiter, advertisersRouter)
 app.use("/campaigns", requireAdmin, adminLimiter, campaignsRouter)
 app.use("/admin/stats", requireAdmin, adminLimiter, adminStatsRouter)
 app.use("/admin/users", requireAdmin, adminLimiter, adminUsersRouter)
 app.use("/admin/payouts", requireAdmin, adminLimiter, adminPayoutsRouter)
+app.use("/admin/hot-wallet", requireAdmin, adminLimiter, adminHotWalletRouter)
 app.use("/invites", requireAdmin, adminLimiter, invitesRouter)
 app.use("/ads", requireAuth, userLimiter, adsRouter)
 app.use("/ingest", requireAuth, ingestRouter)
@@ -78,6 +104,9 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
       githubLogin: users.githubLogin,
       email: users.email,
       avatarUrl: users.avatarUrl,
+      walletAddress: users.walletAddress,
+      verificationLevel: users.verificationLevel,
+      signedUpAt: users.signedUpAt,
     })
     .from(users)
     .where(eq(users.id, userId))
@@ -87,7 +116,15 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
     await res.status(404).json({ error: "user_not_found" })
     return
   }
-  await res.json(row)
+  await res.json({
+    id: row.id,
+    githubLogin: row.githubLogin,
+    email: row.email,
+    avatarUrl: row.avatarUrl,
+    walletAddress: row.walletAddress,
+    verificationLevel: row.verificationLevel,
+    signedUpAt: row.signedUpAt?.toISOString() ?? null,
+  })
 })
 
 app.use("/me", requireAuth, userLimiter, mePreferencesRouter)
@@ -97,6 +134,8 @@ app.use("/me/impressions", requireAuth, userLimiter, meImpressionsRouter)
 app.use("/me/content", requireAuth, userLimiter, meContentRouter)
 app.use("/me/reading", requireAuth, userLimiter, meReadingRouter)
 app.use("/me/news-stats", requireAuth, userLimiter, meNewsStatsRouter)
+app.use("/me/balance", requireBearerOrMiniApp, userLimiter, meBalanceRouter)
+app.use("/me/payouts", requireBearerOrMiniApp, userLimiter, mePayoutsRouter)
 app.use("/admin/reports", requireAdmin, adminLimiter, adminReportsRouter)
 
 app.use(errorHandler)
