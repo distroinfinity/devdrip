@@ -1,7 +1,13 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
-import { renderBox, type EarningsPopup, type RenderBoxOpts } from "../render-box.js"
-import type { CachedAd } from "../ad-cache.js"
+import {
+  renderBox,
+  renderNewsBox,
+  type EarningsPopup,
+  type NewsRenderOpts,
+  type RenderBoxOpts,
+} from "../render-box.js"
+import type { CachedSlot } from "../slot-cache.js"
 
 const MAX_WRITE_ATTEMPTS = 3
 
@@ -71,11 +77,11 @@ export function writeWithRetry(fd: number, data: string): void {
   throw lastErr as Error
 }
 
-// anchor the ad to the bottom of the tty via DECSTBM (set-top-bottom-margin).
+// anchor the slot to the bottom of the tty via DECSTBM (set-top-bottom-margin).
 // this lets Claude Code's output scroll freely in the upper region without
 // overlapping our box. without it, the cursor-save/restore trick gets its
 // anchor clobbered the moment Claude writes anything between show and vanish.
-export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): DisplayHandle {
+export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): DisplayHandle {
   const flags = fsConstants.O_WRONLY | fsConstants.O_NONBLOCK
   const fd = fs.openSync(ttyPath, flags)
 
@@ -85,22 +91,49 @@ export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): Disp
   let ws: WriteStream | null
   // captured for flash() so we can re-emit the box with highlighted chrome.
   let lastRenderedText = ""
-  // captured so updateProgress() can re-render without the caller threading
-  // every option through. progress ticks happen every 500ms so we keep this
-  // allocation-free by mutating a single opts object.
-  const baseOpts: RenderBoxOpts = {
+  // base opts objects per slot kind — captured once so updateProgress can
+  // re-render without the caller threading every option through.
+  const baseAdOpts: RenderBoxOpts = {
     earningsUsdc: ctx.earningsUsdc,
     source: ctx.source,
     width: ctx.width,
   }
+  const baseNewsOpts: NewsRenderOpts = {
+    source: ctx.source,
+    width: ctx.width,
+  }
+
+  function renderInitial(): string {
+    if (slot.kind === "ad") return renderBox(slot.payload, baseAdOpts)
+    return renderNewsBox(slot.payload, baseNewsOpts)
+  }
+
+  function renderTick(progress: number, elapsedMs: number, popup: EarningsPopup | null): string {
+    if (slot.kind === "ad") {
+      return renderBox(slot.payload, {
+        ...baseAdOpts,
+        progress,
+        elapsedMs,
+        popup: popup ?? undefined,
+      })
+    }
+    return renderNewsBox(slot.payload, {
+      ...baseNewsOpts,
+      progress,
+      elapsedMs,
+      // popup intentionally not passed — news has no earnings popup
+    })
+  }
+
   try {
     const dims = readTtyDimensions(fd)
     initialRows = dims.rows
     initialCols = dims.cols
     ws = dims.ws
 
-    baseOpts.width = ctx.width ?? initialCols
-    const text = renderBox(ad, baseOpts)
+    baseAdOpts.width = ctx.width ?? initialCols
+    baseNewsOpts.width = ctx.width ?? initialCols
+    const text = renderInitial()
     const adHeight = text.split("\n").length
     lastRenderedText = text
 
@@ -214,14 +247,9 @@ export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): Disp
     },
     updateProgress(progress: number, elapsedMs: number, popup: EarningsPopup | null): void {
       if (closed || resizeFired) return
-      // re-render with the new progress. keeps the ad layout identical so the
+      // re-render with the new progress. keeps the slot layout identical so the
       // pane height stays constant — no scroll region drift.
-      const text = renderBox(ad, {
-        ...baseOpts,
-        progress,
-        elapsedMs,
-        popup: popup ?? undefined,
-      })
+      const text = renderTick(progress, elapsedMs, popup)
       lastRenderedText = text
       writePane(text, "")
     },

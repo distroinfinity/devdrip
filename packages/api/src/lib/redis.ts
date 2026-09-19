@@ -28,21 +28,40 @@ class TestRedis {
     return "PONG"
   }
 
-  async set(key: string, value: string, opts?: { ex?: number }): Promise<"OK"> {
+  async set(
+    key: string,
+    value: unknown,
+    opts?: { ex?: number; nx?: boolean }
+  ): Promise<"OK" | null> {
+    if (opts?.nx && this.read(key)) return null
     const expiresAt = opts?.ex ? Date.now() + opts.ex * 1000 : undefined
-    this.store.set(key, { value, expiresAt })
+    this.store.set(key, {
+      value: typeof value === "string" ? value : JSON.stringify(value),
+      expiresAt,
+    })
     return "OK"
   }
 
-  async get<T = string>(key: string): Promise<T | null> {
+  async get<T = unknown>(key: string): Promise<T | null> {
     const entry = this.read(key)
-    return entry ? (entry.value as T) : null
+    if (entry === undefined) return Promise.resolve(null)
+    // match real Upstash: stored JSON strings round-trip back as their original type
+    try {
+      return Promise.resolve(JSON.parse(entry.value as string) as T)
+    } catch {
+      return Promise.resolve(entry.value as T)
+    }
   }
 
-  async getdel<T = string>(key: string): Promise<T | null> {
+  async getdel<T = unknown>(key: string): Promise<T | null> {
     const entry = this.read(key)
     this.store.delete(key)
-    return entry ? (entry.value as T) : null
+    if (entry === undefined) return Promise.resolve(null)
+    try {
+      return Promise.resolve(JSON.parse(entry.value as string) as T)
+    } catch {
+      return Promise.resolve(entry.value as T)
+    }
   }
 
   async del(...keys: string[]): Promise<number> {
@@ -61,6 +80,14 @@ class TestRedis {
     return next
   }
 
+  async incrby(key: string, delta: number): Promise<number> {
+    const current = Number((await this.get(key)) ?? "0")
+    const next = current + delta
+    const expiresAt = this.read(key)?.expiresAt
+    this.store.set(key, { value: String(next), expiresAt })
+    return next
+  }
+
   async incrbyfloat(key: string, delta: number): Promise<number> {
     const current = Number((await this.get(key)) ?? "0")
     const next = current + delta
@@ -71,9 +98,37 @@ class TestRedis {
 
   async expire(key: string, seconds: number): Promise<number> {
     const entry = this.read(key)
-    if (!entry) return 0
-    this.store.set(key, { ...entry, expiresAt: Date.now() + seconds * 1000 })
-    return 1
+    if (entry) {
+      this.store.set(key, { ...entry, expiresAt: Date.now() + seconds * 1000 })
+      return 1
+    }
+    // stub: TTLs on sets are not actually tracked, but acknowledge the key exists
+    if (this.setStore?.has(key)) return Promise.resolve(1)
+    return 0
+  }
+
+  private setStore = new Map<string, Set<string>>()
+
+  async sadd(key: string, member: unknown, ...rest: unknown[]): Promise<number> {
+    let s = this.setStore.get(key)
+    if (!s) {
+      s = new Set()
+      this.setStore.set(key, s)
+    }
+    const members = [member, ...rest]
+    let added = 0
+    for (const m of members) {
+      const str = String(m)
+      if (!s.has(str)) {
+        s.add(str)
+        added += 1
+      }
+    }
+    return added
+  }
+
+  async smembers(key: string): Promise<string[]> {
+    return Array.from(this.setStore.get(key) ?? [])
   }
 
   pipeline() {
@@ -81,6 +136,10 @@ class TestRedis {
     const pipeline = {
       incr: (key: string) => {
         ops.push(() => this.incr(key))
+        return pipeline
+      },
+      incrby: (key: string, delta: number) => {
+        ops.push(() => this.incrby(key, delta))
         return pipeline
       },
       incrbyfloat: (key: string, delta: number) => {

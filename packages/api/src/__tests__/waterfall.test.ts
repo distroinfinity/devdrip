@@ -44,7 +44,7 @@ vi.mock("../lib/logger.js", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
 
-import { fetchServedAds } from "../services/ad-delivery.service.js"
+import { fetchServedAds } from "../services/content-delivery.service.js"
 import { isQuietHours } from "../lib/frequency.js"
 
 function baseRequest(overrides: Partial<AdRequest> = {}): AdRequest {

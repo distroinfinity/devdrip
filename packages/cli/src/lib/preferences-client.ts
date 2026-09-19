@@ -1,4 +1,4 @@
-import type { AdCategory, SyncedPreferences } from "@devdrip/shared"
+import type { AdCategory, ChannelMode, SyncedPreferences } from "@devdrip/shared"
 import { apiFetch } from "./api-client.js"
 
 export interface PreferencesResponse {
@@ -12,6 +12,7 @@ export interface UpdatePreferencesBody {
   quietHoursStart?: number | null
   quietHoursEnd?: number | null
   tzOffsetMinutes?: number
+  channelMode?: ChannelMode
   idleSensitivityMs?: number
   sessionWarmupMs?: number
   nightMode?: boolean

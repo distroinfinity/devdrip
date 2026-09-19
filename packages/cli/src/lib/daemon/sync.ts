@@ -1,5 +1,5 @@
-import type { Ledger, LocalImpression, LocalClick } from "../ledger.js"
-import { ApiError, postIngest, type IngestResponse } from "../api-client.js"
+import type { Ledger, LocalImpression, LocalClick, LocalNewsImpression } from "../ledger.js"
+import { ApiError, postIngest, postReadingSave, type IngestResponse } from "../api-client.js"
 import { syncPreferencesOnce } from "./prefs-sync.js"
 
 export interface SyncLogger {
@@ -12,6 +12,8 @@ export interface SyncLogger {
 export interface SyncResult {
   impressionsSynced: number
   clicksSynced: number
+  newsImpressionsSynced: number
+  readingSavesSynced: number
   errors: number
   terminal: number
 }
@@ -40,6 +42,8 @@ const MAX_BACKOFF_MS = 20 * 60_000
 const IMPRESSION_BATCH_CAP = 250
 const CLICK_BATCH_CAP = 250
 const CLICK_STALE_MS = 24 * 3600 * 1000
+const NEWS_IMPRESSION_BATCH_CAP = 250
+const READING_BATCH_CAP = 50
 
 const TERMINAL_IMPRESSION_ERRORS = new Set([
   "invalid_or_expired_delivery_token",
@@ -70,7 +74,14 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
   async function runOnce(): Promise<SyncResult> {
     if (inFlight) {
       deps.log.debug("sync skipped: already in flight")
-      return { impressionsSynced: 0, clicksSynced: 0, errors: 0, terminal: 0 }
+      return {
+        impressionsSynced: 0,
+        clicksSynced: 0,
+        newsImpressionsSynced: 0,
+        readingSavesSynced: 0,
+        errors: 0,
+        terminal: 0,
+      }
     }
     const current = doRunOnce()
     inFlight = current
@@ -100,40 +111,94 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
   async function doRunOnce(): Promise<SyncResult> {
     const impressions = deps.ledger.listUnsynced(IMPRESSION_BATCH_CAP)
     const clicks = deps.ledger.listUnsyncedClicks(CLICK_BATCH_CAP)
-    if (impressions.length === 0 && clicks.length === 0) {
+    const newsImpressions = deps.ledger.listUnsyncedNewsImpressions(NEWS_IMPRESSION_BATCH_CAP)
+
+    let ingestResult: Omit<SyncResult, "readingSavesSynced"> = {
+      impressionsSynced: 0,
+      clicksSynced: 0,
+      newsImpressionsSynced: 0,
+      errors: 0,
+      terminal: 0,
+    }
+
+    if (impressions.length > 0 || clicks.length > 0 || newsImpressions.length > 0) {
+      let res: IngestResponse
+      try {
+        const body = {
+          impressions: impressions.map((i) => ({ deliveryToken: i.deliveryToken })),
+          clicks: clicks.map((c) => ({ deliveryToken: c.deliveryToken })),
+          ...(newsImpressions.length > 0
+            ? {
+                newsImpressions: newsImpressions.map((n) => ({
+                  newsId: n.newsId,
+                  source: n.source,
+                  deviceId: n.deviceId,
+                  durationMs: n.durationMs,
+                  result: n.result,
+                  openedUrl: n.openedUrl,
+                  saved: n.saved,
+                })),
+              }
+            : {}),
+        }
+        res = await post(body)
+      } catch (err) {
+        backoffMs = nextBackoff(backoffMs)
+        deps.log.warn("sync post failed", {
+          error: (err as Error).message,
+          backoffMs,
+          status: err instanceof ApiError ? err.status : undefined,
+        })
+        throw err
+      }
+      ingestResult = applyResults(impressions, clicks, newsImpressions, res)
+    } else {
       backoffMs = 0
-      return { impressionsSynced: 0, clicksSynced: 0, errors: 0, terminal: 0 }
     }
 
-    let res: IngestResponse
-    try {
-      res = await post({
-        impressions: impressions.map((i) => ({ deliveryToken: i.deliveryToken })),
-        clicks: clicks.map((c) => ({ deliveryToken: c.deliveryToken })),
-      })
-    } catch (err) {
-      backoffMs = nextBackoff(backoffMs)
-      deps.log.warn("sync post failed", {
-        error: (err as Error).message,
-        backoffMs,
-        status: err instanceof ApiError ? err.status : undefined,
-      })
-      throw err
-    }
+    // reading saves wait for the next tick if /ingest threw — saves are less urgent
+    // than impressions and the server is idempotent on retry.
+    const readingSavesSynced = await flushReadingSaves().catch(() => 0)
+    return { ...ingestResult, readingSavesSynced }
+  }
 
-    return applyResults(impressions, clicks, res)
+  async function flushReadingSaves(): Promise<number> {
+    const pending = deps.ledger.listPendingReadingItems(READING_BATCH_CAP)
+    let synced = 0
+    for (const item of pending) {
+      try {
+        await postReadingSave({
+          newsId: item.newsId,
+          source: item.source,
+          headline: item.headline,
+          url: item.url,
+          score: item.score,
+        })
+        deps.ledger.markReadingItemsSynced([item.id], now())
+        synced += 1
+      } catch (err) {
+        deps.log.warn("reading save sync failed", {
+          id: item.id,
+          error: (err as Error).message,
+        })
+        // don't break — try next item; server is idempotent so retries are safe
+      }
+    }
+    return synced
   }
 
   function applyResults(
     impressions: LocalImpression[],
     clicks: LocalClick[],
+    newsImpressions: LocalNewsImpression[],
     res: IngestResponse
-  ): SyncResult {
+  ): Omit<SyncResult, "readingSavesSynced"> {
     const nowMs = now()
     const okImpressions: string[] = []
     const terminalImpressions: string[] = []
     const okClicks: string[] = []
     const terminalClicks: string[] = []
+    const okNewsImpressions: string[] = []
     let errors = 0
 
     for (let i = 0; i < impressions.length; i += 1) {
@@ -169,15 +234,30 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
       }
     }
 
+    const newsResults = res.newsImpressions ?? []
+    for (let i = 0; i < newsImpressions.length; i += 1) {
+      const row = newsImpressions[i]
+      if (!row) continue
+      const result = newsResults[i]
+      if (result?.ok) {
+        okNewsImpressions.push(row.id)
+      } else {
+        errors += 1
+        // silent retry — no terminal path for news impressions yet
+      }
+    }
+
     if (okImpressions.length) deps.ledger.markSynced(okImpressions, nowMs)
     if (terminalImpressions.length) deps.ledger.markImpressionsTerminal(terminalImpressions)
     if (okClicks.length) deps.ledger.markClicksSynced(okClicks, nowMs)
     if (terminalClicks.length) deps.ledger.markClicksTerminal(terminalClicks)
+    if (okNewsImpressions.length) deps.ledger.markNewsImpressionsSynced(okNewsImpressions, nowMs)
 
     backoffMs = 0
     deps.log.info("sync cycle complete", {
       impressions: okImpressions.length,
       clicks: okClicks.length,
+      newsImpressions: okNewsImpressions.length,
       errors,
       terminalImpressions: terminalImpressions.length,
       terminalClicks: terminalClicks.length,
@@ -185,6 +265,7 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
     return {
       impressionsSynced: okImpressions.length,
       clicksSynced: okClicks.length,
+      newsImpressionsSynced: okNewsImpressions.length,
       errors,
       terminal: terminalImpressions.length + terminalClicks.length,
     }

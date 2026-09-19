@@ -1,7 +1,7 @@
 import { access, readFile, statfs } from "node:fs/promises"
 import { platform } from "node:os"
 import { apiFetch, apiFetchPublic, resolveApiUrl } from "./api-client.js"
-import { adCachePath } from "./ad-cache.js"
+import { slotCachePath } from "./slot-cache.js"
 import { getMissingDevdripHookEvents, readSettings } from "./claude-settings.js"
 import { configDir, type DevdripConfig } from "./config.js"
 import { readDaemonStatus } from "./daemon/lifecycle.js"
@@ -113,49 +113,49 @@ async function probeDaemon(): Promise<Probe> {
   }
 }
 
-interface AdCacheSnapshot {
+interface SlotCacheSnapshot {
   expiresAt?: number
-  ads?: unknown[]
+  slots?: unknown[]
 }
 
-async function probeAdCache(now: number = Date.now()): Promise<Probe> {
+async function probeSlotCache(now: number = Date.now()): Promise<Probe> {
   try {
-    const raw = await readFile(adCachePath(), "utf8")
-    const parsed = JSON.parse(raw) as AdCacheSnapshot
-    const count = Array.isArray(parsed.ads) ? parsed.ads.length : 0
+    const raw = await readFile(slotCachePath(), "utf8")
+    const parsed = JSON.parse(raw) as SlotCacheSnapshot
+    const count = Array.isArray(parsed.slots) ? parsed.slots.length : 0
     const expiresAt = typeof parsed.expiresAt === "number" ? parsed.expiresAt : 0
     if (count === 0) {
       return {
-        name: "ad cache populated",
+        name: "slot cache populated",
         ok: false,
-        detail: "0 ads cached",
+        detail: "0 slots cached",
         fix: "run `devdrip daemon start` to warm the cache",
       }
     }
     if (expiresAt <= now) {
       const stalenessSec = Math.round((now - expiresAt) / 1000)
       return {
-        name: "ad cache populated",
+        name: "slot cache populated",
         ok: false,
-        detail: `expired ${stalenessSec}s ago (${count} ads)`,
+        detail: `expired ${stalenessSec}s ago (${count} slots)`,
         fix: "daemon refreshes automatically — check network",
       }
     }
-    return { name: "ad cache populated", ok: true, detail: `${count} ads cached` }
+    return { name: "slot cache populated", ok: true, detail: `${count} slots cached` }
   } catch (err) {
     if (isNotFound(err)) {
       return {
-        name: "ad cache populated",
+        name: "slot cache populated",
         ok: false,
         detail: "cache file missing",
         fix: "run `devdrip daemon start` to warm the cache",
       }
     }
     return {
-      name: "ad cache populated",
+      name: "slot cache populated",
       ok: false,
       detail: errDetail(err),
-      fix: "inspect ~/.devdrip/ad-cache.json",
+      fix: "inspect ~/.devdrip/slot-cache.json",
     }
   }
 }
@@ -243,7 +243,7 @@ export async function runInitHealthCheck(
 }
 
 // Doctor adds four probes on top of the init set. Results are returned in a
-// fixed order (auth, device, hooks, backend, daemon, ad-cache, tty, disk)
+// fixed order (auth, device, hooks, backend, daemon, slot-cache, tty, disk)
 // regardless of how they resolved, so the human output is deterministic and
 // the --json shape is stable across runs.
 export async function runDoctorHealthCheck(
@@ -251,17 +251,17 @@ export async function runDoctorHealthCheck(
   settingsPath: string
 ): Promise<Probe[]> {
   const binPath = cfg.cli?.binPath ?? ""
-  const [auth, device, hooks, backend, daemon, adCache, tty, disk] = await Promise.all([
+  const [auth, device, hooks, backend, daemon, slotCache, tty, disk] = await Promise.all([
     probeAuth(),
     probeDevice(cfg),
     probeHooks(settingsPath, binPath),
     probeBackend(),
     probeDaemon(),
-    probeAdCache(),
+    probeSlotCache(),
     probeTty(),
     probeLedgerDisk(),
   ])
-  return [auth, device, hooks, backend, daemon, adCache, tty, disk]
+  return [auth, device, hooks, backend, daemon, slotCache, tty, disk]
 }
 
 function errDetail(err: unknown): string {

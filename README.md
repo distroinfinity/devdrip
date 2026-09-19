@@ -1,6 +1,14 @@
 # Dev Drip
 
-Opt-in ads during AI coding tool idle time. Developers earn USDC micropayments while their agent thinks.
+Opt-in content during AI coding tool idle time — earn or learn while your agent thinks. Developers earn USDC micropayments from ads, or fill the slot with HN tech news instead, or alternate both.
+
+## Modes
+
+- 📰 **learn** — tech news only, no ads, no earnings
+- 💰 **earn** — ads only, full USDC payouts
+- 🎭 **both** — alternates news and ads (default)
+
+Pick one during `devdrip init`; flip any time with `devdrip preferences` or the dashboard mode toggle.
 
 ## Structure
 
@@ -42,9 +50,10 @@ node packages/cli/dist/index.js daemon start
 node packages/cli/dist/index.js daemon status
 tail -f ~/.devdrip/daemon.log     # in a separate shell while you test
 
-# 7. open Claude Code in any project and submit any prompt — within ~1.5s an ad
-#    renders at the bottom of the terminal (highlight border, [D]iscover [S]kip
-#    [K]ill [M]ute footer, progress bar). Press d/s/k/m/Esc to act on it.
+# 7. open Claude Code in any project and submit any prompt — within ~1.5s a
+#    slot renders at the bottom of the terminal (ad or news headline, depending
+#    on your mode). Press [D] open / [S] skip / [K] kill / [M] mute / Esc.
+#    News mode also: [B] save to reading list (visible at /dashboard/reading).
 claude
 ```
 

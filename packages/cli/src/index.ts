@@ -19,6 +19,7 @@ import { referralCmd } from "./commands/referral.js"
 import { adminCmd } from "./commands/admin.js"
 import { hookCmd } from "./commands/hook.js"
 import { discoverCmd, killSessionCmd, muteCmd, skipCmd } from "./commands/action.js"
+import { preferencesCmd } from "./commands/preferences.js"
 
 const require = createRequire(import.meta.url)
 const { version = "0.0.0" } = require("../package.json") as {
@@ -33,6 +34,7 @@ export const program = new Command()
 
 program
   .addCommand(initCmd)
+  .addCommand(preferencesCmd)
   .addCommand(loginCmd)
   .addCommand(authCmd)
   .addCommand(configCmd)

@@ -1,8 +1,10 @@
-import { AdCategory } from "@devdrip/shared"
+import { AdCategory, ChannelMode, NewsTopic } from "@devdrip/shared"
 import { ValidationError } from "../errors/index.js"
-import { requireBody, validateEnumArray } from "./common.js"
+import { requireBody, validateEnumArray, validateEnumValue } from "./common.js"
 
 const AD_CATEGORIES = Object.values(AdCategory) as string[]
+const CHANNEL_MODES = Object.values(ChannelMode) as string[]
+const NEWS_TOPICS = Object.values(NewsTopic) as string[]
 
 export interface UpdatePreferencesInput {
   blockedCategories?: AdCategory[]
@@ -14,6 +16,8 @@ export interface UpdatePreferencesInput {
   idleSensitivityMs?: number
   sessionWarmupMs?: number
   nightMode?: boolean
+  channelMode?: ChannelMode
+  newsTopics?: NewsTopic[]
 }
 
 const ALLOWED_KEYS = new Set<string>([
@@ -26,6 +30,8 @@ const ALLOWED_KEYS = new Set<string>([
   "idleSensitivityMs",
   "sessionWarmupMs",
   "nightMode",
+  "channelMode",
+  "newsTopics",
 ])
 
 export function validateUpdatePreferences(body: unknown): UpdatePreferencesInput {
@@ -78,6 +84,19 @@ export function validateUpdatePreferences(body: unknown): UpdatePreferencesInput
   if (b["nightMode"] !== undefined) {
     if (typeof b["nightMode"] !== "boolean") throw new ValidationError("invalid_night_mode")
     out.nightMode = b["nightMode"]
+  }
+
+  if (b["channelMode"] !== undefined) {
+    out.channelMode = validateEnumValue(
+      b["channelMode"],
+      CHANNEL_MODES,
+      "channel_mode"
+    ) as ChannelMode
+  }
+
+  if (b["newsTopics"] !== undefined) {
+    const topics = validateEnumArray(b["newsTopics"], NEWS_TOPICS, "news_topics")
+    out.newsTopics = topics as NewsTopic[]
   }
 
   return out

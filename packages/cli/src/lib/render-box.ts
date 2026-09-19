@@ -1,4 +1,4 @@
-import type { AdPayload } from "@devdrip/shared"
+import type { AdPayload, NewsPayload } from "@devdrip/shared"
 import { bold, detectColor, dim, green, yellow, type ColorMode } from "./ansi.js"
 
 const DEFAULT_WIDTH = 72
@@ -317,4 +317,95 @@ export function renderBox(
   if (url && opts.includeUrl) parts.push(`→ ${url}`)
 
   return parts.join("\n")
+}
+
+export interface NewsRenderOpts {
+  source?: string
+  width?: number
+  ascii?: boolean
+  color?: ColorMode
+  progress?: number // 0..1
+  elapsedMs?: number
+  // earnings popup intentionally omitted — news doesn't earn.
+  // demoBadge intentionally omitted — news has no demo path in mvp.
+}
+
+function newsActionFooter(inner: number): string {
+  // d = open story  ·  b = save  ·  s = skip  ·  k = kill  ·  m = mute
+  const full = "[D] open   [B] save   [S] skip   [K] kill   [M] mute"
+  const short = "[D]pen  [B]ave  [S]kip  [K]ill  [M]ute"
+  const tiny = "[D] [B] [S] [K] [M]"
+  if (inner >= 55) return full
+  if (inner >= 34) return short
+  return tiny
+}
+
+function formatAge(ageSeconds: number): string {
+  if (ageSeconds < 60) return "<1m"
+  if (ageSeconds < 3600) return `${Math.round(ageSeconds / 60)}m`
+  if (ageSeconds < 86400) return `${Math.round(ageSeconds / 3600)}h`
+  return `${Math.round(ageSeconds / 86400)}d`
+}
+
+export function renderNewsBox(
+  payload: Pick<
+    NewsPayload,
+    "headline" | "url" | "source" | "score" | "ageSeconds" | "commentsUrl"
+  >,
+  opts: NewsRenderOpts = {}
+): string {
+  const width = clampWidth(opts.width)
+  const inner = width - 4
+  const ascii = opts.ascii ?? false
+  const c = ascii ? ASCII : UNI
+  const color: ColorMode = ascii ? "none" : (opts.color ?? detectColor())
+
+  const title = "DEV DRIP TV"
+  const sourceSegment = opts.source ? `via ${opts.source}` : ""
+
+  const dot = liveDot(opts.elapsedMs ?? 0, ascii, color)
+  const tagPlain = ascii ? "NEWS" : "📰 NEWS"
+  const tagRendered = ascii ? "NEWS" : "📰 NEWS"
+
+  const leftSegmentsPlain = [title, tagPlain].filter(Boolean)
+  const leftSegmentsRendered = [title, tagRendered].filter(Boolean)
+  const leftLabelPlain = ` ${dot.plain} ${leftSegmentsPlain.join(" · ")} `
+  const leftLabelRendered = ` ${dot.rendered} ${leftSegmentsRendered.join(" · ")} `
+
+  const headerInnerLen = width - 2
+  const rightLabelRaw = sourceSegment ? ` ${sourceSegment} ` : ""
+  const tentativeFill = headerInnerLen - leftLabelPlain.length - rightLabelRaw.length
+  const rightLabel = tentativeFill >= 4 ? rightLabelRaw : ""
+  const fillLen = headerInnerLen - leftLabelPlain.length - rightLabel.length
+  const left = c.h + leftLabelRendered
+  const right = rightLabel + c.h
+  const middle = c.h.repeat(Math.max(0, fillLen - 2))
+  const header = `${c.tl}${left}${middle}${right}${c.tr}`
+
+  const sourceLabel = ascii ? payload.source : `📰 ${payload.source}`
+  const meta = `${sourceLabel} · ${payload.score} pts · ${formatAge(payload.ageSeconds)}`
+  const headline = sanitize(payload.headline)
+  const url = sanitize(payload.url)
+
+  const footerLine = newsActionFooter(inner)
+
+  const body = [
+    line(c, "", inner),
+    line(c, sanitize(meta), inner),
+    line(c, headline, inner),
+    line(c, "", inner),
+    line(c, footerLine, inner),
+    ...(opts.progress !== undefined
+      ? [
+          line(c, "", inner),
+          line(c, progressLine(opts.progress, opts.elapsedMs ?? 0, inner, ascii, color), inner),
+        ]
+      : []),
+  ]
+
+  const footer = `${c.bl}${c.h.repeat(width - 2)}${c.br}`
+  // url is intentionally not appended — news box stays inside the anchored pane.
+  // opening the story uses [D] which routes to openUrl in the orchestrator.
+  void url
+  return [header, ...body, footer].join("\n")
 }

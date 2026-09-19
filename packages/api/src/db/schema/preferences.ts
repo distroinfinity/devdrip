@@ -17,6 +17,9 @@ export const preferences = pgTable("preferences", {
   idleSensitivityMs: integer("idle_sensitivity_ms").notNull().default(10_000),
   sessionWarmupMs: integer("session_warmup_ms").notNull().default(0),
   nightMode: boolean("night_mode").notNull().default(false),
+  // default 'mix' matches shared defaultDevdripPreferences()
+  channelMode: text("channel_mode").notNull().default("mix"),
+  newsTopics: text("news_topics").array().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
