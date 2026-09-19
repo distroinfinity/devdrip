@@ -10,10 +10,8 @@ const COLS = [
   {
     label: "Product",
     items: [
-      { label: "The shift", href: "/#shift" },
-      { label: "How it works", href: "/#terminal" },
-      { label: "Rules", href: "/#rules" },
-      { label: "Channels", href: "/#channels" },
+      { label: "Why", href: "/#lineage" },
+      { label: "How it works", href: "/#how" },
       { label: "Advertisers", href: "/advertisers" },
     ],
   },

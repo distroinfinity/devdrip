@@ -2,7 +2,7 @@ import { multiselect, isCancel, cancel } from "@clack/prompts"
 import { FEEDS, type Feed } from "@distrotv/shared"
 
 const LABELS: Record<Feed, { label: string; hint: string }> = {
-  ads: { label: "Ads", hint: "sponsored slots — you earn an estimated 70% share" },
+  ads: { label: "Ads", hint: "sponsored slots — you earn a share of each ad you see" },
   news: { label: "News", hint: "CH 01 — top tech + finance stories" },
   markets: { label: "Markets", hint: "CH 02 — your watchlist" },
 }

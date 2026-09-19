@@ -20,8 +20,7 @@ export function LineageSection() {
             Every medium grew an ad market.
           </h2>
           <p className="font-body text-[15px] leading-[1.65] text-[var(--ink-secondary)]">
-            Each new place people pay attention has ended up with a market for it, and that market
-            is what funded the medium.
+            New attention always gets a market. Agents don&apos;t have one yet.
           </p>
         </div>
 
@@ -85,8 +84,7 @@ export function LineageSection() {
         </table>
 
         <p className="mt-8 max-w-[62ch] font-body text-[15px] leading-[1.65] text-[var(--ink-primary)]">
-          Agent tools are the first major surface with no market layer at all. That is what Distro
-          is building.
+          Distro is building it.
         </p>
       </div>
     </section>

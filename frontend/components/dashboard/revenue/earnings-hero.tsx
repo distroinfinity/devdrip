@@ -3,13 +3,7 @@ import type { EarningsSummary } from "@/lib/dashboard-api"
 import { LiveAmount } from "./live-amount"
 import { LiveRefresh } from "./live-refresh"
 
-function formatCpm(rate: number): string {
-  return Number.isInteger(rate) ? String(rate) : rate.toFixed(2)
-}
-
 export function EarningsHero({ summary }: { summary: EarningsSummary }) {
-  const sharePct = Math.round(summary.revenueShare * 100)
-
   return (
     <div>
       <p className="font-display text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-tertiary)]">
@@ -41,8 +35,8 @@ export function EarningsHero({ summary }: { summary: EarningsSummary }) {
       </div>
 
       <p className="mt-4 max-w-[64ch] font-body text-[13px] leading-[1.55] text-[var(--ink-secondary)]">
-        Estimated at a ${formatCpm(summary.cpmRate)} CPM with {sharePct}% paid to you. Sandbox ads —
-        final rates are set when the exchange opens.
+        Advertisers pay Distro. Distro pays you a share. These are estimates from sandbox ads. Final
+        rates are set when the exchange opens.
       </p>
     </div>
   )

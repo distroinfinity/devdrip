@@ -1,14 +1,12 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { DEFAULT_FEEDS, FEEDS, REVENUE_SHARE_DEVELOPER, type Feed } from "@distrotv/shared"
+import { DEFAULT_FEEDS, FEEDS, type Feed } from "@distrotv/shared"
 import { cn } from "@distrotv/design-system/utils"
 import { savePreferences } from "@/app/dashboard/preferences/actions"
 
-const SHARE_PCT = Math.round(REVENUE_SHARE_DEVELOPER * 100)
-
 const FEED_COPY: Record<Feed, { label: string; hint: string }> = {
-  ads: { label: "Ads", hint: `sponsored slots · you earn an estimated ${SHARE_PCT}% share` },
+  ads: { label: "Ads", hint: "sponsored slots · you earn a share of each ad you see" },
   news: { label: "News", hint: "headlines from your channels" },
   markets: { label: "Markets", hint: "watchlist prices and movers" },
 }

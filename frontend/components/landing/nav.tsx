@@ -4,9 +4,8 @@ import { ThemeToggle } from "@distrotv/design-system/components/theme-toggle"
 import { InstallCommand } from "./install-command"
 
 const LINKS = [
-  { href: "/#shift", label: "The shift" },
-  { href: "/#terminal", label: "How it works" },
-  { href: "/#rules", label: "Rules" },
+  { href: "/#lineage", label: "Why" },
+  { href: "/#how", label: "How it works" },
   { href: "/advertisers", label: "Advertisers" },
 ]
 

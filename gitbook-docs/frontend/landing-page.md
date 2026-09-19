@@ -122,7 +122,6 @@ Canonical copy (keep these in sync if you touch the components):
 | hero H1             | The ad exchange for AI agent surfaces.                                                                                                                                                                    |
 | hero sub            | Agents do the work now; people wait and watch. That wait is a new attention surface, and nothing serves it yet. Distro is building the open exchange that does, starting in the terminal.                 |
 | hero CTA label      | Run the first surface                                                                                                                                                                                     |
-| hero facts          | Opt-in audience. 70% goes to the viewer. Gone when you type.                                                                                                                                              |
 | demo title bar      | surface 01 — terminal (left), live (right)                                                                                                                                                                |
 | meta title          | Distro TV — the ad exchange for AI agent surfaces                                                                                                                                                         |
 | meta description    | AI agents do the work while people wait. Distro is the open exchange for that attention: slots inside agent tools, an opted-in audience, and revenue shared with the viewer. First surface: the terminal. |
@@ -157,3 +156,22 @@ The coming-channels card renders a dim "channel lineup" of dashed stubs (CH numb
 - no waitlist route — the pre-pivot waitlist (`/api/waitlist`) was deprecated post-M1 and is no longer present
 - the landing page fetches public market + news data server-side (revalidated) for the channel cards; it does not talk to our backend at load time
 - Vercel Analytics event tracking can be added at the section level if acquisition metrics are needed
+
+## Current shape (Sep 2026, after the length audit)
+
+The page is **four sections, one idea each**. Do not add a section without removing one.
+
+| #   | Section                     | Component                       | Heading                                        |
+| --- | --------------------------- | ------------------------------- | ---------------------------------------------- |
+| 1   | Thesis + live terminal demo | `hero-section`, `terminal-demo` | The ad exchange for AI agent surfaces.         |
+| 2   | Lineage ledger              | `lineage-section`               | Every medium grew an ad market.                |
+| 3   | Revenue structure           | `money-section`                 | How the money moves.                           |
+| 4   | Two doors                   | `closing-section`               | Run the first surface. / A new surface to buy. |
+
+Removed in the audit because they repeated the hero demo or each other: the shift stats,
+"three sides", the terminal beats, the rules list, the channel cards, the advertisers teaser and
+the separate install section. "Gone when you type" is shown by the demo and said once.
+
+Copy rules: short sentences, one idea each; say a thing once per page; never publish the revenue
+split or rates (public wording: advertisers pay Distro, Distro pays the developer a share and keeps
+a margin; idle agent time helps pay for the AI tools that cause it).

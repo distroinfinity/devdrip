@@ -352,7 +352,7 @@ export async function runInit(): Promise<void> {
   note(
     [
       "sponsored slots play in your status line while your agent works.",
-      "you earn an estimated 70% share of every ad you actually see.",
+      "you earn a share of every ad you actually see.",
       "they vanish the moment you type. turn them off anytime: `dtv preferences`.",
     ].join("\n"),
     "ads are on"

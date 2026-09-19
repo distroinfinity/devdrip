@@ -46,6 +46,6 @@ an exchange anyone can bid on.**
 ## Honest answers for judges
 
 - The ads are Carbon's sandbox zone plus demo creatives. No advertiser is paying yet.
-- Earnings are estimates at a configurable CPM with a 70% developer share. Payouts are not built.
+- Advertisers pay Distro; Distro pays the developer a share and keeps a margin. The numbers on screen are estimates from a sandbox rate. The split and rates are not final, so don't quote them. Payouts are not built.
 - The exchange (bidding, self-serve, account import) is the roadmap. What is built is the
   supply side end to end: serving, viewability, clicks, attribution, reporting.

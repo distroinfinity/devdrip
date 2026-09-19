@@ -177,7 +177,7 @@ export async function renderCard(
             letterSpacing: "0.03em",
           }}
         >
-          opt-in audience · 70% to the viewer · gone when you type
+          opt-in audience · viewers get paid · gone when you type
         </div>
       </div>
     </div>,
