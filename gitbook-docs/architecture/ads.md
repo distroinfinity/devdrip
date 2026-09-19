@@ -68,6 +68,9 @@ link and a CPM bid (1–100). It is stored in `ad_campaigns` and served as `sour
   production) or the author is an admin (`ADMIN_EMAILS`). **Production runs with it off**: ads
   start in `review`, and an advertiser cannot approve their own ad. Admins review through
   `GET /admin/ads?status=review` and `PATCH /admin/ads/:id { status }`; there is no review page yet.
+- **Carbon pool:** Carbon returns one ad per call, so the API keeps a pool of up to 8 distinct
+  ads (3 calls at most once a minute, 30-minute ttl) and fills three of every four network slots
+  from it, rotating; the fourth is a house ad. With an empty pool, house ads fill everything.
 - **Fill in production:** house ads are Distro TV's own promos only (the recognisable dev-tool
   creatives are local-only), and Carbon serves only with a real `CARBON_ZONE_KEY` or
   `CARBON_ENABLED=1` — its sandbox zone must be a deliberate choice for a public audience.
