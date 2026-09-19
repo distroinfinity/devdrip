@@ -87,6 +87,15 @@ export const env = {
   get carbonZoneKey(): string {
     return optionalEnv("CARBON_ZONE_KEY", "")
   },
+  // carbon serves when a real zone key is set, or when explicitly switched on. outside
+  // production its demo zone is fine; in production the sandbox must be a deliberate choice.
+  get carbonEnabled(): boolean {
+    const v = process.env["CARBON_ENABLED"]
+    if (v === "1" || v === "true") return true
+    if (v === "0" || v === "false") return false
+    if (process.env["CARBON_ZONE_KEY"]) return true
+    return optionalEnv("NODE_ENV", "development") !== "production"
+  },
   get carbonPlacement(): string {
     return optionalEnv("CARBON_PLACEMENT", "distrotv")
   },

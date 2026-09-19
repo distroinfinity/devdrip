@@ -59,3 +59,23 @@ describe("preferences validator", () => {
     expect(() => validateUpdatePreferences({ enabledFeeds: ["crypto"] })).toThrow()
   })
 })
+
+describe("clientRendersAds", () => {
+  it("only clients that declare 0.3.0 or newer get sponsored slots", async () => {
+    const { clientRendersAds } = await import("../services/ad-mix.js")
+    expect(clientRendersAds("0.3.0")).toBe(true)
+    expect(clientRendersAds("0.3.1")).toBe(true)
+    expect(clientRendersAds("1.0.0")).toBe(true)
+    expect(clientRendersAds("0.10.0")).toBe(true)
+    expect(clientRendersAds("0.3.0-dev")).toBe(true)
+  })
+  it("older, missing or junk versions get none — an old cli cannot draw the panel", async () => {
+    const { clientRendersAds } = await import("../services/ad-mix.js")
+    expect(clientRendersAds("0.2.11")).toBe(false)
+    expect(clientRendersAds("0.2.99")).toBe(false)
+    expect(clientRendersAds(undefined)).toBe(false)
+    expect(clientRendersAds("")).toBe(false)
+    expect(clientRendersAds("latest")).toBe(false)
+    expect(clientRendersAds(["0.3.0"])).toBe(false)
+  })
+})
