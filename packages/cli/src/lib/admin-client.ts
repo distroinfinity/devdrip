@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = "http://localhost:3001"
+const DEFAULT_BASE_URL = "https://api.devdrip.sh"
 
 function readSecret(): string {
   const secret = process.env["DEVDRIP_ADMIN_SECRET"] ?? process.env["ADMIN_SECRET"]

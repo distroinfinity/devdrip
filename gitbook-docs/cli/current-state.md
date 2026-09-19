@@ -33,14 +33,12 @@ Most commands only print a `TODO` message.
 
 That includes:
 
-- `init`
 - `config`
 - `daemon start`
 - `daemon stop`
 - `daemon status`
 - `sync`
 - `claim`
-- `demo`
 - `doctor`
 - `uninstall`
 - `upgrade`
@@ -93,29 +91,53 @@ Reads `~/.devdrip/config.json` and calls `GET /me`. If the access token is expir
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "apiUrl": "https://api.devdrip.sh",
   "auth": {
     "accessToken": "jwt",
     "refreshToken": "hex",
-    "accessTokenExpiresAt": "2026-04-20T15:24:00.000Z"
+    "accessTokenExpiresAt": "2026-04-21T12:00:00Z"
   },
   "user": {
     "id": "uuid",
-    "githubLogin": "manu",
-    "email": "manu@example.com",
-    "avatarUrl": "https://avatars.githubusercontent.com/u/123"
-  }
+    "githubLogin": "handle",
+    "email": "user@example.com",
+    "avatarUrl": null
+  },
+  "device": { "id": "uuid" },
+  "cli": { "binPath": "/abs/path/to/devdrip" }
 }
 ```
 
-`version` exists for future migrations. `apiUrl` is captured at sign-in so subsequent commands don't need `DEVDRIP_API_URL` set. `DEVDRIP_API_URL` still takes precedence when present.
+`version` exists for future migrations. `apiUrl` is captured at sign-in so subsequent commands don't need `DEVDRIP_API_URL` set. `DEVDRIP_API_URL` still takes precedence when present. Before first sign-in, public CLI requests default to the production API origin (`https://api.devdrip.sh`), not localhost.
 
 ### Library layout
 
-- `src/lib/config.ts` — atomic read/write/delete with mode enforcement.
+- `src/lib/config.ts` — atomic read/write/delete with mode enforcement. Unknown config versions now fail explicitly instead of silently behaving like a logged-out session.
 - `src/lib/auth-flow.ts` — port scanner, one-shot callback server, browser opener.
-- `src/lib/api-client.ts` — `apiFetch` (bearer + transparent refresh-on-401) and `apiFetchPublic` (no auth — used for `/auth/exchange` and `/auth/refresh`). Throws `NotAuthenticatedError` when refresh fails; throws `ApiError` on other non-2xx responses.
+- `src/lib/api-client.ts` — `apiFetch` (bearer + transparent refresh-on-401) and `apiFetchPublic` (no auth — used for `/auth/exchange` and `/auth/refresh`). Defaults to the production API origin unless overridden by `DEVDRIP_API_URL` or persisted config. Throws `NotAuthenticatedError` when refresh fails; throws `ApiError` on other non-2xx responses.
+
+## devdrip init (S2-07)
+
+`devdrip init` turns a fresh install into a working DevDrip setup. Seven visible steps, two user actions on first run (GitHub sign-in + one category multi-select + enter to dismiss preview ad). The command is safe to re-run: it reconciles device state, refreshes hook wiring, and preserves the original Claude settings backup.
+
+Flow:
+
+1. **auth** — if `~/.devdrip/config.json` is missing, runs the GitHub OAuth flow inline (same as `devdrip auth`).
+2. **Claude settings dir prep** — ensures `~/.claude/` exists so first-run hook install works even on a fresh machine.
+3. **device registration** — always performs `POST /devices` via the refresh-capable CLI API client, then stores the returned `device.id` in config under `device: { id }`. Re-runs reconcile stale local IDs back to the backend truth.
+4. **category picker** — `@clack/prompts` multi-select over the seven `AdCategory` values; all pre-checked. Un-checked categories become `blockedCategories` server-side.
+5. **preferences saved** — `PUT /me/preferences` with `{ blockedCategories, tzOffsetMinutes }`. `maxPerHour` / `maxPerDay` / quiet hours stay at DB defaults until the dashboard sync API (S4-06) ships.
+6. **hooks installed** — merges `PreToolUse`, `Stop`, `UserPromptSubmit` entries into `~/.claude/settings.json`. First-install backup preserved at `~/.claude/settings.json.devdrip-backup`. Existing entries from other tools (MCP, etc.) are never modified — devdrip appends its own matcher group to each event array. Stored commands quote the CLI path when needed so installs under paths with spaces still work, and init now aborts instead of writing hooks if it cannot resolve the `devdrip` executable path.
+7. **ad preview** — invokes `devdrip demo` in-process: one `GET /ads/next` via the real Carbon-primary waterfall, rendered as an ASCII box, dismiss on enter.
+8. **health check** — four parallel probes (auth, device, hooks, backend) printed as ✓/✗ lines. The hooks probe requires all three Claude events to be present, not just any one devdrip hook. Exits non-zero if any fail.
+9. **summary** — earnings projection with an honest per-ad rate, dashboard pointer, and `devdrip status` hint.
+
+Config schema bumped to v2 with new `device: { id }` and `cli: { binPath }` fields. v1 configs migrate on read.
+
+## devdrip demo (S2-07, partial — S5-04 owns the polished version)
+
+`devdrip demo` fetches one real ad from `GET /ads/next?surface=terminal-tv&deviceId=<id>` and renders it via `renderBox()` (fixed 72-col unicode box, ASCII fallback when not a TTY or `NO_COLOR=1`). Ad headline/body/url text is sanitized before printing so terminal control sequences cannot corrupt the screen. Press enter to dismiss. If the backend returns 204 (no ads queued), it prints a graceful "try again after your next Claude session" message. The `[DEMO]` badge, interactive key practice, and vanish-timing stats remain scoped to S5-04.
 
 ## `admin` Subcommands
 
@@ -159,22 +181,15 @@ Fallback behavior:
 
 - if a stable machine ID cannot be read, the code hashes hostname plus platform
 
-## Current Intent Visible In Code
-
-`devdrip init` is still a placeholder but owns device registration — `registerDevice()` is called there, not in `auth`. This keeps the auth command focused on identity and lets repeat-install flows re-run `init` without re-authenticating.
-
 ## What Is Missing For A Real CLI
 
 - daemon process lifecycle
-- hook handling
 - local ledger
 - ad cache
-- renderer
 - sync pipeline
 - payout flow
 - doctor checks
-- `devdrip init` wiring (device registration after auth)
 
 ## Engineering Takeaway
 
-`packages/cli` now has working identity plus the config/api-client/auth-flow helpers that every future command will lean on. New commands that hit the backend should use `apiFetch` from `src/lib/api-client.ts` so they inherit transparent token refresh. The remaining gaps are local runtime pieces — daemon, hooks, ledger, renderer.
+`packages/cli` now has working identity, onboarding (`devdrip init`), ad preview (`devdrip demo`), and the config/api-client/auth-flow helpers that every future command will lean on. New commands that hit the backend should use `apiFetch` from `src/lib/api-client.ts` so they inherit transparent token refresh. The remaining gaps are local runtime pieces — daemon, ledger, renderer, sync.

@@ -27,11 +27,16 @@ function deriveExternalId(ad: CarbonAd): string {
 // ── fetch ads ──────────────────────────────────────────────────────────────
 
 async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
-  if (!env.carbonZoneKey) return []
-
   try {
+    const fetchOptions: { serve?: string; placement: string } = {
+      placement: env.carbonPlacement,
+    }
+    if (env.carbonZoneKey) {
+      fetchOptions.serve = env.carbonZoneKey
+    }
+
     const ad = await Promise.race([
-      fetchAd({ serve: env.carbonZoneKey, placement: env.carbonPlacement }),
+      fetchAd(fetchOptions),
       new Promise<null>((_, reject) =>
         setTimeout(() => reject(new Error("carbon_fetch_timeout")), FETCH_TIMEOUT_MS)
       ),

@@ -47,7 +47,9 @@ async function buildAdRequest(
     surface,
     count,
     blockedCategories: (pref?.blockedCategories ?? []) as AdCategory[],
-    enabledSurfaces: (pref?.enabledSurfaces ?? DEFAULT_SURFACES) as AdSurface[],
+    enabledSurfaces: (pref?.enabledSurfaces && pref.enabledSurfaces.length > 0
+      ? pref.enabledSurfaces
+      : DEFAULT_SURFACES) as AdSurface[],
     maxAdsPerHour: Math.min(pref?.maxPerHour ?? MAX_ADS_PER_HOUR_TOTAL, MAX_ADS_PER_HOUR_TOTAL),
     maxAdsPerDay: Math.min(pref?.maxPerDay ?? MAX_ADS_PER_DAY, MAX_ADS_PER_DAY),
     quietHoursStart: pref?.quietHoursStart ?? undefined,

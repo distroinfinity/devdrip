@@ -58,7 +58,7 @@ async function runLogout(): Promise<void> {
   console.log("✓ signed out")
 }
 
-async function runLogin(force: boolean): Promise<void> {
+export async function runLogin(force: boolean): Promise<void> {
   const existing = await readConfig()
   if (existing && !force) {
     const login = existing.user.githubLogin ?? existing.user.id
@@ -98,7 +98,6 @@ async function runLogin(force: boolean): Promise<void> {
   )
 
   await writeConfig({
-    version: 1,
     apiUrl: baseUrl,
     auth: {
       accessToken: tokens.token,
@@ -111,6 +110,8 @@ async function runLogin(force: boolean): Promise<void> {
       email: me.email,
       avatarUrl: me.avatarUrl,
     },
+    device: { id: null },
+    cli: { binPath: "" },
   })
 
   const handle = me.githubLogin || me.email
