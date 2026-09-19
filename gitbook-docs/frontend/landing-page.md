@@ -12,7 +12,7 @@ The home page is a Next.js App Router page composed of the following sections, i
 4. **how-it-works** — three-step explainer (install → hooks fire → slots surface)
 5. **control** — quiet hours, watchlist, and alert configuration highlights
 6. **install** — full install command block and post-install note
-7. **footer** — links and copyright
+7. **footer** — brand block + tagline, social icon links (X, WhatsApp, GitHub), link columns, copyright
 
 Below-fold sections are dynamically imported with SSR enabled.
 
@@ -32,7 +32,7 @@ All landing components live in `frontend/components/landing/`:
 | `control-section.tsx`      | quiet hours / watchlist / alerts highlights |
 | `install-section.tsx`      | install CTA section                         |
 | `install-command.tsx`      | copyable curl command block                 |
-| `footer.tsx`               | page footer                                 |
+| `footer.tsx`               | brand + socials + link columns + meta bar   |
 
 ## Brand Tokens
 
@@ -59,10 +59,13 @@ curl -fsSL https://get.distrotv.xyz/install.sh | sh
 
 ## OG / Twitter Cards
 
-- `frontend/app/opengraph-image.tsx` — OG image (channels-first copy, indigo palette)
-- `frontend/app/twitter-image.tsx` — Twitter summary_large_image card
+- `frontend/app/opengraph-image.tsx` — OG card, 1200×630, light palette
+- `frontend/app/twitter-image.tsx` — Twitter `summary_large_image` card, 1200×675, dark palette
+- `frontend/lib/og/render.tsx` — shared `next/og` renderer both routes call; takes a theme + size
 
-Both are rendered via `@vercel/og` at request time.
+Fonts are **bundled** from `frontend/lib/og/fonts/*.ttf` (static Space Mono 400 + JetBrains Mono 700) and loaded via `fetch(new URL(..., import.meta.url))` — **not** fetched from Google Fonts at request time. The old per-request font fetch pushed render time to ~4.5s, past the X/Twitter crawler timeout, so the card silently fell back to a no-image summary. Bundled fonts render in ~0.1s. Satori has no static-asset network dependency now, so the card is deterministic.
+
+Gotcha: satori drops a bare `<br/>` between text nodes (jams words together) — multi-line headlines must use explicit per-line `<div style={{display:'flex'}}>` children.
 
 ## Positioning
 
