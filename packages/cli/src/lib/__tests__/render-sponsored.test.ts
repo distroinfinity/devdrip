@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import type { SponsoredPayload } from "@distrotv/shared"
 import { renderSlotLine } from "../render-line.js"
-import { perImpressionUsd } from "../render-sponsored.js"
+import { formatEarned, perImpressionUsd } from "../render-sponsored.js"
 
 const ad: SponsoredPayload & { cacheSource: "api" } = {
   kind: "sponsored",
@@ -20,6 +20,10 @@ const strip = (s: string): string =>
   s.replace(/\x1b\][^\x1b]*\x1b\\/g, "").replace(/\x1b\[[0-9;]*m/g, "")
 
 describe("sponsored panel", () => {
+  it("keeps sub-dollar totals at 4 decimals", () => {
+    expect(formatEarned(0.028)).toBe("0.0280")
+    expect(formatEarned(12.5)).toBe("12.50")
+  })
   it("estimates the per-impression share", () => {
     expect(perImpressionUsd(10)).toBeCloseTo(0.007, 6)
   })
@@ -32,7 +36,7 @@ describe("sponsored panel", () => {
     expect(out).toContain("sentry.io")
     expect(out).toContain("dtv open")
     expect(out).toContain("+$0.0070 est")
-    expect(out).toContain("today $0.42")
+    expect(out).toContain("today $0.4200")
   })
   it("says demo for house ads", () => {
     expect(renderSlotLine({ ...ad, source: "house" }, "none", 80)).toContain("via Distro")

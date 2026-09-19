@@ -5,6 +5,7 @@ import { reportError } from "../lib/api-client.js"
 import { readConfig, type DevdripConfig } from "../lib/config.js"
 import { readDaemonStatus, type DaemonStatus } from "../lib/daemon/lifecycle.js"
 import { ledgerPath, openLedger } from "../lib/ledger.js"
+import { formatEarned } from "../lib/render-sponsored.js"
 import { slotCachePath } from "../lib/slot-cache.js"
 import { checkForUpdate } from "../lib/upgrade-check.js"
 
@@ -159,7 +160,7 @@ function printHuman(p: StatusPayload, cfg: DevdripConfig | null): void {
   console.log(`channels: ${p.channels.length > 0 ? p.channels.join(", ") : "none (opt-in)"}`)
   if (p.channels.length === 2) console.log(`ratio:    ${p.mode ?? "unknown"}`)
   console.log(`utilities: ${p.utilities ? "on" : "off"}`)
-  console.log(`est. earned today: $${p.estEarnedTodayUsd.toFixed(4)}`)
+  console.log(`est. earned today: $${formatEarned(p.estEarnedTodayUsd)}`)
 
   printSlotCache(p.slotCache)
   printDaemon(p.daemon)
