@@ -106,6 +106,21 @@ async function ensureClaudeDir(): Promise<void> {
   }
 }
 
+// a 5xx from pair-init means our service is down, not the user's fault. trade
+// the raw `503 pair_init_failed` for a message that says what to do next.
+async function pairInitOrFriendly() {
+  try {
+    return await pairInit()
+  } catch (err) {
+    if (err instanceof ApiError && err.status >= 500) {
+      throw new Error(
+        "sign-in is temporarily unavailable — the Distro TV service is having a moment. re-run `distro init` in a minute."
+      )
+    }
+    throw err
+  }
+}
+
 async function ensureSignedInOrPair(): Promise<{ user: MeResponse }> {
   const cfg = await readConfig()
 
@@ -120,7 +135,7 @@ async function ensureSignedInOrPair(): Promise<{ user: MeResponse }> {
   }
 
   // 2) Fresh OAuth pair flow.
-  const init = await pairInit()
+  const init = await pairInitOrFriendly()
   log.success(`pair code requested: ${init.code.slice(0, 8)}…`)
 
   await openOrPrintSetup(init.setupUrl, init.code)

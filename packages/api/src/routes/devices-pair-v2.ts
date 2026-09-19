@@ -9,6 +9,7 @@ import {
   PAIR_TTL_SECONDS,
 } from "../services/pairing.service.js"
 import { env } from "../config/env.js"
+import { logger } from "../lib/logger.js"
 
 export const devicesPairInitRouter: ReturnType<typeof Router> = Router()
 export const devicesPairPollRouter: ReturnType<typeof Router> = Router()
@@ -19,8 +20,11 @@ devicesPairInitRouter.post("/", async (_req, res) => {
     const code = await createPendingPair()
     const setupUrl = `${env.webUrl}/setup?pair=${code}`
     await res.status(200).json({ code, setupUrl, expiresInSec: PAIR_TTL_SECONDS })
-  } catch {
-    await res.status(503).json({ error: "pair_init_failed" })
+  } catch (err) {
+    // surface the real cause — a blank 503 hid an exhausted Upstash command
+    // quota for days. redis writes here are the only thing that can throw.
+    logger.error({ err }, "pair_init_failed")
+    await res.status(503).json({ error: "pair_init_failed", retryable: true })
   }
 })
 
