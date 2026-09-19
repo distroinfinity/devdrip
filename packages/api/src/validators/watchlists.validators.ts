@@ -7,7 +7,13 @@ export interface PutWatchlistsInput {
 }
 
 export function validatePutWatchlistsInput(body: unknown): PutWatchlistsInput {
-  const tickers = (body as { tickers?: unknown })?.tickers
+  const b = body as { tickers?: unknown; watchlists?: unknown }
+  // accept the flat { tickers } shape or the cli's { watchlists: [{ name, tickers }] }.
+  // the api models a single default watchlist, so use the first list's tickers.
+  let tickers = b?.tickers
+  if (!Array.isArray(tickers) && Array.isArray(b?.watchlists)) {
+    tickers = (b.watchlists as Array<{ tickers?: unknown }>)[0]?.tickers
+  }
   if (!Array.isArray(tickers)) throw new ValidationError("tickers_must_be_array")
   if (tickers.length === 0) throw new ValidationError("at_least_one_ticker_required")
   if (tickers.length > 50) throw new ValidationError("too_many_tickers")
