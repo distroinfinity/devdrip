@@ -2,8 +2,10 @@ import { DotGrid } from "@/components/shared/dot-grid";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { InlineNavbar } from "@/components/landing/inline-navbar";
 import { HeroSection } from "@/components/landing/hero-section";
+import { DeadTimeSection } from "@/components/landing/dead-time-section";
 import { HowItWorksSection } from "@/components/landing/how-it-works-section";
 import { SurfacesSection } from "@/components/landing/surfaces-section";
+import { YourRulesSection } from "@/components/landing/your-rules-section";
 
 export default function Home() {
   return (
@@ -25,11 +27,15 @@ export default function Home() {
 
         <HeroSection />
 
+        <DeadTimeSection />
+
         <HowItWorksSection />
 
         <SurfacesSection />
 
-        {/* future sections: P0-007 through P0-013 */}
+        <YourRulesSection />
+
+        {/* future sections: P0-008 through P0-013 */}
       </div>
     </main>
   );
