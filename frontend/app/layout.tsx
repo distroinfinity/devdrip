@@ -17,9 +17,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-theme="light"
+      suppressHydrationWarning
       className={`${spaceMono.variable} ${dmSans.variable} ${jetbrainsMono.variable}`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var s;try{s=localStorage.getItem("dd-theme")}catch(e){}var t=s==="light"||s==="dark"?s:window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t)})()`,
+          }}
+        />
+      </head>
       <body className="font-body antialiased">{children}</body>
     </html>
   );
