@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion } from "motion/react";
 import { terminalColors as tc, tokens } from "@/lib/design-tokens";
 
@@ -21,11 +21,16 @@ export function AudioCompanionDemo() {
   const containerRef = useRef<HTMLDivElement>(null);
   const muteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // stable heights computed once per mount
+  const barHeights = useMemo(
+    () => Array.from({ length: BAR_COUNT }, () => 20 + Math.random() * 20),
+    [],
+  );
+
   // timer ticks 0→15
   useEffect(() => {
     if (muted) return;
     if (elapsed >= 15) {
-      // reset loop
       const t = setTimeout(() => setElapsed(0), 2000);
       return () => clearTimeout(t);
     }
@@ -53,8 +58,7 @@ export function AudioCompanionDemo() {
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const handler = (e: KeyboardEvent) => {
-      e.preventDefault();
+    const handler = () => {
       handleMute();
     };
     el.addEventListener("keydown", handler);
@@ -108,7 +112,7 @@ export function AudioCompanionDemo() {
                   muted
                     ? { height: 8 }
                     : {
-                        height: [8, 20 + Math.random() * 20, 8],
+                        height: [8, barHeights[i], 8],
                       }
                 }
                 transition={
@@ -161,7 +165,7 @@ export function AudioCompanionDemo() {
         {/* transcript */}
         <div
           className="rounded p-3 min-h-[72px]"
-          style={{ background: "#16161A", border: `1px solid ${tc.border}` }}
+          style={{ background: tc.bgInset, border: `1px solid ${tc.border}` }}
         >
           <div
             className="font-body text-[9px] font-semibold uppercase tracking-[0.08em] mb-2"

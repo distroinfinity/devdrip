@@ -26,17 +26,19 @@ export function SponsoredChallengeDemo() {
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSelect = useCallback(
     (key: string) => {
       if (revealed) return;
       setSelected(key);
-      setTimeout(() => setRevealed(true), 350);
+      revealTimerRef.current = setTimeout(() => setRevealed(true), 350);
     },
     [revealed],
   );
 
   const handleReset = useCallback(() => {
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
     setSelected(null);
     setRevealed(false);
     containerRef.current?.focus();
@@ -114,7 +116,7 @@ export function SponsoredChallengeDemo() {
         <div
           className="rounded p-3 mb-4 font-data text-[11px] leading-relaxed whitespace-pre overflow-x-auto"
           style={{
-            background: "#16161A",
+            background: tc.bgInset,
             border: `1px solid ${tc.border}`,
             color: tc.textSecondary,
           }}
@@ -139,7 +141,7 @@ export function SponsoredChallengeDemo() {
               bg = "rgba(239,68,68,0.08)";
             } else if (isSelected && !revealed) {
               borderColor = tc.textSecondary;
-              bg = "#16161A";
+              bg = tc.bgInset;
             }
 
             return (

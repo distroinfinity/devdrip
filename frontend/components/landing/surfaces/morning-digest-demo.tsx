@@ -1,3 +1,5 @@
+"use client";
+
 import { DigestCard } from "@/components/shared/digest-card";
 
 export function MorningDigestDemo() {

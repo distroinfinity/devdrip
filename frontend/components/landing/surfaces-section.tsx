@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, lazy, Suspense } from "react";
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { tokens, terminalColors as tc } from "@/lib/design-tokens";
 import { BlurFade } from "@/components/ui/blur-fade";
@@ -165,8 +165,14 @@ function DemoContent({ surfaceId }: { surfaceId: string }) {
 
 export function SurfacesSection() {
   const [activeTab, setActiveTab] = useState(SURFACES[0].id);
-  const tabBarRef = useRef<HTMLDivElement>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // cleanup hover preload timer on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    };
+  }, []);
 
   const activeSurface = SURFACES.find((s) => s.id === activeTab)!;
 
@@ -211,7 +217,6 @@ export function SurfacesSection() {
           <div>
             {/* tab bar */}
             <div
-              ref={tabBarRef}
               role="tablist"
               aria-label="Ad surface demos"
               className="flex overflow-x-auto no-visible-scrollbar gap-1 border-b border-[var(--rule-default)] mb-6"
@@ -284,6 +289,7 @@ export function SurfacesSection() {
                     earning={activeSurface.earningRate}
                     dismiss={activeSurface.dismissMechanism}
                     detail={activeSurface.keyDetail}
+                    description={activeSurface.description}
                   />
                 </motion.div>
               </AnimatePresence>
