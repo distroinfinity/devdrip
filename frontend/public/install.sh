@@ -40,16 +40,28 @@ fi
 echo "→ installing native dependencies..."
 (cd "$INSTALL_DIR" && npm install --omit=dev --no-audit --no-fund --silent)
 
-# 3. wrapper
-cat > "$BIN_DIR/distro" <<EOF
+# 3. wrappers — `distro` is the primary command; `dtv` is a collision-proof
+# alias. the Python `distro` package ships its own `distro` CLI (usage:
+# `distro [-h] [--json] [--root-dir ROOT_DIR]`) that can shadow ours on PATH
+# (e.g. when /opt/homebrew/bin wins), so `dtv` always resolves to us.
+for name in distro dtv; do
+  cat > "$BIN_DIR/$name" <<EOF
 #!/bin/sh
 exec node "$INSTALL_DIR/dist/index.js" "\$@"
 EOF
-chmod +x "$BIN_DIR/distro"
+  chmod +x "$BIN_DIR/$name"
+done
 
-# 4. PATH hint
+# 4. PATH + shadowing check. warn when a bare `distro` won't resolve to ours.
 case ":$PATH:" in
-  *":$BIN_DIR:"*) ;;
+  *":$BIN_DIR:"*)
+    resolved=$(command -v distro 2>/dev/null || true)
+    if [ -n "$resolved" ] && [ "$resolved" != "$BIN_DIR/distro" ]; then
+      echo "⚠ another 'distro' is ahead of ours on PATH: $resolved"
+      echo "  (likely the Python 'distro' package). use 'dtv' instead, or put"
+      echo "  $BIN_DIR first: export PATH=\"$BIN_DIR:\$PATH\""
+    fi
+    ;;
   *) echo "ⓘ add $BIN_DIR to your PATH (e.g. in ~/.zshrc): export PATH=\"$BIN_DIR:\$PATH\"" ;;
 esac
 
@@ -60,7 +72,7 @@ esac
 if [ -e /dev/tty ] && (: < /dev/tty) 2>/dev/null; then
   echo "✓ installed — starting setup…"
   echo ""
-  "$BIN_DIR/distro" init < /dev/tty || echo "ⓘ setup didn't finish — run: distro init"
+  "$BIN_DIR/distro" init < /dev/tty || echo "ⓘ setup didn't finish — run: distro init  (or 'dtv init' if 'distro' is taken)"
 else
-  echo "✓ installed. run: distro init"
+  echo "✓ installed. run: distro init  (or 'dtv init' if 'distro' is taken)"
 fi
