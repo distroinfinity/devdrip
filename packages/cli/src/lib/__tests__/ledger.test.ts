@@ -52,7 +52,7 @@ describe("ledger", () => {
     const Database = (await import("better-sqlite3")).default
     const db = new Database(path, { readonly: true })
     try {
-      expect(db.pragma("user_version", { simple: true })).toBe(2)
+      expect(db.pragma("user_version", { simple: true })).toBe(4)
       expect(db.pragma("journal_mode", { simple: true })).toBe("wal")
 
       const tables = db

@@ -14,7 +14,7 @@ import {
 } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { AdCategory } from "@devdrip/shared"
+import { AdCategory, ChannelMode } from "@devdrip/shared"
 
 let tempHome: string
 let origArgv1: string | undefined
@@ -54,6 +54,7 @@ vi.mock("../../lib/device.js", async () => ({
 }))
 
 const multiselectMock = vi.fn()
+const selectMock = vi.fn()
 vi.mock("@clack/prompts", () => ({
   intro: vi.fn(),
   outro: vi.fn(),
@@ -61,6 +62,7 @@ vi.mock("@clack/prompts", () => ({
   cancel: vi.fn(),
   isCancel: () => false,
   multiselect: (...args: unknown[]) => multiselectMock(...args),
+  select: (...args: unknown[]) => selectMock(...args),
   log: {
     step: vi.fn(),
     success: vi.fn(),
@@ -123,6 +125,7 @@ beforeEach(() => {
     AdCategory.SaasProducts,
     // user un-checked DeveloperRecruiting
   ])
+  selectMock.mockReset().mockResolvedValue(ChannelMode.Mix)
 })
 
 afterEach(() => {

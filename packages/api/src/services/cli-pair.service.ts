@@ -67,14 +67,14 @@ export async function fetchPairTokens(code: string): Promise<PairFetchResult> {
   if (row.status !== "linked") return { kind: "pending" }
 
   // Happy path: stash exists from linkPairSession. getdel makes it single-use.
-  const stash = await getRedis().getdel<string>(`${TOKEN_STASH_PREFIX}${code}`)
+  // upstash auto-parses JSON, so the stored object round-trips back as-is.
+  const stash = await getRedis().getdel<{
+    token: string
+    refreshToken: string
+    user: PairUserPayload
+  }>(`${TOKEN_STASH_PREFIX}${code}`)
   if (stash) {
-    const parsed = JSON.parse(stash) as {
-      token: string
-      refreshToken: string
-      user: PairUserPayload
-    }
-    return { kind: "linked", ...parsed }
+    return { kind: "linked", ...stash }
   }
 
   // Recovery path: stash missing (Redis eviction, partial link). The row's
