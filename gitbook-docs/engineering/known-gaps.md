@@ -5,11 +5,12 @@ These are the main current-state gaps that matter when working in this repo.
 ## CLI
 
 - command surface exists, but most command bodies are `TODO`
+- `admin` is the first fully implemented command group (advertiser / campaign / creative / stats / invite / user / payouts) — it wraps the corresponding admin API routes
 - no daemon implementation
 - no hook implementation
 - no local ledger
 - no local sync path
-- no payout flow
+- no payout flow (developer-facing `claim` command is still `TODO`; admin-side visibility is now available via `devdrip admin payouts`)
 
 ## Dashboard
 
@@ -23,12 +24,15 @@ These are the main current-state gaps that matter when working in this repo.
 - budget pacing engine is built (Redis-backed daily/hourly tracking, pacing strategies, creative rotation) and integrated with the impression ingestion pipeline
 - ad serving pipeline is implemented: `GET /ads/next` (single ad, 204 when empty), `GET /ads/batch` (up to 10 ads), `POST /ads/next` (backward-compat) with Carbon Ads (primary) → Manual (fallback) waterfall, `POST /impressions`, `POST /clicks` with frequency caps, budget tracking, earnings calculation, delivery tokens, beacon URLs in response, and viewability beacons
 - impression outcomes are derived from delivery-token age on the server, but there is still no daemon-side viewability attestation or anti-fraud layer beyond auth, rate limits, and one-time tokens
-- admin surface uses X-Admin-Secret (shared secret, no caller identity or audit trail) — should converge on authenticated admin principals for production
+- admin surface uses X-Admin-Secret (shared secret, no caller identity or audit trail) — should converge on authenticated admin principals for production. Admin routes now include `/admin/stats`, `/admin/users`, `/admin/payouts`, `/invites` in addition to the existing advertiser/campaign/creative CRUD. Secret comparison is timing-safe (`crypto.timingSafeEqual`) but the whole scheme is still a single shared credential.
+- admin-mutation audit log — no record of _who_ triggered `PATCH /admin/payouts/:id/status` or invite generation (shared secret has no caller identity). Acceptable at 100-user scale; revisit before widening operator access.
+- admin route naming is inconsistent — advertisers/campaigns/invites mount at top-level while stats/users/payouts mount under `/admin/*`. Pick one convention (likely fold everything under `/admin/*`) before the admin surface grows further.
+- CLI list commands have no `--offset` — fine at `--limit 100` default, but scripts needing deep pagination will have to hit the backend directly until added.
 - `CARBON_CPM_RATE` is a static env var estimate ($0.80) — Carbon's SDK returns no pricing data per impression. Developer earnings are recorded as `cpmRate / 1000 * 0.70` using this guess. For production payouts, need to reconcile against Carbon's actual publisher payouts (via their reporting dashboard/API) and mark earnings as "estimated" until confirmed. Currently using Carbon demo zone (`CWYDC2QE`) with no real payout implications.
 - Carbon click tracking URL (`statlink`) is stored but not fired server-side on click — needs investigation into whether Carbon expects server-side click beacons or relies on the client opening the tracking redirect URL
 - Carbon response caching not implemented — every `/ads/next` hits Carbon's API. At scale, a short Redis/in-process cache (30-60s TTL) would reduce external calls
 - EthicalAds provider integration not yet built (AdProvider interface is ready for it)
-- earnings confirmation, payouts, preferences CRUD, referrals, and invite flows are not yet exposed as API routes
+- earnings confirmation, payout creation (developer `claim`), preferences CRUD, referrals, and invite **redemption** flows are not yet exposed as API routes. Admin-side payout list + status override and invite generation are wired.
 - auth and devices routes still use the older inline pattern (not yet refactored to layered architecture)
 
 ## Waitlist Storage

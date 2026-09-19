@@ -4,9 +4,46 @@
 
 - Node 20+
 - pnpm 10+
-- local Postgres if using `DB_TARGET=local`
-- Upstash Redis credentials for normal API rate-limit behavior
+- Docker (for local Postgres — see below) or a Neon connection string
 - GitHub OAuth app credentials for auth flow testing
+- Upstash Redis credentials only for production-like rate-limit testing; in development (`NODE_ENV=development` without `UPSTASH_REDIS_REST_URL`) the API falls back to an in-memory store
+
+## Local Postgres via Docker
+
+A ready-to-use image is already provisioned on most dev machines as container `devdrip-postgres`. Start or create it:
+
+```bash
+# reuse an existing container
+docker start devdrip-postgres
+
+# or create one fresh
+docker run -d --name devdrip-postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=devdrip \
+  -p 5432:5432 \
+  postgres:16-alpine
+```
+
+Then in `packages/api/.env`:
+
+```bash
+DB_TARGET=local
+DATABASE_URL_LOCAL=postgresql://postgres:postgres@localhost:5432/devdrip
+DATABASE_URL_LOCAL_UNPOOLED=postgresql://postgres:postgres@localhost:5432/devdrip
+```
+
+Apply the schema once:
+
+```bash
+pnpm --filter @devdrip/api db:push
+```
+
+Seed optional demo data:
+
+```bash
+pnpm --filter @devdrip/api db:seed
+```
 
 ## Install
 
@@ -82,6 +119,26 @@ pnpm --filter @devdrip/api db:push
 pnpm --filter @devdrip/api db:studio
 pnpm --filter @devdrip/api db:seed
 ```
+
+## Admin CLI Smoke Test
+
+With the API running and `ADMIN_SECRET` set (defaults to `test-admin-secret` in the worktree `.env`):
+
+```bash
+export DEVDRIP_ADMIN_SECRET=test-admin-secret
+export DEVDRIP_API_URL=http://localhost:3001
+
+pnpm --filter @devdrip/cli build
+
+node packages/cli/dist/index.js admin stats
+node packages/cli/dist/index.js admin user list
+node packages/cli/dist/index.js admin advertiser list
+node packages/cli/dist/index.js admin campaign list
+node packages/cli/dist/index.js admin payouts list
+node packages/cli/dist/index.js admin invite generate --count 3
+```
+
+All admin commands read the secret from `DEVDRIP_ADMIN_SECRET` (or `ADMIN_SECRET`) and the base URL from `DEVDRIP_API_URL` (default `http://localhost:3000`).
 
 ## Current Validation Status In This Environment
 
