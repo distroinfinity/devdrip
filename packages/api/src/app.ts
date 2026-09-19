@@ -32,6 +32,7 @@ import { onchainPublicRouter } from "./routes/onchain-public.js"
 import { ingestRouter } from "./routes/ingest.js"
 import { adminRouter } from "./routes/admin.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
+import { testOnchainRouter } from "./routes/__test-onchain.js"
 import { requireAuth } from "./middleware/auth.js"
 import { globalLimiter, userLimiter } from "./middleware/rate-limit.js"
 import { getDb } from "./db/index.js"
@@ -67,6 +68,7 @@ app.use("/health", healthRouter)
 // at the mount site; the route handler also short-circuits in production.
 if (env.nodeEnv !== "production") {
   app.use("/__test", testHelpersRouter)
+  app.use("/__test", testOnchainRouter)
 }
 
 app.use(globalLimiter)
