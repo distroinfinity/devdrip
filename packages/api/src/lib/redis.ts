@@ -127,6 +127,10 @@ class TestRedis {
         ops.push(() => this.incr(key))
         return pipeline
       },
+      incrby: (key: string, delta: number) => {
+        ops.push(() => this.incrby(key, delta))
+        return pipeline
+      },
       incrbyfloat: (key: string, delta: number) => {
         ops.push(() => this.incrbyfloat(key, delta))
         return pipeline

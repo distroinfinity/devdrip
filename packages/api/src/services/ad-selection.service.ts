@@ -77,7 +77,7 @@ function toAdPayload(row: CandidateRow): AdPayload {
 
 async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
   // note: frequency caps, quiet hours, and surface checks are handled
-  // by the waterfall orchestrator in ad-delivery.service.ts before calling providers.
+  // by the waterfall orchestrator in content-delivery.service.ts before calling providers.
 
   // stage 1: DB query — candidate set
   const db = getDb()
