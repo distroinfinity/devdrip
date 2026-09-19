@@ -13,6 +13,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:integration": "pnpm --filter @devdrip/api test:integration",
     "release": "turbo run build --filter=@devdrip/cli && pnpm publish --filter=@devdrip/cli --access public --no-git-checks",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\" --ignore-path .prettierignore",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\" --ignore-path .prettierignore",
