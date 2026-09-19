@@ -33,7 +33,6 @@ Most commands only print a `TODO` message.
 
 That includes:
 
-- `config`
 - `sync`
 - `claim`
 - `doctor`
@@ -85,7 +84,7 @@ Reads `~/.devdrip/config.json` and calls `GET /me`. If the access token is expir
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "apiUrl": "https://api.devdrip.sh",
   "auth": {
     "accessToken": "jwt",
@@ -99,11 +98,23 @@ Reads `~/.devdrip/config.json` and calls `GET /me`. If the access token is expir
     "avatarUrl": null
   },
   "device": { "id": "uuid" },
-  "cli": { "binPath": "/abs/path/to/devdrip" }
+  "cli": { "binPath": "/abs/path/to/devdrip" },
+  "preferences": {
+    "blockedCategories": [],
+    "maxPerHour": 8,
+    "maxPerDay": 60,
+    "sessionWarmupMs": 600000,
+    "quietHoursStart": null,
+    "quietHoursEnd": null,
+    "nightMode": false,
+    "tzOffsetMinutes": 330
+  }
 }
 ```
 
-`version` exists for future migrations. `apiUrl` is captured at sign-in so subsequent commands don't need `DEVDRIP_API_URL` set. `DEVDRIP_API_URL` still takes precedence when present. Before first sign-in, public CLI requests default to the production API origin (`https://api.devdrip.sh`), not localhost.
+`version` exists for future migrations (`1` and `2` auto-migrate on read to `3`, filling in defaults for any new fields). `apiUrl` is captured at sign-in so subsequent commands don't need `DEVDRIP_API_URL` set. `DEVDRIP_API_URL` still takes precedence when present. Before first sign-in, public CLI requests default to the production API origin (`https://api.devdrip.sh`), not localhost.
+
+`preferences` is owned by the `devdrip config` command (S2-12); see [`config` section](#devdrip-config-s2-12) below. The daemon watches this file and reloads preferences live.
 
 ### Library layout
 
@@ -131,6 +142,48 @@ Flow:
 9. **summary** — earnings projection with an honest per-ad rate, dashboard pointer, and `devdrip status` hint.
 
 Config schema bumped to v2 with new `device: { id }` and `cli: { binPath }` fields. v1 configs migrate on read.
+
+## devdrip config (S2-12)
+
+`devdrip config` exposes the seven user-tunable ad preferences the daemon honors at runtime. It writes `~/.devdrip/config.json` atomically and asks the daemon (over its Unix socket) to reload immediately; the daemon also watches the file on a 1s poll, so hand-edits are picked up too.
+
+Surface:
+
+- `devdrip config` — interactive wizard (`@clack/prompts` menu + per-field prompts).
+- `devdrip config --set maxPerHour=4` — single scripting update. Repeatable: `--set maxPerHour=4 --set nightMode=true`.
+- `devdrip config --get nightMode` — print one value.
+- `devdrip config --list` — print all preferences as JSON.
+- `devdrip config --reset` — restore defaults.
+
+Editable keys and validation:
+
+| Key                 | Type                         | Range / notes                                                            |
+| ------------------- | ---------------------------- | ------------------------------------------------------------------------ |
+| `blockedCategories` | comma-separated `AdCategory` | `cloud-infrastructure,developer-tools,databases,…`; `none` = empty       |
+| `maxPerHour`        | integer                      | 0–1000                                                                   |
+| `maxPerDay`         | integer                      | 0–10 000                                                                 |
+| `sessionWarmupMs`   | integer (ms)                 | 0–86 400 000 (up to 24h)                                                 |
+| `quietHoursStart`   | integer \| `off`             | 0–23 local hour; `off`/`null` disables                                   |
+| `quietHoursEnd`     | integer \| `off`             | 0–23 local hour; wraparound allowed (start=22, end=7)                    |
+| `nightMode`         | boolean                      | preset: when `true` and no custom quiet hours set, treats 22→07 as quiet |
+
+Side effects on change:
+
+- **Always:** writes atomically, fires `{"type":"reload-config"}` over the daemon socket.
+- **When `blockedCategories` changed:** also `PUT /me/preferences` (best-effort; local save succeeds even if the backend is unreachable). On reload, the daemon invalidates its ad-cache so the next batch respects the new blocklist (server-side filter).
+- **When the daemon is not running:** the socket write times out silently (fire-and-forget, matches hook behavior); the file watcher picks up the change on the next daemon start.
+
+Daemon-side enforcement today:
+
+- `quietHoursStart` / `quietHoursEnd` / `nightMode` → orchestrator skips the ad at grace-elapsed when the local hour falls in the quiet window.
+- `sessionWarmupMs` → orchestrator gates ads during the warmup window counted from daemon start.
+- `maxPerHour` / `maxPerDay` → values persist and reload but enforcement is deferred (needs time-windowed ledger queries; tracked separately).
+- `blockedCategories` → filtered server-side at `/ads/batch`; local cache refresh triggered on change.
+
+Notes:
+
+- `tzOffsetMinutes` is refreshed from `Date().getTimezoneOffset()` on every save so users who move timezones don't need to edit manually.
+- Interactive mode shows the current JSON in a `note()` block after each edit so you can see a diff before saving.
 
 ## devdrip demo (S2-07, partial — S5-04 owns the polished version)
 

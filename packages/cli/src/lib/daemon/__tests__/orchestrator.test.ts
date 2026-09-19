@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { defaultDevdripPreferences, type DevdripPreferences } from "@devdrip/shared"
 import type { CachedAd } from "../../ad-cache.js"
 import type { LocalImpression } from "../../ledger.js"
+
+// tests exercise pure state-machine behavior — disable warmup / quiet hours
+// so they don't interfere. suppression is covered by a dedicated test file.
+function testPreferences(): DevdripPreferences {
+  return { ...defaultDevdripPreferences(), sessionWarmupMs: 0, nightMode: false }
+}
 
 const ad: CachedAd = {
   id: "ad-1",
@@ -86,6 +93,7 @@ describe("orchestrator", () => {
       display: d.display as never,
       log: d.log,
       deviceId: "dev-1",
+      preferences: testPreferences(),
     })
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
@@ -112,6 +120,7 @@ describe("orchestrator", () => {
       display: d.display as never,
       log: d.log,
       deviceId: "dev-1",
+      preferences: testPreferences(),
     })
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
@@ -132,6 +141,7 @@ describe("orchestrator", () => {
       display: d.display as never,
       log: d.log,
       deviceId: "dev-1",
+      preferences: testPreferences(),
     })
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
@@ -154,6 +164,7 @@ describe("orchestrator", () => {
       display: d.display as never,
       log: d.log,
       deviceId: "dev-1",
+      preferences: testPreferences(),
     })
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
@@ -175,6 +186,7 @@ describe("orchestrator", () => {
       display: d.display as never,
       log: d.log,
       deviceId: "dev-1",
+      preferences: testPreferences(),
     })
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
@@ -197,6 +209,7 @@ describe("orchestrator", () => {
       display: d.display as never,
       log: d.log,
       deviceId: "dev-1",
+      preferences: testPreferences(),
     })
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
@@ -217,6 +230,7 @@ describe("orchestrator", () => {
       display: d.display as never,
       log: d.log,
       deviceId: "dev-1",
+      preferences: testPreferences(),
     })
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
@@ -235,6 +249,7 @@ describe("orchestrator", () => {
       display: d.display as never,
       log: d.log,
       deviceId: "dev-1",
+      preferences: testPreferences(),
     })
 
     orch.dispatch({ kind: "idle-start", tty: "/dev/ttys003", now: 0 })
@@ -256,6 +271,7 @@ describe("orchestrator", () => {
       display: d.display as never,
       log: d.log,
       deviceId: "dev-1",
+      preferences: testPreferences(),
     })
 
     orch.dispatch({ kind: "idle-start", tty: null, now: 0 })

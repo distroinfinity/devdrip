@@ -2,11 +2,12 @@ import { randomBytes } from "node:crypto"
 import { chmod, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { defaultDevdripPreferences, type DevdripPreferences } from "@devdrip/shared"
 
-export const CONFIG_VERSION = 2
+export const CONFIG_VERSION = 3
 
 export interface DevdripConfig {
-  version: 2
+  version: 3
   apiUrl: string
   auth: {
     accessToken: string
@@ -21,6 +22,7 @@ export interface DevdripConfig {
   }
   device: { id: string | null }
   cli: { binPath: string }
+  preferences: DevdripPreferences
 }
 
 export function configDir(): string {
@@ -38,6 +40,15 @@ interface RawConfigV1 {
   user: DevdripConfig["user"]
 }
 
+interface RawConfigV2 {
+  version: 2
+  apiUrl: string
+  auth: DevdripConfig["auth"]
+  user: DevdripConfig["user"]
+  device?: DevdripConfig["device"]
+  cli?: DevdripConfig["cli"]
+}
+
 export class UnsupportedConfigVersionError extends Error {
   constructor(version: unknown) {
     super(
@@ -47,14 +58,33 @@ export class UnsupportedConfigVersionError extends Error {
   }
 }
 
+function mergePreferences(saved: Partial<DevdripPreferences> | undefined): DevdripPreferences {
+  const defaults = defaultDevdripPreferences()
+  if (!saved) return defaults
+  return { ...defaults, ...saved }
+}
+
 function migrate(parsed: Record<string, unknown>): DevdripConfig {
   const version = parsed["version"]
   if (version === CONFIG_VERSION) {
-    const v2 = parsed as unknown as DevdripConfig
+    const v3 = parsed as unknown as DevdripConfig
     return {
-      ...v2,
+      ...v3,
+      device: v3.device ?? { id: null },
+      cli: v3.cli ?? { binPath: "" },
+      preferences: mergePreferences(v3.preferences),
+    }
+  }
+  if (version === 2) {
+    const v2 = parsed as unknown as RawConfigV2
+    return {
+      version: CONFIG_VERSION,
+      apiUrl: v2.apiUrl,
+      auth: v2.auth,
+      user: v2.user,
       device: v2.device ?? { id: null },
       cli: v2.cli ?? { binPath: "" },
+      preferences: defaultDevdripPreferences(),
     }
   }
   if (version === 1) {
@@ -66,6 +96,7 @@ function migrate(parsed: Record<string, unknown>): DevdripConfig {
       user: v1.user,
       device: { id: null },
       cli: { binPath: "" },
+      preferences: defaultDevdripPreferences(),
     }
   }
   throw new UnsupportedConfigVersionError(version)
@@ -82,13 +113,21 @@ export async function readConfig(): Promise<DevdripConfig | null> {
   }
 }
 
-export async function writeConfig(cfg: Omit<DevdripConfig, "version">): Promise<void> {
+export async function writeConfig(
+  cfg: Omit<DevdripConfig, "version" | "preferences"> & {
+    preferences?: DevdripPreferences
+  }
+): Promise<void> {
   const dir = configDir()
   const target = configPath()
   const tmp = join(dir, `.config.${randomBytes(6).toString("hex")}.tmp`)
 
   await mkdir(dir, { recursive: true, mode: 0o700 })
-  const toWrite: DevdripConfig = { ...cfg, version: CONFIG_VERSION }
+  const toWrite: DevdripConfig = {
+    ...cfg,
+    version: CONFIG_VERSION,
+    preferences: mergePreferences(cfg.preferences),
+  }
   await writeFile(tmp, JSON.stringify(toWrite, null, 2), { mode: 0o600 })
   await chmod(tmp, 0o600)
   await rename(tmp, target)

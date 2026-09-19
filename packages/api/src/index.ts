@@ -7,6 +7,22 @@ import { ensureCarbonSystemCampaign } from "./lib/carbon-system-campaign.js"
 import { deactivateStaleCarbonCreatives } from "./services/carbon-cleanup.service.js"
 import type { Socket } from "node:net"
 
+// Catch anything that slips past Express's route-level try/catch or runs
+// outside the request lifecycle. Without these, an async rejection with no
+// handler only prints a node deprecation warning and the real error stays
+// hidden. console.error goes direct to stderr and can't be swallowed by
+// a buffered pino transport.
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[process] unhandledRejection at:", promise, "reason:", reason)
+  logger.error({ err: reason }, "unhandledRejection")
+})
+
+process.on("uncaughtException", (err) => {
+  console.error("[process] uncaughtException:", err)
+  logger.fatal({ err }, "uncaughtException")
+  if (env.nodeEnv === "production") process.exit(1)
+})
+
 async function start() {
   assertEnvSafe()
 

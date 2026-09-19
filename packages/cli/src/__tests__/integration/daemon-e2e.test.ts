@@ -20,9 +20,12 @@ beforeEach(() => {
   // Resolve the built CLI bin (dist) produced by the package build
   binPath = join(__dirname, "..", "..", "..", "dist", "index.js")
 
-  // Write a minimal config so daemon run can start
+  // Write a minimal config so daemon run can start.
+  // preferences.sessionWarmupMs=0 / quietHoursStart=null disables the
+  // config-driven suppression gates so the grace-period flow is exercised
+  // in isolation.
   const cfg = {
-    version: 2,
+    version: 3,
     apiUrl: "http://127.0.0.1:0", // unreachable; ad-cache will fall back to demo fixtures
     auth: {
       accessToken: "x",
@@ -32,6 +35,16 @@ beforeEach(() => {
     user: { id: "user-1", githubLogin: "test", email: "t@example.com", avatarUrl: null },
     device: { id: "dev-1" },
     cli: { binPath },
+    preferences: {
+      blockedCategories: [],
+      maxPerHour: 8,
+      maxPerDay: 60,
+      sessionWarmupMs: 0,
+      quietHoursStart: null,
+      quietHoursEnd: null,
+      nightMode: false,
+      tzOffsetMinutes: 0,
+    },
   }
   writeFileSync(join(devdripDir, "config.json"), JSON.stringify(cfg), { mode: 0o600 })
 })
