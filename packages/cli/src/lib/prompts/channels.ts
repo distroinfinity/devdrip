@@ -8,7 +8,8 @@ import type { ChannelDto, ChannelKey } from "@distrotv/shared"
 export async function pickChannels(current: ChannelDto[]): Promise<ChannelKey[]> {
   const initialKeys = current.filter((c) => c.subscribed).map((c) => c.key)
   const selected = await multiselect<ChannelKey>({
-    message: "which channels would you like in your slot rotation?",
+    message:
+      "which channels would you like in your slot rotation?  (space to toggle · enter to confirm)",
     options: current.map((c) => ({
       value: c.key,
       label: c.label + (c.defaultOn ? " (default)" : ""),
