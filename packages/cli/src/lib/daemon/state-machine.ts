@@ -15,18 +15,23 @@ export type State =
   | { kind: "SHOWING"; tty: string | null; ad: CachedAd; shownAt: number }
   | { kind: "INTER_AD"; tty: string | null; enteredAt: number }
 
+// S3-14: events that target a specific session carry an optional `tty` field
+// for orchestrator-level routing. `step()` itself ignores tty; the orchestrator
+// uses it to pick which per-tty session's state to step. When omitted the
+// orchestrator falls back to the single active session (preserves
+// single-terminal behavior and keeps existing tests as-is).
 export type Event =
   | { kind: "idle-start"; tty: string | null; now: number }
-  | { kind: "idle-end"; now: number }
-  | { kind: "dismiss"; now: number }
-  | { kind: "grace-elapsed"; ad: CachedAd | null; now: number }
-  | { kind: "vanish-elapsed"; now: number }
-  | { kind: "skip-key"; now: number }
-  | { kind: "kill-key"; now: number }
-  | { kind: "mute-key"; now: number }
-  | { kind: "discover-key"; now: number }
-  | { kind: "inter-ad-elapsed"; ad: CachedAd | null; now: number }
-  | { kind: "session-start"; now: number }
+  | { kind: "idle-end"; now: number; tty?: string | null }
+  | { kind: "dismiss"; now: number; tty?: string | null }
+  | { kind: "grace-elapsed"; ad: CachedAd | null; now: number; tty?: string | null }
+  | { kind: "vanish-elapsed"; now: number; tty?: string | null }
+  | { kind: "skip-key"; now: number; tty?: string | null }
+  | { kind: "kill-key"; now: number; tty?: string | null }
+  | { kind: "mute-key"; now: number; tty?: string | null }
+  | { kind: "discover-key"; now: number; tty?: string | null }
+  | { kind: "inter-ad-elapsed"; ad: CachedAd | null; now: number; tty?: string | null }
+  | { kind: "session-start"; now: number; tty?: string | null }
 
 export type Effect =
   | { kind: "startGraceTimer"; ms: number }

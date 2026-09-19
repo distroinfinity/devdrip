@@ -6,11 +6,16 @@ export type KeyAction = "discover" | "skip" | "kill" | "mute" | "dismiss"
 
 export interface KeyCapture {
   start(ttyPath: string): void
-  stop(): void
+  // stop() with no argument stops every active capture (used at daemon shutdown).
+  // stop(ttyPath) stops a single capture — called when an ad on that tty vanishes.
+  stop(ttyPath?: string): void
 }
 
 export interface KeyCaptureDeps {
-  onKey: (action: KeyAction) => void
+  // S3-14: onKey receives the tty the key came from so the orchestrator can
+  // route the action to the right per-tty session. Multiple captures can be
+  // active simultaneously (one per tty with a live ad).
+  onKey: (action: KeyAction, ttyPath: string) => void
   log: LoggerApi
 }
 
@@ -61,12 +66,16 @@ interface ActiveCapture {
 }
 
 export function createKeyCapture(deps: KeyCaptureDeps): KeyCapture {
-  let active: ActiveCapture | null = null
+  // S3-14: one ActiveCapture per tty path. Two concurrent Claude Code
+  // terminals each need their own fd + ReadStream, and a key in tty-A must
+  // never be routed to tty-B's session. stopping a single tty leaves others
+  // running; shutdown calls stop() with no arg to drop them all.
+  const captures = new Map<string, ActiveCapture>()
 
-  function stop(): void {
+  function stopOne(ttyPath: string): void {
+    const active = captures.get(ttyPath)
     if (!active) return
-    const { stream } = active
-    active = null
+    captures.delete(ttyPath)
     // Deliberately DO NOT call setRawMode(false): Claude Code owns the tty's
     // raw-mode setting for its own REPL. Flipping it off here was corrupting
     // Claude's stdin after vanish (keystrokes went to the line buffer).
@@ -74,14 +83,22 @@ export function createKeyCapture(deps: KeyCaptureDeps): KeyCapture {
     // A subsequent closeSync(fd) would close whatever resource the kernel
     // reassigned that number to — silently, since it's wrapped in try/catch.
     try {
-      stream.destroy()
+      active.stream.destroy()
     } catch {
       /* ignore */
     }
   }
 
+  function stop(ttyPath?: string): void {
+    if (ttyPath !== undefined) {
+      stopOne(ttyPath)
+      return
+    }
+    for (const key of [...captures.keys()]) stopOne(key)
+  }
+
   function start(ttyPath: string): void {
-    if (active) return
+    if (captures.has(ttyPath)) return
     let fd: number
     try {
       fd = openSync(ttyPath, fsConstants.O_RDONLY | fsConstants.O_NONBLOCK)
@@ -106,7 +123,7 @@ export function createKeyCapture(deps: KeyCaptureDeps): KeyCapture {
       return
     }
 
-    active = { fd, stream }
+    captures.set(ttyPath, { fd, stream })
     deps.log.info("key-capture started", { ttyPath, fd })
 
     stream.on("data", (chunk: Buffer) => {
@@ -115,19 +132,19 @@ export function createKeyCapture(deps: KeyCaptureDeps): KeyCapture {
       // the race) or (b) we saw the byte but the mapper / dispatch path
       // is broken. stays at debug level; grep with `grep "key-capture byte"`.
       const hex = chunk.toString("hex")
-      deps.log.debug("key-capture byte", { hex, len: chunk.length })
+      deps.log.debug("key-capture byte", { hex, len: chunk.length, ttyPath })
       const action = processByteChunk(chunk)
       if (!action) {
         if (chunk.length > 1 && chunk[0] === 0x1b) {
-          deps.log.debug("key-capture dropped control sequence", { hex })
+          deps.log.debug("key-capture dropped control sequence", { hex, ttyPath })
         }
         return
       }
-      deps.log.info("key-capture action", { action })
-      deps.onKey(action)
+      deps.log.info("key-capture action", { action, ttyPath })
+      deps.onKey(action, ttyPath)
     })
     stream.on("error", (err) => {
-      deps.log.warn("key-capture stream error", { error: err.message })
+      deps.log.warn("key-capture stream error", { error: err.message, ttyPath })
     })
   }
 

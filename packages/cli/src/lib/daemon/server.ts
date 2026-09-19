@@ -107,23 +107,23 @@ function toStateEvent(w: StateWireEvent): Event {
     case "idle-start":
       return { kind: "idle-start", tty: w.tty, now }
     case "idle-end":
-      return { kind: "idle-end", now }
+      return { kind: "idle-end", now, tty: w.tty }
     case "dismiss":
-      return { kind: "dismiss", now }
+      return { kind: "dismiss", now, tty: w.tty }
     case "session-start":
-      return { kind: "session-start", now }
+      return { kind: "session-start", now, tty: w.tty }
     case "action":
       switch (w.action) {
         case "discover":
-          return { kind: "discover-key", now }
+          return { kind: "discover-key", now, tty: w.tty }
         case "skip":
-          return { kind: "skip-key", now }
+          return { kind: "skip-key", now, tty: w.tty }
         case "kill-session":
-          return { kind: "kill-key", now }
+          return { kind: "kill-key", now, tty: w.tty }
         case "mute":
-          return { kind: "mute-key", now }
+          return { kind: "mute-key", now, tty: w.tty }
         case "dismiss":
-          return { kind: "dismiss", now }
+          return { kind: "dismiss", now, tty: w.tty }
       }
   }
 }

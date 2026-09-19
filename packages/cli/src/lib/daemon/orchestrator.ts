@@ -129,58 +129,157 @@ function computePopup(elapsedMs: number, cpmRate: number, isApi: boolean): Earni
   return { deltaUsdc, phase }
 }
 
-export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
-  let state: State = { kind: "IDLE" }
-  let graceTimer: NodeJS.Timeout | null = null
-  let vanishTimer: NodeJS.Timeout | null = null
-  let interAdTimer: NodeJS.Timeout | null = null
-  let progressTimer: NodeJS.Timeout | null = null
-  let currentDisplay: DisplayHandleApi | null = null
-  let adsShownCount = 0
-  let hooksReceivedCount = 0
-  let preferences: DevdripPreferences = deps.preferences
-  const now = deps.now ?? (() => Date.now())
-  // re-anchored on every `clearSessionState` (i.e., each new Claude session)
-  // so `sessionWarmupMs` actually applies per-session, not per daemon lifetime.
-  let sessionStartAt = now()
-  let sessionKilled = false
-  let adsInCurrentBusyWindow = 0
-  const hourlyTimestamps: number[] = []
-  const dailyTimestamps: number[] = []
+// S3-14: sentinel key used when an event arrives without a tty (piped/CI
+// contexts, or single-terminal legacy clients). All such events route to one
+// dedicated session so behavior stays identical to the single-tty daemon.
+const NO_TTY_KEY = "__no_tty__"
 
+function ttyKey(tty: string | null): string {
+  return tty ?? NO_TTY_KEY
+}
+
+interface Session {
+  // identity
+  readonly key: string
+  readonly tty: string | null
+  // state-machine slice
+  state: State
+  // timers scoped to this session's ad rotation
+  graceTimer: NodeJS.Timeout | null
+  vanishTimer: NodeJS.Timeout | null
+  interAdTimer: NodeJS.Timeout | null
+  progressTimer: NodeJS.Timeout | null
+  // the display handle for whatever ad is currently on THIS session's tty
+  currentDisplay: DisplayHandleApi | null
+  // per-session suppression bits
+  sessionKilled: boolean
+  adsInCurrentBusyWindow: number
+  // re-anchored on every clearSessionState so sessionWarmupMs applies per
+  // Claude Code invocation, not per daemon lifetime.
+  sessionStartAt: number
+}
+
+export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
+  const now = deps.now ?? (() => Date.now())
+
+  // per-tty sessions (S3-14). Created lazily on first event for a given tty.
+  const sessions = new Map<string, Session>()
   // brief delay between a key/CLI action arriving and the state transition
   // firing, so the user sees the flash before the ad vanishes.
   const KEY_FLASH_DELAY_MS = 150
 
-  function applyStep(event: Event): void {
-    const result = step(state, event, { deviceId: deps.deviceId })
-    state = result.state
-    runEffects(result.effects)
+  // ── globals (per user, shared across all tty sessions) ────────────────
+  let preferences: DevdripPreferences = deps.preferences
+  let adsShownCount = 0
+  let hooksReceivedCount = 0
+  // rate-limit counters are per-user, not per-tty: two terminals must NOT
+  // double the ads a user sees in an hour/day.
+  const hourlyTimestamps: number[] = []
+  const dailyTimestamps: number[] = []
+
+  function getOrCreateSession(key: string, tty: string | null): Session {
+    let s = sessions.get(key)
+    if (s) return s
+    s = {
+      key,
+      tty,
+      state: { kind: "IDLE" },
+      graceTimer: null,
+      vanishTimer: null,
+      interAdTimer: null,
+      progressTimer: null,
+      currentDisplay: null,
+      sessionKilled: false,
+      adsInCurrentBusyWindow: 0,
+      sessionStartAt: now(),
+    }
+    sessions.set(key, s)
+    return s
+  }
+
+  // Resolve which session an event targets. For `idle-start`, always use the
+  // event's explicit tty (creates the session if needed). For everything else
+  // we prefer event.tty; if it's omitted we fall back to the single active
+  // session (the common single-terminal case, also what every test exercises).
+  function resolveSession(event: Event): Session | null {
+    if (event.kind === "idle-start") {
+      return getOrCreateSession(ttyKey(event.tty), event.tty)
+    }
+    const ttyVal = "tty" in event ? event.tty : undefined
+    if (ttyVal !== undefined) {
+      return getOrCreateSession(ttyKey(ttyVal), ttyVal)
+    }
+    // infer: single active (non-IDLE) session takes the event; otherwise the
+    // single session overall; otherwise create/use the null-tty sentinel so
+    // pre-S3-14 single-terminal clients (session-start before any idle-start,
+    // hook clients that don't send tty) still hit a real session instead of
+    // silently dropping the event.
+    const active: Session[] = []
+    for (const s of sessions.values()) {
+      if (s.state.kind !== "IDLE") active.push(s)
+    }
+    if (active.length === 1) return active[0] ?? null
+    if (active.length === 0) {
+      if (sessions.size === 1) {
+        const first = sessions.values().next().value as Session | undefined
+        return first ?? null
+      }
+      // no sessions at all, or every session is IDLE with no clear owner —
+      // fall through to the null-tty sentinel.
+      return getOrCreateSession(NO_TTY_KEY, null)
+    }
+    // multi-active with no tty hint — e.g. old-client idle-end: pick the most
+    // recently-entered session so at least one progresses. Logged so the
+    // operator sees it in the daemon log if this ever fires in prod.
+    active.sort((a, b) => sessionEnteredAt(b) - sessionEnteredAt(a))
+    deps.log.warn("event without tty hint, multiple active sessions — routing to most recent", {
+      eventKind: event.kind,
+      sessionCount: active.length,
+    })
+    return active[0] ?? null
+  }
+
+  function sessionEnteredAt(s: Session): number {
+    switch (s.state.kind) {
+      case "GRACE":
+      case "INTER_AD":
+        return s.state.enteredAt
+      case "SHOWING":
+        return s.state.shownAt
+      case "IDLE":
+        return 0
+    }
+  }
+
+  function applyStep(session: Session, event: Event): void {
+    const result = step(session.state, event, { deviceId: deps.deviceId })
+    session.state = result.state
+    runEffects(session, result.effects)
   }
 
   // effects normally run synchronously, but `snapProgressToComplete` is a
   // "pause point": it forces the box to redraw at 100% and then defers every
   // following effect by PROGRESS_SNAP_HOLD_MS so the user actually sees the
   // full bar before vanish clears it.
-  function runEffects(effects: Effect[]): void {
+  function runEffects(session: Session, effects: Effect[]): void {
     for (let i = 0; i < effects.length; i++) {
       const eff = effects[i]
       if (!eff) continue
       if (eff.kind === "snapProgressToComplete") {
-        if (currentDisplay) {
+        if (session.currentDisplay) {
           try {
             // elapsedMs value doesn't matter here — progress=1 pins to 100%;
             // popup=null so the 100% frame is clean of any mid-animation state.
-            currentDisplay.updateProgress(1.0, 0, null)
+            session.currentDisplay.updateProgress(1.0, 0, null)
           } catch (err) {
             deps.log.warn("progress snap failed", { error: (err as Error).message })
           }
         }
         const tail = effects.slice(i + 1)
-        setTimeout(() => runEffects(tail), PROGRESS_SNAP_HOLD_MS)
+        setTimeout(() => runEffects(session, tail), PROGRESS_SNAP_HOLD_MS)
         return
       }
-      runEffect(eff)
+      runEffect(session, eff)
     }
   }
 
@@ -190,93 +289,89 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     if (event.kind === "idle-start" || event.kind === "idle-end" || event.kind === "dismiss") {
       hooksReceivedCount += 1
     }
-    if (event.kind === "idle-end" || event.kind === "dismiss") {
-      adsInCurrentBusyWindow = 0
+
+    const session = resolveSession(event)
+    if (!session) {
+      deps.log.debug("dispatch skipped — no matching session", { eventKind: event.kind })
+      return
     }
+
+    if (event.kind === "idle-end" || event.kind === "dismiss") {
+      session.adsInCurrentBusyWindow = 0
+    }
+
     const isUserKey =
       event.kind === "discover-key" ||
       event.kind === "skip-key" ||
       event.kind === "kill-key" ||
       event.kind === "mute-key"
-    if (isUserKey && currentDisplay) {
+    if (isUserKey && session.currentDisplay) {
       // flash the ad box and wait briefly before transitioning, so the user
       // sees a green glow confirming their keystroke/CLI action was captured.
       try {
-        currentDisplay.flash()
+        session.currentDisplay.flash()
       } catch (err) {
         deps.log.warn("flash failed", { error: (err as Error).message })
       }
-      setTimeout(() => applyStep(event), KEY_FLASH_DELAY_MS)
+      setTimeout(() => applyStep(session, event), KEY_FLASH_DELAY_MS)
       return
     }
-    applyStep(event)
+    applyStep(session, event)
   }
 
-  function runEffect(effect: Effect): void {
+  function runEffect(session: Session, effect: Effect): void {
     switch (effect.kind) {
       case "startGraceTimer":
-        if (graceTimer) clearTimeout(graceTimer)
-        graceTimer = setTimeout(() => {
-          graceTimer = null
+        if (session.graceTimer) clearTimeout(session.graceTimer)
+        session.graceTimer = setTimeout(() => {
+          session.graceTimer = null
           const firedAt = now()
-          const reason = suppressionReason(firedAt)
-          if (reason) {
-            deps.log.debug("ad suppressed by preferences", { reason })
-            dispatch({ kind: "grace-elapsed", ad: null, now: firedAt })
-            return
-          }
-          const ad = deps.adCache.next()
-          if (!ad) deps.log.debug("grace elapsed with empty cache")
-          dispatch({ kind: "grace-elapsed", ad, now: firedAt })
+          const ad = pickNextAd(session, firedAt, "grace")
+          dispatch({ kind: "grace-elapsed", ad, now: firedAt, tty: session.tty })
         }, effect.ms)
         return
       case "cancelGraceTimer":
-        if (graceTimer) {
-          clearTimeout(graceTimer)
-          graceTimer = null
+        if (session.graceTimer) {
+          clearTimeout(session.graceTimer)
+          session.graceTimer = null
         }
         return
       case "startInterAdTimer":
-        if (interAdTimer) clearTimeout(interAdTimer)
-        interAdTimer = setTimeout(() => {
-          interAdTimer = null
+        if (session.interAdTimer) clearTimeout(session.interAdTimer)
+        session.interAdTimer = setTimeout(() => {
+          session.interAdTimer = null
           const firedAt = now()
-          const reason = suppressionReason(firedAt)
-          if (reason) {
-            deps.log.debug("inter-ad suppressed", { reason })
-            dispatch({ kind: "inter-ad-elapsed", ad: null, now: firedAt })
-            return
-          }
-          const ad = deps.adCache.next()
-          dispatch({ kind: "inter-ad-elapsed", ad, now: firedAt })
+          const ad = pickNextAd(session, firedAt, "inter-ad")
+          dispatch({ kind: "inter-ad-elapsed", ad, now: firedAt, tty: session.tty })
         }, effect.ms)
         return
       case "cancelInterAdTimer":
-        if (interAdTimer) {
-          clearTimeout(interAdTimer)
-          interAdTimer = null
+        if (session.interAdTimer) {
+          clearTimeout(session.interAdTimer)
+          session.interAdTimer = null
         }
         return
       case "displayAd":
         if (!effect.tty) {
           deps.log.warn("display skipped: no tty path", { adId: effect.ad.id })
-          queueMicrotask(() => dispatch({ kind: "dismiss", now: now() }))
+          queueMicrotask(() => dispatch({ kind: "dismiss", now: now(), tty: session.tty }))
           return
         }
         try {
           const source = effect.ad.cacheSource === "demo" ? "DEMO" : undefined
-          currentDisplay = deps.display.show(effect.tty, effect.ad, { source })
+          session.currentDisplay = deps.display.show(effect.tty, effect.ad, { source })
           // on terminal resize, proactively dismiss the current ad — the
           // display has already reset its scroll region to prevent content
           // loss, and the next rotation tick will re-anchor with fresh rows.
-          currentDisplay.onResize(() => {
+          session.currentDisplay.onResize(() => {
             deps.log.info("resize detected — dismissing ad to re-anchor", {
               adId: effect.ad.id,
+              tty: session.tty,
             })
-            dispatch({ kind: "dismiss", now: now() })
+            dispatch({ kind: "dismiss", now: now(), tty: session.tty })
           })
           deps.keyCapture.start(effect.tty)
-          adsInCurrentBusyWindow += 1
+          session.adsInCurrentBusyWindow += 1
           const nowMs = now()
           hourlyTimestamps.push(nowMs)
           dailyTimestamps.push(nowMs)
@@ -284,44 +379,46 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             adId: effect.ad.id,
             source: effect.ad.cacheSource,
             displayTimeMs: effect.ad.displayTimeMs,
+            tty: session.tty,
           })
         } catch (err) {
           deps.log.warn("display failed", {
             adId: effect.ad.id,
             error: (err as Error).message,
+            tty: session.tty,
           })
-          currentDisplay = null
-          deps.keyCapture.stop()
-          queueMicrotask(() => dispatch({ kind: "dismiss", now: now() }))
+          session.currentDisplay = null
+          if (session.tty) deps.keyCapture.stop(session.tty)
+          queueMicrotask(() => dispatch({ kind: "dismiss", now: now(), tty: session.tty }))
         }
         return
       case "startProgressTimer": {
-        if (progressTimer) clearInterval(progressTimer)
+        if (session.progressTimer) clearInterval(session.progressTimer)
         const shownAt = effect.shownAt
         const displayTimeMs = effect.displayTimeMs
         // snapshot ad identity fields for the tick closure so the popup
         // decision doesn't depend on state-machine state that may shift.
         const tickAdCpm = effect.ad?.cpmRate ?? 0
         const tickAdIsApi = (effect.ad?.cacheSource ?? "demo") === "api"
-        progressTimer = setInterval(() => {
-          if (!currentDisplay) return
+        session.progressTimer = setInterval(() => {
+          if (!session.currentDisplay) return
           const elapsed = Math.max(0, now() - shownAt)
           const p = sigmoidProgress(elapsed, displayTimeMs)
           const popup = computePopup(elapsed, tickAdCpm, tickAdIsApi)
           try {
-            currentDisplay.updateProgress(p, elapsed, popup)
+            session.currentDisplay.updateProgress(p, elapsed, popup)
           } catch (err) {
             deps.log.warn("progress tick failed", { error: (err as Error).message })
           }
         }, PROGRESS_TICK_MS)
         // unref so a lingering progress timer never holds the daemon open.
-        progressTimer.unref?.()
+        session.progressTimer.unref?.()
         return
       }
       case "cancelProgressTimer":
-        if (progressTimer) {
-          clearInterval(progressTimer)
-          progressTimer = null
+        if (session.progressTimer) {
+          clearInterval(session.progressTimer)
+          session.progressTimer = null
         }
         return
       case "snapProgressToComplete":
@@ -329,35 +426,39 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         // active (e.g. null-tty path) so there's nothing to snap.
         return
       case "startVanishTimer":
-        if (vanishTimer) clearTimeout(vanishTimer)
-        vanishTimer = setTimeout(() => {
-          vanishTimer = null
-          dispatch({ kind: "vanish-elapsed", now: now() })
+        if (session.vanishTimer) clearTimeout(session.vanishTimer)
+        session.vanishTimer = setTimeout(() => {
+          session.vanishTimer = null
+          dispatch({ kind: "vanish-elapsed", now: now(), tty: session.tty })
         }, effect.ms)
         return
       case "cancelVanishTimer":
-        if (vanishTimer) {
-          clearTimeout(vanishTimer)
-          vanishTimer = null
+        if (session.vanishTimer) {
+          clearTimeout(session.vanishTimer)
+          session.vanishTimer = null
         }
         return
       case "vanishDisplay":
-        deps.keyCapture.stop()
+        // only stop THIS session's key capture — other ttys may still be
+        // showing their own ads. falls back to stop() (all) when no tty is
+        // known, which only happens on the null-tty sentinel session.
+        if (session.tty) deps.keyCapture.stop(session.tty)
+        else deps.keyCapture.stop()
         // defensive cleanup — state machine always pairs vanish with an
         // explicit cancelProgressTimer, but clearing here too avoids a runaway
         // tick if a test dispatches vanishDisplay in isolation.
-        if (progressTimer) {
-          clearInterval(progressTimer)
-          progressTimer = null
+        if (session.progressTimer) {
+          clearInterval(session.progressTimer)
+          session.progressTimer = null
         }
-        if (currentDisplay) {
+        if (session.currentDisplay) {
           try {
-            const { latencyMs } = currentDisplay.vanish()
-            deps.log.info("vanish latency", { latencyMs })
+            const { latencyMs } = session.currentDisplay.vanish()
+            deps.log.info("vanish latency", { latencyMs, tty: session.tty })
           } catch (err) {
             deps.log.warn("vanish failed", { error: (err as Error).message })
           }
-          currentDisplay = null
+          session.currentDisplay = null
           // only count ads that were actually rendered; null-tty paths
           // synthesize a dismiss → vanishDisplay but nothing hit the screen.
           adsShownCount += 1
@@ -367,16 +468,19 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         handleRecord(effect.impression, effect.ad)
         return
       case "setSessionKilled":
-        sessionKilled = true
-        deps.log.info("session ads killed by user")
+        session.sessionKilled = true
+        deps.log.info("session ads killed by user", { tty: session.tty })
         return
       case "clearSessionState":
-        sessionKilled = false
-        adsInCurrentBusyWindow = 0
-        sessionStartAt = now()
-        deps.log.info("session state cleared")
+        session.sessionKilled = false
+        session.adsInCurrentBusyWindow = 0
+        session.sessionStartAt = now()
+        deps.log.info("session state cleared", { tty: session.tty })
         return
       case "writeMuteUntil":
+        // mute is a user-level preference (shared across all their ttys), not
+        // a per-session flag — persist it to config and let the reload path
+        // propagate to all sessions via updatePreferences.
         preferences = { ...preferences, muteUntil: effect.muteUntil }
         deps.writePreferences?.(preferences).catch((err: Error) => {
           deps.log.warn("mute persistence failed", { error: err.message })
@@ -456,19 +560,64 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     if (i > 0) dailyTimestamps.splice(0, i)
   }
 
-  function suppressionReason(nowMs: number): Reason | null {
-    if (nowMs - sessionStartAt < preferences.sessionWarmupMs) return "warmup"
+  function suppressionReason(session: Session, nowMs: number): Reason | null {
+    if (nowMs - session.sessionStartAt < preferences.sessionWarmupMs) return "warmup"
     const window = resolveQuietWindow(preferences)
     if (window) {
       const hour = localHour(nowMs, preferences.tzOffsetMinutes)
       if (isInQuietWindow(hour, window.start, window.end)) return "quiet-hours"
     }
     if (preferences.muteUntil && nowMs < preferences.muteUntil) return "muted"
-    if (sessionKilled) return "killed"
+    if (session.sessionKilled) return "killed"
     pruneCounters(nowMs)
-    if (adsInCurrentBusyWindow >= MAX_ADS_PER_CONTINUOUS_SESSION) return "session-cap"
+    if (session.adsInCurrentBusyWindow >= MAX_ADS_PER_CONTINUOUS_SESSION) return "session-cap"
     if (hourlyTimestamps.length >= preferences.maxPerHour) return "hourly-cap"
     if (dailyTimestamps.length >= preferences.maxPerDay) return "daily-cap"
+    return null
+  }
+
+  // S3-12: silently picks the next ad to show, or returns null if:
+  //   - any user/global cap is hit (silent skip — caller emits a null-ad event
+  //     so the state machine goes back to IDLE/INTER_AD), or
+  //   - every candidate in the cache has already hit its per-campaign daily
+  //     cap. capped here at CAMPAIGN_CAP_RETRIES so one exhausted campaign can't
+  //     drain the entire cache in a hot loop.
+  // context: "grace" | "inter-ad" is used only for log correlation.
+  const CAMPAIGN_CAP_RETRIES = 5
+  function pickNextAd(
+    session: Session,
+    firedAt: number,
+    context: "grace" | "inter-ad"
+  ): CachedAd | null {
+    const reason = suppressionReason(session, firedAt)
+    if (reason) {
+      deps.log.debug("ad suppressed", { context, reason, tty: session.tty })
+      return null
+    }
+    for (let attempt = 0; attempt < CAMPAIGN_CAP_RETRIES; attempt++) {
+      const ad = deps.adCache.next()
+      if (!ad) {
+        if (attempt === 0) deps.log.debug("cache empty", { context })
+        return null
+      }
+      const cap = ad.campaignMaxImpressionsPerDay
+      if (typeof cap === "number" && cap > 0) {
+        // UTC day, not local — mirrors the backend's utcDate() Redis key so
+        // both sides agree at midnight. see ledger.ts for the full rationale.
+        const seen = deps.ledger.countImpressionsByCampaignOnUtcDay(ad.campaignId, firedAt)
+        if (seen >= cap) {
+          deps.log.debug("campaign-cap hit, trying next cached ad", {
+            campaignId: ad.campaignId,
+            cap,
+            seen,
+            attempt,
+          })
+          continue
+        }
+      }
+      return ad
+    }
+    deps.log.debug("every candidate hit a campaign cap", { context })
     return null
   }
 
@@ -486,19 +635,47 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   }
 
   async function shutdown(): Promise<void> {
-    if (graceTimer) clearTimeout(graceTimer)
-    if (vanishTimer) clearTimeout(vanishTimer)
-    if (interAdTimer) clearTimeout(interAdTimer)
-    if (progressTimer) clearInterval(progressTimer)
-    deps.keyCapture.stop()
-    if (state.kind === "SHOWING" || state.kind === "INTER_AD") {
-      dispatch({ kind: "dismiss", now: now() })
+    for (const session of sessions.values()) {
+      if (session.graceTimer) clearTimeout(session.graceTimer)
+      if (session.vanishTimer) clearTimeout(session.vanishTimer)
+      if (session.interAdTimer) clearTimeout(session.interAdTimer)
+      if (session.progressTimer) clearInterval(session.progressTimer)
     }
+    deps.keyCapture.stop()
+    // dispatch dismiss to every session still mid-ad, so their impressions
+    // land in the ledger before we exit.
+    for (const session of sessions.values()) {
+      if (session.state.kind === "SHOWING" || session.state.kind === "INTER_AD") {
+        dispatch({ kind: "dismiss", now: now(), tty: session.tty })
+      }
+    }
+  }
+
+  // currentState() preserves the pre-S3-14 single-tty contract for tests +
+  // introspection: returns the most-recently-touched session's state, or IDLE
+  // if none exist. Multi-tty consumers should iterate `sessions` directly
+  // (exposed via the internal surface below if ever needed).
+  function currentState(): State {
+    if (sessions.size === 0) return { kind: "IDLE" }
+    if (sessions.size === 1) {
+      const first = sessions.values().next().value as Session | undefined
+      return first?.state ?? { kind: "IDLE" }
+    }
+    let best: Session | null = null
+    let bestTs = -1
+    for (const s of sessions.values()) {
+      const ts = sessionEnteredAt(s)
+      if (ts >= bestTs) {
+        bestTs = ts
+        best = s
+      }
+    }
+    return best?.state ?? { kind: "IDLE" }
   }
 
   return {
     dispatch,
-    currentState: () => state,
+    currentState,
     adsShown: () => adsShownCount,
     hooksReceived: () => hooksReceivedCount,
     updatePreferences,

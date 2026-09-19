@@ -134,6 +134,48 @@ export function removeHeartbeat(): void {
   tryUnlink(heartbeatPath())
 }
 
+// single source of truth for "is the daemon healthy right now?". consumed by
+// both `devdrip daemon status` and `devdrip status`, so they can't drift.
+export const HEARTBEAT_STALE_AFTER_MS = 30_000
+
+export type DaemonHealth = "running" | "stale" | "not-running"
+
+export interface DaemonStatus {
+  health: DaemonHealth
+  pid: number | null
+  socketPath: string | null
+  uptimeMs: number | null
+  lastHeartbeatAgeMs: number | null
+  adsShownThisSession: number
+  hooksReceivedThisSession: number
+}
+
+export function readDaemonStatus(now: number = Date.now()): DaemonStatus {
+  const hb = readHeartbeat()
+  if (!hb) {
+    return {
+      health: "not-running",
+      pid: null,
+      socketPath: null,
+      uptimeMs: null,
+      lastHeartbeatAgeMs: null,
+      adsShownThisSession: 0,
+      hooksReceivedThisSession: 0,
+    }
+  }
+  const age = now - hb.lastHeartbeat
+  const stale = age > HEARTBEAT_STALE_AFTER_MS
+  return {
+    health: stale ? "stale" : "running",
+    pid: hb.pid,
+    socketPath: hb.socketPath,
+    uptimeMs: stale ? null : now - hb.startedAt,
+    lastHeartbeatAgeMs: age,
+    adsShownThisSession: hb.adsShownThisSession ?? 0,
+    hooksReceivedThisSession: hb.hooksReceivedThisSession ?? 0,
+  }
+}
+
 // ── log ─────────────────────────────────────────────────────────────────
 
 export type LogLevel = "debug" | "info" | "warn" | "error"

@@ -66,6 +66,9 @@ interface BatchResponseAd {
   delivery_token: string
   impression_beacon_url?: string | null
   click_tracking_url?: string | null
+  // S3-12: per-campaign daily cap emitted by the backend. `null` or absent =
+  // no local cap applied, same as today's no-op behavior.
+  campaign_max_impressions_per_day?: number | null
 }
 
 function toCachedAd(a: BatchResponseAd): CachedAd {
@@ -83,6 +86,7 @@ function toCachedAd(a: BatchResponseAd): CachedAd {
     deliveryToken: a.delivery_token,
     impressionBeaconUrl: a.impression_beacon_url ?? undefined,
     clickTrackingUrl: a.click_tracking_url ?? undefined,
+    campaignMaxImpressionsPerDay: a.campaign_max_impressions_per_day ?? undefined,
     cacheSource: "api",
   }
 }

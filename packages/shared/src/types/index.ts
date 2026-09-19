@@ -170,6 +170,13 @@ export interface AdPayload {
   cpmRate: number
   impressionBeaconUrl?: string
   clickTrackingUrl?: string
+  // per-campaign daily cap hint from `targeting_rules.maxImpressions`. daemon
+  // counts today's local-day impressions for this campaignId in the ledger and
+  // silently skips if the count is already ≥ this. omitted when the campaign
+  // has no cap set. the backend enforces the same cap authoritatively (in
+  // Redis, per UTC day); this is a secondary client-side guard that protects
+  // users against cached ads over-firing when offline or between sync windows.
+  campaignMaxImpressionsPerDay?: number
 }
 
 export interface ServedAdPayload extends AdPayload {
