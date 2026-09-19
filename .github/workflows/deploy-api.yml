@@ -24,23 +24,12 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: check api/shared changed
-        uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          base: ${{ github.event.workflow_run.head_sha }}~1
-          ref: ${{ github.event.workflow_run.head_sha }}
-          filters: |
-            api:
-              - 'packages/api/**'
-              - 'packages/shared/**'
-
       - name: install railway cli
-        if: steps.filter.outputs.api == 'true'
         run: npm install -g @railway/cli
 
+      # railway.toml watchPatterns handles build skipping —
+      # no need for path filtering here (which was buggy on multi-commit pushes)
       - name: deploy to railway
-        if: steps.filter.outputs.api == 'true'
         run: railway up --service api --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

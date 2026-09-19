@@ -38,3 +38,10 @@ jobs:
 
       - name: test
         run: pnpm test
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3002
+          JWT_SECRET: ci-test-secret-000000000000000000000000000000000000000000000000000000
+          NODE_ENV: test
+          DB_TARGET: neon
