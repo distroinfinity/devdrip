@@ -8,8 +8,6 @@ Dev Drip is an ad-subsidized developer tool that monetizes AI coding tool idle t
 
 The master execution plan lives in Notion: https://www.notion.so/Sprint-Plan-Dev-Drip-Execution-3144bbb2d003816aa069f0bc02572809
 
-Each task page contains: **Definition** (what to build), **Expectations** (what good looks like), **Acceptance Criteria** (binary done/not-done checks), **Gotchas & Notes for Next Task** (traps and handoff context). The "Blocked By" field references other task IDs — don't start a blocked task until its dependency is done.
-
 ## Repository Structure
 
 - `docs/Dev_Drip_PRD.md` — Full product requirements document (problem statement, case studies, product spec, technical architecture, revenue model)
@@ -124,3 +122,4 @@ Current phase. Tasks are ordered with dependency chains (`Blocked By` field).
 - load frontend-design skill to plan or execute anything frontend related
 - use minimal comments, crisp pointers starting from smaller letters. This doesn't mean skip comments entirely so that its dificult later to track and udnerstand code
 - Never mention claude or ai in commit messages or as co author, keep commit message crisp and sharp no need to bloat commit messages
+- When completing a Notion ticket/task, always post a crisp completion comment summarizing key decisions, gotchas, and tick mark things in acceptance criteria we did and in not done anything reason for it

@@ -39,6 +39,7 @@ export const Tabs = ({
   return (
     <>
       <div
+        role="tablist"
         className={cn(
           "flex flex-row items-center justify-start [perspective:1000px] relative overflow-auto sm:overflow-visible no-visible-scrollbar max-w-full w-full",
           containerClassName
@@ -47,6 +48,9 @@ export const Tabs = ({
         {propTabs.map((tab, idx) => (
           <button
             key={tab.title}
+            role="tab"
+            aria-selected={active.value === tab.value}
+            aria-controls={`tabpanel-${tab.value}`}
             onClick={() => {
               moveSelectedTabToTop(idx);
             }}
@@ -62,13 +66,13 @@ export const Tabs = ({
                 layoutId="clickedbutton"
                 transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
                 className={cn(
-                  "absolute inset-0 bg-gray-200 dark:bg-zinc-800 rounded-full ",
+                  "absolute inset-0 bg-[var(--bg-inset)] rounded-full ",
                   activeTabClassName
                 )}
               />
             )}
 
-            <span className="relative block text-black dark:text-white">
+            <span className="relative block text-[var(--ink-primary)]">
               {tab.title}
             </span>
           </button>
@@ -105,6 +109,9 @@ export const FadeInDiv = ({
         <motion.div
           key={tab.value}
           layoutId={tab.value}
+          role="tabpanel"
+          id={`tabpanel-${tab.value}`}
+          aria-hidden={!isActive(tab)}
           style={{
             scale: 1 - idx * 0.1,
             top: hovering ? idx * -50 : 0,
