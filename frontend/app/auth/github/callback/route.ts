@@ -62,7 +62,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // decide where to land
   const safeNext = statePayload.next && statePayload.next.startsWith("/") ? statePayload.next : null
-  const target = data.pairBound ? "/setup/channels" : (safeNext ?? "/dashboard")
+  const target = data.pairBound ? "/setup/done" : (safeNext ?? "/dashboard")
   return NextResponse.redirect(new URL(target, url.origin))
 }
 

@@ -9,9 +9,9 @@ export default async function SetupPage({ searchParams }: PageProps) {
   const params = await searchParams
   const session = await getSession()
 
-  // signed in → done; jump straight to the onboarding picker
+  // signed in → onboarding happens in the cli; just confirm + send back to terminal
   if (session?.email) {
-    redirect("/setup/channels")
+    redirect("/setup/done")
   }
 
   // pair code from the CLI url (falls back to a cookie from a prior visit). it
@@ -91,7 +91,7 @@ function ChooseSignInState({ pairingCode, error }: { pairingCode: string; error?
 
           <form action="/auth/github/start" method="get">
             <input type="hidden" name="pair" value={pairingCode} />
-            <input type="hidden" name="next" value="/setup/channels" />
+            <input type="hidden" name="next" value="/dashboard" />
             <button
               type="submit"
               className="group flex w-full items-center justify-center gap-2.5 rounded-none bg-[var(--ink-primary)] px-4 py-3 font-data text-[12px] font-bold tracking-wide text-[var(--bg-primary)] transition-colors duration-150 hover:bg-[var(--em-hover)]"
