@@ -14,7 +14,8 @@ an exchange anyone can bid on.**
       minutes beforehand)
 - [ ] `dtv preferences` → feeds = ads only, so the opt-in step has something to show
 - [ ] Terminal font size up; window at least 100 columns wide so the ad link fits on one row
-- [ ] Browser tabs ready: landing `/`, `/dashboard/revenue`, `/advertisers`
+- [ ] Browser tabs ready: landing `/`, `/dashboard/revenue`, `/advertisers/portal` (signed in)
+- [ ] Have one ad already running in the portal so "Your ads" shows live numbers; write the second one live
 
 ## Script
 
@@ -29,9 +30,11 @@ an exchange anyone can bid on.**
    served vs seen; **Payouts — coming soon**. Say plainly: sandbox ads, estimated CPM.
 4. **The choice (30s)** — `dtv preferences` → feeds → add News. The terminal now alternates
    ad / headline. "Don't want ads? Tune to a channel. Same surface."
-5. **The vision (30s)** — `/advertisers`. Terminal today; IDE panels, agent UIs and CLI tools
-   next. Open bidding like web display or a billboard; bring campaigns from existing ad
-   accounts. "The ad exchange for AI agent surfaces."
+5. **The other side (40s)** — `/advertisers/portal`. Google Ads and Meta Ads import come
+   first (coming soon: search ads are text, so they map one to one). Write an ad by hand:
+   brand, one line, link, bid. Watch the terminal-slot preview update as you type. Hit
+   **Run this ad** — it shows up in the terminal within a minute or so, and its views and
+   clicks tick up in "Your ads". A higher bid runs first and pays the developer more.
 
 ## If something breaks
 
