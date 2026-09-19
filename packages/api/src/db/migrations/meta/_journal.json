@@ -148,6 +148,13 @@
       "when": 1779631200000,
       "tag": "0020_github_oauth_user_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1779645600000,
+      "tag": "0021_device_secret_hash",
+      "breakpoints": true
     }
   ]
 }
