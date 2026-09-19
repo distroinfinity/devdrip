@@ -204,11 +204,15 @@ export async function nextPicksForDevice({
   return payloads
 }
 
-// called from /ingest when a news slot impression lands. only impressions that
-// actually rendered (the CLI sends durationMs > 0) advance the served set, so
-// cache-evicted-but-never-shown picks stay candidates for next time.
-export async function markServedOnImpression(deviceId: string, newsId: string): Promise<void> {
+// called once per /ingest batch with all of a device's rendered news IDs. only
+// impressions that actually rendered (the CLI sends durationMs > 0) advance the
+// served set, so cache-evicted-but-never-shown picks stay candidates next time.
+// batched: one SADD (multiple members) + one EXPIRE per device per ingest,
+// instead of two Redis ops per impression.
+export async function markServedOnImpression(deviceId: string, newsIds: string[]): Promise<void> {
+  const [first, ...rest] = newsIds
+  if (first === undefined) return
   const redis = getRedis()
-  await redis.sadd(servedKey(deviceId), newsId)
+  await redis.sadd(servedKey(deviceId), first, ...rest)
   await redis.expire(servedKey(deviceId), SERVED_TTL_SEC)
 }

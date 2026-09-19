@@ -6,6 +6,7 @@ import { getDb } from "../db/index.js"
 import { preferences } from "../db/schema/preferences.js"
 import { nextPicksForDevice } from "../services/news-selection.service.js"
 import { nextTickerForDevice } from "../services/ticker-selection.service.js"
+import { touchDeviceHeartbeat } from "../services/device-heartbeat.service.js"
 
 export const meContentRouter: ReturnType<typeof Router> = Router()
 
@@ -26,6 +27,9 @@ meContentRouter.get("/next", async (req, res, next) => {
       res.status(400).json({ error: "device_id_required" })
       return
     }
+    // mark the device online so alert evaluation knows to serve this user.
+    // fire-and-forget — never block or fail content serving on a heartbeat write.
+    void touchDeviceHeartbeat(deviceId).catch(() => {})
     const nRaw = Number.parseInt((req.query["n"] as string | undefined) ?? "5", 10)
     const n = Math.max(1, Math.min(Number.isFinite(nRaw) ? nRaw : 5, 20))
     void (req.query["surface"] as string | undefined) // M5 may use this

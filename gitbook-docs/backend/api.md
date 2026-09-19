@@ -52,7 +52,7 @@ health endpoint with component-level DB and Redis status.
 Behavior:
 
 - not behind the global limiter
-- probes DB and Redis on request
+- probes DB and Redis on request — the Redis `PING` result is cached ~30s (`probes.ts`) so frequent platform/monitoring polls don't each spend a Redis command
 - returns `200` if DB is healthy
 - returns `503` if DB is unhealthy
 - returns overall `status: "ok"` only when DB and Redis are both healthy
@@ -939,6 +939,8 @@ batch-record impressions and clicks from the CLI sync loop.
 
 Auth: bearer token (`requireAuth`). Rate-limited: 300 requests / 60s keyed by `deviceId` peeked from the first item's `deliveryToken` (`machineLimiter`).
 
+Served-set advance is **batched**: rendered news IDs (durationMs > 0) are grouped per device and flushed with one `SADD` (multiple members) + one `EXPIRE` per device per request (`markServedOnImpression`), instead of two Redis ops per impression.
+
 Body-parser limit: 1mb scoped to this route only.
 
 Request body:
@@ -1001,7 +1003,7 @@ Terminal per-item errors → CLI marks `synced_at = -1` (tombstone, stops retryi
 
 ## News + Reading endpoints
 
-- `GET /me/content/next?deviceId=<uuid>&n=<int>&surface=<terminal-tv>` — returns `{ items: SlotContent[] }` based on user's `channelMode`. The daemon batches this every 8 minutes (slot-cache TTL).
+- `GET /me/content/next?deviceId=<uuid>&n=<int>&surface=<terminal-tv>` — returns `{ items: SlotContent[] }` based on user's `channelMode`. The daemon batches this (slot-cache TTL is 15 min, batch size 20 — raised to cut round-trips). Also bumps `device.last_heartbeat` (throttled, ≤1 write / 2 min) so alert evaluation knows the user is online.
 - `POST /me/reading` — body: `{ newsId, source, headline, url, score }`. Idempotent on `(user_id, news_id)`; returns 201 if new, 200 if existing.
 - `GET /me/reading?limit=N` — returns `{ items, hasMore }`. Default + max limit 100 in MVP.
 - `DELETE /me/reading/:id` — 204 on success, 404 if not owned.

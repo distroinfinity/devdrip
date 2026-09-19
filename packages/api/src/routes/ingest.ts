@@ -1,6 +1,7 @@
 import { Router } from "express"
 import type { ImpressionResult, NewsSource } from "@distrotv/shared"
 import { recordSlotImpression } from "../services/slot-impression.service.js"
+import { markServedOnImpression } from "../services/news-selection.service.js"
 import { logger } from "../lib/logger.js"
 
 interface RawNewsImpression {
@@ -13,9 +14,7 @@ interface RawNewsImpression {
   saved?: unknown
 }
 
-function parseNewsImpression(
-  raw: RawNewsImpression
-): {
+function parseNewsImpression(raw: RawNewsImpression): {
   newsId: string
   source: string
   deviceId: string
@@ -59,6 +58,9 @@ ingestRouter.post("/", async (req, res) => {
   const rawClicks = Array.isArray(body.clicks) ? body.clicks : []
 
   const newsImpressionResults: { ok: boolean; newsId: string; error?: string }[] = []
+  // collect rendered news IDs per device so the served-set advance is one
+  // SADD+EXPIRE per device per batch, not two Redis ops per impression.
+  const servedByDevice = new Map<string, string[]>()
 
   for (const raw of rawNews) {
     const ni = parseNewsImpression(raw as RawNewsImpression)
@@ -83,10 +85,25 @@ ingestRouter.post("/", async (req, res) => {
         saved: ni.saved,
       })
       newsImpressionResults.push({ ok: true, newsId: ni.newsId })
+      // only items that actually rendered (durationMs > 0) advance the served set
+      if (ni.durationMs > 0) {
+        const ids = servedByDevice.get(ni.deviceId) ?? []
+        ids.push(ni.newsId)
+        servedByDevice.set(ni.deviceId, ids)
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       logger.warn({ err, newsId: ni.newsId }, "ingest: recordSlotImpression failed")
       newsImpressionResults.push({ ok: false, newsId: ni.newsId, error: msg })
+    }
+  }
+
+  // best-effort served-set advance — redis hiccups must never fail an ingest.
+  for (const [deviceId, ids] of servedByDevice) {
+    try {
+      await markServedOnImpression(deviceId, ids)
+    } catch (err) {
+      logger.warn({ err, deviceId }, "ingest: markServedOnImpression failed")
     }
   }
 

@@ -16,13 +16,15 @@ Distro TV fires alerts when a watched ticker moves by more than the user's thres
 
 `packages/api/src/services/alert-evaluator.service.ts` runs **inside** `runTickerTick()` after the equity + crypto upserts complete. The dispatch:
 
-1. `loadCandidates()` — joins `watchlist_tickers ↔ watchlists ↔ ticker_quotes`, filters out `stale=true` rows, pairs each (user, symbol) with the effective threshold (per-ticker override beats global; default 5%).
+1. `loadCandidates()` — joins `watchlist_tickers ↔ watchlists`, **filters to users with a device whose `last_heartbeat` is within `ONLINE_WINDOW_MINUTES` (15 min)**, fetches each unique symbol's snapshot, and pairs each (user, symbol) with the effective threshold (per-ticker override beats global; default 5%). The online filter keeps the per-tick Redis snapshot reads proportional to _online_ users, not total users — and it self-heals: a returning user's heartbeat is refreshed on their next `/me/content/next`, so they re-enter the candidate set on the following tick. The heartbeat write lives in `services/device-heartbeat.service.ts` (`touchDeviceHeartbeat`, throttled to ≤1 write / 2 min / device).
 2. For each candidate where `|change_pct| ≥ threshold`:
    - Look up all of the user's devices.
    - For each device, check `alert_events` for any fire in the last 60 minutes for the same `(device_id, symbol)`. Skip if found (debounce).
-   - **LPUSH first, INSERT second.** A failing `lpush` must not consume the debounce window — if Redis is flaky and the row commits anyway, the daemon never sees the alert and the user is debounced out for an hour. The reversed ordering means a transient Redis failure leaves no `alert_events` row, so the next 60s tick re-evaluates and can fire again. Worst case if the insert fails after a successful lpush: payload sits in Redis for the device (delivered), no debounce row → next tick may re-fire if the condition persists. Acceptable trade-off.
+   - **LPUSH first, INSERT second.** A failing `lpush` must not consume the debounce window — if Redis is flaky and the row commits anyway, the daemon never sees the alert and the user is debounced out for an hour. The reversed ordering means a transient Redis failure leaves no `alert_events` row, so the next eval tick re-evaluates and can fire again. Worst case if the insert fails after a successful lpush: payload sits in Redis for the device (delivered), no debounce row → next tick may re-fire if the condition persists. Acceptable trade-off.
 
-A failure inside the evaluator is logged and swallowed — the next ticker tick proceeds normally.
+A failure inside the evaluator is logged and swallowed — the next tick proceeds normally.
+
+**Cadence:** the evaluator is scheduled every **5 min** (`background-jobs.ts`, was 1 min), aligned with the ~5 min ticker-snapshot cache TTL so most ticks are Redis cache hits. This (plus the online-user filter above) was the single biggest cut to the Upstash command burn — a 1-min cadence scanning every user's symbols was a constant 24/7 drain even with nobody online.
 
 ## Selection-side promotion
 
