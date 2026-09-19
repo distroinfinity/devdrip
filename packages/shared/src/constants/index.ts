@@ -53,7 +53,9 @@ export const REVENUE_SHARE_OSS_FUND = 0.05
 
 // ── payouts ────────────────────────────────────────────────────────────────
 
-export const MIN_PAYOUT_USDC = 1.0
+// User-initiated claim floor. Was 1.0 under the orphaned Base Sepolia plan;
+// lowered to 0.5 for World Chain since gas is negligible on World Chain Sepolia.
+export const MIN_PAYOUT_USDC = 0.5
 
 // ── impression validation ──────────────────────────────────────────────────
 
@@ -107,3 +109,5 @@ export function defaultDevdripPreferences(): DevdripPreferences {
     muteUntil: null,
   }
 }
+
+export * from "./chain.js"

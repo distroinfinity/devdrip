@@ -315,3 +315,5 @@ export interface AdminUser {
 // ── ad provider ────────────────────────────────────────────────────────────
 
 export { type AdRequest, type AdProvider } from "./ad-provider.js"
+
+export * from "./chain.js"
