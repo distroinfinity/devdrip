@@ -29,7 +29,7 @@ export function ComingChannelsCard() {
           rel="noreferrer"
           className="font-data text-[11px] text-[var(--accent-color)] border-b border-[var(--accent-color)] pb-0.5 hover:text-[var(--accent-hover)] no-underline"
         >
-          request a channel →
+          request a channel
         </a>
       </div>
       {/* dim channel lineup — each stub mirrors the "coming" chip language (dashed, no accent dot) */}

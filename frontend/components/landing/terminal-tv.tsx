@@ -20,12 +20,11 @@ export type ChannelBlock =
   | {
       kind: "sponsored"
       id: string
-      title: string
-      status: string
       advertiser: string
       copy: string
-      host: string
+      url: string
       est: string
+      today?: string
     }
 
 interface TerminalTVProps {
@@ -226,7 +225,10 @@ export function TerminalTV({
   )
 }
 
-// mirrors the cli sponsored panel: bar + label left, estimate right, then advertiser, copy, link
+// mirrors the cli sponsored panel: three rows, each led by the bar
+//   ▍ AD  advertiser                  +$0.0070
+//   ▍ copy
+//   ▍ ↗ click url  ⌘ click   est. today $0.0770
 function SponsoredBlock({
   block,
   isPreview,
@@ -234,45 +236,26 @@ function SponsoredBlock({
   block: Extract<ChannelBlock, { kind: "sponsored" }>
   isPreview: boolean
 }) {
+  const muted = isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]"
+  const fg = isPreview ? "text-[#EDEDF0]" : "text-[var(--ink-primary)]"
   return (
-    <div>
-      <div className="mb-2 flex items-center justify-between gap-3 text-[10px] tracking-wider">
-        <span className="min-w-0 truncate">
-          <span className="mr-1.5 text-[var(--accent-color)]">▍</span>
-          <span className="font-bold text-[var(--accent-color)]">{block.title}</span>
-          <span
-            className={cn("mx-1.5", isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]")}
-          >
-            ·
+    <div className="border-l-2 border-[var(--accent-color)] pl-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 bg-[var(--accent-color)] px-1 text-[9px] font-bold leading-[1.5] text-white">
+            AD
           </span>
-          <span className={isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]"}>
-            {block.status}
-          </span>
+          <span className={cn("truncate text-[12px] font-bold", fg)}>{block.advertiser}</span>
         </span>
-        <span className="shrink-0 font-bold text-[var(--status-positive)]">{block.est}</span>
+        <span className="shrink-0 text-[11px] text-[var(--status-positive)]">{block.est}</span>
       </div>
-      <div
-        className={cn(
-          "text-[10px] uppercase tracking-wider",
-          isPreview ? "text-[#8A8A94]" : "text-[var(--ink-secondary)]"
-        )}
-      >
-        {block.advertiser}
-      </div>
-      <div
-        className={cn(
-          "mt-0.5 text-[13px] font-bold leading-snug",
-          isPreview ? "text-[#EDEDF0]" : "text-[var(--ink-primary)]"
-        )}
-      >
-        {block.copy}
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-2 text-[10px] tracking-wider">
-        <span className="text-[var(--accent-color)]">↗ {block.host}</span>
-        <span className={isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]"}>·</span>
-        <span className={isPreview ? "text-[#5C5C66]" : "text-[var(--ink-tertiary)]"}>
-          dtv open
+      <div className={cn("mt-1 text-[12px] leading-snug", fg)}>{block.copy}</div>
+      <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-[10px]">
+        <span className="min-w-0 break-all text-[var(--accent-color)]">
+          ↗ {block.url}
+          <span className={cn("ml-2 whitespace-nowrap", muted)}>⌘ click</span>
         </span>
+        {block.today && <span className={cn("whitespace-nowrap", muted)}>{block.today}</span>}
       </div>
     </div>
   )

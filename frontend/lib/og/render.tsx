@@ -110,7 +110,7 @@ export async function renderCard(
               marginRight: 10,
             }}
           />
-          ADS THAT PAY YOU · 70%
+          SURFACE 01 · TERMINAL · LIVE
         </div>
       </div>
 
@@ -126,17 +126,17 @@ export async function renderCard(
           letterSpacing: "-0.025em",
         }}
       >
-        <div style={{ display: "flex" }}>Get paid while</div>
-        <div style={{ display: "flex" }}>your agent codes.</div>
+        <div style={{ display: "flex" }}>The ad exchange for</div>
+        <div style={{ display: "flex" }}>AI agent surfaces.</div>
       </div>
 
       {/* bottom: chips + meta */}
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", gap: 12 }}>
           {[
-            { label: "SPONSORED · ON BY DEFAULT", on: true },
-            { label: "CH 01 · NEWS · OPT-IN", on: false },
-            { label: "CH 02 · MARKETS · OPT-IN", on: false },
+            { label: "TERMINAL · LIVE", on: true },
+            { label: "IDE PANELS · NEXT", on: false },
+            { label: "AGENT WEB UIS · NEXT", on: false },
           ].map((c) => (
             <div
               key={c.label}
@@ -177,7 +177,7 @@ export async function renderCard(
             letterSpacing: "0.03em",
           }}
         >
-          opt-in · estimated earnings · payouts coming soon
+          opt-in audience · 70% to the viewer · gone when you type
         </div>
       </div>
     </div>,

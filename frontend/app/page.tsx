@@ -1,15 +1,16 @@
 import { Nav } from "@/components/landing/nav"
 import { HeroSection } from "@/components/landing/hero-section"
-import { DeadTimeSection } from "@/components/landing/dead-time-section"
-import { HowItWorksSection } from "@/components/landing/how-it-works-section"
-import { ChannelsSection } from "@/components/landing/channels-section"
+import { ShiftSection } from "@/components/landing/shift-section"
+import { LineageSection } from "@/components/landing/lineage-section"
+import { SidesSection } from "@/components/landing/sides-section"
+import { TerminalSection } from "@/components/landing/terminal-section"
+import { RulesSection } from "@/components/landing/rules-section"
 import { AdvertisersTeaser } from "@/components/landing/advertisers-teaser"
-import { ControlSection } from "@/components/landing/control-section"
 import { InstallSection } from "@/components/landing/install-section"
 import { Footer } from "@/components/landing/footer"
 import { getMarketRows, getNewsItems } from "@/lib/landing-data"
 
-// revalidate live market/news data on the hero panel periodically
+// revalidate the live market/news data shown in the channel cards
 export const revalidate = 60
 
 export default async function Home() {
@@ -18,12 +19,13 @@ export default async function Home() {
     <>
       <Nav />
       <main>
-        <HeroSection marketRows={marketRows} newsItems={newsItems} />
-        <DeadTimeSection />
-        <HowItWorksSection />
-        <ChannelsSection />
+        <HeroSection />
+        <ShiftSection />
+        <LineageSection />
+        <SidesSection />
+        <TerminalSection />
+        <RulesSection marketRows={marketRows} newsItems={newsItems} />
         <AdvertisersTeaser />
-        <ControlSection />
         <InstallSection />
       </main>
       <Footer />

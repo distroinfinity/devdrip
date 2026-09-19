@@ -6,19 +6,34 @@
 
 The home page is a Next.js App Router page composed of the following sections, in order:
 
-1. **nav** — sticky top bar with the distro tv wordmark and a primary CTA
-2. **hero** — ads-first hook, install command, terminal preview led by a sponsored slot
-3. **dead-time** — idle-minutes stat grid (directional figures, footnoted as unaudited)
-4. **how-it-works** — three beats (agent starts → sponsored slot lights up → you earn, type, it vanishes)
-5. **channels** — the opt-in alternative: CH 01 NEWS and CH 02 MARKETS detail, plus coming-soon channel cards
-6. **advertisers teaser** — the exchange pitch, links to `/advertisers`
-7. **control** — `distro init` transcript plus the commands that work today (`dtv open / skip / mute / kill-session / preferences`)
-8. **install** — full install command block and post-install note
-9. **footer** — brand block + tagline, social icon links (X, WhatsApp, GitHub), link columns, copyright
+1. **nav** — sticky top bar; anchors: the shift, how it works, rules, advertisers
+2. **hero** — the exchange headline, install command, and the interactive terminal demo (first fold). nothing sits above the H1
+3. **shift** — work moved to the agent, attention stayed put; four-cell stat grid (directional, footnoted as unaudited)
+4. **lineage** — a ledger of media and the ad markets they grew; the last row's market cell is a hatched empty slot reading `nothing yet`
+5. **sides** — people / surfaces / advertisers, each with an honest plain-text status (`live`, `terminal live, more next`, `planned`)
+6. **terminal** — surface 01: three numbered beats (a true sequence) and a compact row of the `dtv` commands that work today
+7. **rules** — five rules as a plain list (not numbered); under the last one ("the slot isn't only for ads") sit the CH 01 / CH 02 cards and the coming-channels card, fed with live data
+8. **advertisers teaser** — "a new surface to buy", links to `/advertisers`
+9. **install** — full install command block and the "what does this script do?" details
+10. **footer** — brand block + tagline, social icon links (X, WhatsApp, GitHub), link columns, copyright
 
-`/advertisers` (`frontend/app/advertisers/page.tsx`) is the vision page for the exchange: hero, why this inventory, how bidding will work (tagged `planned`), surfaces roadmap, three disabled "coming soon" campaign buttons (text labels only — no third-party logos), and an honest "today" status line. No forms, no backend; the only CTA is a `mailto:`.
+`/advertisers` (`frontend/app/advertisers/page.tsx`) is the advertiser-facing page: hero ("Reach developers while their agent works.", status `distro exchange · pilot`), why this inventory, how bidding will work (tagged `planned`), surfaces roadmap, three disabled "coming soon" campaign buttons (text labels only — no third-party logos), and an honest "today" status line. No forms, no backend; the only CTA is a `mailto:`.
 
-Below-fold sections are dynamically imported with SSR enabled.
+### Motion
+
+The hero terminal demo is the **only** autoplaying motion on the landing page. No fade-and-slide-up entrance wrappers on sections. Hover and focus feedback on interactive elements stays.
+
+### Terminal demo (`terminal-demo.tsx`)
+
+A client component that loops three states — agent working → slot showing → you're typing:
+
+- the slot appears the instant the agent starts working (no grace phase, matching `GRACE_PERIOD_MS = 0`) and is drawn like the real CLI panel: three rows behind an indigo bar (`AD` badge + advertiser + per-view amount, copy, click URL + `est. today`)
+- it rotates to a second ad after ~4s (the product's real rotation is 12s; the demo compresses it and never prints a timing number it fakes), and `est. today` counts up by one view
+- the input line is a real, labelled, focusable `<input>`. the first keystroke removes the slot in a single commit — no exit animation — and the readout shows the **measured** time from the keystroke's event timestamp to the first frame painted without the slot (`cleared in N ms`). if nobody types, the loop types for them
+- one 100ms clock drives the loop; it advances only while the demo is in view (IntersectionObserver) and the tab is visible
+- `prefers-reduced-motion`: no loop, the static "slot showing" frame; typing still clears it
+- the log and status-line areas have fixed heights, so nothing shifts when the slot appears or clears. below `sm` the click URL ellipsizes — inside this illustration only; the real panel never truncates it
+- the frame stays dark in both themes
 
 ## Component Map
 
@@ -28,14 +43,16 @@ All landing components live in `frontend/components/landing/`:
 | -------------------------- | ----------------------------------------------------------- |
 | `nav.tsx`                  | top navigation bar                                          |
 | `hero-section.tsx`         | above-the-fold hero                                         |
-| `terminal-tv.tsx`          | terminal preview widget (news / markets / sponsored blocks) |
-| `dead-time-section.tsx`    | idle-minutes stat grid                                      |
-| `channels-section.tsx`     | channels detail section (opt-in framing)                    |
-| `advertisers-teaser.tsx`   | exchange teaser linking to `/advertisers`                   |
+| `terminal-demo.tsx`        | interactive terminal demo in the hero (the one moving part) |
+| `shift-section.tsx`        | the shift: copy + stat grid                                 |
+| `lineage-section.tsx`      | medium / surface / market ledger with the empty slot        |
+| `sides-section.tsx`        | three sides of the exchange with status text                |
+| `terminal-section.tsx`     | surface 01: three beats + working `dtv` commands            |
+| `rules-section.tsx`        | five rules; channel cards as evidence under the last        |
 | `channel-card.tsx`         | card for a live channel (CH 01, CH 02)                      |
 | `coming-channels-card.tsx` | placeholder card for upcoming channels                      |
-| `how-it-works-section.tsx` | three-step explainer                                        |
-| `control-section.tsx`      | init transcript + working `dtv` commands                    |
+| `terminal-tv.tsx`          | static terminal widget (news / markets / sponsored blocks)  |
+| `advertisers-teaser.tsx`   | exchange teaser linking to `/advertisers`                   |
 | `install-section.tsx`      | install CTA section                                         |
 | `install-command.tsx`      | copyable curl command block                                 |
 | `footer.tsx`               | brand + socials + link columns + meta bar                   |
@@ -75,9 +92,9 @@ Gotcha: satori drops a bare `<br/>` between text nodes (jams words together) —
 
 ## Positioning
 
-The product is **ads in the terminal that pay the developer**: sponsored slots are on by default and the developer keeps an estimated 70% share. **Channels are the opt-in alternative** ("Don't want ads? Tune to a channel.") — they run on the same surface but don't pay. The long-term noun is the **exchange**: an open ad exchange for AI agent surfaces, with the terminal as the first inventory.
+Distro is **the ad exchange for AI agent surfaces**. The landing page tells that story rather than selling a benefit: every medium grew an ad market → agents created a new attention surface (the wait) → nothing serves it → Distro is the open exchange for it → the terminal is the first surface, and it is live. Channels appear as one of the rules ("the slot isn't only for ads"), never as the headline.
 
-Money is always labeled **estimated**; the only payout phrase is "payouts coming soon". No payment-method language anywhere on the landing surface.
+Money is always labeled **estimated**; earnings are "estimates until payouts open". No payment-method language anywhere on the landing surface.
 
 The two launch channels are:
 
@@ -88,43 +105,55 @@ Additional channels are surfaced as coming-soon cards on the landing page.
 
 ## Copy & Voice
 
-Voice is **terse, minimal, lowercase-leaning, terminal-flavored** — but every line must be **concrete**, not clever-for-its-own-sake. A cold visitor must be able to answer "what is this / why do I want it" inside the hero. Avoid GPT-vague tropes (e.g. "the signal, not the noise/timeline", "catches the idle moment") and riddles that hide the product.
+Voice is **plain, observational, confident, sentence case**. It should read like infrastructure, not a consumer offer. Every line must be concrete; a cold visitor must be able to answer "what is this" inside the hero.
 
-Lead with **ads in the terminal that pay the developer**; channels are the opt-in alternative; the long-term noun is the **exchange**.
+- lead with the exchange and the story (medium → market → agents have none → Distro)
+- never pitch "get paid", and never lead with a benefit
+- never surface product defaults such as "ads on by default" — that is a setting, not part of the story
+- status tags must be honest: `live` / `next` / `planned`. never imply bidding or self-serve exists
+- avoid templated tells: an all-caps eyebrow above every heading (only keep a label that carries information the heading doesn't), one accented word in a headline, `→` appended to links and buttons, middle-dot strings everywhere
+- number things only when they are a true sequence (the three terminal beats are; the three sides and the five rules are not)
+- left-align everything; keep body measure under ~70 characters
 
 Canonical copy (keep these in sync if you touch the components):
 
-| surface          | copy                                                                                                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| hero eyebrow     | ads in your terminal · you keep 70%                                                                                                                     |
-| hero H1          | Get paid while your agent codes.                                                                                                                        |
-| hero sub         | Distro TV shows a sponsored slot in your terminal while your AI agent works, and shares the revenue with you. It vanishes the instant you type.         |
-| hero footer line | opt-in · estimated earnings today · payouts coming soon                                                                                                 |
-| meta title       | Distro TV — get paid while your agent codes                                                                                                             |
-| meta description | Sponsored slots in your terminal while your AI agent works, with the revenue shared with you. Prefer no ads? Tune to news and markets channels instead. |
-| dead-time H2     | Your agent works. You wait.                                                                                                                             |
-| channels H2      | Don't want ads? Tune to a channel.                                                                                                                      |
-| advertisers H2   | A new ad surface: the developer's terminal.                                                                                                             |
-| control H2       | You set the rules.                                                                                                                                      |
-| CH 01 title      | Top stories.                                                                                                                                            |
-| CH 02 title      | Your watchlist, while you wait.                                                                                                                         |
-| coming-channels  | Next on the dial.                                                                                                                                       |
-| footer tagline   | Ads in your terminal that pay you.                                                                                                                      |
-| /advertisers H1  | The ad exchange for AI agent surfaces.                                                                                                                  |
+| surface             | copy                                                                                                                                                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| hero H1             | The ad exchange for AI agent surfaces.                                                                                                                                                                    |
+| hero sub            | Agents do the work now; people wait and watch. That wait is a new attention surface, and nothing serves it yet. Distro is building the open exchange that does, starting in the terminal.                 |
+| hero CTA label      | Run the first surface                                                                                                                                                                                     |
+| hero facts          | Opt-in audience. 70% goes to the viewer. Gone when you type.                                                                                                                                              |
+| demo title bar      | surface 01 — terminal (left), live (right)                                                                                                                                                                |
+| meta title          | Distro TV — the ad exchange for AI agent surfaces                                                                                                                                                         |
+| meta description    | AI agents do the work while people wait. Distro is the open exchange for that attention: slots inside agent tools, an opted-in audience, and revenue shared with the viewer. First surface: the terminal. |
+| shift H2            | Work moved to the agent. Attention stayed put.                                                                                                                                                            |
+| lineage H2          | Every medium grew an ad market.                                                                                                                                                                           |
+| sides H2            | Three sides, one slot.                                                                                                                                                                                    |
+| terminal H2         | Surface 01: the terminal.                                                                                                                                                                                 |
+| terminal sub        | Works with Claude Code today. More agent tools next.                                                                                                                                                      |
+| rules H2            | Rules the exchange runs on.                                                                                                                                                                               |
+| advertisers H2      | A new surface to buy.                                                                                                                                                                                     |
+| install H2          | Run the first surface.                                                                                                                                                                                    |
+| CH 01 title         | Top stories.                                                                                                                                                                                              |
+| CH 02 title         | Your watchlist, while you wait.                                                                                                                                                                           |
+| coming-channels     | Next on the dial.                                                                                                                                                                                         |
+| footer tagline      | The ad exchange for AI agent surfaces.                                                                                                                                                                    |
+| /advertisers H1     | Reach developers while their agent works.                                                                                                                                                                 |
+| /advertisers status | distro exchange · pilot                                                                                                                                                                                   |
 
-Stay tool-agnostic in product copy ("your agent", not "Claude").
+Stay tool-agnostic in product copy ("your agent", not "Claude"). The one exception is compatibility: the terminal section's sub-line and the install sub-line name Claude Code, because that is what the first surface works with today.
 
 ## Preview Treatments
 
-The channel-card previews are differentiated so each reads as its own channel (not a clone of the hero terminal). Gated on `TerminalTV`'s `preview` variant so the hero `card` variant is untouched:
+The channel-card previews are differentiated so each reads as its own channel (not a clone of the hero terminal). Gated on `TerminalTV`'s `preview` variant so the `card` variant (used on `/advertisers`) is untouched:
 
 - **NEWS** — editorial brief: accent source kicker, emphasized lead headline, ruled stories
 - **MARKETS** — data-grid: `sym / last / chg / 7d` header row above the rows
 
-The coming-channels card renders a dim "channel lineup" of dashed stubs (CH number + name + `queued` tag), echoing the hero's dashed "coming" chip language.
+The coming-channels card renders a dim "channel lineup" of dashed stubs (CH number + name + `queued` tag).
 
 ## Operational Notes
 
 - no waitlist route — the pre-pivot waitlist (`/api/waitlist`) was deprecated post-M1 and is no longer present
-- the landing page does not talk to any backend at load time (static + edge-rendered)
+- the landing page fetches public market + news data server-side (revalidated) for the channel cards; it does not talk to our backend at load time
 - Vercel Analytics event tracking can be added at the section level if acquisition metrics are needed
