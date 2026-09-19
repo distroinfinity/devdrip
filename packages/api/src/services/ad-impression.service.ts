@@ -95,6 +95,7 @@ export async function recordAdImpression(args: {
       durationMs: args.input.durationMs,
       result: args.input.result,
       earnedAmount: earned.toFixed(6),
+      seenAt: sql`now()`,
     })
     .where(
       and(

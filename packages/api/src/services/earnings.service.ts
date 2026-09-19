@@ -42,15 +42,17 @@ function extractRows<T>(result: unknown): T[] {
 export async function getSummary(userId: string) {
   const [row] = await getDb()
     .select({
-      today: sql<string>`coalesce(sum(${t.earnedAmount}) filter (where ${t.createdAt} >= date_trunc('day', now())), 0)`,
-      last7d: sql<string>`coalesce(sum(${t.earnedAmount}) filter (where ${t.createdAt} >= now() - interval '7 days'), 0)`,
+      today: sql<string>`coalesce(sum(${t.earnedAmount}) filter (where coalesce(${t.seenAt}, ${t.createdAt}) >= date_trunc('day', now())), 0)`,
+      last7d: sql<string>`coalesce(sum(${t.earnedAmount}) filter (where coalesce(${t.seenAt}, ${t.createdAt}) >= now() - interval '7 days'), 0)`,
       allTime: sql<string>`coalesce(sum(${t.earnedAmount}), 0)`,
       served: sql<number>`count(*)::int`,
       impressions: sql<number>`(count(*) filter (where ${t.result} <> 'pending'))::int`,
       paidImpressions: sql<number>`(count(*) filter (where ${t.earnedAmount} > 0))::int`,
       clicks: sql<number>`(count(*) filter (where ${t.clicked}))::int`,
       viewMs: sql<string>`coalesce(sum(${t.durationMs}) filter (where ${t.earnedAmount} > 0), 0)`,
-      lastSeenAt: sql<string | null>`max(${t.createdAt}) filter (where ${t.result} <> 'pending')`,
+      lastSeenAt: sql<
+        string | null
+      >`max(coalesce(${t.seenAt}, ${t.createdAt})) filter (where ${t.result} <> 'pending')`,
     })
     .from(t)
     .where(eq(t.userId, userId))
@@ -93,8 +95,9 @@ export async function getTimeseries(userId: string, rawRange: unknown) {
          ) as b(ts)
     left join ad_impressions a
       on a.user_id = ${userId}
-     and a.created_at >= b.ts
-     and a.created_at < b.ts + ${intervalSql}
+     and a.result <> 'pending'
+     and coalesce(a.seen_at, a.created_at) >= b.ts
+     and coalesce(a.seen_at, a.created_at) < b.ts + ${intervalSql}
     group by b.ts
     order by b.ts
   `)
@@ -118,7 +121,7 @@ export async function getRecent(userId: string, limit: number) {
     .select()
     .from(t)
     .where(and(eq(t.userId, userId), or(ne(t.result, "pending"), eq(t.clicked, true))))
-    .orderBy(desc(t.createdAt))
+    .orderBy(desc(sql`coalesce(${t.seenAt}, ${t.createdAt})`))
     .limit(limit)
   return rows.map((r) => ({
     id: r.id,
@@ -129,6 +132,7 @@ export async function getRecent(userId: string, limit: number) {
     result: r.result,
     clicked: r.clicked,
     earned: Number(r.earnedAmount),
-    createdAt: r.createdAt.toISOString(),
+    // the moment it was seen, falling back to serve time for click-only rows
+    createdAt: (r.seenAt ?? r.createdAt).toISOString(),
   }))
 }

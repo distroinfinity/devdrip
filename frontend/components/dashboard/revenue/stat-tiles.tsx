@@ -1,6 +1,17 @@
 import { formatInt, formatUsdEstimate } from "@/lib/format"
 import type { EarningsSummary } from "@/lib/dashboard-api"
 
+// "20m 48s" / "1h 04m" — how long paid ads were actually on screen
+function formatDuration(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`
+  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`
+  return `${s}s`
+}
+
 interface Tile {
   label: string
   value: string
@@ -10,8 +21,12 @@ interface Tile {
 export function StatTiles({ summary }: { summary: EarningsSummary }) {
   const tiles: Tile[] = [
     { label: "Today", value: formatUsdEstimate(summary.today), sub: "estimated" },
-    { label: "Last 7 days", value: formatUsdEstimate(summary.last7d), sub: "estimated" },
-    { label: "All time", value: formatUsdEstimate(summary.allTime), sub: "estimated" },
+    {
+      label: "Per agent-hour",
+      value: summary.ratePerHour > 0 ? formatUsdEstimate(summary.ratePerHour) : "—",
+      sub: "estimated, while ads play",
+    },
+    { label: "Agent time paid", value: formatDuration(summary.viewMs), sub: "ads on screen" },
     {
       label: "Ads seen",
       value: formatInt(summary.impressions),

@@ -1,6 +1,6 @@
 import { BlurFade } from "@distrotv/design-system/components/blur-fade"
 import { apiFetchOrRefresh } from "@/lib/api"
-import type { EarningsPoint, EarningsSummary, RecentAd } from "@/lib/dashboard-api"
+import type { ChartRange, EarningsPoint, EarningsSummary, RecentAd } from "@/lib/dashboard-api"
 import { EarningsHero } from "@/components/dashboard/revenue/earnings-hero"
 import { StatTiles } from "@/components/dashboard/revenue/stat-tiles"
 import { EarningsChart } from "@/components/dashboard/revenue/earnings-chart"
@@ -8,11 +8,21 @@ import { RecentAds } from "@/components/dashboard/revenue/recent-ads"
 
 export const dynamic = "force-dynamic"
 
-export default async function RevenuePage() {
+// the last hour is the default: it is the view that moves while an agent is working
+function parseRange(raw: string | string[] | undefined): ChartRange {
+  return raw === "24h" || raw === "30d" ? raw : "1h"
+}
+
+export default async function RevenuePage({
+  searchParams,
+}: {
+  searchParams?: { range?: string | string[] }
+}) {
+  const range = parseRange(searchParams?.range)
   const back = "/dashboard/revenue"
   const [summary, series, recent] = await Promise.all([
     apiFetchOrRefresh<EarningsSummary>("/me/earnings/summary", back),
-    apiFetchOrRefresh<{ points: EarningsPoint[] }>("/me/earnings/timeseries?days=30", back),
+    apiFetchOrRefresh<{ points: EarningsPoint[] }>(`/me/earnings/timeseries?range=${range}`, back),
     apiFetchOrRefresh<{ items: RecentAd[] }>("/me/earnings/recent?limit=20", back),
   ])
   const empty = summary.impressions === 0 && summary.clicks === 0
@@ -41,7 +51,7 @@ export default async function RevenuePage() {
             <StatTiles summary={summary} />
           </BlurFade>
           <BlurFade delay={0.08} direction="up" offset={6}>
-            <EarningsChart points={series.points} />
+            <EarningsChart points={series.points} range={range} />
           </BlurFade>
           <BlurFade delay={0.12} direction="up" offset={6}>
             <RecentAds items={recent.items} />

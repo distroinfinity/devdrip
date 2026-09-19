@@ -1,6 +1,7 @@
 import { SharpButton } from "@/components/v5/sharp-button"
-import { formatUsdEstimate } from "@/lib/format"
 import type { EarningsSummary } from "@/lib/dashboard-api"
+import { LiveAmount } from "./live-amount"
+import { LiveRefresh } from "./live-refresh"
 
 function formatCpm(rate: number): string {
   return Number.isInteger(rate) ? String(rate) : rate.toFixed(2)
@@ -14,17 +15,18 @@ export function EarningsHero({ summary }: { summary: EarningsSummary }) {
       <p className="font-display text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink-tertiary)]">
         Revenue
       </p>
-      <h1 className="mt-2 font-display text-[32px] font-bold leading-[1.1] tracking-[-0.02em] text-[var(--ink-primary)] md:text-[40px]">
-        estimated earnings
-      </h1>
+      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+        <h1 className="font-display text-[32px] font-bold leading-[1.1] tracking-[-0.02em] text-[var(--ink-primary)] md:text-[40px]">
+          estimated earnings
+        </h1>
+        <LiveRefresh lastSeenAt={summary.lastSeenAt} />
+      </div>
 
       <div className="mt-6 flex flex-col gap-6 border-y border-[var(--rule-default)] py-6 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
-          <p className="font-data text-[48px] leading-none tracking-[-0.03em] tabular-nums text-[var(--ink-primary)] md:text-[64px]">
-            {formatUsdEstimate(summary.allTime)}
-          </p>
+          <LiveAmount value={summary.allTime} />
           <p className="mt-3 font-body text-[12px] text-[var(--ink-tertiary)]">
-            all time, estimated
+            all time, estimated — updates as your agent works
           </p>
         </div>
 
