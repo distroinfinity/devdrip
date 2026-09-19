@@ -17,3 +17,8 @@ adsClickRouter.get("/click/:deliveryId", async (req, res) => {
   res.setHeader("Cache-Control", "no-store")
   res.redirect(302, target ?? env.webUrl)
 })
+
+// bare /ads/click (no id, e.g. a half-copied link) → home instead of a raw 404
+adsClickRouter.get("/click", (_req, res) => {
+  res.redirect(302, env.webUrl)
+})
