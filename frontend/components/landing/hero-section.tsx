@@ -27,9 +27,8 @@ export function HeroSection() {
             </h1>
 
             <p className="font-body text-[15px] leading-[1.6] text-[var(--ink-secondary)] mb-8 max-w-[52ch]">
-              Agents do the work now; people wait and watch. That wait is a new attention surface,
-              and nothing serves it yet. Distro is building the open exchange that does, starting in
-              the terminal.
+              AI agents do the work. People wait and watch. That attention has no market yet. Distro
+              is building it, starting in the terminal.
             </p>
 
             <p className="font-data text-[11px] text-[var(--ink-secondary)] mb-2">
@@ -38,7 +37,7 @@ export function HeroSection() {
             <div className="mb-4">
               <InstallCommand variant="hero" />
             </div>
-            <div className="mb-8">
+            <div>
               <Link
                 href="/advertisers"
                 className="font-data text-[12px] text-[var(--ink-primary)] no-underline border-b border-[var(--rule-strong)] pb-0.5 transition-colors hover:border-[var(--ink-primary)]"
@@ -46,10 +45,6 @@ export function HeroSection() {
                 For advertisers
               </Link>
             </div>
-
-            <p className="font-body text-[14px] leading-[1.6] text-[var(--ink-secondary)]">
-              Opt-in audience. 70% goes to the viewer. Gone when you type.
-            </p>
           </div>
 
           {/* right column — the one moving thing on the page */}

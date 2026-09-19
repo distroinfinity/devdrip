@@ -1,7 +1,8 @@
 # Ads
 
 Sponsored slots are the default feed. They play in the Claude Code status line while the
-agent works, and the developer keeps an estimated 70% share of each ad they actually see.
+agent works. Advertisers pay Distro; Distro pays the developer a share of each ad they actually
+see and keeps a margin. The split is internal (`REVENUE_SHARE_DEVELOPER`) and is never shown to users.
 News, markets and utilities are opt-in channels on the same surface.
 
 Status: built on `hackathon/terminal-ads`, runs locally. Not deployed, not released.

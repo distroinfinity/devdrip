@@ -19,15 +19,15 @@ const TALK_TO_US = "mailto:ads@distrotv.xyz?subject=Advertising%20on%20Distro"
 const WHY = [
   {
     title: "Undivided attention",
-    body: "The ad shows while the developer is waiting on the agent — not while they're working.",
+    body: "The ad shows while they wait. Never while they work.",
   },
   {
     title: "A technical audience",
-    body: "Every viewer is a developer using AI coding tools, by construction.",
+    body: "Every viewer is a developer using AI coding tools.",
   },
   {
     title: "Paid, opted-in viewers",
-    body: "Developers choose to see ads and keep 70% of what you pay.",
+    body: "Developers choose to see ads. They get paid a share of what you spend.",
   },
 ]
 
@@ -103,8 +103,8 @@ export default function AdvertisersPage() {
                   Reach developers while their agent works.
                 </h1>
                 <p className="font-body text-[14px] leading-[1.6] text-[var(--ink-secondary)] mb-6 max-w-[52ch]">
-                  Developers now spend minutes at a time watching an agent work. Distro turns that
-                  attention into open, biddable inventory — starting with the terminal.
+                  Developers wait while their agent works. Distro turns that wait into ad inventory.
+                  It starts in the terminal.
                 </p>
                 <a
                   href={TALK_TO_US}
@@ -194,8 +194,7 @@ export default function AdvertisersPage() {
             <SectionHead>Surfaces</SectionHead>
             <div className="grid gap-8 md:grid-cols-[1fr_1.2fr] md:gap-12 items-start">
               <p className="font-body text-[14px] leading-[1.6] text-[var(--ink-secondary)] max-w-[48ch]">
-                Same exchange, more surfaces. Like display, search and out-of-home — for the agent
-                era.
+                One exchange. More surfaces over time.
               </p>
               <ul className="m-0 p-0 list-none border border-[var(--rule-default)] bg-[var(--bg-primary)]">
                 {SURFACES.map((s) => (
@@ -248,8 +247,8 @@ export default function AdvertisersPage() {
           <div className="mx-auto max-w-[1200px] px-6">
             <SectionHead>Today</SectionHead>
             <p className="font-body text-[14px] leading-[1.6] text-[var(--ink-primary)] max-w-[70ch] mb-6">
-              Live now: sponsored slots served through Carbon&apos;s sandbox network plus demo
-              creatives, with views and clicks measured end to end.
+              Live now: sandbox and demo ads in the terminal. Views and clicks are measured end to
+              end.
             </p>
             <a
               href={TALK_TO_US}
