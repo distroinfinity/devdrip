@@ -1,4 +1,4 @@
-import type { AdCategory, SyncedPreferences } from "@devdrip/shared"
+import type { AdCategory, ChannelMode, NewsTopic, SyncedPreferences } from "@devdrip/shared"
 import { apiFetch } from "./api"
 
 // ── analytics (existing /me/analytics/impressions) ──────────────────────────
@@ -113,6 +113,8 @@ export interface UpdatePreferencesBody {
   idleSensitivityMs?: number
   sessionWarmupMs?: number
   nightMode?: boolean
+  channelMode?: ChannelMode
+  newsTopics?: NewsTopic[]
 }
 
 export async function getPreferences(): Promise<SyncedPreferences> {
