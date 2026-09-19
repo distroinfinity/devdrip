@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { BlurFade } from "@/components/ui/blur-fade";
 import { DotGrid } from "@/components/shared/dot-grid";
 import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-vanish-input";
@@ -21,6 +21,9 @@ type Phase = "idle" | "submitting" | "success";
 export function WaitlistSection() {
   const [email, setEmail] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -29,7 +32,7 @@ export function WaitlistSection() {
     setPhase("submitting");
 
     // no backend yet (P0-015) — simulate network delay
-    setTimeout(() => setPhase("success"), 1200);
+    timerRef.current = setTimeout(() => setPhase("success"), 1200);
   };
 
   return (

@@ -19,7 +19,7 @@ export const FloatingNav = ({
   navItems: {
     name: string;
     link: string;
-    icon?: JSX.Element;
+    icon?: React.ReactNode;
   }[];
   className?: string;
   ctaLabel?: string;
@@ -78,11 +78,11 @@ export const FloatingNav = ({
             ))}
           </div>
 
-          <div className="h-5 w-px bg-[var(--rule-default)]" />
+          <div className="hidden sm:block h-5 w-px bg-[var(--rule-default)]" />
 
           <ThemeToggle className="hidden sm:block px-3 py-1.5 rounded-full text-[12px]" />
 
-          <div className="h-5 w-px bg-[var(--rule-default)]" />
+          <div className="hidden sm:block h-5 w-px bg-[var(--rule-default)]" />
 
           {ctaHref ? (
             <a

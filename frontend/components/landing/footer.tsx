@@ -1,6 +1,6 @@
 const NAV_LINKS = [
   { label: "Docs", href: "#" },
-  { label: "GitHub", href: "#" },
+  { label: "GitHub", href: "https://github.com/distroinfinity/devdrip" },
   { label: "Privacy", href: "#" },
   { label: "Terms", href: "#" },
 ] as const;
@@ -15,7 +15,7 @@ export function Footer() {
         </span>
 
         {/* nav links */}
-        <div className="flex items-center gap-4">
+        <nav className="flex items-center gap-4">
           {NAV_LINKS.map((link) => (
             <a
               key={link.label}
@@ -25,7 +25,7 @@ export function Footer() {
               {link.label}
             </a>
           ))}
-        </div>
+        </nav>
 
         {/* attribution */}
         <span className="font-data text-[10px] text-[var(--ink-faint)]">

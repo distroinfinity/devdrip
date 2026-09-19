@@ -20,8 +20,9 @@ export function ThemeToggle({ className }: { className?: string }) {
       }}
       className={cn(
         "font-body text-[13px] font-medium text-[var(--ink-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors",
-        !className && "border border-[var(--rule-default)] rounded-md px-3.5 py-1.5",
-        className,
+        className
+          ? className
+          : "border border-[var(--rule-default)] rounded-md px-3.5 py-1.5",
       )}
     >
       {theme === "light" ? "Dark" : "Light"}
