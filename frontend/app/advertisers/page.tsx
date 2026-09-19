@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Nav } from "@/components/landing/nav"
 import { Footer } from "@/components/landing/footer"
 import { AdComposer } from "@/components/advertisers/ad-composer"
+import { BrandMark, type BrandMarkName } from "@/components/advertisers/brand-mark"
 
 export const metadata: Metadata = {
   title: "Advertise on Distro TV — the ad exchange for AI agent surfaces",
@@ -12,19 +13,21 @@ export const metadata: Metadata = {
   alternates: { canonical: "/advertisers" },
 }
 
-// text labels only — no third-party marks
-const IMPORTS = [
+// monochrome marks beside the names, for familiarity — see brand-mark.tsx
+const IMPORTS: { mark: BrandMarkName; name: string; body: string; when: string }[] = [
   {
+    mark: "googleAds",
     name: "Google Ads",
     body: "Search ads are text. So is the slot. They import one to one.",
     when: "coming soon",
   },
   {
+    mark: "meta",
     name: "Meta Ads",
     body: "Headline, text and link come across. Images stay behind.",
     when: "coming soon",
   },
-  { name: "Amazon Ads", body: "Sponsored Brands headlines.", when: "next" },
+  { mark: "amazon", name: "Amazon Ads", body: "Sponsored Brands headlines.", when: "next" },
 ]
 
 const STEPS = [
@@ -88,9 +91,10 @@ export default function AdvertisersPage() {
               {IMPORTS.map((item) => (
                 <div key={item.name} className="flex flex-col bg-[var(--bg-primary)] p-5">
                   <h3
-                    className="mb-2 font-display text-[18px] tracking-[-0.02em] text-[var(--ink-primary)]"
+                    className="mb-2 flex items-center gap-2.5 font-display text-[18px] tracking-[-0.02em] text-[var(--ink-primary)]"
                     style={{ fontWeight: 400 }}
                   >
+                    <BrandMark name={item.mark} size={20} className="shrink-0 opacity-80" />
                     {item.name}
                   </h3>
                   <p className="mb-5 flex-1 font-body text-[14px] leading-[1.6] text-[var(--ink-secondary)]">

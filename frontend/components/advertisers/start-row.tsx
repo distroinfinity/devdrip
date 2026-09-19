@@ -1,10 +1,11 @@
 import { cn } from "@/lib/utils"
+import { BrandMark, type BrandMarkName } from "./brand-mark"
 
-const OPTIONS = [
-  { label: "Connect Google Ads", when: "coming soon" },
-  { label: "Connect Meta Ads", when: "coming soon" },
-  { label: "Amazon Ads", when: "next" },
-  { label: "Write one", when: null },
+const OPTIONS: { label: string; when: string | null; mark: BrandMarkName | null }[] = [
+  { label: "Connect Google Ads", when: "coming soon", mark: "googleAds" },
+  { label: "Connect Meta Ads", when: "coming soon", mark: "meta" },
+  { label: "Amazon Ads", when: "next", mark: "amazon" },
+  { label: "Write one", when: null, mark: null },
 ]
 
 // where an ad comes from. imports first; writing one is the only door open today.
@@ -32,7 +33,12 @@ export function StartRow() {
                   : "cursor-not-allowed bg-[var(--bg-surface)] text-[var(--ink-secondary)]"
               )}
             >
-              <span>{opt.label}</span>
+              <span className="flex items-center gap-2">
+                {opt.mark && (
+                  <BrandMark name={opt.mark} size={16} className="shrink-0 opacity-70" />
+                )}
+                {opt.label}
+              </span>
               {opt.when && (
                 <span className="font-data text-[11px] text-[var(--ink-tertiary)]">{opt.when}</span>
               )}
