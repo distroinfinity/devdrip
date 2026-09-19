@@ -27,7 +27,7 @@ On success: source row gets `healthy=true, lastError=null, lastFetchedAt=now`. O
 
 `/me/content/next` (route in `packages/api/src/routes/me-content.ts`) calls `nextPicksForDevice({ userId, deviceId, n })`:
 
-1. **Hot path:** if `news:nextpicks:<deviceId>` (Redis, 5-min TTL) is non-empty, slice and return. Sparse-channel users get partial results rather than a tight DB-poll loop.
+1. **Hot path:** if `news:nextpicks:<deviceId>` (Redis, 5-min TTL) is non-empty, filter it by the served set and return the still-unseen subset. Only when every cached pick has already been served does it fall through to a fresh DB selection. Returning the cached batch wholesale (the pre-`d7dc4f6` behavior) re-served items the device had just seen for the rest of the 5-min window — the "same news rotating" bug. Sparse-channel users still get partial results rather than a tight DB-poll loop.
 2. Else, ensure the user has default subscriptions (idempotent INSERT…SELECT…ON CONFLICT).
 3. Pull subscribed channels with `(channelId, key, priority)`.
 4. Pull up to 200 newest items from those channels (≤ 72h old), joined to `news_sources` for `key` and `halfLifeHours`.
@@ -66,6 +66,8 @@ displayed (cache eviction, daemon crash, user closes Claude before slot fires)
 remain candidates for the next selection round. The earlier "stamp on cache"
 behavior caused the same item to be 30-day-locked even though the user never
 saw it.
+
+The served set advances asynchronously: the CLI sync loop (`packages/cli/src/lib/daemon/sync.ts`, 5-min tick) drains the local SQLite ledger to `/ingest` in batches. So a slot rendered now isn't reflected in the server's served set until the next sync flush. The daemon's 8-min slot-cache (10 items, refetch when <3 remain) outlasts that flush, so in practice a fresh `/me/content/next` fetch sees the updated served set before it needs new items — no repeats across batches.
 
 Reuters source was retired by Reuters Agency in 2024; migration `0015` drops
 the row.
