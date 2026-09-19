@@ -20,6 +20,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "eslint": "^10.2.0",
     "husky": "^9.1.7",
     "jiti": "^2.0.0",
     "lint-staged": "^16.4.0",
