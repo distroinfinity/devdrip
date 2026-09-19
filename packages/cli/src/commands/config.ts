@@ -13,7 +13,8 @@ import {
 } from "@clack/prompts"
 import { AdCategory, defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
 import { daemonSocketPath } from "@distrotv/shared/daemon-socket"
-import { readConfig, writeConfig } from "../lib/config.js"
+import { readConfig, telemetryEnabled, writeConfig } from "../lib/config.js"
+import { isTelemetryDisabledByEnv } from "@distrotv/shared/telemetry"
 import { sendHookEvent } from "../lib/daemon/hook-client.js"
 import { putPreferences } from "../lib/preferences-client.js"
 import { ApiError, NotAuthenticatedError, reportError } from "../lib/api-client.js"
@@ -188,6 +189,7 @@ async function persist(next: DevdripPreferences): Promise<void> {
     device: cfg.device,
     cli: cfg.cli,
     preferences: next,
+    telemetry: cfg.telemetry,
   })
 }
 
@@ -472,3 +474,36 @@ export const configCmd = new Command("config")
       reportError(err)
     }
   })
+
+configCmd.addCommand(
+  new Command("telemetry")
+    .description("turn anonymous crash reporting on or off, or show status")
+    .argument("[mode]", "on | off | status")
+    .action(async (mode?: string) => {
+      const cfg = await readConfig()
+      if (!cfg) {
+        reportError(new NotAuthenticatedError("not initialized — run `distro init` first"))
+        return
+      }
+      if (mode === undefined || mode === "status") {
+        const state = telemetryEnabled(cfg) ? "on" : "off"
+        const reason = isTelemetryDisabledByEnv() ? " (forced off via DISTRO_TELEMETRY)" : ""
+        process.stdout.write(`telemetry: ${state}${reason}\n`)
+        return
+      }
+      if (mode !== "on" && mode !== "off") {
+        reportError(new Error(`expected "on", "off", or "status", got "${mode}"`))
+        return
+      }
+      await writeConfig({
+        apiUrl: cfg.apiUrl,
+        auth: cfg.auth,
+        user: cfg.user,
+        device: cfg.device,
+        cli: cfg.cli,
+        preferences: cfg.preferences,
+        telemetry: { enabled: mode === "on" },
+      })
+      process.stdout.write(`telemetry ${mode}\n`)
+    })
+)
