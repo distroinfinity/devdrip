@@ -21,6 +21,11 @@ pnpm install
 pnpm build
 ```
 
+## Deploy
+
+- API: Railway GitHub autodeploy from `main`
+- Frontend: GitHub Actions deploy to Vercel after `CI` succeeds
+
 ## Sprint Board
 
 https://www.notion.so/b0675f57e5a3481ebb76c823d889ac95
