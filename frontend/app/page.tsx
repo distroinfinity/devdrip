@@ -6,6 +6,7 @@ import { DeadTimeSection } from "@/components/landing/dead-time-section";
 import { HowItWorksSection } from "@/components/landing/how-it-works-section";
 import { SurfacesSection } from "@/components/landing/surfaces-section";
 import { YourRulesSection } from "@/components/landing/your-rules-section";
+import { PaymentRailSection } from "@/components/landing/payment-rail-section";
 
 export default function Home() {
   return (
@@ -35,7 +36,10 @@ export default function Home() {
 
         <YourRulesSection />
 
-        {/* future sections: P0-008 through P0-013 */}
+        {/* P0-008 The Math — not yet built */}
+        <PaymentRailSection />
+
+        {/* future sections: P0-010 through P0-013 */}
       </div>
     </main>
   );
