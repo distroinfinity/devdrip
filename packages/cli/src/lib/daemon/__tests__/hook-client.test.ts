@@ -61,9 +61,9 @@ describe("sendHookEvent", () => {
     expect(parsed).toEqual({ type: "idle-start", tty: "/dev/ttys003" })
   })
 
-  it("resolves silently when the daemon isn't running (ENOENT)", async () => {
+  it("resolves 'unreachable' when the daemon isn't running (ENOENT)", async () => {
     const { sendHookEvent } = await import("../hook-client.js")
-    await expect(sendHookEvent({ type: "idle-end" }, socketPath)).resolves.toBeUndefined()
+    await expect(sendHookEvent({ type: "idle-end" }, socketPath)).resolves.toBe("unreachable")
   })
 
   it(

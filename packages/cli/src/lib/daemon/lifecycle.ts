@@ -1,3 +1,4 @@
+import { spawn, type ChildProcess } from "node:child_process"
 import { randomBytes } from "node:crypto"
 import {
   appendFileSync,
@@ -132,6 +133,60 @@ export function readHeartbeat(): Heartbeat | null {
 
 export function removeHeartbeat(): void {
   tryUnlink(heartbeatPath())
+}
+
+// ── daemon spawn + respawn debounce ───────────────────────────────────────
+
+// detached spawn only — returns immediately, never waits for readiness, and
+// swallows spawn errors so a caller like the hook path can never be crashed by
+// an unexecutable binPath. the singleton lock keeps duplicate daemons from
+// living, so this is safe to call from concurrent hooks.
+export function spawnDaemonDetached(binPath: string): ChildProcess {
+  ensureConfigDir()
+  const logFd = openSync(logPath(), "a", 0o600)
+  const child = spawn(binPath, ["daemon", "run"], {
+    detached: true,
+    stdio: ["ignore", logFd, logFd],
+    env: process.env,
+  })
+  child.on("error", () => {
+    /* swallow — must never crash the caller */
+  })
+  child.unref()
+  try {
+    closeSync(logFd)
+  } catch {
+    /* ignore */
+  }
+  return child
+}
+
+export function respawnStampPath(): string {
+  return join(configDir(), "daemon.respawn")
+}
+
+export const RESPAWN_DEBOUNCE_MS = 5_000
+
+// true iff a hook-driven respawn is allowed right now (no stamp, or the last
+// attempt is older than the debounce window). writes a fresh stamp when it
+// returns true so concurrent/rapid hooks can't spawn-storm a crash-looping
+// daemon. fail-open on any fs error — better to over-spawn once than never heal.
+export function tryClaimRespawn(now: number = Date.now()): boolean {
+  try {
+    const ts = parseInt(readFileSync(respawnStampPath(), "utf8").trim(), 10)
+    if (Number.isFinite(ts) && now - ts < RESPAWN_DEBOUNCE_MS) return false
+  } catch {
+    /* missing/unreadable → allowed */
+  }
+  try {
+    ensureConfigDir()
+    const tmp = join(configDir(), `.daemon.respawn.${randomBytes(6).toString("hex")}.tmp`)
+    writeFileSync(tmp, String(now), { mode: 0o600 })
+    renameSync(tmp, respawnStampPath())
+  } catch {
+    /* best-effort */
+  }
+  return true
 }
 
 // single source of truth for "is the daemon healthy right now?". consumed by

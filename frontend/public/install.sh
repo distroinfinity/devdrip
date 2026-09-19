@@ -53,4 +53,14 @@ case ":$PATH:" in
   *) echo "ⓘ add $BIN_DIR to your PATH (e.g. in ~/.zshrc): export PATH=\"$BIN_DIR:\$PATH\"" ;;
 esac
 
-echo "✓ installed. run: distro init"
+# 5. kick off onboarding. under `curl | sh` the script's stdin is the curl
+# stream, so reattach the controlling terminal (/dev/tty) for the interactive
+# github sign-in + pickers. fall back to a printed handoff when there's no tty
+# (CI, `docker` without -t). distro init is idempotent, so a retry is safe.
+if [ -e /dev/tty ] && (: < /dev/tty) 2>/dev/null; then
+  echo "✓ installed — starting setup…"
+  echo ""
+  "$BIN_DIR/distro" init < /dev/tty || echo "ⓘ setup didn't finish — run: distro init"
+else
+  echo "✓ installed. run: distro init"
+fi

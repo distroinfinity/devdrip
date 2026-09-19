@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process"
-import { closeSync, openSync, unwatchFile, watchFile } from "node:fs"
+import { unwatchFile, watchFile } from "node:fs"
 import { createConnection } from "node:net"
 import { platform } from "node:os"
 import { Command } from "commander"
@@ -13,12 +13,12 @@ import {
   appendLog,
   HEARTBEAT_STALE_AFTER_MS,
   isSocketAlive,
-  logPath,
   readDaemonStatus,
   readHeartbeat,
   removeHeartbeat,
   removeLockFile,
   resolveSocketPath,
+  spawnDaemonDetached,
   unlinkSocketIfExists,
   writeHeartbeat,
   type Heartbeat,
@@ -53,26 +53,12 @@ export async function runStart(): Promise<number> {
   // drop any stale heartbeat so the poll below can't accidentally trust it.
   removeHeartbeat()
 
-  const logFd = openSync(logPath(), "a", 0o600)
-  const child = spawn(cfg.cli.binPath, ["daemon", "run"], {
-    detached: true,
-    stdio: ["ignore", logFd, logFd],
-    env: process.env,
-  })
-  // Always handle spawn errors. Without this listener, EACCES / ENOENT from
-  // an unexecutable bin path (common in test environments where binPath
-  // points at a temp file) escapes as an unhandled 'error' event and crashes
-  // the parent process.
+  // spawnDaemonDetached attaches its own swallow handler so an unexecutable
+  // binPath can't crash us; add a logging listener for the interactive path.
+  const child = spawnDaemonDetached(cfg.cli.binPath)
   child.on("error", (err) => {
     console.error(`daemon spawn failed: ${(err as Error).message}`)
   })
-  child.unref()
-  // the child inherited its own fd copy; the parent's can be closed.
-  try {
-    closeSync(logFd)
-  } catch {
-    /* ignore */
-  }
 
   const deadline = Date.now() + START_POLL_DEADLINE_MS
   while (Date.now() < deadline) {
