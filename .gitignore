@@ -52,3 +52,6 @@ docs/superpowers/plans/
 # cli release staging — built per-release, never tracked
 .release-staging/
 frontend/public/distrotv-cli.tar.gz
+
+# source bundles from scripts/make-source-zip.sh
+*_Submission.zip

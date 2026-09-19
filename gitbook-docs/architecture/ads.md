@@ -5,7 +5,7 @@ agent works. Advertisers pay Distro; Distro pays the developer a share of each a
 see and keeps a margin. The split is internal (`REVENUE_SHARE_DEVELOPER`) and is never shown to users.
 News, markets and utilities are opt-in channels on the same surface.
 
-Status: built on `hackathon/terminal-ads`, runs locally. Not deployed, not released.
+Status: on the `ad-exchange` branch, runs locally. Not deployed, not released.
 
 ## Flow
 
