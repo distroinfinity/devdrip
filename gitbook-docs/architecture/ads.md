@@ -49,6 +49,26 @@ GET /ads/click/:id ──┘                                            POST /in
   `DISTRO_HYPERLINKS=1`.
 - Ad copy is third-party text. `render-sponsored.ts` strips escape sequences and control bytes.
 
+## Direct ads (advertiser portal)
+
+Anyone signed in can write an ad at `/advertisers/portal`: brand, one line (≤140), an https
+link and a CPM bid (1–100). It is stored in `ad_campaigns` and served as `source: "direct"`,
+`ad_id = "direct:<id>"`.
+
+- **Order:** direct ads first, highest bid first (oldest first on ties), rotating so every
+  active ad gets served. They take at most half of a batch; the rest is Carbon, then house ads.
+- **Price:** the bid is the impression's `cpm_rate`, so a higher bid also pays the viewer more.
+  Nothing is charged in the pilot; `stats.spend` is what the paid views would have cost.
+- **Stats** (`served`, `views`, `clicks`, `ctr`, `spend`) are read straight from `ad_impressions`.
+- **Safety:** https links to a public host only, no credentials in the url, length limits,
+  escape sequences and control bytes stripped on write and again at render, 10 ads per user.
+  New ads are `active` at once only when `AD_AUTO_APPROVE` is on (default on outside
+  production). **Production must run with it off**: ads then start in `review`, and an advertiser
+  cannot approve their own ad. There is no review UI yet — approve by setting `status` in the DB.
+- Importing from Google Ads / Meta Ads / Amazon Ads is shown as coming soon. The plan is a
+  read-only copy of the creative (search ads are text, so they map one to one); it needs each
+  platform's API approval and is not built.
+
 ## Earnings rule
 
 An ad pays when it was on screen for at least one second and was not skipped:
@@ -89,13 +109,14 @@ was cached by a device but never shown.
 
 ## Endpoints
 
-| Route                                                               | Auth   | Purpose                                                                  |
-| ------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------ |
-| `GET /me/content/next`                                              | bearer | slots by enabled feeds                                                   |
-| `POST /ingest` `impressions[]`                                      | bearer | `{ deliveryToken, durationMs, result }` → index-aligned `{ ok, error? }` |
-| `GET /c/:code`                                                      | public | short click link: first 12 hex chars of the delivery id                  |
-| `GET /ads/click/:deliveryId`                                        | public | long click link                                                          |
-| `GET /me/earnings/summary` · `/timeseries?days=` · `/recent?limit=` | bearer | dashboard                                                                |
+| Route                                                                        | Auth   | Purpose                                                                  |
+| ---------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------ |
+| `GET /me/content/next`                                                       | bearer | slots by enabled feeds                                                   |
+| `POST /ingest` `impressions[]`                                               | bearer | `{ deliveryToken, durationMs, result }` → index-aligned `{ ok, error? }` |
+| `GET /c/:code`                                                               | public | short click link: first 12 hex chars of the delivery id                  |
+| `GET /ads/click/:deliveryId`                                                 | public | long click link                                                          |
+| `GET /advertiser/ads` · `POST /advertiser/ads` · `PATCH /advertiser/ads/:id` | bearer | advertiser portal: list with stats, create, pause / resume               |
+| `GET /me/earnings/summary` · `/timeseries?days=` · `/recent?limit=`          | bearer | dashboard                                                                |
 
 Ingest errors `invalid_or_expired_delivery_token` and `delivery_not_owned` are in the CLI's
 terminal set, so a bad row is tombstoned instead of retried forever.

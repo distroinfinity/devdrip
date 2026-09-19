@@ -15,3 +15,4 @@ export * from "./alerts.js"
 export * from "./alert_events.js"
 // ticker_symbol_map schema removed (no internal symbol↔provider map needed)
 export * from "./ad_impressions.js"
+export * from "./ad_campaigns.js"

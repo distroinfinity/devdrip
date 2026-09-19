@@ -35,6 +35,7 @@ import { requireAuth } from "./middleware/auth.js"
 import { globalLimiter, userLimiter } from "./middleware/rate-limit.js"
 import { adsClickRouter, adsShortClickRouter } from "./routes/ads-click.js"
 import { meEarningsRouter } from "./routes/me-earnings.js"
+import { advertiserAdsRouter } from "./routes/advertiser-ads.js"
 import { getDb } from "./db/index.js"
 import { users } from "./db/schema/users.js"
 
@@ -128,6 +129,7 @@ app.use("/me/activity-summary", requireAuth, userLimiter, meActivitySummaryRoute
 app.use("/me/devices/:id/now", requireAuth, userLimiter, meNowPlayingRouter)
 app.use("/me/recent-news", requireAuth, userLimiter, meRecentNewsRouter)
 app.use("/me/earnings", requireAuth, userLimiter, meEarningsRouter)
+app.use("/advertiser", requireAuth, userLimiter, advertiserAdsRouter)
 app.use("/ingest", requireAuth, userLimiter, ingestRouter)
 app.use("/admin", adminRouter)
 

@@ -2,9 +2,9 @@ export type Feed = "ads" | "news" | "markets"
 
 export interface SponsoredPayload {
   kind: "sponsored"
-  // "carbon:<sha>" | "house:<slug>"
+  // "carbon:<sha>" | "house:<slug>" | "direct:<campaign id>"
   adId: string
-  source: "carbon" | "house"
+  source: "carbon" | "house" | "direct"
   advertiser: string
   headline: string
   ctaText: string

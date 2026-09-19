@@ -183,6 +183,13 @@
       "when": 1789843517214,
       "tag": "0025_steady_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1789845927793,
+      "tag": "0026_futuristic_richard_fisk",
+      "breakpoints": true
     }
   ]
 }
