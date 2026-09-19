@@ -118,7 +118,20 @@ async function ensureDevice(): Promise<{ deviceId: string }> {
 
 async function savePreferences(blocked: AdCategory[], channelMode: ChannelMode): Promise<void> {
   const tzOffsetMinutes = -new Date().getTimezoneOffset()
-  await putPreferences({ blockedCategories: blocked, tzOffsetMinutes, channelMode })
+  const updated = await putPreferences({ blockedCategories: blocked, tzOffsetMinutes, channelMode })
+  // mirror to local config so daemon/demo/preferences see the new mode without
+  // waiting on the next prefs-sync tick
+  const cfg = await readConfig()
+  if (cfg) {
+    await writeConfig({
+      apiUrl: cfg.apiUrl,
+      auth: cfg.auth,
+      user: cfg.user,
+      device: cfg.device,
+      cli: cfg.cli,
+      preferences: { ...cfg.preferences, ...updated },
+    })
+  }
   log.success(
     blocked.length === 0
       ? `preferences saved (mode: ${channelMode}, all categories allowed)`

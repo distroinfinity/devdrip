@@ -95,10 +95,12 @@ async function fetchAdSlots(req: ContentRequest, n: number): Promise<SlotContent
 }
 
 async function fetchNewsSlots(req: ContentRequest, n: number): Promise<SlotContent[]> {
-  const items = await Promise.all(Array.from({ length: n }, () => pickNewsForUser(req.userId)))
-  return items
-    .filter((p): p is NewsPayload => p !== null)
-    .map((payload) => ({ kind: "news", payload }))
+  const slots: SlotContent[] = []
+  for (let i = 0; i < n; i++) {
+    const item = await pickNewsForUser(req.userId)
+    if (item) slots.push({ kind: "news", payload: item })
+  }
+  return slots
 }
 
 async function fetchMixSlots(req: ContentRequest, n: number): Promise<SlotContent[]> {
@@ -122,9 +124,14 @@ async function fetchMixSlots(req: ContentRequest, n: number): Promise<SlotConten
 
   const [ads, news] = await Promise.all([
     needAd > 0 ? fetchServedAds({ ...req, count: needAd }) : Promise.resolve([]),
-    needNews > 0
-      ? Promise.all(Array.from({ length: needNews }, () => pickNewsForUser(req.userId)))
-      : Promise.resolve([] as Array<NewsPayload | null>),
+    (async (): Promise<NewsPayload[]> => {
+      const out: NewsPayload[] = []
+      for (let i = 0; i < needNews; i++) {
+        const item = await pickNewsForUser(req.userId)
+        if (item) out.push(item)
+      }
+      return out
+    })(),
   ])
 
   const slots: SlotContent[] = []

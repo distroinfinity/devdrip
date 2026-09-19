@@ -87,8 +87,8 @@ async function refreshPool(): Promise<CachedNewsItem[]> {
   if (!got) {
     // contention: brief wait then return whatever's cached (likely now warm)
     await new Promise((r) => setTimeout(r, 250))
-    const raw = await redis.get<string>(CACHE_KEY)
-    return raw ? (JSON.parse(raw) as CachedNewsItem[]) : []
+    const cached = await redis.get<CachedNewsItem[]>(CACHE_KEY)
+    return cached ?? []
   }
 
   try {
@@ -105,8 +105,8 @@ async function refreshPool(): Promise<CachedNewsItem[]> {
     return fresh
   } catch (err) {
     logger.warn({ err }, "news.fetch refresh failed — falling back to stale")
-    const staleRaw = await redis.get<string>(STALE_KEY)
-    return staleRaw ? (JSON.parse(staleRaw) as CachedNewsItem[]) : []
+    const stale = await redis.get<CachedNewsItem[]>(STALE_KEY)
+    return stale ?? []
   } finally {
     await redis.del(LOCK_KEY)
   }
@@ -114,8 +114,7 @@ async function refreshPool(): Promise<CachedNewsItem[]> {
 
 export async function getNewsPool(): Promise<CachedNewsItem[]> {
   const redis = getRedis()
-  const raw = await redis.get<string>(CACHE_KEY)
-  const cached = raw ? (JSON.parse(raw) as CachedNewsItem[]) : null
+  const cached = await redis.get<CachedNewsItem[]>(CACHE_KEY)
   if (cached && cached.length > 0) return cached
   return refreshPool()
 }

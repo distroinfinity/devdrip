@@ -1,11 +1,25 @@
 import { Command } from "commander"
 import { intro, outro, select, log, isCancel, cancel } from "@clack/prompts"
-import type { ChannelMode } from "@devdrip/shared"
+import type { ChannelMode, SyncedPreferences } from "@devdrip/shared"
 import { reportError } from "../lib/api-client.js"
+import { readConfig, writeConfig } from "../lib/config.js"
 import { getPreferences, putPreferences } from "../lib/preferences-client.js"
 import { pickChannelMode, pickCategories } from "../lib/prompts/preferences.js"
 
 type Action = "mode" | "categories" | "caps" | "topics" | "cancel"
+
+async function mirrorToLocal(updated: SyncedPreferences): Promise<void> {
+  const cfg = await readConfig()
+  if (!cfg) return
+  await writeConfig({
+    apiUrl: cfg.apiUrl,
+    auth: cfg.auth,
+    user: cfg.user,
+    device: cfg.device,
+    cli: cfg.cli,
+    preferences: { ...cfg.preferences, ...updated },
+  })
+}
 
 async function showMenu(currentMode: ChannelMode): Promise<Action> {
   const choice = await select<Action>({
@@ -41,6 +55,7 @@ async function runPreferences(): Promise<void> {
         continue
       }
       prefs = await putPreferences({ channelMode: next })
+      await mirrorToLocal(prefs)
       log.success(`channel mode → ${next}`)
       continue
     }
@@ -48,6 +63,7 @@ async function runPreferences(): Promise<void> {
     if (action === "categories") {
       const blocked = await pickCategories(prefs.blockedCategories)
       prefs = await putPreferences({ blockedCategories: blocked })
+      await mirrorToLocal(prefs)
       log.success(
         blocked.length === 0
           ? "all categories allowed"

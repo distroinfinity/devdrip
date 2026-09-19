@@ -268,19 +268,26 @@ export async function runDaemon(): Promise<number> {
     preferences: cfg.preferences,
   })
 
-  let lastCategoriesFingerprint = cfg.preferences.blockedCategories.slice().sort().join(",")
+  function fingerprintPrefs(p: { blockedCategories: string[]; channelMode: string }): string {
+    return JSON.stringify({
+      blockedCategories: [...p.blockedCategories].sort(),
+      channelMode: p.channelMode,
+    })
+  }
+
+  let lastPrefsFingerprint = fingerprintPrefs(cfg.preferences)
 
   async function reloadPreferences(source: "socket" | "file"): Promise<void> {
     try {
       const next = await readConfig()
       if (!next) return
       orchestrator.updatePreferences(next.preferences)
-      const nextFp = next.preferences.blockedCategories.slice().sort().join(",")
-      if (nextFp !== lastCategoriesFingerprint) {
-        lastCategoriesFingerprint = nextFp
-        // blocked categories changed — the existing cache may still contain
-        // now-blocked ads. Force a refresh so the next display reflects the
-        // new blocklist (backend applies the server-side filter on fetch).
+      const nextFp = fingerprintPrefs(next.preferences)
+      if (nextFp !== lastPrefsFingerprint) {
+        lastPrefsFingerprint = nextFp
+        // blocked categories or channelMode changed — the existing cache may
+        // contain now-blocked ads or wrong-mode content. Force a refresh so
+        // the next display reflects the new settings.
         slotCache.refreshNow().catch((err: Error) => {
           log.warn("slot-cache refresh after preference change failed", {
             error: err.message,

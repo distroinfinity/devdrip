@@ -42,15 +42,26 @@ class TestRedis {
     return "OK"
   }
 
-  async get<T = string>(key: string): Promise<T | null> {
+  async get<T = unknown>(key: string): Promise<T | null> {
     const entry = this.read(key)
-    return entry ? (entry.value as T) : null
+    if (entry === undefined) return Promise.resolve(null)
+    // match real Upstash: stored JSON strings round-trip back as their original type
+    try {
+      return Promise.resolve(JSON.parse(entry.value as string) as T)
+    } catch {
+      return Promise.resolve(entry.value as T)
+    }
   }
 
-  async getdel<T = string>(key: string): Promise<T | null> {
+  async getdel<T = unknown>(key: string): Promise<T | null> {
     const entry = this.read(key)
     this.store.delete(key)
-    return entry ? (entry.value as T) : null
+    if (entry === undefined) return Promise.resolve(null)
+    try {
+      return Promise.resolve(JSON.parse(entry.value as string) as T)
+    } catch {
+      return Promise.resolve(entry.value as T)
+    }
   }
 
   async del(...keys: string[]): Promise<number> {
