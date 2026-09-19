@@ -1,10 +1,8 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
-Dev Drip is an ad-subsidized developer tool that monetizes AI coding tool idle time (while agents think/run) with opt-in, non-intrusive content. Developers earn USDC micropayments on Base that offset their AI tool subscriptions ($10-$200/month).
+Dev Drip is an ad-subsidized developer tool that monetizes AI coding tool idle time (while agents think/run) with opt-in, non-intrusive content. Developers earn USDC micropayments on Base that offset their AI tool subscriptions to some extent.
 
 ## Sprint Plan Reference
 
@@ -23,12 +21,9 @@ Each task page contains: **Definition** (what to build), **Expectations** (what 
 
 ## Design System — Key Constraints
 
-- **Pure monochrome** — no brand color, no green-for-money. The entire product passes a desaturate test. Color only for functional status (errors/warnings)
 - **Three typefaces**: Space Mono (headlines/display), DM Sans (body/UI), JetBrains Mono (all financial data, code, addresses)
-- **Money is communicated through typography** — JetBrains Mono Bold with `font-variant-numeric: tabular-nums`, not color
 - **Light mode = "Paper"** (warm white `#F7F6F3`, dark ink `#0E0E11`); Dark mode = "Terminal" (near-black `#0A0A0C`, bright ink `#EDEDF0`)
 - **Dot-grid texture** is the primary atmospheric element (16px spacing, 1px dots)
-- **0px border-radius on terminal-context components** (TerminalTV, CLI overlays); standard radii on web surfaces
 - **Ads vanish in <200ms** when developer resumes activity (`--ease-vanish: 120ms ease-in`)
 
 ## Product Principles (from PRD)
