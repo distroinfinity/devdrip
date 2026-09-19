@@ -10,7 +10,6 @@ import { markPairReady, peekPair } from "../services/pairing.service.js"
 import { generateDeviceSecret, hashSecret } from "../lib/secret-hash.js"
 import { signAccessToken, SESSION_TTL_SECONDS } from "../lib/jwt.js"
 import { logger } from "../lib/logger.js"
-import { generateReferralCode } from "../lib/referral.js"
 
 export const authGithubCompleteRouter: ReturnType<typeof Router> = Router()
 
@@ -70,8 +69,6 @@ authGithubCompleteRouter.post("/", async (req, res) => {
       .where(eq(users.id, existingUser.id))
     userId = existingUser.id
   } else {
-    // referralCode is still NOT NULL until phase 5 migration drops the column —
-    // populate it for now so the insert doesn't violate the constraint.
     const [created] = await db
       .insert(users)
       .values({
@@ -80,7 +77,6 @@ authGithubCompleteRouter.post("/", async (req, res) => {
         email: profile.email,
         avatarUrl: profile.avatarUrl,
         signedUpAt: new Date(),
-        referralCode: generateReferralCode(),
       })
       .returning()
     if (!created) {
