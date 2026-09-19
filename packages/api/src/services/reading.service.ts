@@ -71,6 +71,8 @@ export async function deleteReadingItem(userId: string, id: string) {
 
 // utility: count news impressions in last N days (used by stories-read card)
 export async function countNewsImpressionsLastNDays(userId: string, days: number): Promise<number> {
+  // bound the spliced interval so callers can't pass NaN, Infinity, or huge values
+  const safeDays = Number.isFinite(days) && days > 0 ? Math.min(Math.floor(days), 365) : 1
   const db = getDb()
   const [row] = await db
     .select({ count: sql<number>`count(*)::int`.as("count") })
@@ -78,7 +80,7 @@ export async function countNewsImpressionsLastNDays(userId: string, days: number
     .where(
       and(
         eq(newsImpressions.userId, userId),
-        sql`${newsImpressions.createdAt} >= now() - interval ${sql.raw(`'${days} days'`)}`
+        sql`${newsImpressions.createdAt} >= now() - interval ${sql.raw(`'${safeDays} days'`)}`
       )
     )
   return row?.count ?? 0
