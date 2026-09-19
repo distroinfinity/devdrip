@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { ReadingRow } from "./reading-row"
-import { deleteReadingItem, type ReadingItem } from "@/lib/dashboard-api"
+import { deleteReadingItem } from "@/app/dashboard/actions"
+import type { ReadingItem } from "@/lib/dashboard-api"
 
 interface ReadingListProps {
   initialItems: ReadingItem[]
@@ -17,11 +18,10 @@ export function ReadingList({ initialItems, hasMore }: ReadingListProps) {
     const prev = items
     setItems((cur) => cur.filter((i) => i.id !== id))
     setError(null)
-    try {
-      await deleteReadingItem(id)
-    } catch {
+    const result = await deleteReadingItem(id)
+    if (!result.ok) {
       setItems(prev)
-      setError("couldn't remove — try again")
+      setError(result.error ?? "couldn't remove — try again")
     }
   }
 
