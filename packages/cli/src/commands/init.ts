@@ -1,17 +1,20 @@
 import { mkdir } from "node:fs/promises"
 import { spawn } from "node:child_process"
-import { homedir, hostname, platform } from "node:os"
+import { homedir } from "node:os"
 import { lstatSync, mkdirSync, realpathSync, statSync, symlinkSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
 import { Command } from "commander"
-import { intro, outro, log, note } from "@clack/prompts"
+import { intro, outro, log, note, spinner } from "@clack/prompts"
 import { ChannelMode } from "@distrotv/shared"
 import {
   ApiError,
   NotAuthenticatedError,
+  pairInit,
+  pairPoll,
   reportError,
-  requestPairingCode,
   resolveApiUrl,
+  type PairPollResult,
+  type MeResponse,
 } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { defaultDevdripPreferences } from "@distrotv/shared"
@@ -29,7 +32,7 @@ import { pickChannels } from "../lib/prompts/channels.js"
 import { pickWatchlistTickers } from "../lib/prompts/watchlist.js"
 import { runInitHealthCheck } from "../lib/health.js"
 import { runDemo } from "./demo.js"
-import { registerAnonDevice, refreshDeviceMetadata } from "../lib/device.js"
+import { validateDeviceToken } from "../lib/device.js"
 
 function claudeDir(): string {
   return join(homedir(), ".claude")
@@ -102,48 +105,88 @@ async function ensureClaudeDir(): Promise<void> {
   }
 }
 
-async function ensureDevice(): Promise<{ deviceId: string }> {
+async function ensureSignedInOrPair(): Promise<{ user: MeResponse }> {
   const cfg = await readConfig()
 
-  if (!cfg || (!cfg.device.id && !cfg.device.secret)) {
-    // fresh machine — anon registration; no auth needed
-    const { userId, deviceId, deviceSecret } = await registerAnonDevice()
-    await writeConfig({
-      apiUrl: resolveApiUrl(null),
-      auth: null,
-      user: { id: userId },
-      device: { id: deviceId, secret: deviceSecret },
-      cli: { binPath: "" },
-      preferences: defaultDevdripPreferences(),
-    })
-    log.success(`device registered (anon): ${hostname()} (${platform()})`)
-    return { deviceId }
+  // 1) Try existing device token if present.
+  if (cfg?.device.secret) {
+    const me = await validateDeviceToken()
+    if (me) {
+      log.success(`signed in as @${me.githubLogin ?? me.id}`)
+      return { user: me }
+    }
+    log.info("existing device token is invalid — re-running sign-in")
   }
 
-  // existing config: refresh device metadata via authed re-registration
-  // gracefully skip if the device bearer is present but /devices POST fails
-  // (e.g. machineIdHash already registered under this user)
-  try {
-    const device = await refreshDeviceMetadata()
-    await writeConfig({
-      apiUrl: cfg.apiUrl,
-      auth: cfg.auth,
-      user: cfg.user,
-      device: { id: device.id, secret: cfg.device.secret },
-      cli: cfg.cli,
-      preferences: cfg.preferences,
-    })
-    const status = cfg.device.id && cfg.device.id === device.id ? "confirmed" : "registered"
-    log.success(`device ${status}: ${hostname()} (${platform()}/${device.ideType})`)
-    return { deviceId: device.id }
-  } catch (err) {
-    // if re-registration fails (network down, conflict), fall back to existing id
-    if (cfg.device.id) {
-      log.warn(
-        `device refresh skipped (${err instanceof Error ? err.message : String(err)}) — using cached id`
-      )
-      return { deviceId: cfg.device.id }
+  // 2) Fresh OAuth pair flow.
+  const init = await pairInit()
+  log.success(`pair code requested: ${init.code.slice(0, 8)}…`)
+
+  await openOrPrintSetup(init.setupUrl, init.code)
+
+  const ready = await waitForPair(init.code, init.expiresInSec)
+  if (ready.kind !== "ready") {
+    throw new Error(
+      "sign-in took too long or was cancelled — re-run `distro init` when you're ready"
+    )
+  }
+
+  await writeConfig({
+    apiUrl: resolveApiUrl(null),
+    auth: null,
+    user: { id: ready.user.id },
+    device: { id: ready.deviceId, secret: ready.deviceToken.replace(/^device\./, "") },
+    cli: { binPath: "" },
+    preferences: defaultDevdripPreferences(),
+  })
+  log.success(`signed in as @${ready.user.githubLogin}`)
+  return { user: ready.user }
+}
+
+async function openOrPrintSetup(setupUrl: string, code: string): Promise<void> {
+  const noBrowser = process.argv.includes("--no-browser")
+  if (!noBrowser) {
+    try {
+      await openUrl(setupUrl)
+      log.success(`browser opened: ${setupUrl}`)
+      return
+    } catch {
+      log.warn("could not open browser automatically")
     }
+  }
+  note(
+    [
+      "open this URL on any device to finish sign-in:",
+      "",
+      `  ${setupUrl}`,
+      "",
+      `pair code: ${code}`,
+    ].join("\n"),
+    "manual sign-in"
+  )
+}
+
+async function waitForPair(code: string, ttlSec: number): Promise<PairPollResult> {
+  const deadline = Date.now() + ttlSec * 1000
+  const s = spinner()
+  s.start("waiting for GitHub sign-in… (Ctrl-C to cancel)")
+  try {
+    while (Date.now() < deadline) {
+      const result = await pairPoll(code)
+      if (result.kind === "ready") {
+        s.stop("sign-in complete")
+        return result
+      }
+      if (result.kind === "expired") {
+        s.stop("pair code expired")
+        return result
+      }
+      // pending — the long-poll already waited ~25s; immediately re-poll
+    }
+    s.stop("sign-in timed out")
+    return { kind: "expired" }
+  } catch (err) {
+    s.stop("sign-in failed")
     throw err
   }
 }
@@ -248,23 +291,12 @@ async function openUrl(url: string): Promise<void> {
   spawn(cmd, [url], { detached: true, stdio: "ignore" }).unref()
 }
 
-async function openSetupInBrowser(): Promise<void> {
-  try {
-    const { setupUrl } = await requestPairingCode()
-    log.success(`opening browser: ${setupUrl}`)
-    await openUrl(setupUrl)
-  } catch (err) {
-    log.warn(`skipping browser handoff (${err instanceof Error ? err.message : String(err)})`)
-    log.warn("you can re-run `distro init` to retry the browser handoff")
-  }
-}
-
 function printSummary(): void {
   note(
     [
-      "→ browser opened to /setup — sign in with email for cross-device sync (optional)",
       "→ run `distro status` to see daemon + slot status",
       "→ start coding in Claude Code; first slot appears in ~5s",
+      "→ visit your dashboard at https://distrotv.xyz/dashboard",
     ].join("\n"),
     "what's next"
   )
@@ -296,7 +328,7 @@ export async function runInit(): Promise<void> {
   intro("distro init — let's get you set up")
 
   await ensureClaudeDir()
-  await ensureDevice()
+  await ensureSignedInOrPair()
 
   const channelMode = await pickChannelMode()
 
@@ -351,7 +383,6 @@ export async function runInit(): Promise<void> {
   await installHooks()
   await ensureDaemonRunning()
   await previewSlot()
-  await openSetupInBrowser()
 
   const ok = await runHealthCheck()
   printSummary()

@@ -3,7 +3,7 @@ import { execSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { hostname, platform } from "node:os"
 import type { Device, IdeType } from "@distrotv/shared"
-import { apiFetch, apiFetchPublic } from "./api-client.js"
+import { apiFetch, apiFetchPublic, type MeResponse } from "./api-client.js"
 
 // platform-specific stable machine ID — survives hostname changes and is
 // unique per physical/virtual machine, unlike hostname+platform+arch
@@ -87,4 +87,14 @@ export async function refreshDeviceMetadata(): Promise<Device> {
 // kept for backward-compat with any remaining callers (auth-flow, etc.)
 export async function registerDevice(): Promise<Device> {
   return refreshDeviceMetadata()
+}
+
+// probe /me with the current bearer; returns the profile or null on 401.
+// used by `distro init` to decide whether to skip OAuth.
+export async function validateDeviceToken(): Promise<MeResponse | null> {
+  try {
+    return await apiFetch<MeResponse>("/me")
+  } catch {
+    return null
+  }
 }
