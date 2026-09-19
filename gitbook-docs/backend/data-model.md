@@ -77,6 +77,12 @@ Runtime usage today:
 
 Stores advertiser identity and billing info.
 
+Runtime usage today:
+
+- full CRUD via admin API (`/advertisers`)
+- delete guarded by active campaign check
+- present in DB seed data
+
 ### `campaigns`
 
 Stores:
@@ -91,6 +97,14 @@ Stores:
 - pacing strategy
 - status
 - schedule
+
+Runtime usage today:
+
+- full CRUD via admin API (`/campaigns`)
+- status machine with transition guards (draft → active → paused ↔ active → completed)
+- stats aggregation endpoint joining impressions and clicks
+- budget pacing tracked in Redis (`budget:daily:*`, `budget:hourly:*`)
+- present in DB seed data
 
 ### `creatives`
 
@@ -110,7 +124,9 @@ Stores:
 
 Runtime usage today:
 
-- schema only
+- full CRUD via admin API (`/campaigns/:id/creatives`)
+- delete guarded by impressions FK (RESTRICT) — returns deactivation hint
+- round-robin rotation tracked in Redis (`budget:rotation:*`)
 - present in DB seed data
 
 ## Impressions and Earnings
@@ -208,15 +224,15 @@ Tables directly touched by implemented API flows:
 - `users`
 - `refresh_tokens`
 - `devices`
+- `advertisers`
+- `campaigns`
+- `creatives`
+- `impressions` (read-only, via campaign stats aggregation)
+- `clicks` (read-only, via campaign stats aggregation)
 
 Tables modeled and seeded but not yet exposed through implemented API routes:
 
 - `preferences`
-- `advertisers`
-- `campaigns`
-- `creatives`
-- `impressions`
-- `clicks`
 - `earnings_ledger`
 - `payouts`
 - `referrals`

@@ -28,7 +28,7 @@ flowchart LR
 - `frontend`
   Public landing page, metadata assets, and `/api/waitlist`.
 - `packages/api`
-  Express app with auth, device registration, health checks, env handling, logging, rate limiting, and Drizzle schema.
+  Express app with layered architecture: thin routes → validators → services → Drizzle ORM. Covers auth, device registration, campaign management (advertisers/campaigns/creatives CRUD, budget pacing, atomic status machine), health checks, env handling, logging, rate limiting. Centralized error handling via typed error classes.
 - `packages/shared`
   Shared enums, domain types, and product constants.
 - `packages/cli`
@@ -87,8 +87,10 @@ sequenceDiagram
 - waitlist intake lives in `frontend`, not `packages/api`
 - waitlist persistence uses raw SQL against Neon, not shared Drizzle schema
 - API runtime uses Postgres plus Redis
+- campaign management routes are admin-only (X-Admin-Secret header), separate from user JWT auth
+- budget pacing uses Redis with TTL-based daily/hourly keys (no cron for reset)
+- the budget pacing library is built but not yet wired into an impression ingestion endpoint
 - CLI and dashboard do not yet implement their intended product flows
-- shared types model more of the product than the runtime exposes today
 
 ## Runtime Notes
 
