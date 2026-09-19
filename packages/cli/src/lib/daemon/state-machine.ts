@@ -5,6 +5,8 @@ import {
   MAX_AD_DURATION_MS,
   MIN_COMPLETED_DURATION_MS,
   MUTE_DURATION_MS,
+  REVENUE_SHARE_DEVELOPER,
+  VALID_IMPRESSION_FOR_TOAST_MS,
 } from "@devdrip/shared"
 import type { CachedAd } from "../ad-cache.js"
 import type { ImpressionResult, LocalImpression } from "../ledger.js"
@@ -42,6 +44,17 @@ export type Effect =
   | { kind: "clearSessionState" }
   | { kind: "writeMuteUntil"; muteUntil: number }
   | { kind: "openDiscover"; ad: CachedAd }
+  // S3-04: drive the progress bar while the ad is on screen. orchestrator
+  // runs a 500ms interval keyed on `shownAt` and pushes the tick to display.
+  | { kind: "startProgressTimer"; shownAt: number; displayTimeMs: number }
+  | { kind: "cancelProgressTimer" }
+  // S3-04: on completed/stop, snap to 100% and hold briefly before the box
+  // vanishes so the jump reads as a deliberate finish, not a cold cut.
+  | { kind: "snapProgressToComplete" }
+  // S3-05: after a qualifying impression, show a one-line earnings toast in
+  // the same bottom pane where the ad just lived. orchestrator pulls the
+  // optimistic `today` total from the local ledger.
+  | { kind: "showEarningsToast"; deltaUsdc: number }
 
 export interface Ctx {
   deviceId: string
@@ -115,6 +128,7 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
       effects: [
         { kind: "displayAd", tty: state.tty, ad: event.ad },
         { kind: "startVanishTimer", ms },
+        { kind: "startProgressTimer", shownAt: event.now, displayTimeMs: ms },
       ],
     }
   }
@@ -217,6 +231,7 @@ function stepInterAd(state: Extract<State, { kind: "INTER_AD" }>, event: Event):
       effects: [
         { kind: "displayAd", tty: state.tty, ad: event.ad },
         { kind: "startVanishTimer", ms },
+        { kind: "startProgressTimer", shownAt: event.now, displayTimeMs: ms },
       ],
     }
   }
@@ -232,6 +247,7 @@ function endShowing(
   goToInterAd: boolean
 ): StepResult {
   const durationMs = Math.max(0, Math.min(now - state.shownAt, MAX_AD_DURATION_MS))
+  const cpmRate = state.ad.cpmRate ?? 0
   const impression: LocalImpression = {
     id: randomUUID(),
     adId: state.ad.id,
@@ -243,18 +259,42 @@ function endShowing(
     durationMs,
     result,
     deviceId: ctx.deviceId,
-    cpmRate: null,
+    // carry the server-advertised CPM into the ledger row so the earnings
+    // toast on the NEXT ad can sum today's optimistic total without an API
+    // round-trip. backend recomputes authoritative earnings at sync time.
+    cpmRate: state.ad.cacheSource === "api" ? cpmRate : null,
   }
-  const baseEffects: Effect[] = [
+
+  // S3-05 toast gate: only surface earnings when the user actually watched,
+  // it was a real (non-demo) ad, and the CPM is non-zero. otherwise suppress
+  // — a "+$0.00 earned" toast is a worse signal than no toast.
+  const toastEligible =
+    result === "completed" &&
+    durationMs >= VALID_IMPRESSION_FOR_TOAST_MS &&
+    state.ad.cacheSource === "api" &&
+    cpmRate > 0
+  const deltaUsdc = toastEligible ? (cpmRate / 1000) * REVENUE_SHARE_DEVELOPER : 0
+
+  // effect order matters. the orchestrator interprets `snapProgressToComplete`
+  // as "flush a 100% frame, then pause PROGRESS_SNAP_HOLD_MS before running
+  // the tail" — everything after it runs on the deferred timeline so the
+  // user sees a full bar before the box clears.
+  const cleanup: Effect[] = [
+    { kind: "cancelProgressTimer" },
+    { kind: "snapProgressToComplete" },
     { kind: "vanishDisplay" },
     { kind: "cancelVanishTimer" },
     { kind: "recordImpression", impression, ad: state.ad },
   ]
+  if (toastEligible) {
+    cleanup.push({ kind: "showEarningsToast", deltaUsdc })
+  }
+
   if (goToInterAd) {
     return {
       state: { kind: "INTER_AD", tty: state.tty, enteredAt: now },
-      effects: [...baseEffects, { kind: "startInterAdTimer", ms: INTER_AD_GAP_MS }],
+      effects: [...cleanup, { kind: "startInterAdTimer", ms: INTER_AD_GAP_MS }],
     }
   }
-  return { state: { kind: "IDLE" }, effects: baseEffects }
+  return { state: { kind: "IDLE" }, effects: cleanup }
 }

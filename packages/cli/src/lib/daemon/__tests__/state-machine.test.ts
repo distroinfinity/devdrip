@@ -10,6 +10,7 @@ const fixtureAd: CachedAd = {
   body: "B",
   url: "https://x.test",
   displayTimeMs: 8000,
+  cpmRate: 5,
   deliveryToken: "tok",
   cacheSource: "api",
 }
@@ -22,6 +23,7 @@ const ad: CachedAd = {
   body: "B",
   url: "https://x",
   displayTimeMs: 8000,
+  cpmRate: 5,
   deliveryToken: "tok",
   impressionBeaconUrl: undefined,
   clickTrackingUrl: undefined,
@@ -96,12 +98,13 @@ describe("state-machine: GRACE transitions", () => {
     expect(r.effects).toEqual([])
   })
 
-  it("GRACE + grace-elapsed with ad → SHOWING + displayAd + startVanishTimer", () => {
+  it("GRACE + grace-elapsed with ad → SHOWING + displayAd + startVanishTimer + startProgressTimer", () => {
     const r = step(graceAt(100), { kind: "grace-elapsed", ad, now: 3100 }, CTX)
     expect(r.state).toEqual({ kind: "SHOWING", tty: "/dev/ttys003", ad, shownAt: 3100 })
     expect(r.effects).toEqual([
       { kind: "displayAd", tty: "/dev/ttys003", ad },
       { kind: "startVanishTimer", ms: 8000 },
+      { kind: "startProgressTimer", shownAt: 3100, displayTimeMs: 8000 },
     ])
   })
 
@@ -150,13 +153,21 @@ describe("state-machine: SHOWING transitions", () => {
     expect(r.effects).toEqual([])
   })
 
-  it("SHOWING + idle-end → IDLE with vanish + cancelVanishTimer + recordImpression(interrupted)", () => {
+  it("SHOWING + idle-end → IDLE with cleanup chain incl. snap, vanish, record", () => {
     const r = step(showingAt(1000), { kind: "idle-end", now: 2500 }, CTX)
     expect(r.state).toEqual(idle)
-    expect(r.effects).toHaveLength(3)
-    expect(r.effects[0]).toEqual({ kind: "vanishDisplay" })
-    expect(r.effects[1]).toEqual({ kind: "cancelVanishTimer" })
-    expect(r.effects[2]).toMatchObject({
+    // cleanup sequence: cancelProgress → snap → vanish → cancelVanish → record
+    // (toast suppressed because ad is "interrupted", not "completed")
+    const kinds = r.effects.map((e) => e.kind)
+    expect(kinds).toEqual([
+      "cancelProgressTimer",
+      "snapProgressToComplete",
+      "vanishDisplay",
+      "cancelVanishTimer",
+      "recordImpression",
+    ])
+    const rec = r.effects.find((e) => e.kind === "recordImpression")
+    expect(rec).toMatchObject({
       kind: "recordImpression",
       impression: expect.objectContaining({
         adId: "ad-1",

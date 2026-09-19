@@ -1,6 +1,7 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
 import { renderBox, type RenderBoxOpts } from "../render-box.js"
+import { renderEarningsToast, type EarningsToastOpts } from "../render-toast.js"
 import type { CachedAd } from "../ad-cache.js"
 
 const MAX_WRITE_ATTEMPTS = 3
@@ -50,6 +51,9 @@ export interface DisplayHandle {
   // keystroke was captured by DevDrip and not consumed by Claude. The
   // highlight stays until the orchestrator vanishes the box (~150ms later).
   flash(): void
+  // S3-04: redraw the box with a new progress value. cheap re-render — we
+  // reuse the same scroll region anchor and just rewrite the pane contents.
+  updateProgress(progress: number, elapsedMs: number): void
 }
 
 export function writeWithRetry(fd: number, data: string): void {
@@ -81,18 +85,22 @@ export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): Disp
   let ws: WriteStream | null
   // captured for flash() so we can re-emit the box with highlighted chrome.
   let lastRenderedText = ""
+  // captured so updateProgress() can re-render without the caller threading
+  // every option through. progress ticks happen every 500ms so we keep this
+  // allocation-free by mutating a single opts object.
+  const baseOpts: RenderBoxOpts = {
+    earningsUsdc: ctx.earningsUsdc,
+    source: ctx.source,
+    width: ctx.width,
+  }
   try {
     const dims = readTtyDimensions(fd)
     initialRows = dims.rows
     initialCols = dims.cols
     ws = dims.ws
 
-    const opts: RenderBoxOpts = {
-      earningsUsdc: ctx.earningsUsdc,
-      source: ctx.source,
-      width: ctx.width ?? initialCols,
-    }
-    const text = renderBox(ad, opts)
+    baseOpts.width = ctx.width ?? initialCols
+    const text = renderBox(ad, baseOpts)
     const adHeight = text.split("\n").length
     lastRenderedText = text
 
@@ -151,17 +159,22 @@ export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): Disp
       }, RESIZE_POLL_MS)
     : null
 
-  function rewriteBox(colorPrefix: string): void {
-    if (closed || resizeFired || !lastRenderedText) return
+  function writePane(text: string, colorPrefix: string): void {
+    if (closed || resizeFired) return
     const moveToBottomPane = `\x1b[${scrollBottom + 1};1H`
-    // \x1b7 save, move to pane top, write colored box, restore cursor back
-    // into Claude's scroll region. SGR reset (\x1b[0m) tail guarantees no
-    // color bleed into subsequent writes.
+    // \x1b7 save, move to pane top, erase pane, write new content, restore
+    // cursor back into Claude's scroll region. SGR reset (\x1b[0m) tail
+    // guarantees no color bleed into subsequent writes.
     try {
-      writeWithRetry(fd, `\x1b7${moveToBottomPane}${colorPrefix}${lastRenderedText}\x1b[0m\x1b8`)
+      writeWithRetry(fd, `\x1b7${moveToBottomPane}\x1b[0J${colorPrefix}${text}\x1b[0m\x1b8`)
     } catch {
       /* tty may be gone; ignore */
     }
+  }
+
+  function rewriteBox(colorPrefix: string): void {
+    if (!lastRenderedText) return
+    writePane(lastRenderedText, colorPrefix)
   }
 
   return {
@@ -190,5 +203,61 @@ export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): Disp
       // later, so the green pulse stays on until vanish — no revert needed.
       rewriteBox("\x1b[1;92m")
     },
+    updateProgress(progress: number, elapsedMs: number): void {
+      if (closed || resizeFired) return
+      // re-render with the new progress. keeps the ad layout identical so the
+      // pane height stays constant — no scroll region drift.
+      const text = renderBox(ad, { ...baseOpts, progress, elapsedMs })
+      lastRenderedText = text
+      writePane(text, "")
+    },
+  }
+}
+
+// Standalone toast renderer. Opens its own fd so the caller can invoke it
+// AFTER the ad handle's vanish() — it sets up its own scroll region, writes a
+// single-line message, holds for `holdMs`, then releases. Runs asynchronously
+// so callers don't block on the hold; orchestrator never awaits it.
+export function showEarningsToast(ttyPath: string, opts: EarningsToastOpts, holdMs: number): void {
+  try {
+    const flags = fsConstants.O_WRONLY | fsConstants.O_NONBLOCK
+    const fd = fs.openSync(ttyPath, flags)
+    try {
+      const dims = readTtyDimensions(fd)
+      const toastHeight = 1
+      if (dims.rows < toastHeight + MIN_SCROLL_REGION_ROWS) {
+        // not enough headroom to carve a pane without risking clipping. skip.
+        fs.closeSync(fd)
+        return
+      }
+      const scrollBottom = dims.rows - toastHeight
+      const setRegion = `\x1b[1;${scrollBottom}r`
+      const moveToBottomPane = `\x1b[${scrollBottom + 1};1H`
+      const resetRegion = `\x1b[r`
+      const toastText = renderEarningsToast({ ...opts, width: dims.cols })
+
+      writeWithRetry(fd, `\x1b7${setRegion}${moveToBottomPane}\x1b[0J${toastText}\x1b[0m\x1b8`)
+
+      setTimeout(() => {
+        try {
+          writeWithRetry(fd, `\x1b7${resetRegion}${moveToBottomPane}\x1b[0J\x1b8`)
+        } catch {
+          /* tty may be gone */
+        }
+        try {
+          fs.closeSync(fd)
+        } catch {
+          /* ignore */
+        }
+      }, holdMs).unref()
+    } catch {
+      try {
+        fs.closeSync(fd)
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    /* opening tty failed — nothing to show */
   }
 }

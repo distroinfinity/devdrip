@@ -18,6 +18,7 @@ const ad: CachedAd = {
   body: "B",
   url: "https://x",
   displayTimeMs: 8000,
+  cpmRate: 5,
   deliveryToken: "tok",
   impressionBeaconUrl: undefined,
   clickTrackingUrl: undefined,
@@ -53,8 +54,10 @@ function makeDeps() {
     listUnsynced: vi.fn(() => []),
     markSynced: vi.fn(),
     unsyncedCount: vi.fn(() => 0),
+    sumTodayOptimistic: vi.fn(() => 0),
     close: vi.fn(),
   }
+  const toastCalls: Array<{ delta: number; today: number; hold: number }> = []
   const display = {
     show: vi.fn((tty: string | null, a: CachedAd, _ctx: unknown) => {
       displayCalls.push({ tty, adId: a.id })
@@ -64,7 +67,12 @@ function makeDeps() {
           return { latencyMs: 0 }
         },
         onResize: vi.fn(),
+        flash: vi.fn(),
+        updateProgress: vi.fn(),
       }
+    }),
+    showToast: vi.fn((_tty: string, delta: number, today: number, hold: number) => {
+      toastCalls.push({ delta, today, hold })
     }),
   }
   const keyCaptureCalls: Array<{ method: "start" | "stop"; tty?: string }> = []
@@ -106,6 +114,7 @@ function makeDeps() {
     openedUrls,
     firedBeacons,
     logs,
+    toastCalls,
   }
 }
 
@@ -179,6 +188,9 @@ describe("orchestrator", () => {
     await vi.advanceTimersByTimeAsync(3000)
     await vi.advanceTimersByTimeAsync(2000) // ad showing for 2s
     orch.dispatch({ kind: "idle-end", now: 5000 })
+    // snap-to-complete defers the cleanup tail (vanish + record) by
+    // PROGRESS_SNAP_HOLD_MS so the user sees a full bar before it clears.
+    await vi.advanceTimersByTimeAsync(200)
 
     expect(d.vanishCalls).toHaveLength(1)
     expect(d.ledgerWrites).toHaveLength(1)
@@ -392,6 +404,7 @@ describe("orchestrator — key actions", () => {
     await vi.advanceTimersByTimeAsync(3000) // SHOWING first ad
     orch.dispatch({ kind: "discover-key", now: 4000 })
     await vi.advanceTimersByTimeAsync(150) // flash delay
+    await vi.advanceTimersByTimeAsync(200) // progress snap hold before inter-ad
     await vi.advanceTimersByTimeAsync(500) // INTER_AD → SHOWING ad2
 
     expect(d.displayCalls).toHaveLength(2)
@@ -407,6 +420,7 @@ describe("orchestrator — key actions", () => {
     await vi.advanceTimersByTimeAsync(3000)
     orch.dispatch({ kind: "mute-key", now: 1_004_000 })
     await vi.advanceTimersByTimeAsync(150) // flash delay
+    await vi.advanceTimersByTimeAsync(200) // progress snap hold before writeMuteUntil
     // writePreferences is invoked inside an async `.catch` chain — yield once
     await Promise.resolve()
 

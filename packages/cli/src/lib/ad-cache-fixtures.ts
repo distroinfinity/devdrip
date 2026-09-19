@@ -14,6 +14,7 @@ export const DEMO_ADS: readonly CachedAd[] = [
     url: "https://devdrip.sh",
     displayTimeMs: 4000,
     deliveryToken: "",
+    cpmRate: 0,
     cacheSource: "demo",
   },
   {
@@ -25,6 +26,7 @@ export const DEMO_ADS: readonly CachedAd[] = [
     url: "https://devdrip.sh/docs/offline",
     displayTimeMs: 4000,
     deliveryToken: "",
+    cpmRate: 0,
     cacheSource: "demo",
   },
   {
@@ -36,6 +38,7 @@ export const DEMO_ADS: readonly CachedAd[] = [
     url: "https://devdrip.sh",
     displayTimeMs: 4000,
     deliveryToken: "",
+    cpmRate: 0,
     cacheSource: "demo",
   },
 ]

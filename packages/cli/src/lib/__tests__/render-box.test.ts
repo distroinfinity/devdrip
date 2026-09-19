@@ -155,25 +155,48 @@ describe("renderBox — action footer", () => {
 })
 
 describe("renderBox — progress bar", () => {
-  it("renders filled cells proportional to progress (unicode)", () => {
+  it("renders filled cells proportional to progress (unicode thin-track)", () => {
     const out = renderBox(
       { headline: "H", url: "https://x.test" },
-      { width: 80, progress: 0.5, ascii: false }
+      { width: 80, progress: 0.5, ascii: false, color: "none" }
     )
-    expect(out).toMatch(/▇+░+/)
+    // filled body + head + empty track: e.g. "━━━━━╸─────"
+    expect(out).toMatch(/━+╸?─+/)
   })
 
-  it("renders filled cells in ASCII mode", () => {
+  it("renders filled cells in ASCII mode (equals head bar)", () => {
     const out = renderBox(
       { headline: "H", url: "https://x.test" },
       { width: 80, progress: 0.5, ascii: true }
     )
-    expect(out).toMatch(/#+-+/)
+    // ASCII: "=====>-----"
+    expect(out).toMatch(/=+>?-+/)
   })
 
   it("omits progress row when progress is undefined", () => {
     const out = renderBox({ headline: "H", url: "https://x.test" }, { width: 80, ascii: true })
-    expect(out).not.toMatch(/#+-+/)
+    expect(out).not.toMatch(/=+>-+/)
+  })
+
+  it("includes a verb prefix on the progress row in unicode mode", () => {
+    const out = renderBox(
+      { headline: "H", url: "https://x.test" },
+      { width: 80, progress: 0.3, ascii: false, color: "none", elapsedMs: 0 }
+    )
+    expect(out).toMatch(/working/)
+  })
+
+  it("verb rotates with elapsed time", () => {
+    const early = renderBox(
+      { headline: "H", url: "https://x.test" },
+      { width: 80, progress: 0.3, ascii: false, color: "none", elapsedMs: 0 }
+    )
+    const later = renderBox(
+      { headline: "H", url: "https://x.test" },
+      { width: 80, progress: 0.3, ascii: false, color: "none", elapsedMs: 5_000 }
+    )
+    expect(early).toMatch(/working/)
+    expect(later).toMatch(/thinking/)
   })
 })
 

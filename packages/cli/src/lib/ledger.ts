@@ -1,6 +1,7 @@
 import { chmodSync, mkdirSync, renameSync } from "node:fs"
 import { join } from "node:path"
 import Database, { type Statement } from "better-sqlite3"
+import { REVENUE_SHARE_DEVELOPER } from "@devdrip/shared"
 import { configDir } from "./config.js"
 
 export type ImpressionResult = "completed" | "skipped" | "expired" | "interrupted"
@@ -24,6 +25,11 @@ export interface Ledger {
   listUnsynced(limit: number): LocalImpression[]
   markSynced(ids: string[], at: number): void
   unsyncedCount(): number
+  // Optimistic running total of developer-share USDC earned today (local day
+  // per tzOffsetMinutes). Sums (cpm_rate / 1000) * REVENUE_SHARE_DEVELOPER over
+  // completed impressions whose started_at falls in today's local window. Used
+  // by the S3-05 earnings toast; backend remains authoritative at sync time.
+  sumTodayOptimistic(tzOffsetMinutes: number, now?: number): number
   close(): void
 }
 
@@ -46,6 +52,21 @@ interface Row {
   device_id: string
   cpm_rate: number | null
   synced_at: number | null
+}
+
+// returns the [start, end) epoch-ms window for the user's local day containing
+// `nowMs`. matches the `localDayKey` convention in orchestrator.ts: tz offset
+// is minutes east of UTC (IST=+330), and the day boundary is 00:00 local.
+function localDayBounds(nowMs: number, tzOffsetMinutes: number): { start: number; end: number } {
+  const offsetMs = tzOffsetMinutes * 60_000
+  const shifted = new Date(nowMs + offsetMs)
+  const startShifted = Date.UTC(
+    shifted.getUTCFullYear(),
+    shifted.getUTCMonth(),
+    shifted.getUTCDate()
+  )
+  const start = startShifted - offsetMs
+  return { start, end: start + 86_400_000 }
 }
 
 function rowToImpression(r: Row): LocalImpression {
@@ -150,6 +171,14 @@ export function openLedger(): Ledger {
   const countUnsyncedStmt = db.prepare(`
     SELECT COUNT(*) AS n FROM impressions WHERE synced_at IS NULL
   `)
+  const sumTodayStmt = db.prepare(`
+    SELECT COALESCE(SUM(cpm_rate), 0) AS total_cpm
+    FROM impressions
+    WHERE result = 'completed'
+      AND cpm_rate IS NOT NULL
+      AND started_at >= ?
+      AND started_at < ?
+  `)
 
   // SQLite's default SQLITE_LIMIT_VARIABLE_NUMBER is 999. Chunk mark-synced
   // updates well under that ceiling so a large sync batch can't throw.
@@ -199,6 +228,14 @@ export function openLedger(): Ledger {
     unsyncedCount() {
       const row = countUnsyncedStmt.get() as { n: number }
       return row.n
+    },
+    sumTodayOptimistic(tzOffsetMinutes, now) {
+      const { start, end } = localDayBounds(now ?? Date.now(), tzOffsetMinutes)
+      const row = sumTodayStmt.get(start, end) as { total_cpm: number }
+      // earned per impression = (cpm / 1000) * developer_share. aggregating
+      // after multiplication is equivalent to summing cpm first and dividing
+      // once, which keeps the SQL trivial and avoids per-row arithmetic.
+      return (row.total_cpm / 1000) * REVENUE_SHARE_DEVELOPER
     },
     close() {
       db.close()

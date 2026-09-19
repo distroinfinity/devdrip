@@ -164,6 +164,10 @@ export interface AdPayload {
   body?: string
   url: string
   displayTimeMs: number
+  // cpmRate propagates server→client so the CLI can render an optimistic
+  // "+$0.XX earned" toast without a round-trip. Backend remains the source of
+  // truth at sync time; this is a display hint only.
+  cpmRate: number
   impressionBeaconUrl?: string
   clickTrackingUrl?: string
 }

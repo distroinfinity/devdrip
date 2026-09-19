@@ -6,7 +6,7 @@ import { Command } from "commander"
 import { configPath, readConfig, writeConfig } from "../lib/config.js"
 import { openAdCache } from "../lib/ad-cache.js"
 import { openLedger } from "../lib/ledger.js"
-import { showAd } from "../lib/daemon/display.js"
+import { showAd, showEarningsToast } from "../lib/daemon/display.js"
 import { createKeyCapture } from "../lib/daemon/input.js"
 import {
   acquireSingletonLock,
@@ -241,7 +241,11 @@ export async function runDaemon(): Promise<number> {
   orchestrator = createOrchestrator({
     adCache,
     ledger,
-    display: { show: showAd },
+    display: {
+      show: showAd,
+      showToast: (tty, deltaUsdc, todayUsdc, holdMs) =>
+        showEarningsToast(tty, { deltaUsdc, todayUsdc }, holdMs),
+    },
     keyCapture,
     openUrl,
     fireBeacon,

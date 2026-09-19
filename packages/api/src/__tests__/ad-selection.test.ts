@@ -119,6 +119,9 @@ describe("ManualAdProvider", () => {
       body: "Test body",
       url: "https://example.com",
       displayTimeMs: MAX_AD_DURATION_MS,
+      cpmRate: 5,
+      impressionBeaconUrl: undefined,
+      clickTrackingUrl: undefined,
     })
   })
 

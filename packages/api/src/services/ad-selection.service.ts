@@ -64,6 +64,7 @@ function toAdPayload(row: CandidateRow): AdPayload {
     body: row.body ?? undefined,
     url: row.ctaUrl ?? "",
     displayTimeMs: MAX_AD_DURATION_MS,
+    cpmRate: row.cpmRate,
     impressionBeaconUrl: row.impressionBeaconUrl ?? undefined,
     clickTrackingUrl: row.clickTrackingUrl ?? undefined,
   }
