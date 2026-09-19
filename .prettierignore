@@ -3,3 +3,4 @@ dist
 .next
 .turbo
 pnpm-lock.yaml
+packages/contracts/lib/
