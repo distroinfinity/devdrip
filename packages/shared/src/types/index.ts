@@ -60,6 +60,23 @@ export enum ImpressionResult {
   Interrupted = "interrupted",
 }
 
+// ── channel mode + news ────────────────────────────────────────────────────
+
+export enum ChannelMode {
+  Earn = "earn", // ads only
+  Learn = "learn", // news only
+  Mix = "mix", // alternates 1:1 (default)
+}
+
+export enum NewsSource {
+  HackerNews = "hn",
+}
+
+// MVP placeholder so the field validates. v1.1 adds Ai/Devtools/Startups/Career.
+export enum NewsTopic {
+  General = "general",
+}
+
 // ── billing ─────────────────────────────────────────────────────────────────
 
 export interface BillingInfo {
@@ -115,6 +132,8 @@ export interface SyncedPreferences {
   sessionWarmupMs: number
   // when true AND no custom quiet hours set, daemon treats 22→07 as quiet.
   nightMode: boolean
+  channelMode: ChannelMode
+  newsTopics: NewsTopic[]
   // ISO 8601, set by server on every write. clients never set this.
   updatedAt: string
 }
@@ -310,6 +329,37 @@ export interface AdminUser {
   hasWallet: boolean
   lifetimeEarningsUsdc: number
   createdAt: string
+}
+
+// ── slot content union ─────────────────────────────────────────────────────
+
+// content-agnostic slot envelope. adding a new content type means a new variant
+// here + a new render branch in cli daemon display.ts (exhaustiveness-checked).
+export interface AdSlot {
+  kind: "ad"
+  payload: ServedAdPayload
+}
+
+export interface NewsSlot {
+  kind: "news"
+  payload: NewsPayload
+}
+
+export type SlotContent = AdSlot | NewsSlot
+
+export interface NewsPayload {
+  // namespaced id: "hn:38291043" — keeps the dedup set source-agnostic
+  id: string
+  source: NewsSource
+  headline: string
+  url: string
+  score: number
+  commentsUrl?: string
+  // server computes at fetch time; daemon renders "1h" / "3d"
+  ageSeconds: number
+  // server-set, default ~10s. lives on the payload so different content types
+  // can carry different defaults.
+  displayTimeMs: number
 }
 
 // ── ad provider ────────────────────────────────────────────────────────────
