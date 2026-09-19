@@ -52,6 +52,33 @@ export async function clearPairCookie(): Promise<void> {
   cookieStore.delete(PAIR_COOKIE_NAME)
 }
 
+export const OAUTH_CSRF_COOKIE = "gh_oauth_csrf"
+const OAUTH_CSRF_TTL_SECONDS = 10 * 60
+
+export async function setOAuthCsrfCookie(nonce: string): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set({
+    name: OAUTH_CSRF_COOKIE,
+    value: nonce,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: OAUTH_CSRF_TTL_SECONDS,
+    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
+  })
+}
+
+export async function getOAuthCsrfCookie(): Promise<string | null> {
+  const cookieStore = await cookies()
+  return cookieStore.get(OAUTH_CSRF_COOKIE)?.value ?? null
+}
+
+export async function clearOAuthCsrfCookie(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.delete(OAUTH_CSRF_COOKIE)
+}
+
 export async function clearSessionCookie(): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.delete(COOKIE_NAME)
