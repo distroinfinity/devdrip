@@ -20,11 +20,11 @@ export default async function RevenuePage({
 }) {
   const range = parseRange(searchParams?.range)
   const back = "/dashboard/revenue"
-  const [summary, series, recent] = await Promise.all([
-    apiFetchOrRefresh<EarningsSummary>("/me/earnings/summary", back),
-    apiFetchOrRefresh<{ points: EarningsPoint[] }>(`/me/earnings/timeseries?range=${range}`, back),
-    apiFetchOrRefresh<{ items: RecentAd[] }>("/me/earnings/recent?limit=20", back),
-  ])
+  const { summary, points, recent } = await apiFetchOrRefresh<{
+    summary: EarningsSummary
+    points: EarningsPoint[]
+    recent: RecentAd[]
+  }>(`/me/earnings/overview?range=${range}&limit=20`, back)
   const empty = summary.impressions === 0 && summary.clicks === 0
 
   return (
@@ -51,10 +51,10 @@ export default async function RevenuePage({
             <StatTiles summary={summary} />
           </BlurFade>
           <BlurFade delay={0.08} direction="up" offset={6}>
-            <EarningsChart points={series.points} range={range} />
+            <EarningsChart points={points} range={range} />
           </BlurFade>
           <BlurFade delay={0.12} direction="up" offset={6}>
-            <RecentAds items={recent.items} />
+            <RecentAds items={recent} />
           </BlurFade>
         </>
       )}
