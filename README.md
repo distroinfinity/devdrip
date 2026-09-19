@@ -26,20 +26,23 @@ pnpm clean && rm -rf packages/shared/tsconfig.tsbuildinfo packages/cli/tsconfig.
 # 1. install + clean build (turbo orders shared → cli → api)
 pnpm install && pnpm build
 
-# 2. run the API in one shell (defaults to dockerized local Postgres; see gitbook-docs/engineering/dev-workflow.md for the full env matrix)
+# 2. bring up local Postgres (required — API exits fast if this isn't running)
+docker compose up -d postgres
+
+# 3. run the API in one shell (defaults to dockerized local Postgres; see gitbook-docs/engineering/dev-workflow.md for the full env matrix)
 pnpm --filter @devdrip/api dev
 
-# 3. NEW SHELL — onboard the CLI: GitHub auth, register device, install Claude hooks, refresh the ~/.devdrip/bin/devdrip symlink
+# 4. NEW SHELL — onboard the CLI: GitHub auth, register device, install Claude hooks, refresh the ~/.devdrip/bin/devdrip symlink
 node packages/cli/dist/index.js init
 
-# 4. start the background daemon (idempotent — running twice prints "daemon already running")
+# 5. start the background daemon (idempotent — running twice prints "daemon already running")
 node packages/cli/dist/index.js daemon start
 
-# 5. verify daemon is healthy
+# 6. verify daemon is healthy
 node packages/cli/dist/index.js daemon status
 tail -f ~/.devdrip/daemon.log     # in a separate shell while you test
 
-# 6. open Claude Code in any project and submit any prompt — within ~1.5s an ad
+# 7. open Claude Code in any project and submit any prompt — within ~1.5s an ad
 #    renders at the bottom of the terminal (highlight border, [D]iscover [S]kip
 #    [K]ill [M]ute footer, progress bar). Press d/s/k/m/Esc to act on it.
 claude

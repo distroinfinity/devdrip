@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import {
   MAX_ADS_PER_CONTINUOUS_SESSION,
   NIGHT_MODE_DEFAULT_START_HOUR,
@@ -382,7 +383,16 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         })
         deps.log.info("ads muted", { muteUntilMs: effect.muteUntil })
         return
-      case "openDiscover":
+      case "openDiscover": {
+        try {
+          deps.ledger.recordClick({
+            id: randomUUID(),
+            deliveryToken: effect.deliveryToken,
+            createdAt: now(),
+          })
+        } catch (err) {
+          deps.log.warn("click ledger write failed", { error: (err as Error).message })
+        }
         if (effect.ad.clickTrackingUrl) deps.fireBeacon(effect.ad.clickTrackingUrl)
         try {
           deps.openUrl(effect.ad.url)
@@ -390,6 +400,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           deps.log.warn("openUrl failed", { error: (err as Error).message })
         }
         return
+      }
     }
   }
 

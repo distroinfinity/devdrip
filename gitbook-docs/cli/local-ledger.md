@@ -1,6 +1,6 @@
 # Local Impression Ledger
 
-Ground truth for earnings. The daemon records every impression locally before the backend sees it, and `devdrip sync` batches unsynced rows to `POST /impressions` when the network is reachable.
+Ground truth for earnings. The daemon records every impression and click locally before the backend sees them, and `devdrip sync` batches unsynced rows to `POST /ingest` when the network is reachable.
 
 ## Why local
 
@@ -14,10 +14,11 @@ Ground truth for earnings. The daemon records every impression locally before th
 - Path: `~/.devdrip/ledger.db`
 - Dir mode: `0700`, file mode: `0600`. WAL sidecars (`ledger.db-wal`, `ledger.db-shm`) also chmod'd to `0600` after the first write, since they carry the same rows between checkpoints.
 - SQLite via `better-sqlite3`, WAL mode (`PRAGMA journal_mode=WAL; synchronous=NORMAL`)
-- Schema version tracked in `PRAGMA user_version`
+- `PRAGMA busy_timeout = 5000` — allows concurrent writes from the daemon and `devdrip sync --force` without `SQLITE_BUSY` errors.
+- Schema version tracked in `PRAGMA user_version` (current: **v2**)
 - `devdrip status --local` is strictly read-only: if `ledger.db` doesn't exist it prints `unsynced: 0` without creating it. The file is only ever created by the daemon on first impression write.
 
-## Schema
+## Schema (v2)
 
 ```sql
 CREATE TABLE impressions (
@@ -26,17 +27,29 @@ CREATE TABLE impressions (
   campaign_id    TEXT NOT NULL,
   surface        TEXT NOT NULL,     -- "terminal-tv" for MVP
   source         TEXT NOT NULL,     -- "direct" | "carbon" | ... (observability only)
-  delivery_token TEXT NOT NULL,     -- JWT issued by GET /ads/batch; required by POST /impressions
+  delivery_token TEXT NOT NULL,     -- JWT issued by GET /ads/batch; consumed by POST /ingest
   started_at     INTEGER NOT NULL,  -- epoch ms, client clock
   duration_ms    INTEGER NOT NULL,
   result         TEXT NOT NULL,     -- matches ImpressionResult: completed|skipped|expired|interrupted
   device_id      TEXT NOT NULL,
   cpm_rate       REAL,              -- cached for local earnings preview; backend recomputes
-  synced_at      INTEGER            -- epoch ms; NULL = pending
+  synced_at      INTEGER            -- epoch ms; NULL = pending; -1 = tombstone (terminal error)
 );
 CREATE INDEX idx_impressions_unsynced
   ON impressions (synced_at) WHERE synced_at IS NULL;
+
+-- v2: click tracking
+CREATE TABLE clicks (
+  id             TEXT PRIMARY KEY,  -- crypto.randomUUID()
+  delivery_token TEXT NOT NULL,     -- the impression's delivery token (carries jti for server lookup)
+  created_at     INTEGER NOT NULL,  -- epoch ms, client clock
+  synced_at      INTEGER            -- epoch ms; NULL = pending; -1 = tombstone (terminal error)
+);
+CREATE INDEX idx_clicks_unsynced
+  ON clicks (synced_at) WHERE synced_at IS NULL;
 ```
+
+`synced_at = -1` is the tombstone convention for terminal errors. Tombstoned rows are excluded by `IS NULL` queries and never retried.
 
 Client-generated UUIDs serve as the idempotency key: the backend dedupes on replay, so a mid-sync crash or retry can't double-count.
 
@@ -47,35 +60,45 @@ Client-generated UUIDs serve as the idempotency key: the backend dedupes on repl
 ```ts
 openLedger(): Ledger
 interface Ledger {
+  // impressions
   record(i: LocalImpression): void
   listUnsynced(limit: number): LocalImpression[]
   markSynced(ids: string[], at: number): void
+  markImpressionsTerminal(ids: string[]): void   // writes synced_at = -1 (tombstone)
   unsyncedCount(): number
+
+  // clicks (v2)
+  recordClick(c: LocalClick): void
+  listUnsyncedClicks(limit: number): LocalClick[]
+  markClicksSynced(ids: string[], at: number): void
+  markClicksTerminal(ids: string[]): void        // writes synced_at = -1 (tombstone)
+  unsyncedClickCount(): number
+
   close(): void
 }
 ```
 
-`record()` uses `INSERT OR IGNORE` on the primary key, so replay-safe retries are free.
+`record()` and `recordClick()` use `INSERT OR IGNORE` on the primary key, so replay-safe retries are free.
 
-`markSynced()` chunks at 500 ids per UPDATE inside a single transaction, staying well under SQLite's default `SQLITE_LIMIT_VARIABLE_NUMBER` (999). Large post-offline sync batches won't throw.
+`markSynced()` and `markClicksSynced()` chunk at 500 ids per UPDATE inside a single transaction, staying well under SQLite's default `SQLITE_LIMIT_VARIABLE_NUMBER` (999). Large post-offline sync batches won't throw.
 
 ## Corruption recovery
 
 If the DB file is unreadable on open (bad header, partial write from a killed process), the module rotates it to `ledger.db.corrupt.<ts>` and creates a fresh database. A warning goes to stderr. The user keeps working; the only loss is the unsynced buffer. Corrupted files are kept for post-mortem, not deleted.
 
-## Sync semantics (to be implemented in the `devdrip sync` ticket)
+## Sync semantics
 
-Pseudocode the sync command will run:
+The sync loop (`packages/cli/src/lib/daemon/sync.ts`) runs on a 5-minute timer inside the daemon and can be triggered manually via `devdrip sync --force`. One cycle:
 
 ```ts
-const ledger = openLedger()
-const batch = ledger.listUnsynced(100)
-const ids = batch.map((i) => i.id)
-await apiFetch("/impressions", { method: "POST", body: { impressions: batch } })
-ledger.markSynced(ids, Date.now())
+const impressions = ledger.listUnsynced(250)
+const clicks = ledger.listUnsyncedClicks(250)
+const result = await apiClient.postIngest({ impressions, clicks })
+// per-item: terminal errors → markImpressionsTerminal / markClicksTerminal
+//           ok              → markSynced / markClicksSynced
 ```
 
-The daemon triggers sync on a timer (~every 5 minutes) and opportunistically after each successful `/ads/batch` refresh.
+Each cycle pulls up to 250 impressions + 250 clicks (under the backend 500-item cap).
 
 ## Out of scope for MVP
 

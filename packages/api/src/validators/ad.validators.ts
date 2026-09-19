@@ -12,14 +12,6 @@ export interface FetchAdsInput {
   count: number
 }
 
-export interface RecordImpressionInput {
-  deliveryToken: string
-}
-
-export interface RecordClickInput {
-  impressionId: string
-}
-
 // ── fetch ads (POST body) ───────────────────────────────────────────────────
 
 export function validateFetchAds(body: unknown): FetchAdsInput {
@@ -59,24 +51,4 @@ export function validateFetchAdsBatchQuery(query: Record<string, unknown>): Fetc
   const surface = validateEnumValue(query["surface"], AD_SURFACES, "surface") as AdSurface
   const count = parseQueryCount(query["count"], 10, 5)
   return { deviceId, surface, count }
-}
-
-// ── record impression ───────────────────────────────────────────────────────
-
-export function validateRecordImpression(body: unknown): RecordImpressionInput {
-  const b = requireBody(body)
-
-  if (typeof b["deliveryToken"] !== "string" || b["deliveryToken"].trim().length === 0) {
-    throw new ValidationError("missing_delivery_token")
-  }
-  const deliveryToken = b["deliveryToken"].trim()
-  return { deliveryToken }
-}
-
-// ── record click ────────────────────────────────────────────────────────────
-
-export function validateRecordClick(body: unknown): RecordClickInput {
-  const b = requireBody(body)
-  const impressionId = validateUUID(b["impressionId"], "impression_id")
-  return { impressionId }
 }

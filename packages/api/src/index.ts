@@ -31,6 +31,12 @@ async function start() {
   if (dbResult.status === "fulfilled") {
     logger.info("db connection ok")
   } else {
+    if (env.nodeEnv === "development" && isConnRefused(dbResult.reason)) {
+      console.error(
+        "\n[devdrip api] postgres is not reachable on the configured DATABASE_URL_LOCAL.\n" +
+          "                 run `docker compose up -d postgres` from the repo root and retry.\n"
+      )
+    }
     logger.fatal({ err: dbResult.reason }, "db connection failed — exiting")
     process.exit(1)
   }
@@ -78,6 +84,29 @@ async function start() {
 
   process.on("SIGTERM", () => shutdown("SIGTERM"))
   process.on("SIGINT", () => shutdown("SIGINT"))
+}
+
+// Walks the error chain (via `.cause`) looking for an ECONNREFUSED code.
+// Covers the common "forgot to start postgres" case where the driver wraps
+// a node AggregateError inside DrizzleQueryError.
+function isConnRefused(err: unknown): boolean {
+  const seen = new Set<unknown>()
+  let cur: unknown = err
+  while (cur && !seen.has(cur)) {
+    seen.add(cur)
+    if (typeof cur === "object" && cur !== null) {
+      const anyErr = cur as { code?: unknown; errors?: unknown; cause?: unknown; message?: unknown }
+      if (anyErr.code === "ECONNREFUSED") return true
+      if (typeof anyErr.message === "string" && anyErr.message.includes("ECONNREFUSED")) return true
+      if (Array.isArray(anyErr.errors)) {
+        for (const nested of anyErr.errors) if (isConnRefused(nested)) return true
+      }
+      cur = anyErr.cause
+      continue
+    }
+    break
+  }
+  return false
 }
 
 start().catch((err) => {

@@ -35,7 +35,7 @@ vi.mock("../middleware/rate-limit.js", () => {
     authLimiter: passThrough,
     refreshLimiter: passThrough,
     sensitiveLimiter: passThrough,
-    advertiserLimiter: passThrough,
+    machineLimiter: passThrough,
   }
 })
 

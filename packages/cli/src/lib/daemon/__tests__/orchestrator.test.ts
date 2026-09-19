@@ -53,8 +53,14 @@ function makeDeps() {
     }),
     listUnsynced: vi.fn(() => []),
     markSynced: vi.fn(),
+    markImpressionsTerminal: vi.fn(),
     unsyncedCount: vi.fn(() => 0),
     sumTodayOptimistic: vi.fn(() => 0),
+    recordClick: vi.fn(),
+    listUnsyncedClicks: vi.fn(() => []),
+    markClicksSynced: vi.fn(),
+    markClicksTerminal: vi.fn(),
+    unsyncedClickCount: vi.fn(() => 0),
     close: vi.fn(),
   }
   const toastCalls: Array<{ delta: number; today: number; hold: number }> = []
@@ -371,7 +377,7 @@ describe("orchestrator — gates", () => {
 })
 
 describe("orchestrator — key actions", () => {
-  it("discover-key fires click beacon and opens URL", async () => {
+  it("discover-key fires click beacon, opens URL, and writes click to ledger", async () => {
     const d = makeDeps()
     const adWithClick: CachedAd = { ...ad, clickTrackingUrl: "https://beacon/click" }
     d.adCache.queue(adWithClick)
@@ -384,6 +390,10 @@ describe("orchestrator — key actions", () => {
 
     expect(d.firedBeacons).toContain("https://beacon/click")
     expect(d.openedUrls).toContain(adWithClick.url)
+    expect(d.ledger.recordClick).toHaveBeenCalledOnce()
+    expect(d.ledger.recordClick).toHaveBeenCalledWith(
+      expect.objectContaining({ deliveryToken: adWithClick.deliveryToken })
+    )
   })
 
   it("rotation continues after discover-key — next ad shows ~500ms later", async () => {

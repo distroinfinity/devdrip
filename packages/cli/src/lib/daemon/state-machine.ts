@@ -41,7 +41,7 @@ export type Effect =
   | { kind: "setSessionKilled" }
   | { kind: "clearSessionState" }
   | { kind: "writeMuteUntil"; muteUntil: number }
-  | { kind: "openDiscover"; ad: CachedAd }
+  | { kind: "openDiscover"; ad: CachedAd; deliveryToken: string }
   // S3-04: drive the progress bar while the ad is on screen. orchestrator
   // runs a 500ms interval keyed on `shownAt` and pushes the tick to display.
   // The same tick drives the S3-05 earnings popup animation (in-box, top-
@@ -177,7 +177,10 @@ function stepShowing(
     const base = endShowing(state, event.now, ctx, "completed", /*goToInterAd*/ true)
     return {
       state: base.state,
-      effects: [{ kind: "openDiscover", ad: state.ad }, ...base.effects],
+      effects: [
+        { kind: "openDiscover", ad: state.ad, deliveryToken: state.ad.deliveryToken },
+        ...base.effects,
+      ],
     }
   }
   if (event.kind === "session-start") {

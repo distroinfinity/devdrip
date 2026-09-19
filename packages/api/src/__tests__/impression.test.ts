@@ -1,10 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import {
-  AdSurface,
-  MAX_AD_DURATION_MS,
-  REVENUE_SHARE_DEVELOPER,
-  ImpressionResult,
-} from "@devdrip/shared"
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { AdSurface, REVENUE_SHARE_DEVELOPER, ImpressionResult } from "@devdrip/shared"
 
 // mock dependencies before imports
 vi.mock("../db/index.js", () => ({
@@ -33,7 +28,7 @@ vi.mock("../lib/logger.js", () => ({
   },
 }))
 
-import { recordImpression, recordClick } from "../services/impression.service.js"
+import { recordImpression, recordClick, recordClickByJti } from "../services/impression.service.js"
 import { getDb } from "../db/index.js"
 import { recordSpend, rollbackSpend } from "../lib/budget.js"
 import { incrementFrequency } from "../lib/frequency.js"
@@ -114,11 +109,13 @@ describe("recordImpression", () => {
       surface: AdSurface.TerminalTv,
       durationMs: 6000,
       result: ImpressionResult.Completed,
+      deliveryJti: "test-jti",
     })
 
     expect(result.id).toBe("imp-1")
     // first insert call is the impression, second is earnings
     expect(insertValues).toHaveBeenCalledTimes(2)
+    expect(insertValues).toHaveBeenCalledWith(expect.objectContaining({ deliveryJti: "test-jti" }))
   })
 
   it("does not create earnings entry for skipped result", async () => {
@@ -139,6 +136,7 @@ describe("recordImpression", () => {
       surface: AdSurface.TerminalTv,
       durationMs: 2000,
       result: ImpressionResult.Skipped,
+      deliveryJti: "test-jti",
     })
 
     // only one insert (impression), no earnings
@@ -159,6 +157,7 @@ describe("recordImpression", () => {
       surface: AdSurface.TerminalTv,
       durationMs: 6000,
       result: ImpressionResult.Completed,
+      deliveryJti: "test-jti",
     })
 
     expect(recordSpend).toHaveBeenCalledWith("campaign-1", 4.0 / 1000, {
@@ -180,6 +179,7 @@ describe("recordImpression", () => {
       surface: AdSurface.TerminalTv,
       durationMs: 6000,
       result: ImpressionResult.Completed,
+      deliveryJti: "test-jti",
     })
 
     // allow fire-and-forget to settle
@@ -199,6 +199,7 @@ describe("recordImpression", () => {
       surface: AdSurface.TerminalTv,
       durationMs: 6000,
       result: ImpressionResult.Completed,
+      deliveryJti: "test-jti",
     })
 
     await new Promise((r) => setTimeout(r, 10))
@@ -216,6 +217,7 @@ describe("recordImpression", () => {
         surface: AdSurface.TerminalTv,
         durationMs: 6000,
         result: ImpressionResult.Completed,
+        deliveryJti: "test-jti",
       })
     ).rejects.toThrow("creative_not_servable")
   })
@@ -233,6 +235,7 @@ describe("recordImpression", () => {
         surface: AdSurface.TerminalTv,
         durationMs: 6000,
         result: ImpressionResult.Completed,
+        deliveryJti: "test-jti",
       })
     ).rejects.toThrow("campaign_budget_exhausted")
 
@@ -265,6 +268,7 @@ describe("recordImpression", () => {
         surface: AdSurface.TerminalTv,
         durationMs: 6000,
         result: ImpressionResult.Completed,
+        deliveryJti: "test-jti",
       })
     ).rejects.toThrow("db_write_failed")
 
@@ -305,54 +309,119 @@ describe("recordClick", () => {
   })
 })
 
-// ── server-derived impression outcome ──────────────────────────────────────
-
-import { deriveImpressionOutcome } from "../routes/impressions.js"
-
-describe("deriveImpressionOutcome", () => {
+describe("recordClickByJti", () => {
   beforeEach(() => {
-    vi.useFakeTimers()
+    vi.clearAllMocks()
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
+  function mockDbForClickByJti(opts: {
+    impressionRow?: { id: string; deviceId: string } | null
+    deviceRow?: { userId: string } | null
+    insertResult?: "success" | "conflict" | "fk"
+    clickId?: string
+  }) {
+    const {
+      impressionRow = { id: "imp-1", deviceId: "dev-1" },
+      deviceRow = { userId: "user-1" },
+      insertResult = "success",
+      clickId = "click-1",
+    } = opts
 
-  it("marks a late acknowledgement as expired once it passes the display window", () => {
-    vi.setSystemTime(new Date("2026-04-15T00:00:10.000Z"))
-    const issuedAt = Math.floor(new Date("2026-04-15T00:00:00.000Z").getTime() / 1000)
-    expect(deriveImpressionOutcome(issuedAt)).toEqual({
-      durationMs: MAX_AD_DURATION_MS,
-      result: ImpressionResult.Expired,
+    // select calls: first for impressions, second for devices
+    let selectCallCount = 0
+    const selectFn = vi.fn(() => {
+      const callIndex = selectCallCount++
+      const row =
+        callIndex === 0 ? (impressionRow ? [impressionRow] : []) : deviceRow ? [deviceRow] : []
+      return {
+        from: vi.fn(() => ({
+          where: vi.fn().mockResolvedValue(row),
+        })),
+      }
     })
+
+    let insertReturning: ReturnType<typeof vi.fn>
+    if (insertResult === "conflict") {
+      const err = new Error("unique violation") as Error & { code: string }
+      err.code = "23505"
+      insertReturning = vi.fn().mockRejectedValue(err)
+    } else if (insertResult === "fk") {
+      const err = new Error("fk violation") as Error & { code: string }
+      err.code = "23503"
+      insertReturning = vi.fn().mockRejectedValue(err)
+    } else {
+      insertReturning = vi.fn().mockResolvedValue([{ id: clickId }])
+    }
+    const insertValues = vi.fn(() => ({ returning: insertReturning }))
+    const insertFn = vi.fn(() => ({ values: insertValues }))
+
+    vi.mocked(getDb).mockReturnValue({
+      select: selectFn,
+      insert: insertFn,
+    } as unknown as ReturnType<typeof getDb>)
+
+    return { selectFn, insertFn, insertValues }
+  }
+
+  it("skips DB lookup when resolvedImpressionId provided, returns clickId + earningsDelta 0", async () => {
+    const insertReturning = vi.fn().mockResolvedValue([{ id: "click-42" }])
+    const insertValues = vi.fn(() => ({ returning: insertReturning }))
+    const insertFn = vi.fn(() => ({ values: insertValues }))
+    vi.mocked(getDb).mockReturnValue({
+      insert: insertFn,
+    } as unknown as ReturnType<typeof getDb>)
+
+    const result = await recordClickByJti("jti-x", "user-1", "imp-resolved")
+    expect(result).toEqual({ clickId: "click-42", earningsDelta: 0 })
+    // no select was called
+    expect(insertValues).toHaveBeenCalledWith({ impressionId: "imp-resolved" })
   })
 
-  it("marks an acknowledged ad as completed inside the display window", () => {
-    vi.setSystemTime(new Date("2026-04-15T00:00:04.000Z"))
-    const issuedAt = Math.floor(new Date("2026-04-15T00:00:00.000Z").getTime() / 1000)
-    expect(deriveImpressionOutcome(issuedAt)).toEqual({
-      durationMs: 4000,
-      result: ImpressionResult.Completed,
-    })
+  it("throws impression_not_synced when jti not found in DB", async () => {
+    mockDbForClickByJti({ impressionRow: null })
+
+    let err: unknown
+    try {
+      await recordClickByJti("jti-missing", "user-1")
+    } catch (e) {
+      err = e
+    }
+    expect((err as { errorCode: string }).errorCode).toBe("impression_not_synced")
   })
 
-  it("marks a short acknowledgement as skipped", () => {
-    vi.setSystemTime(new Date("2026-04-15T00:00:00.500Z"))
-    const issuedAt = Math.floor(new Date("2026-04-15T00:00:00.000Z").getTime() / 1000)
-    expect(deriveImpressionOutcome(issuedAt)).toEqual({
-      durationMs: 500,
-      result: ImpressionResult.Skipped,
-    })
+  it("throws delivery_not_owned when device belongs to different user", async () => {
+    mockDbForClickByJti({ deviceRow: { userId: "other-user" } })
+
+    let err: unknown
+    try {
+      await recordClickByJti("jti-y", "user-1")
+    } catch (e) {
+      err = e
+    }
+    expect((err as { errorCode: string }).errorCode).toBe("delivery_not_owned")
   })
-})
 
-// ── validator contract ─────────────────────────────────────────────────────
+  it("throws click_already_recorded on 23505 unique violation", async () => {
+    mockDbForClickByJti({ insertResult: "conflict" })
 
-import { validateRecordImpression } from "../validators/ad.validators.js"
+    let err: unknown
+    try {
+      await recordClickByJti("jti-z", "user-1", "imp-1")
+    } catch (e) {
+      err = e
+    }
+    expect((err as { errorCode: string }).errorCode).toBe("click_already_recorded")
+  })
 
-describe("validateRecordImpression", () => {
-  it("requires only a delivery token", () => {
-    const result = validateRecordImpression({ deliveryToken: "tok" })
-    expect(result).toEqual({ deliveryToken: "tok" })
+  it("throws impression_not_synced on 23503 FK violation during insert", async () => {
+    mockDbForClickByJti({ insertResult: "fk" })
+
+    let err: unknown
+    try {
+      await recordClickByJti("jti-w", "user-1", "imp-1")
+    } catch (e) {
+      err = e
+    }
+    expect((err as { errorCode: string }).errorCode).toBe("impression_not_synced")
   })
 })

@@ -115,3 +115,12 @@ export const adminLimiter = createLimiter(
   { requests: 30, window: "60 s" },
   (req) => `ip:${ipKey(req)}`
 )
+
+export const machineLimiter = createLimiter(
+  "machine",
+  { requests: 300, window: "60 s" },
+  (_req, res) => {
+    const deviceId = res.locals["deviceId"] as string | undefined
+    return deviceId ? `dev:${deviceId}` : null
+  }
+)

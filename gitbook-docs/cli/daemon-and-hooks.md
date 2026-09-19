@@ -149,8 +149,51 @@ Quiet hours and `nightMode` remain available as opt-in throttles.
 - **Raw mode persists across stop.** `setRawMode(false)` is deliberately NOT called in `input.ts:stop()` because Claude Code owns its REPL's raw-mode setting and toggling it broke Claude's stdin. SIGKILL recovery still requires `reset` if the terminal is left in raw mode.
 - **No hook auto-restart.** A stale daemon means hooks silently exit 0. `devdrip daemon start` restarts it. Auto-restart belongs to `devdrip doctor` (S5-02).
 
+## Sync loop (S3-07, shipped)
+
+`packages/cli/src/lib/daemon/sync.ts` exposes:
+
+```ts
+createSyncLoop({ ledger, apiClient, log, intervalMs = 5 * 60_000 })
+  → { start(), stop(), forceSync(): Promise<SyncResult> }
+```
+
+Behavior:
+
+- `setInterval`, `unref`'d — does not prevent daemon exit.
+- **Skip-if-in-flight**: overlapping ticks don't stack; a running cycle blocks the next tick.
+- **Eager first sync**: on daemon boot, one sync runs immediately to drain impressions accumulated while offline.
+- **Exponential backoff on failures**: 5m → 10m → 20m, capped. Resets to normal cadence on any successful cycle. Triggered by top-level network errors or 5xx; per-item errors don't trigger backoff.
+- Batch caps per cycle: 250 impressions + 250 clicks (under the backend 500-item combined cap).
+
+**Per-item classification:**
+
+| Error code                          | Classification                 | Action                                             |
+| ----------------------------------- | ------------------------------ | -------------------------------------------------- |
+| `invalid_or_expired_delivery_token` | terminal (impression + click)  | tombstone (`synced_at = -1`)                       |
+| `delivery_token_too_old`            | terminal (impression + click)  | tombstone                                          |
+| `delivery_not_owned`                | terminal (impression + click)  | tombstone                                          |
+| `impression_already_recorded`       | terminal (impression)          | tombstone                                          |
+| `click_already_recorded`            | terminal (click)               | tombstone                                          |
+| `campaign_budget_exhausted`         | transient                      | leave for next cycle                               |
+| `rate_limit_exceeded`               | transient                      | leave + backoff                                    |
+| `too_many_items`                    | transient                      | leave + backoff                                    |
+| `internal_error`                    | transient                      | leave + backoff                                    |
+| `impression_not_synced`             | transient → terminal after 24h | leave until click.created_at + 24h, then tombstone |
+
+**`devdrip sync --force`:** standalone CLI path. Opens its own ledger handle and api-client, runs one cycle, prints `synced N impressions, M clicks (K errors)`. Does not go through the daemon socket — works even if the daemon is down. Exits non-zero only on catastrophic failure.
+
+## Key capture and click recording
+
+When the user presses `D` (discover), `orchestrator.ts` `openDiscover` writes a click to the local ledger before opening the advertiser URL:
+
+```ts
+deps.ledger.recordClick({ id: uuid(), deliveryToken: imp.deliveryToken, createdAt: now() })
+```
+
+The click is queued alongside its parent impression and synced in the next cycle.
+
 ## What's next
 
-- **S3-07 Auto-sync + `devdrip sync`** — reads the ledger, chunks, POSTs, marks synced, prunes. The daemon exposes `orchestrator` + `ledger` refs so the sync loop can inject into the same process.
 - **S5-02 `devdrip doctor`** — checks heartbeat age and offers to restart.
 - **S5-04 `devdrip demo`** — `[DEMO]` badge + vanish-timing stats.
