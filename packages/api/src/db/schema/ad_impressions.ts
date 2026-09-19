@@ -40,6 +40,9 @@ export const adImpressions = pgTable(
     result: text("result").notNull().default("pending"),
     clicked: boolean("clicked").notNull().default(false),
     clickedAt: timestamp("clicked_at", { withTimezone: true }),
+    // when the view was reported. created_at is serve time, which can be minutes
+    // earlier because devices fetch ads in batches.
+    seenAt: timestamp("seen_at", { withTimezone: true }),
     cpmRate: numeric("cpm_rate", { precision: 12, scale: 6 }).notNull(),
     earnedAmount: numeric("earned_amount", { precision: 12, scale: 6 }).notNull().default("0"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

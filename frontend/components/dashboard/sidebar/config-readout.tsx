@@ -30,20 +30,46 @@ export function ConfigReadout({ prefs, channels, watchlistTickers, globalAlertTh
   const dtClass =
     "font-[var(--font-display)] text-[9px] font-bold tracking-[0.1em] uppercase text-[var(--ink-tertiary)] mt-3"
   const ddClass = "m-0 text-[var(--ink-primary)]"
+  const feeds = prefs.enabledFeeds ?? ["ads"]
+  const adsOn = feeds.includes("ads")
+  const newsOn = feeds.includes("news")
+  const marketsOn = feeds.includes("markets")
   return (
     <dl className="font-[var(--font-data)] text-[10.5px] leading-[1.85] text-[var(--ink-secondary)] mt-1.5 pt-4 border-t border-[var(--rule-default)]">
-      <dt className={dtClass.replace("mt-3", "")}>mode</dt>
+      <dt className={dtClass.replace("mt-3", "")}>playing</dt>
       <dd className={ddClass}>
-        <span className="text-[var(--accent-color)]">
-          {MODE_LABELS[prefs.channelMode] ?? prefs.channelMode}
-        </span>
+        <span className="text-[var(--accent-color)]">{adsOn ? "ads" : "ads off"}</span>
+        {newsOn ? " · news" : ""}
+        {marketsOn ? " · markets" : ""}
       </dd>
-      <dt className={dtClass}>channels</dt>
-      <dd className={ddClass}>{subscribed.length ? subscribed.join(" · ") : "none"}</dd>
-      <dt className={dtClass}>watchlist</dt>
-      <dd className={ddClass}>{watchlistTickers.length ? watchlistTickers.join(" ") : "empty"}</dd>
-      <dt className={dtClass}>alerts</dt>
-      <dd className={`${ddClass} tabular-nums`}>global ±{globalAlertThreshold ?? 5}%</dd>
+      {newsOn && marketsOn && (
+        <>
+          <dt className={dtClass}>news : markets</dt>
+          <dd className={ddClass}>{MODE_LABELS[prefs.channelMode] ?? prefs.channelMode}</dd>
+        </>
+      )}
+      {newsOn && (
+        <>
+          <dt className={dtClass}>channels</dt>
+          <dd className={ddClass}>{subscribed.length ? subscribed.join(" · ") : "none"}</dd>
+        </>
+      )}
+      {marketsOn && (
+        <>
+          <dt className={dtClass}>watchlist</dt>
+          <dd className={ddClass}>
+            {watchlistTickers.length ? watchlistTickers.join(" ") : "empty"}
+          </dd>
+          <dt className={dtClass}>alerts</dt>
+          <dd className={`${ddClass} tabular-nums`}>global ±{globalAlertThreshold ?? 5}%</dd>
+        </>
+      )}
+      {!newsOn && !marketsOn && (
+        <>
+          <dt className={dtClass}>channels</dt>
+          <dd className={ddClass}>off · opt in under preferences</dd>
+        </>
+      )}
       <dt className={dtClass}>quiet hours</dt>
       <dd className={`${ddClass} tabular-nums`}>{formatQuietHours(prefs)}</dd>
     </dl>

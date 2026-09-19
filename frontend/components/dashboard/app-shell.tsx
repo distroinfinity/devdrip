@@ -11,11 +11,19 @@ import type { SessionPayload } from "@/lib/session"
 interface AppShellProps {
   user: Pick<SessionPayload, "email" | "userId">
   initialMode: ChannelMode
+  // the news : markets ratio control only applies when both channels are on
+  showModePill?: boolean
   children: ReactNode
   configReadout?: ReactNode
 }
 
-export function AppShell({ user, initialMode, children, configReadout }: AppShellProps) {
+export function AppShell({
+  user,
+  initialMode,
+  showModePill = false,
+  children,
+  configReadout,
+}: AppShellProps) {
   const pills = (
     <>
       <NavPill href="/dashboard" label="Overview" exact />
@@ -29,7 +37,7 @@ export function AppShell({ user, initialMode, children, configReadout }: AppShel
 
   const actions = (
     <div className="flex items-center gap-3">
-      <ModePill initial={initialMode} />
+      {showModePill && <ModePill initial={initialMode} />}
       <UserMenu user={user} />
     </div>
   )

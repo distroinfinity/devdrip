@@ -1,0 +1,1 @@
+ALTER TABLE "ad_impressions" ADD COLUMN "seen_at" timestamp with time zone;

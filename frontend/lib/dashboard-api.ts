@@ -14,10 +14,16 @@ export interface EarningsSummary {
   clicks: number
   // 0..1 fraction
   ctr: number
+  // total time paid ads were on screen, and the estimated hourly rate that implies
+  viewMs: number
+  ratePerHour: number
+  lastSeenAt: string | null
   cpmRate: number
   revenueShare: number
   estimated: true
 }
+
+export type ChartRange = "1h" | "24h" | "30d"
 
 export interface EarningsPoint {
   date: string
