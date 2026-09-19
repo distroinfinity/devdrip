@@ -11,7 +11,7 @@ const ad: SponsoredPayload & { cacheSource: "api" } = {
   headline: "See the error, the commit, and the fix. Monitoring built for developers.",
   ctaText: "Try Sentry",
   displayUrl: "sentry.io",
-  clickUrl: "http://localhost:3011/ads/click/3f0c2f0e-7f1a-4b57-9d9e-0d8f4f3f2a11",
+  clickUrl: "http://localhost:3011/c/3f0c2f0e7f1a",
   deliveryId: "3f0c2f0e-7f1a-4b57-9d9e-0d8f4f3f2a11",
   cpmRate: 10,
   cacheSource: "api",
@@ -27,30 +27,47 @@ describe("sponsored panel", () => {
   it("estimates the per-impression share", () => {
     expect(perImpressionUsd(10)).toBeCloseTo(0.007, 6)
   })
-  it("shows label, advertiser, copy, link, command and estimates", () => {
+  it("shows an AD badge, the advertiser, the copy, a clickable url and the estimates", () => {
     const out = renderSlotLine(ad, "none", 80, undefined, { earnedTodayUsd: 0.42 })
-    expect(out).toContain("sponsored")
-    expect(out).toContain("via Carbon")
-    expect(out).toContain("Sentry")
-    expect(out).toContain("See the error")
-    expect(out).toContain("sentry.io")
-    expect(out).toContain("dtv open")
-    expect(out).toContain("+$0.0070 est")
-    expect(out).toContain("today $0.4200")
+    const lines = out.split("\n")
+    expect(lines).toHaveLength(3)
+    expect(lines[0]).toContain("AD")
+    expect(lines[0]).toContain("Sentry")
+    expect(lines[0]).toContain("+$0.0070")
+    expect(lines[1]).toContain("See the error")
+    // the full http url is printed so the terminal itself makes it cmd-clickable
+    expect(lines[2]).toContain(ad.clickUrl)
+    expect(lines[2]).toMatch(/click/)
+    expect(lines[2]).toContain("est. today $0.4200")
   })
-  it("says demo for house ads", () => {
-    expect(renderSlotLine({ ...ad, source: "house" }, "none", 80)).toContain("via Distro")
+  it("marks every line with the bar so the block survives stripped indentation", () => {
+    const lines = renderSlotLine(ad, "none", 80, undefined, { earnedTodayUsd: 1 }).split("\n")
+    for (const l of lines) expect(l.startsWith("▍ ")).toBe(true)
   })
-  it.each([60, 80, 120])("fits width %i and stays within 6 lines", (w) => {
+  it("drops the noise: no network label, no command hint", () => {
+    const out = renderSlotLine({ ...ad, source: "house" }, "none", 80)
+    expect(out).not.toContain("via ")
+    expect(out).not.toContain("demo")
+    expect(out).not.toContain("dtv open")
+  })
+  it("never truncates the url, even when the terminal is narrow", () => {
+    const out = renderSlotLine(ad, "none", 48, undefined, { earnedTodayUsd: 3 })
+    expect(out).toContain(ad.clickUrl)
+  })
+  it("keeps long copy to one line on wide terminals and two on narrow ones", () => {
+    expect(renderSlotLine(ad, "none", 120).split("\n")).toHaveLength(3)
+    expect(renderSlotLine(ad, "none", 50).split("\n").length).toBeLessThanOrEqual(4)
+  })
+  it.each([60, 80, 120])("fits width %i and stays within 4 lines", (w) => {
     const lines = strip(
       renderSlotLine(ad, "truecolor", w, undefined, { earnedTodayUsd: 1.5, hyperlinks: true })
     ).split("\n")
-    expect(lines.length).toBeLessThanOrEqual(6)
+    expect(lines.length).toBeLessThanOrEqual(4)
     for (const l of lines) expect([...l].length).toBeLessThanOrEqual(w)
   })
   it("wraps the link in an OSC 8 hyperlink only when enabled", () => {
     expect(renderSlotLine(ad, "truecolor", 80, undefined, { hyperlinks: true })).toContain(
-      "\x1b]8;;http://localhost:3011/ads/click/"
+      "\x1b]8;;http://localhost:3011/c/"
     )
     expect(renderSlotLine(ad, "truecolor", 80, undefined, { hyperlinks: false })).not.toContain(
       "\x1b]8;;"

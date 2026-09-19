@@ -1,7 +1,7 @@
 import { Router } from "express"
 import { env } from "../config/env.js"
 import { logger } from "../lib/logger.js"
-import { recordAdClick } from "../services/ad-impression.service.js"
+import { recordAdClick, recordAdClickByCode } from "../services/ad-impression.service.js"
 
 export const adsClickRouter: ReturnType<typeof Router> = Router()
 
@@ -21,4 +21,18 @@ adsClickRouter.get("/click/:deliveryId", async (req, res) => {
 // bare /ads/click (no id, e.g. a half-copied link) → home instead of a raw 404
 adsClickRouter.get("/click", (_req, res) => {
   res.redirect(302, env.webUrl)
+})
+
+// GET /c/:code — the short form printed in the terminal panel
+export const adsShortClickRouter: ReturnType<typeof Router> = Router()
+
+adsShortClickRouter.get("/:code", async (req, res) => {
+  let target: string | null = null
+  try {
+    target = await recordAdClickByCode(String(req.params["code"] ?? ""))
+  } catch (err) {
+    logger.warn({ err }, "ad short click record failed")
+  }
+  res.setHeader("Cache-Control", "no-store")
+  res.redirect(302, target ?? env.webUrl)
 })

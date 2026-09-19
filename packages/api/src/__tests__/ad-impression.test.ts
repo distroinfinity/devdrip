@@ -35,3 +35,25 @@ describe("parseAdImpression", () => {
     expect(parseAdImpression({ ...ok, durationMs: 9_999_999 })?.durationMs).toBe(60_000)
   })
 })
+
+describe("click short codes", () => {
+  it("derives a 12-hex code from a delivery id", async () => {
+    const { clickCode } = await import("../services/ad-impression.service.js")
+    expect(clickCode("3f0c2f0e-7f1a-4b57-9d9e-0d8f4f3f2a11")).toBe("3f0c2f0e7f1a")
+  })
+  it("turns a code into the uuid range that shares its prefix", async () => {
+    const { codeRange } = await import("../services/ad-impression.service.js")
+    expect(codeRange("3f0c2f0e7f1a")).toEqual({
+      lo: "3f0c2f0e-7f1a-0000-0000-000000000000",
+      hi: "3f0c2f0e-7f1a-ffff-ffff-ffffffffffff",
+    })
+    expect(codeRange("3F0C2F0E7F1A")?.lo).toBe("3f0c2f0e-7f1a-0000-0000-000000000000")
+  })
+  it("rejects anything that is not exactly 12 hex chars", async () => {
+    const { codeRange } = await import("../services/ad-impression.service.js")
+    expect(codeRange("abc")).toBeNull()
+    expect(codeRange("zzzzzzzzzzzz")).toBeNull()
+    expect(codeRange("3f0c2f0e7f1a00")).toBeNull()
+    expect(codeRange("3f0c2f0e-7f1")).toBeNull()
+  })
+})

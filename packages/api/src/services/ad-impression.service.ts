@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, gte, lte, sql } from "drizzle-orm"
 import { MIN_COMPLETED_DURATION_MS, REVENUE_SHARE_DEVELOPER } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { adImpressions } from "../db/schema/ad_impressions.js"
@@ -16,6 +16,22 @@ export interface AdImpressionInput {
 
 export function isDeliveryId(v: string): boolean {
   return UUID_RE.test(v)
+}
+
+// short click links: the first 12 hex chars of the delivery id (48 bits) — short
+// enough to print in a terminal, where any visible http url is cmd-clickable.
+const CODE_RE = /^[0-9a-f]{12}$/
+
+export function clickCode(deliveryId: string): string {
+  return deliveryId.replace(/-/g, "").slice(0, 12).toLowerCase()
+}
+
+// uuids compare bytewise, so a prefix is an index-friendly range on delivery_id
+export function codeRange(code: string): { lo: string; hi: string } | null {
+  const c = code.toLowerCase()
+  if (!CODE_RE.test(c)) return null
+  const head = `${c.slice(0, 8)}-${c.slice(8, 12)}`
+  return { lo: `${head}-0000-0000-000000000000`, hi: `${head}-ffff-ffff-ffffffffffff` }
 }
 
 export function parseAdImpression(raw: unknown): AdImpressionInput | null {
@@ -113,4 +129,19 @@ export async function recordAdClick(deliveryId: string): Promise<string | null> 
   if (!row) return null
   if (!before.clicked && row.clickBeaconUrl) void fireBeacon(row.clickBeaconUrl)
   return row.targetUrl
+}
+
+// resolves a short code to its delivery and records the click. an ambiguous
+// prefix (more than one match) is treated as unknown rather than guessed.
+export async function recordAdClickByCode(code: string): Promise<string | null> {
+  const range = codeRange(code)
+  if (!range) return null
+  const rows = await getDb()
+    .select({ deliveryId: adImpressions.deliveryId })
+    .from(adImpressions)
+    .where(and(gte(adImpressions.deliveryId, range.lo), lte(adImpressions.deliveryId, range.hi)))
+    .limit(2)
+  const only = rows.length === 1 ? rows[0] : undefined
+  if (!only) return null
+  return recordAdClick(only.deliveryId)
 }

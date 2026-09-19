@@ -1,6 +1,6 @@
 import { REVENUE_SHARE_DEVELOPER, type SponsoredPayload } from "@distrotv/shared"
-import { color, type ColorMode } from "./ansi.js"
-import { LEFT_PAD, spread, wrapHeadline } from "./render-utils.js"
+import { bgRgb, bold, color, rgb, type ColorMode } from "./ansi.js"
+import { spread, visLen, wrapHeadline } from "./render-utils.js"
 
 export interface RenderExtras {
   earnedTodayUsd?: number
@@ -29,6 +29,15 @@ function link(text: string, url: string, on: boolean): string {
   return on ? `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\` : text
 }
 
+const CLICK_HINT = process.platform === "darwin" ? "⌘ click" : "ctrl click"
+
+// three rows, every one led by the bar: claude code strips leading whitespace from
+// status lines, so indentation can't group the block — the bar does.
+//   ▍ AD  Advertiser                                  +$0.0070
+//   ▍ one or two lines of copy
+//   ▍ ↗ http://…/c/<code>  ⌘ click          est. today $0.0770
+// the url is printed in full on purpose: terminals make any visible http url
+// cmd/ctrl-clickable, which is the only same-terminal click that needs no key capture.
 export function renderSponsoredPanel(
   slot: SponsoredPayload,
   mode: ColorMode,
@@ -36,25 +45,31 @@ export function renderSponsoredPanel(
   nudge: string[],
   extras: RenderExtras = {}
 ): string {
-  const dot = color("muted", "·", mode)
-  const via = slot.source === "carbon" ? "via Carbon" : "via Distro · demo"
-  const headerLeft = `${color("indigo", "▍", mode)} ${color("indigo", "sponsored", mode)} ${dot} ${color("muted", via, mode)}`
-  const headerRight = color("positive", `+$${perImpressionUsd(slot.cpmRate).toFixed(4)} est`, mode)
-  const header = spread(headerLeft, headerRight, W)
+  const bar = `${color("indigo", "▍", mode)} `
+  const inner = W - 2
 
-  const advertiser = `${LEFT_PAD}${color("fg", clean(slot.advertiser), mode)}`
-  const copy = wrapHeadline(clean(slot.headline), W - LEFT_PAD.length, 2).map(
-    (l) => `${LEFT_PAD}${color("fg", l, mode)}`
-  )
+  const badge =
+    mode === "none" ? "AD" : bgRgb(rgb(bold(" AD ", mode), 10, 10, 12, mode), 129, 140, 248, mode)
+  const headLeft = `${badge}  ${bold(color("fg", clean(slot.advertiser), mode), mode)}`
+  const headRight = color("positive", `+$${perImpressionUsd(slot.cpmRate).toFixed(4)}`, mode)
+  const head = spread(headLeft, headRight, inner)
+
+  const copy = wrapHeadline(clean(slot.headline), inner, 2).map((l) => color("fg", l, mode))
 
   const useLinks = extras.hyperlinks === true && mode !== "none"
-  const host = link(color("indigo", `↗ ${clean(slot.displayUrl)}`, mode), slot.clickUrl, useLinks)
+  const url = link(color("indigo", `↗ ${slot.clickUrl}`, mode), slot.clickUrl, useLinks)
+  const hint = `  ${color("muted", CLICK_HINT, mode)}`
   const today =
     extras.earnedTodayUsd != null
-      ? `  ${dot}  ${color("muted", `today $${formatEarned(extras.earnedTodayUsd)}`, mode)}`
+      ? color("muted", `est. today $${formatEarned(extras.earnedTodayUsd)}`, mode)
       : ""
-  // no spread() on this line — OSC 8 bytes would break its width maths
-  const action = `${LEFT_PAD}${host}  ${dot}  ${color("muted", "dtv open", mode)}${today}`
+  // drop the hint, then the total, before ever truncating the url — a cut url can't be clicked
+  const fits = (left: string, right: string): boolean =>
+    visLen(left) + (right ? 3 + visLen(right) : 0) <= inner
+  let action: string
+  if (fits(url + hint, today)) action = today ? spread(url + hint, today, inner) : url + hint
+  else if (fits(url, today)) action = today ? spread(url, today, inner) : url
+  else action = url
 
-  return [...nudge, header, advertiser, ...copy, action].join("\n")
+  return [...nudge, ...[head, ...copy, action].map((l) => bar + l)].join("\n")
 }
