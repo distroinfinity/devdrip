@@ -19,7 +19,7 @@ export function AppShell({ user, children }: AppShellProps) {
       <NavPill href="/dashboard/history" label="History" />
       <NavPill href="/dashboard/analytics" label="Analytics" />
       <NavPill href="/dashboard/preferences" label="Preferences" />
-      <NavPill href="#" label="Wallet" disabled soonLabel="soon" />
+      <NavPill href="/dashboard/wallet" label="Wallet" />
     </>
   )
 

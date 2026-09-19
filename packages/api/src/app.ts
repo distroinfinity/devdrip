@@ -31,6 +31,7 @@ import { miniappGithubRouter } from "./routes/miniapp-github.js"
 import { miniappSignupRouter } from "./routes/miniapp-signup.js"
 import { cliPairRouter } from "./routes/cli-pair.js"
 import { miniappCliLinkRouter } from "./routes/miniapp-cli-link.js"
+import { miniappMeRouter } from "./routes/miniapp-me.js"
 import { adminHotWalletRouter } from "./routes/admin-hot-wallet.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
@@ -80,6 +81,7 @@ app.use("/miniapp/github-oauth", miniappGithubRouter)
 app.use("/miniapp/signup", miniappSignupRouter)
 app.use("/cli/pair", cliPairRouter)
 app.use("/miniapp/cli-link", miniappCliLinkRouter)
+app.use("/miniapp/me", miniappMeRouter)
 app.use("/devices", requireAuth, devicesRouter)
 app.use("/advertisers", requireAdmin, adminLimiter, advertisersRouter)
 app.use("/campaigns", requireAdmin, adminLimiter, campaignsRouter)
@@ -99,6 +101,9 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
       githubLogin: users.githubLogin,
       email: users.email,
       avatarUrl: users.avatarUrl,
+      walletAddress: users.walletAddress,
+      verificationLevel: users.verificationLevel,
+      signedUpAt: users.signedUpAt,
     })
     .from(users)
     .where(eq(users.id, userId))
@@ -108,7 +113,15 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
     await res.status(404).json({ error: "user_not_found" })
     return
   }
-  await res.json(row)
+  await res.json({
+    id: row.id,
+    githubLogin: row.githubLogin,
+    email: row.email,
+    avatarUrl: row.avatarUrl,
+    walletAddress: row.walletAddress,
+    verificationLevel: row.verificationLevel,
+    signedUpAt: row.signedUpAt?.toISOString() ?? null,
+  })
 })
 
 app.use("/me", requireAuth, userLimiter, mePreferencesRouter)
