@@ -1,7 +1,6 @@
 import { Router } from "express"
 import { randomBytes, randomUUID } from "node:crypto"
 import { eq, and, isNull } from "drizzle-orm"
-import rateLimit from "express-rate-limit"
 import { env } from "../config/env.js"
 import { getDb } from "../db/index.js"
 import { users } from "../db/schema/users.js"
@@ -29,9 +28,7 @@ interface PendingTokens {
 }
 const pendingCodes = new Map<string, PendingTokens>()
 
-// rate limiters
-const authLimiter = rateLimit({ windowMs: 60_000, limit: 10 })
-const refreshLimiter = rateLimit({ windowMs: 60_000, limit: 20 })
+import { authLimiter, refreshLimiter } from "../middleware/rate-limit.js"
 
 export const authRouter: ReturnType<typeof Router> = Router()
 
@@ -212,6 +209,8 @@ authRouter.post("/refresh", refreshLimiter, async (req, res) => {
     return
   }
 
+  // TODO: make revoke/reuse-detection/rotation fully transactional so a concurrent
+  // family revoke cannot race with successor insertion and leave a live descendant.
   // issue new token in same family
   const newRaw = generateRefreshToken()
   const newHash = hashRefreshToken(newRaw)
@@ -239,7 +238,7 @@ authRouter.post("/refresh", refreshLimiter, async (req, res) => {
 })
 
 // ── POST /auth/logout ───────────────────────────────────────────────────────
-authRouter.post("/logout", requireAuth, async (_req, res) => {
+authRouter.post("/logout", requireAuth, authLimiter, async (_req, res) => {
   const userId = res.locals["userId"] as string
   const db = getDb()
 

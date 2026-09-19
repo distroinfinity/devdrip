@@ -20,10 +20,11 @@
   "dependencies": {
     "@devdrip/shared": "workspace:*",
     "@neondatabase/serverless": "^1.0.2",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.37.0",
     "cookie-parser": "^1.4.7",
     "drizzle-orm": "^0.45.2",
     "express": "^5.1.0",
-    "express-rate-limit": "^8.3.2",
     "jose": "^6.2.2",
     "postgres": "^3.4.9"
   },

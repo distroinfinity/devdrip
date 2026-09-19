@@ -34,4 +34,10 @@ export const env = {
   get clientRedirectUrl() {
     return requireEnv("CLIENT_REDIRECT_URL")
   },
+  get upstashRedisRestUrl() {
+    return requireEnv("UPSTASH_REDIS_REST_URL")
+  },
+  get upstashRedisRestToken() {
+    return requireEnv("UPSTASH_REDIS_REST_TOKEN")
+  },
 }
