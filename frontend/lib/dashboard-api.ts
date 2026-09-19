@@ -1,103 +1,52 @@
-import type { AdCategory, ChannelMode, NewsTopic, SyncedPreferences } from "@distrotv/shared"
+import type { AdCategory, ChannelMode, Feed, NewsTopic, SyncedPreferences } from "@distrotv/shared"
 import { apiFetch } from "./api"
 
-// ── analytics (existing /me/analytics/impressions) ──────────────────────────
+// ── earnings (/me/earnings/*) — every amount is an estimate ────────────────
 
-export interface AnalyticsSeriesPoint {
-  date: string
+export interface EarningsSummary {
+  today: number
+  last7d: number
+  allTime: number
+  // ads handed to the device vs ads actually seen
+  served: number
   impressions: number
-  completed: number
+  paidImpressions: number
   clicks: number
-  earned: number
-}
-
-export interface AnalyticsTotals {
-  impressions: number
-  completed: number
-  skipped: number
-  expired: number
-  interrupted: number
-  clicks: number
-  earned: number
+  // 0..1 fraction
   ctr: number
+  // total time paid ads were on screen, and the estimated hourly rate that implies
+  viewMs: number
+  ratePerHour: number
+  lastSeenAt: string | null
+  cpmRate: number
+  revenueShare: number
+  estimated: true
 }
 
-export interface AnalyticsBreakdowns {
-  bySource: { source: string; impressions: number; earned: number }[]
-  byCategory: { category: string; impressions: number; earned: number }[]
-  byResult: { result: string; impressions: number }[]
+export type ChartRange = "1h" | "24h" | "30d"
+
+export interface EarningsPoint {
+  date: string
+  earned: number
+  impressions: number
+  clicks: number
 }
 
-export interface AnalyticsResponse {
-  series: AnalyticsSeriesPoint[]
-  totals: AnalyticsTotals
-  breakdowns: AnalyticsBreakdowns
-}
-
-export interface AnalyticsFilters {
-  from?: string
-  to?: string
-  source?: string
-  category?: string
-  result?: string
-}
-
-export async function getAnalytics(filters: AnalyticsFilters): Promise<AnalyticsResponse> {
-  const qs = buildQuery({ ...filters })
-  return apiFetch<AnalyticsResponse>(`/me/analytics/impressions${qs}`)
-}
-
-// ── impressions list / detail (new /me/impressions) ─────────────────────────
-
-export interface ImpressionListItem {
+export interface RecentAd {
   id: string
-  createdAt: string
-  source: string
-  surface: string
+  advertiser: string
+  headline: string
+  source: "carbon" | "house"
   durationMs: number
   result: string
-  earnedAmount: number
-  cpmRate: number
-  category: string | null
-  campaignName: string | null
-  advertiserName: string | null
-  hasClick: boolean
-}
-
-export interface ImpressionListResponse {
-  items: ImpressionListItem[]
-  nextCursor: string | null
-}
-
-export interface ImpressionDetail extends ImpressionListItem {
-  deliveryJti: string | null
-  creative: {
-    headline: string
-    body: string | null
-    ctaText: string | null
-    ctaUrl: string | null
-    format: string
-  } | null
-  click: { createdAt: string } | null
-}
-
-export interface ListImpressionsFilters extends AnalyticsFilters {
-  limit?: number
-  cursor?: string
-}
-
-export async function getImpressions(
-  filters: ListImpressionsFilters
-): Promise<ImpressionListResponse> {
-  const qs = buildQuery({ ...filters })
-  return apiFetch<ImpressionListResponse>(`/me/impressions${qs}`)
-}
-
-export async function getImpression(id: string): Promise<ImpressionDetail> {
-  return apiFetch<ImpressionDetail>(`/me/impressions/${id}`)
+  clicked: boolean
+  earned: number
+  createdAt: string
 }
 
 // ── preferences (new GET, widened PUT) ──────────────────────────────────────
+
+export type { Feed }
 
 export interface PreferencesPayload {
   preferences: SyncedPreferences
@@ -115,6 +64,7 @@ export interface UpdatePreferencesBody {
   nightMode?: boolean
   channelMode?: ChannelMode
   newsTopics?: NewsTopic[]
+  enabledFeeds?: Feed[]
 }
 
 export async function getPreferences(): Promise<SyncedPreferences> {
@@ -164,17 +114,4 @@ export interface NewsStats {
 
 export async function getNewsStats(): Promise<NewsStats> {
   return apiFetch<NewsStats>("/me/news-stats")
-}
-
-// ── helpers ─────────────────────────────────────────────────────────────────
-
-function buildQuery(params: Record<string, unknown>): string {
-  const entries: [string, string][] = []
-  for (const [k, v] of Object.entries(params)) {
-    if (v === undefined || v === null || v === "") continue
-    entries.push([k, String(v)])
-  }
-  if (entries.length === 0) return ""
-  const sp = new URLSearchParams(entries)
-  return `?${sp.toString()}`
 }

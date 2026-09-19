@@ -83,6 +83,35 @@ export const env = {
       undefined
     )
   },
+  // carbon ads — empty zone key means the sdk's demo zone
+  get carbonZoneKey(): string {
+    return optionalEnv("CARBON_ZONE_KEY", "")
+  },
+  // carbon serves when a real zone key is set, or when explicitly switched on. outside
+  // production its demo zone is fine; in production the sandbox must be a deliberate choice.
+  get carbonEnabled(): boolean {
+    const v = process.env["CARBON_ENABLED"]
+    if (v === "1" || v === "true") return true
+    if (v === "0" || v === "false") return false
+    if (process.env["CARBON_ZONE_KEY"]) return true
+    return optionalEnv("NODE_ENV", "development") !== "production"
+  },
+  get carbonPlacement(): string {
+    return optionalEnv("CARBON_PLACEMENT", "distrotv")
+  },
+  // estimated usd cpm — carbon returns no price
+  get adCpmRate(): number {
+    const v = Number(optionalEnv("AD_CPM_RATE", "10"))
+    return Number.isFinite(v) && v > 0 ? v : 10
+  },
+  // advertiser-submitted ads go live at once only when this is on. defaults on
+  // outside production so the local demo is instant; production must review first.
+  get adAutoApprove(): boolean {
+    const v = process.env["AD_AUTO_APPROVE"]
+    if (v === "1" || v === "true") return true
+    if (v === "0" || v === "false") return false
+    return optionalEnv("NODE_ENV", "development") !== "production"
+  },
   get allowedOrigins(): string[] {
     const origins = requireEnv("ALLOWED_ORIGINS")
       .split(",")

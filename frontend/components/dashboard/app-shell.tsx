@@ -11,14 +11,23 @@ import type { SessionPayload } from "@/lib/session"
 interface AppShellProps {
   user: Pick<SessionPayload, "email" | "userId">
   initialMode: ChannelMode
+  // the news : markets ratio control only applies when both channels are on
+  showModePill?: boolean
   children: ReactNode
   configReadout?: ReactNode
 }
 
-export function AppShell({ user, initialMode, children, configReadout }: AppShellProps) {
+export function AppShell({
+  user,
+  initialMode,
+  showModePill = false,
+  children,
+  configReadout,
+}: AppShellProps) {
   const pills = (
     <>
       <NavPill href="/dashboard" label="Overview" exact />
+      <NavPill href="/dashboard/revenue" label="Revenue" />
       <NavPill href="/dashboard/reading" label="Reading" />
       <NavPill href="/dashboard/watchlists" label="Watchlists" />
       <NavPill href="/dashboard/preferences" label="Preferences" />
@@ -28,7 +37,7 @@ export function AppShell({ user, initialMode, children, configReadout }: AppShel
 
   const actions = (
     <div className="flex items-center gap-3">
-      <ModePill initial={initialMode} />
+      {showModePill && <ModePill initial={initialMode} />}
       <UserMenu user={user} />
     </div>
   )
@@ -44,6 +53,7 @@ export function AppShell({ user, initialMode, children, configReadout }: AppShel
         <aside className="hidden w-48 shrink-0 border-r border-[var(--rule-default)] pr-6 pt-10 md:block">
           <nav className="flex flex-col gap-0.5" aria-label="Sidebar">
             <NavPill href="/dashboard" label="Overview" exact sidebar />
+            <NavPill href="/dashboard/revenue" label="Revenue" sidebar />
             <NavPill href="/dashboard/reading" label="Reading" sidebar />
             <NavPill href="/dashboard/watchlists" label="Watchlists" sidebar />
             <NavPill href="/dashboard/preferences" label="Preferences" sidebar />

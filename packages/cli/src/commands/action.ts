@@ -23,6 +23,14 @@ export const discoverCmd = new Command("discover")
     process.exit(await sendAction("discover"))
   })
 
+// `dtv open` — the everyday name for discover: opens whatever is on screen
+// (a sponsor goes through the click redirect, so the click is recorded).
+export const openCmd = new Command("open")
+  .description("open the sponsor or story currently on screen")
+  .action(async () => {
+    process.exit(await sendAction("discover"))
+  })
+
 export const skipCmd = new Command("skip")
   .description("advance to the next slot (fallback for [S])")
   .action(async () => {

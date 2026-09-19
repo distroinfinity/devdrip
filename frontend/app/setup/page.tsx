@@ -99,8 +99,8 @@ function ChooseSignInState({ pairingCode, error }: { pairingCode: string; error?
           </h1>
 
           <p className="mb-6 max-w-[40ch] font-body text-[13px] leading-[1.55] text-[var(--ink-secondary)]">
-            Sign in with GitHub to connect your CLI and unlock the dashboard. Your channels start
-            broadcasting the moment your agent takes the keyboard.
+            Sign in with GitHub to connect your CLI and unlock the dashboard. The slot lights up the
+            moment your agent takes the keyboard.
           </p>
 
           {error && (
@@ -143,7 +143,7 @@ function ChooseSignInState({ pairingCode, error }: { pairingCode: string; error?
         {/* frame foot */}
         <div className="flex justify-between border-t border-[var(--rule-default)] px-3 py-1.5 text-[10px] text-[var(--ink-tertiary)]">
           <span>[⏎] continue · [ctrl-c] cancel in terminal</span>
-          <span>~/.distrotv/config.toml</span>
+          <span>~/.distro/config.json</span>
         </div>
       </div>
     </main>

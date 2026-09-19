@@ -43,6 +43,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const globalAlertThreshold =
     alertsRes.alerts.find((a: AlertDto) => a.scope === "global")?.thresholdPct ?? null
 
+  const feeds = prefs?.enabledFeeds ?? ["ads"]
+  const bothChannels = feeds.includes("news") && feeds.includes("markets")
+
   const configReadout = prefs ? (
     <ConfigReadout
       prefs={prefs}
@@ -53,7 +56,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   ) : null
 
   return (
-    <AppShell user={session} initialMode={initialMode} configReadout={configReadout}>
+    <AppShell
+      user={session}
+      initialMode={initialMode}
+      showModePill={bothChannels}
+      configReadout={configReadout}
+    >
       {children}
     </AppShell>
   )

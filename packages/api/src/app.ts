@@ -33,6 +33,9 @@ import { adminRouter } from "./routes/admin.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
 import { globalLimiter, userLimiter } from "./middleware/rate-limit.js"
+import { adsClickRouter, adsShortClickRouter } from "./routes/ads-click.js"
+import { meEarningsRouter } from "./routes/me-earnings.js"
+import { advertiserAdsRouter } from "./routes/advertiser-ads.js"
 import { getDb } from "./db/index.js"
 import { users } from "./db/schema/users.js"
 
@@ -71,6 +74,9 @@ if (env.nodeEnv !== "production") {
 app.use(globalLimiter)
 
 app.use("/channels", channelsPublicRouter)
+// public ad click redirect (global limiter applies)
+app.use("/ads", adsClickRouter)
+app.use("/c", adsShortClickRouter)
 app.use("/tickers", tickersRouter)
 app.use("/cli", cliVersionRouter)
 
@@ -122,6 +128,8 @@ app.use("/me/alerts", requireAuth, userLimiter, meAlertsRouter)
 app.use("/me/activity-summary", requireAuth, userLimiter, meActivitySummaryRouter)
 app.use("/me/devices/:id/now", requireAuth, userLimiter, meNowPlayingRouter)
 app.use("/me/recent-news", requireAuth, userLimiter, meRecentNewsRouter)
+app.use("/me/earnings", requireAuth, userLimiter, meEarningsRouter)
+app.use("/advertiser", requireAuth, userLimiter, advertiserAdsRouter)
 app.use("/ingest", requireAuth, userLimiter, ingestRouter)
 app.use("/admin", adminRouter)
 

@@ -110,7 +110,7 @@ export async function renderCard(
               marginRight: 10,
             }}
           />
-          CHANNELS · v0.1
+          SURFACE 01 · TERMINAL · LIVE
         </div>
       </div>
 
@@ -126,17 +126,17 @@ export async function renderCard(
           letterSpacing: "-0.025em",
         }}
       >
-        <div style={{ display: "flex" }}>Channels for your agent&apos;s</div>
-        <div style={{ display: "flex" }}>idle minutes.</div>
+        <div style={{ display: "flex" }}>The ad exchange for</div>
+        <div style={{ display: "flex" }}>AI agent surfaces.</div>
       </div>
 
       {/* bottom: chips + meta */}
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", gap: 12 }}>
           {[
-            { label: "CH 01 · NEWS", on: true },
-            { label: "CH 02 · MARKETS", on: true },
-            { label: "CH 0? · COMING", on: false },
+            { label: "TERMINAL · LIVE", on: true },
+            { label: "IDE PANELS · NEXT", on: false },
+            { label: "AGENT WEB UIS · NEXT", on: false },
           ].map((c) => (
             <div
               key={c.label}
@@ -177,7 +177,7 @@ export async function renderCard(
             letterSpacing: "0.03em",
           }}
         >
-          opt-in · &lt; 200ms vanish · subscribe per channel
+          opt-in audience · viewers get paid · gone when you type
         </div>
       </div>
     </div>,

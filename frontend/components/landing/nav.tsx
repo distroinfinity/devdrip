@@ -4,8 +4,9 @@ import { ThemeToggle } from "@distrotv/design-system/components/theme-toggle"
 import { InstallCommand } from "./install-command"
 
 const LINKS = [
-  { href: "#channels", label: "channels" },
-  { href: "#how-it-works", label: "how it works" },
+  { href: "/#lineage", label: "Why" },
+  { href: "/#how", label: "How it works" },
+  { href: "/advertisers", label: "Advertisers" },
 ]
 
 export function Nav() {

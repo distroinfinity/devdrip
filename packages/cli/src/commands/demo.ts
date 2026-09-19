@@ -1,11 +1,10 @@
 import { Command } from "commander"
 import { apiFetch, ApiError, NotAuthenticatedError, reportError } from "../lib/api-client.js"
-import { detectColor, dim, green, yellow } from "../lib/ansi.js"
+import { detectColor, dim } from "../lib/ansi.js"
 import { readConfig } from "../lib/config.js"
-import { processByteChunk, type KeyAction } from "../lib/daemon/input.js"
-import { renderNewsBox } from "../lib/render-box.js"
-import { NewsSource } from "@distrotv/shared"
-import type { SlotPayload, NewsPayload } from "@distrotv/shared"
+import { renderSlotLine } from "../lib/render-line.js"
+import { cliVersion } from "../lib/device.js"
+import type { SlotPayload } from "@distrotv/shared"
 
 interface ContentResponse {
   items?: SlotPayload[]
@@ -14,7 +13,8 @@ interface ContentResponse {
 async function fetchOneSlot(deviceId: string): Promise<SlotPayload | null> {
   try {
     const resp = await apiFetch<ContentResponse>("/me/content/next", {
-      query: { deviceId, n: 1 },
+      // v lets the server send a sponsored slot to a client that can draw one
+      query: { deviceId, n: 1, v: cliVersion() },
     })
     return resp.items?.[0] ?? null
   } catch (err) {
@@ -25,98 +25,38 @@ async function fetchOneSlot(deviceId: string): Promise<SlotPayload | null> {
   }
 }
 
-function fallbackNewsPayload(): NewsPayload {
+// what the default feed looks like when the api has nothing to send (offline, not paired)
+function fallbackSponsoredSlot(): SlotPayload {
   return {
-    kind: "news",
-    id: "demo-hn:1",
-    source: NewsSource.HackerNews,
-    channelKey: "tech",
-    headline: "Show HN: I built a Claude Code plugin that auto-generates PR descriptions",
-    url: "https://news.ycombinator.com",
-    score: 418,
-    ageSeconds: 7200, // 2h
-    displayTimeMs: 4000,
+    kind: "sponsored",
+    adId: "house:preview",
+    source: "house",
+    advertiser: "Distro TV",
+    headline: "This is the slot. One line while your agent works. Gone when you type.",
+    ctaText: "Learn more",
+    displayUrl: "distrotv.xyz",
+    clickUrl: "https://distrotv.xyz/advertisers",
+    deliveryId: "00000000-0000-4000-8000-000000000000",
+    cpmRate: 0,
   }
 }
 
-interface PracticeOutcome {
-  vanishMs: number // dismiss keypress → post-cleanup (the number the <200ms rule bounds)
-  actions: KeyAction[]
-}
-
-function runKeyPractice(onAction: (a: KeyAction) => void): Promise<PracticeOutcome> {
-  return new Promise((resolve) => {
-    const actions: KeyAction[] = []
-    const stdin = process.stdin
-    const wasRaw = stdin.isRaw
-    try {
-      stdin.setRawMode(true)
-    } catch {
-      // non-tty — the caller should have guarded; resolve immediately so we
-      // don't leave the caller hanging.
-      resolve({ vanishMs: 0, actions })
-      return
-    }
-    stdin.resume()
-    const onData = (chunk: Buffer): void => {
-      const action = processByteChunk(chunk)
-      if (!action) return
-      if (action === "dismiss") {
-        // Measure dismiss→cleanup specifically, not wall-clock: the <200 ms
-        // hard rule governs "time from keypress to box gone", which in the
-        // real daemon is the cleanup path (stop key-capture, redraw prompt).
-        // Wall-clock would include practice time and wouldn't validate anything.
-        const keyAt = Date.now()
-        cleanup()
-        resolve({ vanishMs: Date.now() - keyAt, actions })
-        return
-      }
-      actions.push(action)
-      onAction(action)
-    }
-    const cleanup = (): void => {
-      stdin.off("data", onData)
-      try {
-        stdin.setRawMode(wasRaw)
-      } catch {
-        /* ignore */
-      }
-      stdin.pause()
-    }
-    stdin.on("data", onData)
-  })
-}
-
-async function runNewsDemoOnce(deviceId: string, opts: { ascii?: boolean }): Promise<void> {
-  const slot = await fetchOneSlot(deviceId)
-  const payload: NewsPayload = slot && slot.kind === "news" ? slot : fallbackNewsPayload()
-
-  const color = detectColor()
-  const ascii = opts.ascii ?? false
-
-  console.log(renderNewsBox(payload, { ...(ascii ? { ascii: true } : {}) }))
-  console.log(`  ${dim("[D] open · [B] save · [S] skip · [K] kill · [Enter] dismiss", color)}`)
-
-  if (!process.stdin.isTTY || ascii) {
-    console.log(`  ${dim("(run in an interactive terminal to practice keys)", color)}`)
-    return
-  }
-
-  const outcome = await runKeyPractice((action) => {
-    const msg =
-      action === "discover"
-        ? `would open: ${payload.url}`
-        : action === "save"
-          ? `would save to reading list (demo — no real effect)`
-          : `${action} (demo — no real effect)`
-    process.stdout.write(`  ${yellow("✓", color)} ${msg}\n`)
-  })
-
-  const hitTarget = outcome.vanishMs < 200
-  const mark = hitTarget ? green("✓", color) : yellow("!", color)
-  console.log(`\n${mark} dismiss → vanish: ${outcome.vanishMs} ms (target <200 ms)`)
-  if (outcome.actions.length > 0) {
-    console.log(dim(`  practiced: ${outcome.actions.join(", ")}`, color))
+// prints the panel exactly as claude code's status line will show it. no key practice:
+// the product has no key capture — the link is cmd/ctrl-clickable instead.
+async function runPreviewOnce(deviceId: string, opts: { ascii?: boolean }): Promise<void> {
+  const slot = (await fetchOneSlot(deviceId)) ?? fallbackSponsoredSlot()
+  const color = opts.ascii ? "none" : detectColor()
+  const width = Math.min(100, Math.max(60, (process.stdout.columns ?? 80) - 4))
+  console.log("")
+  console.log(renderSlotLine({ ...slot, cacheSource: "demo" }, color, width))
+  console.log("")
+  console.log(
+    `  ${dim("this shows in your status line while your agent works, and clears when you type.", color)}`
+  )
+  if (slot.kind === "sponsored") {
+    console.log(
+      `  ${dim("cmd/ctrl-click the link to open it. `dtv preferences` changes what plays.", color)}`
+    )
   }
 }
 
@@ -129,12 +69,12 @@ export async function runDemo(opts: { ascii?: boolean } = {}): Promise<void> {
     throw new Error("device not registered — run `distro init`")
   }
 
-  await runNewsDemoOnce(deviceId, opts)
+  await runPreviewOnce(deviceId, opts)
 }
 
 export const demoCmd = new Command("demo")
-  .description("preview a news slot in your terminal")
-  .option("--ascii", "force ASCII rendering + skip key practice (CI-friendly)")
+  .description("preview the slot as it will appear in your status line")
+  .option("--ascii", "plain text, no colour (CI-friendly)")
   .action(async (opts: { ascii?: boolean }) => {
     try {
       await runDemo(opts)

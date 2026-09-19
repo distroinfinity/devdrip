@@ -22,6 +22,7 @@ function shape(row: PreferencesRow) {
     nightMode: row.nightMode,
     channelMode: row.channelMode,
     newsTopics: row.newsTopics,
+    enabledFeeds: row.enabledFeeds,
     updatedAt: row.updatedAt.toISOString(),
   }
 }

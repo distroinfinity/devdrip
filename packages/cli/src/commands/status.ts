@@ -5,6 +5,7 @@ import { reportError } from "../lib/api-client.js"
 import { readConfig, type DevdripConfig } from "../lib/config.js"
 import { readDaemonStatus, type DaemonStatus } from "../lib/daemon/lifecycle.js"
 import { ledgerPath, openLedger } from "../lib/ledger.js"
+import { formatEarned } from "../lib/render-sponsored.js"
 import { slotCachePath } from "../lib/slot-cache.js"
 import { checkForUpdate } from "../lib/upgrade-check.js"
 
@@ -20,6 +21,9 @@ interface StatusPayload {
   installed: boolean
   mode: string | null
   channels: string[]
+  feeds: string[]
+  utilities: boolean
+  estEarnedTodayUsd: number
   daemon: DaemonStatus
   slotCache: SlotCacheInfo
   unsyncedImpressions: number
@@ -43,6 +47,9 @@ export const statusCmd = new Command("status")
         installed: cfg !== null,
         mode: cfg?.preferences.channelMode ?? null,
         channels: resolveChannels(cfg),
+        feeds: cfg?.preferences.enabledFeeds ?? [],
+        utilities: cfg?.preferences.utilitiesEnabled ?? false,
+        estEarnedTodayUsd: readEarnedToday(cfg),
         daemon,
         slotCache,
         unsyncedImpressions: unsynced,
@@ -102,13 +109,23 @@ function readUnsyncedCount(): number {
   }
 }
 
+// content channels that are actually on (feeds decide; ads are reported separately)
 function resolveChannels(cfg: DevdripConfig | null): string[] {
   if (!cfg) return []
-  const mode = cfg.preferences.channelMode
-  if (mode === "ticker_only") return ["markets"]
-  if (mode === "news_only") return ["news"]
-  // balanced/news_heavy/ticker_heavy or default
-  return ["news", "markets"]
+  const feeds = cfg.preferences.enabledFeeds ?? []
+  return (["news", "markets"] as const).filter((c) => feeds.includes(c))
+}
+
+function readEarnedToday(cfg: DevdripConfig | null): number {
+  if (!cfg || !existsSync(ledgerPath())) return 0
+  const ledger = openLedger()
+  try {
+    return ledger.sumTodayOptimistic(cfg.preferences.tzOffsetMinutes)
+  } catch {
+    return 0
+  } finally {
+    ledger.close()
+  }
 }
 
 function formatUptime(ms: number): string {
@@ -139,9 +156,11 @@ function printHuman(p: StatusPayload, cfg: DevdripConfig | null): void {
   const login = cfg?.user.githubLogin
   if (login) console.log(`signed in: @${login}`)
 
-  console.log(`mode:     ${p.mode ?? "unknown"}`)
-  console.log(`channels: ${p.channels.length > 0 ? p.channels.join(", ") : "none"}`)
-  console.log(`watchlist: (lands in M4)`)
+  console.log(`ads:      ${p.feeds.includes("ads") ? "on" : "off"}`)
+  console.log(`channels: ${p.channels.length > 0 ? p.channels.join(", ") : "none (opt-in)"}`)
+  if (p.channels.length === 2) console.log(`ratio:    ${p.mode ?? "unknown"}`)
+  console.log(`utilities: ${p.utilities ? "on" : "off"}`)
+  console.log(`est. earned today: $${formatEarned(p.estEarnedTodayUsd)}`)
 
   printSlotCache(p.slotCache)
   printDaemon(p.daemon)

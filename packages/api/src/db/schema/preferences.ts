@@ -20,6 +20,8 @@ export const preferences = pgTable("preferences", {
   // default 'balanced' matches shared defaultPreferences()
   channelMode: text("channel_mode").notNull().default("balanced"),
   newsTopics: text("news_topics").array().notNull().default([]),
+  // default '{ads}' matches shared DEFAULT_FEEDS
+  enabledFeeds: text("enabled_feeds").array().notNull().default(["ads"]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })

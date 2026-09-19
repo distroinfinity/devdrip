@@ -48,6 +48,7 @@ export async function syncPreferencesOnce(log: SyncLogger): Promise<PrefsSyncOut
       nightMode: server.nightMode,
       channelMode: server.channelMode,
       newsTopics: server.newsTopics ?? [],
+      enabledFeeds: server.enabledFeeds ?? cfg.preferences.enabledFeeds,
       updatedAt: server.updatedAt,
     }
     await writeConfig({ ...cfg, preferences: next })
@@ -69,6 +70,7 @@ export async function syncPreferencesOnce(log: SyncLogger): Promise<PrefsSyncOut
         sessionWarmupMs: cfg.preferences.sessionWarmupMs,
         nightMode: cfg.preferences.nightMode,
         channelMode: cfg.preferences.channelMode,
+        enabledFeeds: cfg.preferences.enabledFeeds,
       })
       // absorb the server-assigned updatedAt so the next tick is a no-op.
       await writeConfig({

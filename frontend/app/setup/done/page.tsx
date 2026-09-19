@@ -45,9 +45,9 @@ export default async function SetupDonePage() {
           </h1>
 
           <p className="mb-6 max-w-[40ch] font-body text-[13px] leading-[1.55] text-[var(--ink-secondary)]">
-            Head back to your terminal — the CLI is finishing setup there. Pick your channels and
-            watchlist in the wizard, and your slot starts broadcasting the next time your agent
-            takes the keyboard.
+            Head back to your terminal — the CLI is finishing setup there. Sponsored slots start
+            playing the next time your agent takes the keyboard, and you earn an estimated share of
+            every ad you see. Channels are optional.
           </p>
 
           <div className="mb-5 border border-dashed border-[var(--rule-default)] px-3 py-2 text-[var(--ink-secondary)]">
@@ -65,7 +65,7 @@ export default async function SetupDonePage() {
 
         <div className="flex justify-between border-t border-[var(--rule-default)] px-3 py-1.5 text-[10px] text-[var(--ink-tertiary)]">
           <span>[✓] paired · safe to close this tab</span>
-          <span>~/.distrotv/config.toml</span>
+          <span>~/.distro/config.json</span>
         </div>
       </div>
     </main>

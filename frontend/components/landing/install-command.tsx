@@ -54,7 +54,7 @@ export function InstallCommand({ variant = "hero", className }: InstallCommandPr
         className={cn(
           "font-data text-[13px] font-medium",
           "bg-[var(--accent-color)] text-white",
-          "px-5 py-3.5 inline-flex items-center gap-3",
+          "px-5 py-3.5 inline-flex max-w-full items-center gap-3",
           "hover:bg-[var(--accent-hover)] transition-colors",
           "shadow-[0_0_0_4px_var(--accent-glow)]",
           className
@@ -62,7 +62,7 @@ export function InstallCommand({ variant = "hero", className }: InstallCommandPr
         aria-label="copy install command"
       >
         <span className="text-white/60">$</span>
-        <span>{INSTALL_COMMAND}</span>
+        <span className="min-w-0 truncate">{INSTALL_COMMAND}</span>
         <CopyIcon copied={copied} />
       </button>
     )

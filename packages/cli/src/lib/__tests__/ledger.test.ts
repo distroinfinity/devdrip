@@ -260,4 +260,19 @@ describe("v2 clicks table", () => {
     expect(ledger.listUnsyncedClicks(10)).toHaveLength(0)
     ledger.close()
   })
+
+  it("sumTodayOptimistic follows the server pay rule: on screen >= 1s and not skipped", async () => {
+    const { openLedger } = await import("../ledger.js")
+    const ledger = openLedger()
+    const now = Date.now()
+    const base = { startedAt: now, cpmRate: 10 }
+    ledger.record(sampleImpression({ ...base, id: "a", result: "completed", durationMs: 12000 }))
+    ledger.record(sampleImpression({ ...base, id: "b", result: "interrupted", durationMs: 5000 }))
+    ledger.record(sampleImpression({ ...base, id: "c", result: "completed", durationMs: 500 }))
+    ledger.record(sampleImpression({ ...base, id: "d", result: "skipped", durationMs: 6000 }))
+    ledger.record(sampleImpression({ ...base, id: "e", result: "expired", durationMs: 2000 }))
+    // paid: a, b, e — three impressions at $10 cpm x 70% share
+    expect(ledger.sumTodayOptimistic(0, now)).toBeCloseTo(0.021, 6)
+    ledger.close()
+  })
 })

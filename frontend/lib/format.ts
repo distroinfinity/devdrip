@@ -1,5 +1,5 @@
 // 2-decimal dollar format with tabular-nums-friendly rendering.
-// values are USDC floats from the backend.
+// values are usd floats from the backend.
 export function formatUsd(amount: number): string {
   const sign = amount < 0 ? "-" : ""
   const abs = Math.abs(amount)
@@ -62,4 +62,12 @@ export function formatDateTimeShort(iso: string): string {
 export function formatUsdPrecise(amount: number, decimals = 4): string {
   const sign = amount < 0 ? "-" : ""
   return `${sign}$${Math.abs(amount).toFixed(decimals)}`
+}
+
+// estimated earnings: 4 decimals under $1 so sub-cent amounts stay visible,
+// 2 decimals otherwise. zero stays "$0.00".
+export function formatUsdEstimate(amount: number): string {
+  const abs = Math.abs(amount)
+  if (abs === 0 || abs >= 1) return formatUsd(amount)
+  return formatUsdPrecise(amount)
 }
