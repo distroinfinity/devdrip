@@ -9,10 +9,12 @@ import {
   PROGRESS_CAP,
   PROGRESS_SNAP_HOLD_MS,
   PROGRESS_TICK_MS,
+  UTILITY_SLOT_EVERY_N,
   type DevdripPreferences,
   type SlotKind,
 } from "@distrotv/shared"
 import type { SlotCache, CachedSlot } from "../slot-cache.js"
+import type { UtilityProvider } from "../utility-slot.js"
 import type { Ledger, LocalNewsImpression } from "../ledger.js"
 import type { KeyCapture } from "./input.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
@@ -44,6 +46,8 @@ export type OpenUrl = (url: string) => void
 
 export interface OrchestratorDeps {
   slotCache: SlotCache
+  // CH 03: builds the locally-generated utility panel injected into rotation.
+  utilityProvider?: UtilityProvider
   ledger: Ledger
   display: DisplayApi
   keyCapture: KeyCapture
@@ -175,6 +179,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
   // double the ads a user sees in an hour/day.
   const hourlyTimestamps: number[] = []
   const dailyTimestamps: number[] = []
+  // counts non-suppressed picks so we can inject a utility panel every Nth one
+  // (news → ticker → utils → …). Resets on daemon restart (acceptable for v1).
+  let pickCount = 0
 
   function getOrCreateSession(key: string, tty: string | null): Session {
     let s = sessions.get(key)
@@ -422,7 +429,12 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         }
         return
       case "displayAd": {
-        const payloadId = effect.ad.kind === "news" ? effect.ad.id : effect.ad.symbol
+        const payloadId =
+          effect.ad.kind === "news"
+            ? effect.ad.id
+            : effect.ad.kind === "ticker"
+              ? effect.ad.symbol
+              : "utility"
         if (!effect.tty) {
           deps.log.warn("display skipped: no tty path", { payloadId })
           queueMicrotask(() => dispatch({ kind: "dismiss", now: now(), tty: session.tty }))
@@ -685,6 +697,18 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     if (reason) {
       deps.log.debug("slot suppressed", { context, reason, tty: session.tty })
       return null
+    }
+    pickCount += 1
+    // every Nth pick is the CH 03 utility panel — but only when enabled and the
+    // provider actually has data (cold start / no Claude session → falls through
+    // to a normal slot rather than skipping a rotation).
+    if (
+      deps.utilityProvider &&
+      preferences.utilitiesEnabled &&
+      pickCount % UTILITY_SLOT_EVERY_N === 0
+    ) {
+      const util = deps.utilityProvider.build()
+      if (util) return util
     }
     const slot = deps.slotCache.next()
     if (!slot) {

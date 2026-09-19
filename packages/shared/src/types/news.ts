@@ -18,4 +18,11 @@ export enum NewsTopic {
 }
 
 // Stable user-facing channel identifier.
-export type ChannelKey = "tech" | "finance" | "crypto" | "ai-papers" | "design" | "gaming"
+export type ChannelKey =
+  | "tech"
+  | "finance"
+  | "crypto"
+  | "ai-papers"
+  | "design"
+  | "gaming"
+  | "utilities"

@@ -40,7 +40,9 @@ const BATCH_SIZE = 20
 // Old "ad-cache.json" (version 2) will fail the check and be silently dropped.
 const CACHE_FILE_VERSION = 3
 
-export type CachedSlot = SlotPayload & { cacheSource: "api" | "demo" }
+// "local" tags slots the daemon builds itself (CH 03 utility panel) — never
+// fetched from /me/content/next and never written to the cache file.
+export type CachedSlot = SlotPayload & { cacheSource: "api" | "demo" | "local" }
 
 interface CacheFile {
   version: 3
