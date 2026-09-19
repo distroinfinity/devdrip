@@ -4,10 +4,8 @@ import { eq } from "drizzle-orm"
 import { env } from "../config/env.js"
 import { getDb } from "../db/index.js"
 import { users } from "../db/schema/users.js"
-import { devices } from "../db/schema/devices.js"
 import { exchangeCodeForProfile, GitHubOAuthError } from "../services/github-oauth.service.js"
-import { markPairReady, peekPair } from "../services/pairing.service.js"
-import { generateDeviceSecret, hashSecret } from "../lib/secret-hash.js"
+import { bindPairToUser } from "../services/pairing.service.js"
 import { signAccessToken, SESSION_TTL_SECONDS } from "../lib/jwt.js"
 import { logger } from "../lib/logger.js"
 
@@ -86,41 +84,8 @@ authGithubCompleteRouter.post("/", async (req, res) => {
     userId = created.id
   }
 
-  // 3) if pairCode present, create a device and mark pair ready
-  let pairBound = false
-  if (pairCode) {
-    const current = await peekPair(pairCode)
-    if (!current) {
-      logger.info({ pairCode }, "pair expired before oauth complete")
-    } else {
-      const deviceSecret = generateDeviceSecret()
-      const deviceSecretHash = hashSecret(deviceSecret)
-      const [device] = await db
-        .insert(devices)
-        .values({
-          userId,
-          machineIdHash: deviceSecretHash.slice(0, 64),
-          deviceName: null,
-          os: "unknown",
-          ideType: "terminal",
-          deviceSecretHash,
-          lastHeartbeat: new Date(),
-        })
-        .returning()
-      if (!device) {
-        await res.status(500).json({ error: "device_create_failed" })
-        return
-      }
-      const deviceToken = `device.${deviceSecret}`
-      await markPairReady({
-        code: pairCode,
-        deviceId: device.id,
-        userId,
-        deviceToken,
-      })
-      pairBound = true
-    }
-  }
+  // 3) if pairCode present, bind it to this user (create device + mark ready)
+  const pairBound = pairCode ? await bindPairToUser(userId, pairCode) : false
 
   // 4) mint session JWT for the dashboard
   const sessionJwt = await signAccessToken(
