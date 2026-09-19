@@ -21,6 +21,7 @@ export function AppShell({ user, initialMode, children, configReadout }: AppShel
       <NavPill href="/dashboard" label="Overview" exact />
       <NavPill href="/dashboard/reading" label="Reading" />
       <NavPill href="/dashboard/watchlists" label="Watchlists" />
+      <NavPill href="/dashboard/onchain" label="LP Guard" />
       <NavPill href="/dashboard/preferences" label="Preferences" />
       <NavPill href="/dashboard/account" label="Account" />
     </>
@@ -46,6 +47,7 @@ export function AppShell({ user, initialMode, children, configReadout }: AppShel
             <NavPill href="/dashboard" label="Overview" exact sidebar />
             <NavPill href="/dashboard/reading" label="Reading" sidebar />
             <NavPill href="/dashboard/watchlists" label="Watchlists" sidebar />
+            <NavPill href="/dashboard/onchain" label="LP Guard" sidebar />
             <NavPill href="/dashboard/preferences" label="Preferences" sidebar />
             <NavPill href="/dashboard/account" label="Account" sidebar />
           </nav>
