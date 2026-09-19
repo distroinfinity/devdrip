@@ -103,13 +103,15 @@ Eight probes in fixed order, each with a remediation hint on failure:
 1. auth valid (`GET /me`)
 2. device registered
 3. hooks installed in `~/.claude/settings.json` (all three Claude events)
-4. backend reachable (`GET /health`, 500ms budget)
+4. backend reachable (`GET /health`)
 5. daemon running (heartbeat age < 20s)
 6. slot cache populated (≥1 slot, `expiresAt > now`)
 7. tty writable
 8. disk space for ledger (fail < 10 MB, warn < 100 MB)
 
 Flags: `--json` for scripting. Exit codes: 0 = all pass, 1 = any fail.
+
+The two network probes (`/me`, `/health`) run with a 2.5s budget and retry once at 5s on a transient failure (timeout, network blip, or 5xx) before reporting `✗`; definitive answers (4xx, not-signed-in) skip the retry. The earlier 500ms single-shot budget produced false negatives against a warm prod backend — TLS/DNS on a freshly-spawned process routinely pushed a healthy round-trip past 500ms, so `init`/`doctor` would report sign-in + backend as down while the daemon (10s budget) was fetching slots fine.
 
 ## `distro demo`
 

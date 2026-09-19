@@ -1,6 +1,13 @@
 import { access, readFile, statfs } from "node:fs/promises"
 import { platform } from "node:os"
-import { apiFetch, apiFetchPublic, resolveApiUrl, type MeResponse } from "./api-client.js"
+import {
+  ApiError,
+  NotAuthenticatedError,
+  apiFetch,
+  apiFetchPublic,
+  resolveApiUrl,
+  type MeResponse,
+} from "./api-client.js"
 import { slotCachePath } from "./slot-cache.js"
 import { getMissingDevdripHookEvents, readSettings } from "./claude-settings.js"
 import { configDir, type DevdripConfig } from "./config.js"
@@ -15,14 +22,37 @@ export interface Probe {
   fix?: string
 }
 
-const PROBE_TIMEOUT_MS = 500
+// First-attempt timeout for the two network probes (/me, /health). 2.5s clears
+// normal warm prod latency plus TLS/DNS on a freshly-spawned process — the old
+// 500ms flaked against prod even when the backend was reachable.
+const PROBE_TIMEOUT_MS = 2500
+// Retry timeout — generous window for a Railway cold-start to finish waking.
+const PROBE_RETRY_TIMEOUT_MS = 5000
 const DAEMON_HEARTBEAT_FRESH_MS = 20_000
 const LEDGER_DISK_FAIL_BYTES = 10 * 1024 * 1024
 const LEDGER_DISK_WARN_BYTES = 100 * 1024 * 1024
 
+// Run a network probe once, and on a transient failure retry once with a longer
+// timeout. Definitive failures (4xx, not-signed-in) are not retried — no point
+// waiting out the longer window for an answer that won't change.
+async function probeWithRetry<T>(call: (timeoutMs: number) => Promise<T>): Promise<T> {
+  try {
+    return await call(PROBE_TIMEOUT_MS)
+  } catch (err) {
+    if (!isRetryable(err)) throw err
+    return await call(PROBE_RETRY_TIMEOUT_MS)
+  }
+}
+
+function isRetryable(err: unknown): boolean {
+  if (err instanceof NotAuthenticatedError) return false // instant, no network call made
+  if (err instanceof ApiError) return err.status >= 500 // 4xx is a definitive answer
+  return true // AbortError (timeout) / fetch-failed (network) — worth a second shot
+}
+
 async function probeAuth(): Promise<Probe> {
   try {
-    const me = await apiFetch<MeResponse>("/me", { timeoutMs: PROBE_TIMEOUT_MS })
+    const me = await probeWithRetry((timeoutMs) => apiFetch<MeResponse>("/me", { timeoutMs }))
     const login = me.githubLogin ? `@${me.githubLogin}` : me.id.slice(0, 8)
     return { name: "GitHub sign-in", ok: true, detail: login }
   } catch (err) {
@@ -75,7 +105,7 @@ async function probeHooks(settingsPath: string, binPath: string): Promise<Probe>
 
 async function probeBackend(): Promise<Probe> {
   try {
-    await apiFetchPublic<unknown>("/health", { timeoutMs: PROBE_TIMEOUT_MS })
+    await probeWithRetry((timeoutMs) => apiFetchPublic<unknown>("/health", { timeoutMs }))
     return { name: "backend reachable (GET /health)", ok: true, detail: "" }
   } catch (err) {
     return {
