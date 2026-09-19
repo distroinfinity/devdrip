@@ -7,12 +7,17 @@
 # the CLI is published to npm separately and never deployed to Railway.
 
 [phases.setup]
-# pin node 20 — better-sqlite3 has no node 24 prebuilds yet, and even though
-# the scoped install skips it, other native deps benefit from the prebuild path.
+# pin node 20 — better-sqlite3 has no node 24 prebuilds yet. corepack ships
+# with node 20+ and is what activates the pnpm version pinned in
+# package.json's `packageManager` field, so we don't need to nix-install pnpm.
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["pnpm install --frozen-lockfile --filter @distrotv/api..."]
+cmds = [
+  "corepack enable",
+  "corepack prepare --activate",
+  "pnpm install --frozen-lockfile --filter @distrotv/api...",
+]
 
 [phases.build]
 cmds = ["pnpm turbo run build --filter=@distrotv/api"]
