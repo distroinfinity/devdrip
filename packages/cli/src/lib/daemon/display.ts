@@ -1,7 +1,7 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
 import { renderBox, type EarningsPopup, type RenderBoxOpts } from "../render-box.js"
-import type { CachedAd } from "../ad-cache.js"
+import type { CachedSlot } from "../slot-cache.js"
 
 const MAX_WRITE_ATTEMPTS = 3
 
@@ -75,7 +75,11 @@ export function writeWithRetry(fd: number, data: string): void {
 // this lets Claude Code's output scroll freely in the upper region without
 // overlapping our box. without it, the cursor-save/restore trick gets its
 // anchor clobbered the moment Claude writes anything between show and vanish.
-export function showAd(ttyPath: string, ad: CachedAd, ctx: RenderCtx = {}): DisplayHandle {
+export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): DisplayHandle {
+  if (slot.kind !== "ad") {
+    throw new Error(`display.showAd: news slot rendering not implemented yet (Task 20)`)
+  }
+  const ad = slot.payload
   const flags = fsConstants.O_WRONLY | fsConstants.O_NONBLOCK
   const fd = fs.openSync(ttyPath, flags)
 
