@@ -129,6 +129,9 @@ Flow:
 4. **category picker** — `@clack/prompts` multi-select over the seven `AdCategory` values; all pre-checked. Un-checked categories become `blockedCategories` server-side.
 5. **preferences saved** — `PUT /me/preferences` with `{ blockedCategories, tzOffsetMinutes }`. `maxPerHour` / `maxPerDay` / quiet hours stay at DB defaults until the dashboard sync API (S4-06) ships.
 6. **hooks installed** — merges `PreToolUse`, `Stop`, `UserPromptSubmit` entries into `~/.claude/settings.json`. First-install backup preserved at `~/.claude/settings.json.devdrip-backup`. Existing entries from other tools (MCP, etc.) are never modified — devdrip appends its own matcher group to each event array. Stored commands quote the CLI path when needed so installs under paths with spaces still work, and init now aborts instead of writing hooks if it cannot resolve the `devdrip` executable path.
+
+   Hook paths resolve through a canonical user-scoped symlink at `~/.devdrip/bin/devdrip` that init installs (or refreshes) on every run, pointing to the `realpath` of the currently running binary. Deleting a worktree no longer orphans the hooks in `~/.claude/settings.json` — re-run `devdrip init` from any working build and the symlink retargets without the hook entries changing. This also makes the basename line up with the parser's `DEVDRIP_BIN_RE`, so idempotent re-runs detect and refresh existing hooks instead of appending duplicates.
+
 7. **ad preview** — invokes `devdrip demo` in-process: one `GET /ads/next` via the real Carbon-primary waterfall, rendered as an ASCII box, dismiss on enter.
 8. **health check** — four parallel probes (auth, device, hooks, backend) printed as ✓/✗ lines. The hooks probe requires all three Claude events to be present, not just any one devdrip hook. Exits non-zero if any fail.
 9. **summary** — earnings projection with an honest per-ad rate, dashboard pointer, and `devdrip status` hint.

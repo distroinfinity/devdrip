@@ -1,7 +1,6 @@
 import { mkdir } from "node:fs/promises"
 import { homedir, hostname, platform } from "node:os"
-import { resolve } from "node:path"
-import { statSync } from "node:fs"
+import { lstatSync, mkdirSync, realpathSync, statSync, symlinkSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
 import { Command } from "commander"
 import { multiselect, intro, outro, cancel, isCancel, log, note } from "@clack/prompts"
@@ -44,14 +43,45 @@ function claudeBackupPath(): string {
   return `${claudeSettingsPath()}.devdrip-backup`
 }
 
+function devdripBinLinkPath(): string {
+  return join(homedir(), ".devdrip", "bin", "devdrip")
+}
+
+function tryUnlink(p: string): void {
+  try {
+    lstatSync(p)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return
+    throw err
+  }
+  unlinkSync(p)
+}
+
+// returns a stable user-scoped path (~/.devdrip/bin/devdrip) that symlinks to
+// the currently running binary. writing this into settings.json hooks means a
+// worktree deletion can be recovered by re-running `devdrip init` from any
+// working build — the symlink retargets, the hook entries never change.
 function resolveBinPath(): string {
   const arg = process.argv[1]
   if (!arg) return ""
+
+  let source: string
   try {
     if (!statSync(arg).isFile()) return arg
-    return resolve(arg)
+    source = realpathSync(arg)
   } catch {
     return arg
+  }
+
+  const linkPath = devdripBinLinkPath()
+  try {
+    mkdirSync(join(linkPath, ".."), { recursive: true, mode: 0o700 })
+    tryUnlink(linkPath)
+    symlinkSync(source, linkPath)
+    return linkPath
+  } catch {
+    log.warn(`could not install ${linkPath} symlink — using direct binary path`)
+    return source
   }
 }
 
