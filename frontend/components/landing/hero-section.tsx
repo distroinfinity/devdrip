@@ -7,9 +7,9 @@ import { TerminalTV, type NewsItem, type TickerItem } from "./terminal-tv"
 import { InstallCommand } from "./install-command"
 
 const CHIPS = [
-  { label: "CH 01 · NEWS", state: "on" as const },
-  { label: "CH 02 · MARKETS", state: "on" as const },
-  { label: "CH 0? · COMING", state: "dim" as const },
+  { label: "SPONSORED · ON BY DEFAULT", state: "on" as const },
+  { label: "CH 01 · NEWS · OPT-IN", state: "dim" as const },
+  { label: "CH 02 · MARKETS · OPT-IN", state: "dim" as const },
 ]
 
 export function HeroSection({
@@ -34,29 +34,36 @@ export function HeroSection({
       <div className="relative mx-auto max-w-[1200px] px-6 py-14 md:py-20">
         <div className="grid md:grid-cols-[1.05fr_1fr] gap-8 md:gap-12 items-start">
           {/* left column */}
-          <div>
+          <div className="min-w-0">
             <p className="font-data text-[10px] uppercase tracking-[0.1em] text-[var(--ink-secondary)] mb-5 flex items-center">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--accent-color)] mr-2" />
-              v0.1 · 2 channels live
+              ads in your terminal · you keep 70%
             </p>
 
             <h1
               className="font-display text-[32px] md:text-[38px] leading-[1.04] tracking-[-0.025em] text-[var(--ink-primary)] mb-4"
               style={{ fontWeight: 400 }}
             >
-              Channels for your agent&apos;s
+              Get paid while
               <br />
-              idle minutes.
+              your agent codes.
             </h1>
 
-            <p className="font-body text-[14px] leading-[1.55] text-[var(--ink-secondary)] mb-6 max-w-[42ch]">
-              News and your watchlist, ambient in your terminal.
+            <p className="font-body text-[14px] leading-[1.55] text-[var(--ink-secondary)] mb-6 max-w-[46ch]">
+              Distro TV shows a sponsored slot in your terminal while your AI agent works, and
+              shares the revenue with you. It vanishes the instant you type.
             </p>
 
             <div className="mb-3">
               <InstallCommand variant="hero" />
             </div>
-            <div className="mb-6">
+            <div className="mb-6 flex flex-wrap gap-x-5 gap-y-2">
+              <Link
+                href="/advertisers"
+                className="font-data text-[11px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] no-underline border-b border-[var(--rule-strong)] pb-0.5 transition-colors"
+              >
+                For advertisers →
+              </Link>
               <Link
                 href="#how-it-works"
                 className="font-data text-[11px] text-[var(--ink-tertiary)] hover:text-[var(--ink-primary)] no-underline border-b border-[var(--rule-default)] pb-0.5 transition-colors"
@@ -89,7 +96,7 @@ export function HeroSection({
                     "font-data text-[10px] uppercase tracking-[0.04em] px-2.5 py-1.5 inline-flex items-center gap-2",
                     chip.state === "on"
                       ? "bg-[var(--bg-surface)] text-[var(--ink-primary)] border border-[var(--rule-default)]"
-                      : "bg-transparent text-[var(--ink-tertiary)] border border-dashed border-[var(--rule-default)]"
+                      : "bg-transparent text-[var(--ink-secondary)] border border-dashed border-[var(--rule-strong)]"
                   )}
                 >
                   {chip.state === "on" && (
@@ -101,12 +108,13 @@ export function HeroSection({
             </motion.div>
 
             <p className="font-data text-[10px] tracking-[0.04em] text-[var(--ink-tertiary)]">
-              opt-in · subscribe per channel · skip anything
+              opt-in · estimated earnings today · payouts coming soon
             </p>
           </div>
 
           {/* right column — terminal tv */}
           <motion.div
+            className="min-w-0"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
@@ -114,22 +122,30 @@ export function HeroSection({
             <TerminalTV
               blocks={[
                 {
+                  kind: "sponsored",
+                  id: "hero-sponsored",
+                  title: "sponsored",
+                  status: "via Carbon",
+                  advertiser: "Railway",
+                  copy: "Ship your app in minutes. Infrastructure that gets out of the way.",
+                  host: "railway.com",
+                  est: "+$0.0070 est",
+                },
+                {
                   kind: "news",
                   id: "hero-news",
                   title: "CH 01 · NEWS",
-                  status: "front page",
+                  status: "opt-in",
                   items: newsItems,
                 },
                 {
                   kind: "markets",
                   id: "hero-markets",
                   title: "CH 02 · MARKETS",
-                  status: "live · 15m",
+                  status: "opt-in",
                   rows: marketRows,
                 },
               ]}
-              footerKeys="[S]kip   [K]ill   [M]ute 30m"
-              footerRight="~/.distrotv/config.toml"
             />
           </motion.div>
         </div>

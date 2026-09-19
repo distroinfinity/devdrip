@@ -7,19 +7,19 @@ const BEATS = [
   {
     num: "01",
     headline: "Your agent starts working.",
-    body: "Distro TV catches the wait.",
+    body: "A hook fires the moment Claude Code takes over. No grace period.",
     visualKind: "agent" as const,
   },
   {
     num: "02",
-    headline: "A channel lights up.",
-    body: "Your tuned-in channels surface.",
+    headline: "A sponsored slot lights up.",
+    body: "One text ad in your status line. Twelve seconds, then the next.",
     visualKind: "tv" as const,
   },
   {
     num: "03",
-    headline: "You start typing. It vanishes.",
-    body: "Under 200ms. No fade. No nag.",
+    headline: "You earn. You type. It vanishes.",
+    body: "Each ad you actually see adds to your estimated balance. Start typing and it's gone.",
     visualKind: "vanish" as const,
   },
 ]
@@ -77,7 +77,12 @@ export function HowItWorksSection() {
 
         {/* bottom data strip */}
         <div className="mt-8 pt-4 border-t border-[var(--rule-default)] flex flex-wrap gap-x-4 gap-y-1 font-data text-[11px] text-[var(--ink-secondary)]">
-          {["opt-in", "per-channel mute", "no auto-play", "no tracking"].map((f, i, arr) => (
+          {[
+            "opt-in",
+            "mute anytime",
+            "no tracking beyond views and clicks",
+            "turn ads off whenever",
+          ].map((f, i, arr) => (
             <span key={f}>
               {f}
               {i < arr.length - 1 && <span className="text-[var(--ink-tertiary)] ml-4">·</span>}
@@ -130,11 +135,12 @@ function BeatVisual({ kind }: { kind: "agent" | "tv" | "vanish" }) {
   }
   if (kind === "tv") {
     return (
-      <ScreenFrame label="CH 01 · NEWS" status="12m ago">
-        <div className="mb-1.5 text-[10px] uppercase tracking-[0.14em] text-[var(--accent-color)]">
-          TechCrunch
+      <ScreenFrame label="sponsored · via Carbon" status="+$0.0070 est">
+        <div className="mb-1 text-[10px] uppercase tracking-[0.14em] text-[#8A8A94]">Railway</div>
+        <div className="text-[13px] font-bold leading-snug">Ship your app in minutes.</div>
+        <div className="mt-1.5 text-[10px] text-[var(--accent-color)]">
+          ↗ railway.com <span className="text-[#5C5C66]">· dtv open</span>
         </div>
-        <div className="text-[13px] font-bold leading-snug">Anthropic closes $13B Series F</div>
       </ScreenFrame>
     )
   }
@@ -144,7 +150,7 @@ function BeatVisual({ kind }: { kind: "agent" | "tv" | "vanish" }) {
       <div className="flex h-full items-center text-[#8A8A94]">
         <span className="text-[#EDEDF0]">$</span>
         <span className="ml-2 inline-block h-[15px] w-[7px] animate-pulse bg-[#EDEDF0]" />
-        <span className="ml-3 text-[#5C5C66]">surface cleared</span>
+        <span className="ml-3 text-[#5C5C66]">slot cleared · today $0.04 est</span>
       </div>
     </ScreenFrame>
   )

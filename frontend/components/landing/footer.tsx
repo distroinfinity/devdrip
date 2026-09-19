@@ -10,9 +10,10 @@ const COLS = [
   {
     label: "Product",
     items: [
-      { label: "Channels", href: "#channels" },
-      { label: "How it works", href: "#how-it-works" },
-      { label: "Control", href: "#control" },
+      { label: "Channels", href: "/#channels" },
+      { label: "How it works", href: "/#how-it-works" },
+      { label: "Control", href: "/#control" },
+      { label: "Advertisers", href: "/advertisers" },
     ],
   },
   {
@@ -54,7 +55,7 @@ export function Footer() {
           <div className="max-w-[30ch]">
             <Wordmark size="md" />
             <p className="font-body text-[13px] leading-[1.5] text-[var(--ink-secondary)] mt-3 mb-5">
-              Channels for your agent&apos;s idle minutes.
+              Ads in your terminal that pay you.
             </p>
             <div className="flex items-center gap-2">
               {SOCIALS.map(({ label, href, Icon }) => (

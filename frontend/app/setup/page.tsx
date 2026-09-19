@@ -143,7 +143,7 @@ function ChooseSignInState({ pairingCode, error }: { pairingCode: string; error?
         {/* frame foot */}
         <div className="flex justify-between border-t border-[var(--rule-default)] px-3 py-1.5 text-[10px] text-[var(--ink-tertiary)]">
           <span>[⏎] continue · [ctrl-c] cancel in terminal</span>
-          <span>~/.distrotv/config.toml</span>
+          <span>~/.distro/config.json</span>
         </div>
       </div>
     </main>
