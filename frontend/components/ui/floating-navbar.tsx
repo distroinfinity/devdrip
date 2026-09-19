@@ -71,8 +71,7 @@ export const FloatingNav = ({
                 href={navItem.link}
                 className="relative flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-[var(--ink-secondary)] transition-colors hover:bg-[var(--bg-surface-hover)] hover:text-[var(--ink-primary)]"
               >
-                <span className="block sm:hidden">{navItem.icon}</span>
-                <span className="hidden sm:block font-body">{navItem.name}</span>
+                <span className="font-body">{navItem.name}</span>
               </a>
             ))}
           </div>
