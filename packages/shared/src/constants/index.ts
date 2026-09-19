@@ -1,4 +1,4 @@
-import type { DevdripPreferences } from "../types/index.js"
+import type { DevdripPreferences, Feed } from "../types/index.js"
 import { ChannelMode } from "../types/index.js"
 
 // ── timing ──────────────────────────────────────────────────────────────────
@@ -6,6 +6,11 @@ import { ChannelMode } from "../types/index.js"
 export const GRACE_PERIOD_MS = 0
 // every slot (news + ticker) shows for this long before rotating.
 export const MAX_AD_DURATION_MS = 12_000
+
+export const FEEDS: Feed[] = ["ads", "news", "markets"]
+export const DEFAULT_FEEDS: Feed[] = ["ads"]
+// with content feeds on, every Nth slot is an ad (starting with an ad)
+export const AD_SLOT_EVERY_N = 2
 
 // ── CH 03 Utilities ────────────────────────────────────────────────────────
 // Inject a locally-built utility panel every Nth slot pick (news → ticker →
@@ -107,12 +112,13 @@ export function defaultPreferences(): DevdripPreferences {
     nightMode: false,
     channelMode: ChannelMode.Balanced,
     newsTopics: [],
+    enabledFeeds: [...DEFAULT_FEEDS],
     tzOffsetMinutes: -new Date().getTimezoneOffset(),
     idleSensitivityMs: IDLE_SENSITIVITY_MS,
     // Sentinel "never synced" — first GET /me/preferences will replace it.
     updatedAt: new Date(0).toISOString(),
     muteUntil: null,
-    utilitiesEnabled: true,
+    utilitiesEnabled: false,
     utilitiesLayout: "auto",
   }
 }

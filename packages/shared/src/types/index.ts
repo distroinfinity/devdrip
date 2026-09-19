@@ -28,6 +28,7 @@ export enum ChannelMode {
 }
 
 import type { NewsTopic } from "./news.js"
+import type { Feed } from "./SponsoredPayload.js"
 export { NewsSource, NewsTopic } from "./news.js"
 export type { ChannelKey } from "./news.js"
 
@@ -53,6 +54,8 @@ export interface SyncedPreferences {
   nightMode: boolean
   channelMode: ChannelMode
   newsTopics: NewsTopic[]
+  // which feeds rotate in the terminal. default ["ads"]; news/markets are opt-in.
+  enabledFeeds: Feed[]
   // ISO 8601, set by server on every write. clients never set this.
   updatedAt: string
 }
@@ -88,6 +91,7 @@ export interface Device {
 export type { NewsPayload } from "./NewsPayload.js"
 export type { TickerPayload, TickerStats } from "./TickerPayload.js"
 export type { SlotPayload, SlotKind, SlotLayout } from "./SlotPayload.js"
+export type { SponsoredPayload, Feed } from "./SponsoredPayload.js"
 export type {
   UtilityPayload,
   UtilityLayout,

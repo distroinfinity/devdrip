@@ -3,6 +3,8 @@ import type { CachedSlot } from "./slot-cache.js"
 import { bgRgb, color, rgb, type ColorMode } from "./ansi.js"
 import { renderChip, getBrandName, chipLabelFor } from "./brand-colors.js"
 import { renderChart, directionFor } from "./sparkline.js"
+import { LEFT_PAD, spread, visLen, wrapHeadline } from "./render-utils.js"
+import { renderSponsoredPanel, type RenderExtras } from "./render-sponsored.js"
 
 // Multi-line, colored slot panel for Claude Code's statusLine. Mirrors the old
 // box's look (indigo bar, brand chip badge, colored change, braille sparkline,
@@ -13,21 +15,9 @@ import { renderChart, directionFor } from "./sparkline.js"
 // Returned as a "\n"-joined string; the daemon stores it in now-playing.json and
 // `distro statusline` prints it verbatim, so Claude renders each line as a row.
 
-const ANSI_RE = /\x1b\[[0-9;]*m/g
 const MIN_WIDTH = 48
 const MAX_WIDTH = 120
 const HEADLINE_MAX_LINES = 2
-const LEFT_PAD = "  "
-
-function visLen(s: string): number {
-  return [...s.replace(ANSI_RE, "")].length
-}
-
-// left … right, right-justified to `width` (min 3-space gap so they never touch)
-function spread(left: string, right: string, width: number): string {
-  const gap = Math.max(3, width - visLen(left) - visLen(right))
-  return left + " ".repeat(gap) + right
-}
 
 function age(seconds: number): string {
   if (seconds < 60) return "now"
@@ -47,40 +37,6 @@ function pct(n: number): string {
   return `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(2)}%`
 }
 
-// Word-wrap into up to `maxLines`, ellipsizing the last line if it overflows.
-function wrapHeadline(text: string, width: number, maxLines: number): string[] {
-  const words = text.split(/\s+/).filter(Boolean)
-  const lines: string[] = []
-  let current = ""
-  let consumed = 0
-  for (const word of words) {
-    if (current.length === 0) {
-      current = word
-      consumed++
-      continue
-    }
-    if (current.length + 1 + word.length <= width) {
-      current += " " + word
-      consumed++
-    } else {
-      lines.push(current)
-      if (lines.length >= maxLines) {
-        current = ""
-        break
-      }
-      current = word
-      consumed++
-    }
-  }
-  if (current.length > 0 && lines.length < maxLines) lines.push(current)
-  if (consumed < words.length && lines.length > 0) {
-    const last = lines[lines.length - 1] as string
-    const trimmed = last.length >= width ? last.slice(0, width - 1) : last
-    lines[lines.length - 1] = trimmed + "…"
-  }
-  return lines
-}
-
 // One-line update prompt shown above the slot heading when a newer CLI exists.
 function updateNudge(latest: string, mode: ColorMode): string {
   return `${color("warning", "↑", mode)} ${color("muted", `distro tv ${latest} available · curl -fsSL https://get.distrotv.xyz/install.sh | sh`, mode)}`
@@ -90,11 +46,16 @@ export function renderSlotLine(
   slot: CachedSlot,
   mode: ColorMode = "truecolor",
   width = 80,
-  updateLatest?: string
+  updateLatest?: string,
+  extras: RenderExtras = {}
 ): string {
   const W = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width))
   const dot = color("muted", "·", mode)
   const nudge = updateLatest ? [updateNudge(updateLatest, mode)] : []
+
+  if (slot.kind === "sponsored") {
+    return renderSponsoredPanel(slot, mode, W, nudge, extras)
+  }
 
   if (slot.kind === "utility") {
     return renderUtilityPanel(slot, mode, W, nudge)
