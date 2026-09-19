@@ -26,7 +26,8 @@
     "lint-staged": "^16.4.0",
     "prettier": "^3.5.0",
     "turbo": "^2.5.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.58.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
