@@ -84,7 +84,7 @@ These dispatch through Turbo. Package-level behavior lives inside each workspace
 
 ## `packages/api/.env.example`
 
-- local and Neon Postgres URLs
+- local and Railway Postgres URLs
 - JWT secret
 - Resend API key (magic-link emails)
 - Upstash Redis credentials

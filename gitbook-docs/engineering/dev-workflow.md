@@ -38,16 +38,16 @@ bash ~/.superset/worktrees/devdrip/setup-worktree.sh
 
 ### Env matrix
 
-| Variable                     | development (default)                                      | test                   | staging/production                 |
-| ---------------------------- | ---------------------------------------------------------- | ---------------------- | ---------------------------------- |
-| `NODE_ENV`                   | `development`                                              | `test` (set by vitest) | `production`                       |
-| `DISTRO_ENV`                 | `local`                                                    | `local`                | `staging` / `prod`                 |
-| `DB_TARGET`                  | `local`                                                    | unset (tests mock DB)  | `neon`                             |
-| `DATABASE_URL_LOCAL*`        | `postgres://distrotv:distrotv@localhost:5432/distrotv_dev` | —                      | —                                  |
-| `DATABASE_URL*`              | commented in `.env.shared`                                 | —                      | Railway env vars                   |
-| `GITHUB_CLIENT_*`            | n/a (GitHub OAuth removed post-M1)                         | n/a                    | n/a                                |
-| `UPSTASH_REDIS_REST_*`       | unset → in-memory `TestRedis` fallback                     | unset → `TestRedis`    | real Upstash creds                 |
-| `DISTROTV_ALLOW_NEON_IN_DEV` | unset                                                      | —                      | — (guard not active in production) |
+| Variable                     | development (default)                                      | test                   | staging/production                                                                          |
+| ---------------------------- | ---------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                   | `development`                                              | `test` (set by vitest) | `production`                                                                                |
+| `DISTRO_ENV`                 | `local`                                                    | `local`                | `staging` / `prod`                                                                          |
+| `DB_TARGET`                  | `local`                                                    | unset (tests mock DB)  | `railway`                                                                                   |
+| `DATABASE_URL_LOCAL*`        | `postgres://distrotv:distrotv@localhost:5432/distrotv_dev` | —                      | —                                                                                           |
+| `DATABASE_URL*`              | commented in `.env.shared`                                 | —                      | Railway env vars (points to in-project `Postgres` service via `${{Postgres.DATABASE_URL}}`) |
+| `GITHUB_CLIENT_*`            | n/a (GitHub OAuth removed post-M1)                         | n/a                    | n/a                                                                                         |
+| `UPSTASH_REDIS_REST_*`       | unset → in-memory `TestRedis` fallback                     | unset → `TestRedis`    | real Upstash creds                                                                          |
+| `DISTROTV_ALLOW_NEON_IN_DEV` | unset                                                      | —                      | — (guard not active in production)                                                          |
 
 ### `DISTRO_ENV` — single source of truth for URLs
 
@@ -135,7 +135,7 @@ Copy values from `packages/api/.env.example`.
 Important toggles:
 
 - `DB_TARGET=local` (default in dev) uses `DATABASE_URL_LOCAL` → Docker Postgres
-- `DB_TARGET=neon` uses `DATABASE_URL` → Neon (deployed envs; requires `DISTROTV_ALLOW_NEON_IN_DEV=1` in dev)
+- `DB_TARGET=railway` (prod) uses `DATABASE_URL` → Railway Postgres; `neon` is still accepted for backward compat. Any non-`local` DB_TARGET in dev requires `DISTROTV_ALLOW_NEON_IN_DEV=1`.
 
 Important runtime vars:
 

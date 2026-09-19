@@ -12,7 +12,7 @@ flowchart LR
   C[CLI / Daemon] --> A[packages/api]
   D[Dashboard] --> A
 
-  A --> P[(Neon Postgres)]
+  A --> P[(Railway Postgres)]
   A --> R[(Upstash Redis)]
 
   S[packages/shared] --> A
@@ -88,7 +88,7 @@ claude hooks fire (PreToolUse / UserPromptSubmit)
 
 - install script lives in `frontend/public/install.sh` (single source of truth); served from GitHub Pages at `get.distrotv.xyz` (off Vercel's firewall) — Vercel keeps a fallback copy at `distrotv.xyz/install.sh`
 - waitlist intake is gone post-M1; the landing page has no form submission
-- API runtime uses Neon Postgres + Upstash Redis
+- API runtime uses Railway Postgres (co-located, private networking) + Upstash Redis
 - daemon is a per-user singleton over a Unix socket
 - local ledger (SQLite at `~/.distro/ledger.db`) is ground truth for slot impressions — backend can be down
 - hooks always exit 0 — never block the tool runner

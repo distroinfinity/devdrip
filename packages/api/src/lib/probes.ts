@@ -13,8 +13,16 @@ function withTimeout(promise: Promise<unknown>, label: string): Promise<void> {
   ])
 }
 
+// monitoring can poll /health every few seconds; cache a successful db probe
+// for 10s so we don't run SELECT 1 (and keep the db compute pinned) on every
+// poll. only success is cached — a failure always re-probes and surfaces fast.
+const DB_PING_CACHE_MS = 10_000
+let lastDbOkAt = 0
+
 export async function probeDb(): Promise<void> {
+  if (Date.now() - lastDbOkAt < DB_PING_CACHE_MS) return
   await withTimeout(getDb().execute(sql`SELECT 1`), "db")
+  lastDbOkAt = Date.now()
 }
 
 // platform/monitoring can poll /health every few seconds; cache a successful
