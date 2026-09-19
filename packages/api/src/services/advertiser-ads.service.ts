@@ -61,17 +61,18 @@ export function parseNewAd(
   return { ok: true, ad: { brand, line, url: String(r["url"]).trim(), bidCpm } }
 }
 
-// highest bid first, then oldest first; rotate so every active ad gets served
+// fills n slots from the top of the book: highest bid first, older ad first on a tie,
+// wrapping round when there are more slots than ads. every batch starts from the top,
+// so a higher bid always leads and never gets fewer slots than a lower one.
 export function pickDirect<T extends { bidCpm: number; createdAt: number }>(
   ads: T[],
-  n: number,
-  cursor: number
+  n: number
 ): T[] {
   if (n <= 0 || ads.length === 0) return []
   const ordered = [...ads].sort((a, b) => b.bidCpm - a.bidCpm || a.createdAt - b.createdAt)
   const out: T[] = []
   for (let i = 0; i < n; i++) {
-    const ad = ordered[(cursor + i) % ordered.length]
+    const ad = ordered[i % ordered.length]
     if (ad) out.push(ad)
   }
   return out

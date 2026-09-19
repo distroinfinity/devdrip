@@ -59,14 +59,23 @@ describe("pickDirect", () => {
     { id: "b", bidCpm: 30, createdAt: 2 },
     { id: "c", bidCpm: 30, createdAt: 3 },
   ]
-  it("orders by bid, then oldest first, and rotates through them", () => {
-    expect(pickDirect(ads, 5, 0).map((a) => a.id)).toEqual(["b", "c", "a", "b", "c"])
+  it("every batch leads with the highest bid; ties go to the older ad", () => {
+    expect(pickDirect(ads, 5).map((a) => a.id)).toEqual(["b", "c", "a", "b", "c"])
+    // asking again gives the same order — no cursor that lets a low bid jump the queue
+    expect(pickDirect(ads, 5).map((a) => a.id)).toEqual(["b", "c", "a", "b", "c"])
   })
-  it("continues the rotation from a cursor", () => {
-    expect(pickDirect(ads, 2, 2).map((a) => a.id)).toEqual(["a", "b"])
+  it("when slots are scarce the highest bids win them", () => {
+    expect(pickDirect(ads, 2).map((a) => a.id)).toEqual(["b", "c"])
+    expect(pickDirect(ads, 1).map((a) => a.id)).toEqual(["b"])
+  })
+  it("a higher bid never gets fewer slots than a lower one", () => {
+    const counts = new Map<string, number>()
+    for (const p of pickDirect(ads, 7)) counts.set(p.id, (counts.get(p.id) ?? 0) + 1)
+    expect(counts.get("b") ?? 0).toBeGreaterThanOrEqual(counts.get("a") ?? 0)
+    expect(counts.get("c") ?? 0).toBeGreaterThanOrEqual(counts.get("a") ?? 0)
   })
   it("returns nothing when there are no ads or no room", () => {
-    expect(pickDirect([], 3, 0)).toEqual([])
-    expect(pickDirect(ads, 0, 0)).toEqual([])
+    expect(pickDirect([], 3)).toEqual([])
+    expect(pickDirect(ads, 0)).toEqual([])
   })
 })
