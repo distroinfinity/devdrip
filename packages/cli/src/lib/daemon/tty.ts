@@ -15,6 +15,21 @@ export function resetTtyCache(): void {
   cached = null
 }
 
+// Resolve the controlling tty of a specific pid — used by `dtv run` to learn
+// the PTY slave its child runs on. node-pty makes the child the PTY session
+// leader, so its tty IS the PTY slave, which is exactly the path the child's
+// own hooks resolve via resolveTty(). Sending it on action events lets the
+// wrapper target the right per-tty session (vital with two `dtv run` windows).
+export function resolveTtyForPid(pid: number): string | null {
+  try {
+    const out = execSync(`ps -p ${pid} -o tty=`, { encoding: "utf8", timeout: 200 }).trim()
+    if (!out || out === "?" || out === "??") return null
+    return out.startsWith("/dev/") ? out : `/dev/${out}`
+  } catch {
+    return null
+  }
+}
+
 function resolveLinux(): string | null {
   let fd: number
   try {

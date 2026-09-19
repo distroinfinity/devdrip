@@ -4,8 +4,14 @@ import * as nodePty from "node-pty"
 import { daemonSocketPath } from "@distrotv/shared/daemon-socket"
 import { sendHookEvent } from "../lib/daemon/hook-client.js"
 import type { ActionKind } from "../lib/daemon/protocol.js"
+import { resolveTtyForPid } from "../lib/daemon/tty.js"
 
 const ESC = 0x1b
+// A real terminal may deliver an ⌥ chord's `ESC` and its letter in separate
+// read chunks. Hold a lone trailing ESC this long for the letter to arrive
+// before treating it as a bare Escape keypress. Matches typical terminal ESC
+// disambiguation timeouts, so a real Escape is delivered imperceptibly late.
+const ESC_HOLD_MS = 25
 
 // Meta (Alt/Option) chord letter → daemon action. Same letters as the daemon's
 // raw-capture map, expressed in the socket's ActionKind vocabulary.
@@ -26,20 +32,6 @@ function chordToAction(letter: string): ActionKind | null {
     default:
       return null
   }
-}
-
-// Returns an action only when the chunk is EXACTLY a 2-byte Meta chord we own
-// (`ESC` + action letter). Everything else — bare keys, Enter, lone ESC, arrow
-// keys, function keys, pastes, multi-byte UTF-8 — returns null and is forwarded
-// verbatim to the child. That's the whole point: Distro claims its chords and
-// nothing else, so Claude's input is never stolen.
-export function interceptChord(data: Buffer): ActionKind | null {
-  if (data.length === 2 && data[0] === ESC) {
-    const second = data[1] as number
-    if (second === 0x5b /* [ */ || second === 0x4f /* O */) return null // CSI / SS3
-    return chordToAction(String.fromCharCode(second))
-  }
-  return null
 }
 
 export const runCmd = new Command("run")
@@ -93,29 +85,73 @@ async function runWrapped(file: string, args: string[]): Promise<void> {
     return
   }
 
+  // The child is the PTY session leader, so this resolves to the PTY slave tty —
+  // the exact path the child's own hooks report to the daemon. Sending it on
+  // action events targets the right per-tty session even with two `dtv run`
+  // windows open (otherwise the daemon's no-tty heuristic could hit the wrong
+  // session). Resolved once; the child's tty doesn't change.
+  const childTty = resolveTtyForPid(ptyProc.pid)
+
+  const dispatch = (action: ActionKind): void => {
+    void sendHookEvent(
+      { type: "action", action, ...(childTty ? { tty: childTty } : {}) },
+      daemonSocketPath()
+    )
+  }
+
   let restored = false
-  const restore = (): void => {
-    if (restored) return
-    restored = true
-    try {
-      stdin.setRawMode?.(false)
-    } catch {
-      /* ignore */
+  let pendingEsc = false
+  let escTimer: NodeJS.Timeout | null = null
+
+  const clearEsc = (): void => {
+    pendingEsc = false
+    if (escTimer) {
+      clearTimeout(escTimer)
+      escTimer = null
     }
-    stdin.pause()
-    stdin.removeListener("data", onInput)
-    stdout.removeListener("resize", onResize)
+  }
+
+  const toChild = (data: Buffer | string): void => {
+    try {
+      ptyProc.write(typeof data === "string" ? data : data.toString("utf8"))
+    } catch {
+      /* child already gone */
+    }
+  }
+
+  // Route one already-assembled chunk: a Distro ⌥-chord is dispatched (and NOT
+  // forwarded); everything else goes verbatim to the child. A lone trailing ESC
+  // is held briefly (handled in onInput) in case it's the first half of a chord
+  // split across read chunks.
+  const route = (buf: Buffer): void => {
+    if (buf.length === 0) return
+    if (buf.length === 2 && buf[0] === ESC && buf[1] !== 0x5b /* [ */ && buf[1] !== 0x4f /* O */) {
+      const action = chordToAction(String.fromCharCode(buf[1] as number))
+      if (action) {
+        dispatch(action)
+        return
+      }
+    }
+    if (buf.length === 1 && buf[0] === ESC) {
+      pendingEsc = true
+      escTimer = setTimeout(() => {
+        escTimer = null
+        pendingEsc = false
+        if (!restored) toChild("\x1b") // no follow-up → it was a real Escape
+      }, ESC_HOLD_MS)
+      return
+    }
+    toChild(buf)
   }
 
   const onInput = (data: Buffer): void => {
-    const action = interceptChord(data)
-    if (action) {
-      // fire-and-forget to the daemon; no tty → routes to the active session.
-      // crucially, do NOT forward these bytes to the child.
-      void sendHookEvent({ type: "action", action }, daemonSocketPath())
+    if (pendingEsc) {
+      // stitch the held ESC back onto this chunk and route the whole sequence.
+      clearEsc()
+      route(Buffer.concat([Buffer.from([ESC]), data]))
       return
     }
-    ptyProc.write(data.toString("utf8"))
+    route(data)
   }
 
   const onResize = (): void => {
@@ -124,6 +160,20 @@ async function runWrapped(file: string, args: string[]): Promise<void> {
     } catch {
       /* child already gone */
     }
+  }
+
+  const restore = (): void => {
+    if (restored) return
+    restored = true
+    clearEsc()
+    try {
+      stdin.setRawMode?.(false)
+    } catch {
+      /* ignore */
+    }
+    stdin.pause()
+    stdin.removeListener("data", onInput)
+    stdout.removeListener("resize", onResize)
   }
 
   stdin.setRawMode?.(true)

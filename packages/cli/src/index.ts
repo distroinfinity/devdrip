@@ -15,7 +15,15 @@ import { uninstallCmd } from "./commands/uninstall.js"
 import { upgradeCmd } from "./commands/upgrade.js"
 import { hookCmd } from "./commands/hook.js"
 import { runCmd } from "./commands/run.js"
-import { chartCmd, discoverCmd, killSessionCmd, muteCmd, skipCmd } from "./commands/action.js"
+import {
+  chartCmd,
+  discoverCmd,
+  dismissCmd,
+  killSessionCmd,
+  muteCmd,
+  saveCmd,
+  skipCmd,
+} from "./commands/action.js"
 import { preferencesCmd } from "./commands/preferences.js"
 import { watchlistCmd } from "./commands/watchlist.js"
 import { feedbackCmd } from "./commands/feedback.js"
@@ -50,6 +58,8 @@ program
   .addCommand(killSessionCmd)
   .addCommand(muteCmd)
   .addCommand(chartCmd)
+  .addCommand(saveCmd)
+  .addCommand(dismissCmd)
   .addCommand(watchlistCmd)
   .addCommand(feedbackCmd)
   .addCommand(logoutCmd)
