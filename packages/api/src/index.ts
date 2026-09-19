@@ -3,6 +3,8 @@ import { app } from "./app.js"
 import { env } from "./config/env.js"
 import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
+import { ensureCarbonSystemCampaign } from "./lib/carbon-system-campaign.js"
+import { deactivateStaleCarbonCreatives } from "./services/carbon-cleanup.service.js"
 import type { Socket } from "node:net"
 
 async function start() {
@@ -15,11 +17,22 @@ async function start() {
     process.exit(1)
   }
 
+  await ensureCarbonSystemCampaign()
+
   if (redisResult.status === "fulfilled") {
     logger.info("redis connection ok")
   } else {
     logger.warn({ err: redisResult.reason }, "redis connection failed")
   }
+
+  // deactivate stale carbon creatives every 12 hours
+  const CLEANUP_INTERVAL_MS = 12 * 60 * 60 * 1000
+  const cleanupTimer = setInterval(() => {
+    deactivateStaleCarbonCreatives().catch((err) => {
+      logger.warn({ err }, "carbon cleanup failed")
+    })
+  }, CLEANUP_INTERVAL_MS)
+  cleanupTimer.unref()
 
   const server = app.listen(env.port, () => {
     logger.info({ port: env.port }, "api listening")
@@ -33,6 +46,7 @@ async function start() {
 
   function shutdown(signal: string) {
     logger.info({ signal }, "shutting down")
+    clearInterval(cleanupTimer)
     for (const socket of openSockets) socket.destroy()
     server.close(() => {
       logger.info("http server closed")

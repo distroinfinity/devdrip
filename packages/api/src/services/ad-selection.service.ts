@@ -1,4 +1,4 @@
-import { eq, and, notInArray, isNotNull, sql } from "drizzle-orm"
+import { eq, and, ne, notInArray, isNotNull, sql } from "drizzle-orm"
 import type {
   AdProvider,
   AdRequest,
@@ -11,9 +11,8 @@ import { MAX_AD_DURATION_MS } from "@devdrip/shared"
 import { getDb } from "../db/index.js"
 import { campaigns } from "../db/schema/campaigns.js"
 import { creatives } from "../db/schema/creatives.js"
-import { checkFrequencyCaps, checkCampaignCap, isQuietHours } from "../lib/frequency.js"
+import { checkCampaignCap } from "../lib/frequency.js"
 import { nextCreativeIndex } from "../lib/budget.js"
-import { logger } from "../lib/logger.js"
 
 // ── types ───────────────────────────────────────────────────────────────────
 
@@ -69,29 +68,10 @@ function toAdPayload(row: CandidateRow): AdPayload {
 // ── fetch ads ───────────────────────────────────────────────────────────────
 
 async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
-  // stage 1: user-level gates (no DB)
-  if (!request.enabledSurfaces.includes(request.surface)) {
-    logger.debug({ surface: request.surface }, "surface disabled by user preferences")
-    return []
-  }
+  // note: frequency caps, quiet hours, and surface checks are handled
+  // by the waterfall orchestrator in ad-delivery.service.ts before calling providers.
 
-  if (isQuietHours(request.quietHoursStart, request.quietHoursEnd, request.tzOffsetMinutes)) {
-    logger.debug("quiet hours active, skipping ad fetch")
-    return []
-  }
-
-  const capCheck = await checkFrequencyCaps(
-    request.deviceId,
-    request.surface,
-    request.maxAdsPerHour,
-    request.maxAdsPerDay
-  )
-  if (!capCheck.allowed) {
-    logger.debug({ reason: capCheck.reason }, "frequency cap exceeded")
-    return []
-  }
-
-  // stage 2: DB query — candidate set
+  // stage 1: DB query — candidate set
   const db = getDb()
   const now = new Date()
 
@@ -100,6 +80,7 @@ async function fetchAds(request: AdRequest): Promise<AdPayload[]> {
     eq(creatives.isActive, true),
     eq(creatives.surface, request.surface as AdSurface),
     isNotNull(creatives.ctaUrl),
+    ne(creatives.source, "carbon"), // Carbon creatives are served by the Carbon provider
   ]
 
   // exclude blocked categories

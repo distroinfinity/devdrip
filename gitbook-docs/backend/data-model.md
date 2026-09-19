@@ -119,7 +119,7 @@ Stores:
 - source
 - CPM rate
 - external provider IDs
-- tracking URLs
+- tracking URLs (click, viewability beacon, impression beacon)
 - active flag
 
 Runtime usage today:
@@ -127,6 +127,8 @@ Runtime usage today:
 - full CRUD via admin API (`/campaigns/:id/creatives`)
 - delete guarded by impressions FK (RESTRICT) — returns deactivation hint
 - round-robin rotation tracked in Redis (`budget:rotation:*`)
+- Carbon ads upsert ephemeral rows with `source: "carbon"` and dedup on `(source, externalCreativeId)` via partial unique index
+- stale Carbon creatives deactivated by cleanup service (24h threshold)
 - present in DB seed data
 
 ## Impressions and Earnings
@@ -227,13 +229,13 @@ Tables directly touched by implemented API flows:
 - `advertisers`
 - `campaigns`
 - `creatives`
-- `impressions` (read-only, via campaign stats aggregation)
-- `clicks` (read-only, via campaign stats aggregation)
+- `impressions` (write via impression recording, read via campaign stats aggregation)
+- `clicks` (write via click recording, read via campaign stats aggregation)
+- `earnings_ledger` (write via impression recording for completed impressions)
 
-Tables modeled and seeded but not yet exposed through implemented API routes:
+Tables modeled and seeded but not yet exposed through dedicated API routes:
 
-- `preferences`
-- `earnings_ledger`
+- `preferences` (read by ad serving for user gates)
 - `payouts`
 - `referrals`
 - `invite_codes`

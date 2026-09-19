@@ -23,19 +23,15 @@ vi.mock("../lib/budget.js", () => ({
   nextCreativeIndex: vi.fn().mockResolvedValue(0),
 }))
 
-// mock frequency lib
-const mockCheckFrequencyCaps = vi.fn().mockResolvedValue({ allowed: true })
+// mock frequency lib — only checkCampaignCap remains in the provider
 const mockCheckCampaignCap = vi.fn().mockResolvedValue(true)
 vi.mock("../lib/frequency.js", () => ({
-  checkFrequencyCaps: (...args: unknown[]) => mockCheckFrequencyCaps(...args),
   checkCampaignCap: (...args: unknown[]) => mockCheckCampaignCap(...args),
-  isQuietHours: vi.fn().mockReturnValue(false),
 }))
 
 import { manualAdProvider } from "../services/ad-selection.service.js"
 import { getDb } from "../db/index.js"
 import { nextCreativeIndex } from "../lib/budget.js"
-import { isQuietHours } from "../lib/frequency.js"
 
 function baseRequest(overrides: Partial<AdRequest> = {}): AdRequest {
   return {
@@ -91,9 +87,7 @@ function mockDbSelect(rows: Record<string, unknown>[]) {
 describe("ManualAdProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockCheckFrequencyCaps.mockResolvedValue({ allowed: true })
     mockCheckCampaignCap.mockResolvedValue(true)
-    vi.mocked(isQuietHours).mockReturnValue(false)
     vi.mocked(nextCreativeIndex).mockResolvedValue(0)
   })
 
@@ -101,24 +95,8 @@ describe("ManualAdProvider", () => {
     expect(manualAdProvider.name).toBe("manual")
   })
 
-  it("returns empty array when surface is not in enabledSurfaces", async () => {
-    const result = await manualAdProvider.fetchAds(
-      baseRequest({ enabledSurfaces: [AdSurface.CompanionTab] })
-    )
-    expect(result).toEqual([])
-  })
-
-  it("returns empty array during quiet hours", async () => {
-    vi.mocked(isQuietHours).mockReturnValue(true)
-    const result = await manualAdProvider.fetchAds(baseRequest())
-    expect(result).toEqual([])
-  })
-
-  it("returns empty array when frequency cap is exceeded", async () => {
-    mockCheckFrequencyCaps.mockResolvedValue({ allowed: false, reason: "total_hourly_cap" })
-    const result = await manualAdProvider.fetchAds(baseRequest())
-    expect(result).toEqual([])
-  })
+  // note: surface gate, quiet hours, and frequency cap checks are tested
+  // in ad-delivery.test.ts (waterfall orchestrator)
 
   it("returns empty array when no candidates from DB", async () => {
     mockDbSelect([])

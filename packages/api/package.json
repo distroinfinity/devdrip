@@ -20,6 +20,7 @@
     "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
+    "@carbonads/sdk": "^0.2.2",
     "@devdrip/shared": "workspace:*",
     "@neondatabase/serverless": "^1.0.2",
     "@upstash/ratelimit": "^2.0.8",
