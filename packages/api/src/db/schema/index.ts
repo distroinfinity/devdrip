@@ -14,3 +14,6 @@ export * from "./watchlist_tickers.js"
 export * from "./alerts.js"
 export * from "./alert_events.js"
 // ticker_symbol_map schema removed (no internal symbol↔provider map needed)
+export * from "./onchain_pools.js"
+export * from "./onchain_positions.js"
+export * from "./onchain_events.js"

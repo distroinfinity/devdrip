@@ -162,6 +162,13 @@
       "when": 1779693901246,
       "tag": "0022_charming_wilson_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1779727932564,
+      "tag": "0023_common_zodiak",
+      "breakpoints": true
     }
   ]
 }
