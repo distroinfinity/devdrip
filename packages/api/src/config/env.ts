@@ -60,8 +60,26 @@ export const env = {
   get upstashRedisRestToken() {
     return requireEnv("UPSTASH_REDIS_REST_TOKEN")
   },
-  get adminSecret() {
-    return requireEnv("ADMIN_SECRET")
+  get adminEmails(): Set<string> {
+    const raw = process.env["ADMIN_EMAILS"] ?? ""
+    return new Set(
+      raw
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  },
+  get slackWebhookUrl(): string | undefined {
+    const v = process.env["SLACK_WEBHOOK_URL"]
+    return v && v.length > 0 ? v : undefined
+  },
+  get commitSha(): string | undefined {
+    return (
+      process.env["RAILWAY_GIT_COMMIT_SHA"] ??
+      process.env["VERCEL_GIT_COMMIT_SHA"] ??
+      process.env["COMMIT_SHA"] ??
+      undefined
+    )
   },
   get allowedOrigins(): string[] {
     const origins = requireEnv("ALLOWED_ORIGINS")
@@ -73,7 +91,7 @@ export const env = {
   },
 }
 
-// M7 will add ADMIN_EMAILS, POSTHOG_API_KEY, SLACK_WEBHOOK_URL.
+// PostHog deferred.
 
 /**
  * Refuses to boot if we'd be pointing a dev process at the deployed Neon DB.

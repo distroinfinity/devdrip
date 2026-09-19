@@ -5,6 +5,7 @@ import { tickerQuotes } from "../../db/schema/ticker_quotes.js"
 import { getRedis } from "../../lib/redis.js"
 import { tickerPriceKey, tickerFetcherLockKey } from "../../lib/ticker-keys.js"
 import { logger } from "../../lib/logger.js"
+import { sendSlackAlert } from "../../lib/slack.js"
 import { distinctActiveSymbols } from "../watchlist.service.js"
 import { fetchFinnhubQuote } from "./finnhub.js"
 import { fetchCoinGeckoPrices } from "./coingecko.js"
@@ -12,6 +13,24 @@ import type { RawTickerQuote } from "./types.js"
 import { runAlertEvaluation } from "../alert-evaluator.service.js"
 
 const LOCK_TTL_SEC = 90
+
+const consecutiveProviderFailures = new Map<string, number>()
+
+function recordProviderFailure(provider: string, err: unknown): void {
+  const next = (consecutiveProviderFailures.get(provider) ?? 0) + 1
+  consecutiveProviderFailures.set(provider, next)
+  if (next >= 3) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    void sendSlackAlert(
+      `ticker fetch failing for "${provider}" — ${next} consecutive errors. last: ${errMsg}`,
+      { severity: "error", dedupe: `ticker-provider-${provider}` }
+    )
+  }
+}
+
+function recordProviderSuccess(provider: string): void {
+  consecutiveProviderFailures.delete(provider)
+}
 const PRICE_CACHE_TTL_SEC = 60
 const FINNHUB_RATE_LIMIT_MS = 1_100
 const TICK_LOCK_KEY = tickerFetcherLockKey("global-tick")
@@ -103,14 +122,17 @@ export async function runTickerTick(): Promise<void> {
           await cacheQuoteRedis(q)
           cryptoOk += 1
         }
+        recordProviderSuccess("coingecko")
       } catch (err) {
         logger.warn({ err: String(err) }, "coingecko batch failed — marking stale")
         await markStale(cryptos)
+        recordProviderFailure("coingecko", err)
       }
     }
 
     let equityOk = 0
     const equityFailed: string[] = []
+    let lastEquityErr: unknown
     for (const sym of equities) {
       try {
         const q = await fetchFinnhubQuote(sym)
@@ -120,10 +142,19 @@ export async function runTickerTick(): Promise<void> {
       } catch (err) {
         logger.warn({ symbol: sym, err: String(err) }, "finnhub fetch failed")
         equityFailed.push(sym)
+        lastEquityErr = err
       }
       await new Promise((r) => setTimeout(r, FINNHUB_RATE_LIMIT_MS))
     }
-    if (equityFailed.length > 0) await markStale(equityFailed)
+    if (equityFailed.length > 0) {
+      await markStale(equityFailed)
+      if (equityOk === 0 && lastEquityErr !== undefined) {
+        // all symbols failed — treat as a full provider failure
+        recordProviderFailure("finnhub", lastEquityErr)
+      }
+    } else if (equities.length > 0) {
+      recordProviderSuccess("finnhub")
+    }
 
     logger.info(
       { cryptoOk, equityOk, equityFailed: equityFailed.length },

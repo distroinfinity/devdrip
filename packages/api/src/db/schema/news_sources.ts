@@ -24,6 +24,7 @@ export const newsSources = pgTable(
     halfLifeHours: real("half_life_hours").notNull().default(12),
     fetchIntervalMin: integer("fetch_interval_min").notNull().default(5),
     healthy: boolean("healthy").notNull().default(true),
+    enabled: boolean("enabled").notNull().default(true), // admin-managed; distinct from `healthy`
     lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),
     lastError: text("last_error"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

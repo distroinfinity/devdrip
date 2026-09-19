@@ -1,5 +1,5 @@
 import { createConnection } from "node:net"
-import { daemonSocketPath } from "@distrotv/shared"
+import { daemonSocketPath } from "@distrotv/shared/daemon-socket"
 import type { WireEvent } from "./protocol.js"
 
 export const CONNECT_TIMEOUT_MS = 50

@@ -5,6 +5,7 @@ export const COOKIE_NAME = "distrotv_session"
 export const PAIR_COOKIE_NAME = "distrotv_pair"
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60
 const PAIR_TTL_SECONDS = 30 * 60 // matches API pair-remember:<code> Redis TTL
+const COOKIE_DOMAIN = process.env["COOKIE_DOMAIN"] // e.g. ".distrotv.com" in prod; unset for local
 
 export interface SessionPayload {
   userId: string
@@ -23,6 +24,7 @@ export async function setSessionCookie(accessToken: string): Promise<void> {
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
+    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
   })
 }
 
@@ -36,6 +38,7 @@ export async function setPairCookie(pairingCode: string): Promise<void> {
     sameSite: "lax",
     path: "/",
     maxAge: PAIR_TTL_SECONDS,
+    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
   })
 }
 

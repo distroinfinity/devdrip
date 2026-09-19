@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -11,6 +12,10 @@
     "./format": {
       "types": "./dist/format.d.ts",
       "import": "./dist/format.js"
+    },
+    "./daemon-socket": {
+      "types": "./dist/daemon-socket.d.ts",
+      "import": "./dist/daemon-socket.js"
     }
   },
   "main": "./dist/index.js",

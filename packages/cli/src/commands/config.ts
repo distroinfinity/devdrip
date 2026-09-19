@@ -11,12 +11,8 @@ import {
   select,
   text,
 } from "@clack/prompts"
-import {
-  AdCategory,
-  daemonSocketPath,
-  defaultDevdripPreferences,
-  type DevdripPreferences,
-} from "@distrotv/shared"
+import { AdCategory, defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
+import { daemonSocketPath } from "@distrotv/shared/daemon-socket"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { sendHookEvent } from "../lib/daemon/hook-client.js"
 import { putPreferences } from "../lib/preferences-client.js"

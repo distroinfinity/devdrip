@@ -6,6 +6,7 @@ import { newsItems } from "../../db/schema/news_items.js"
 import { getRedis } from "../../lib/redis.js"
 import { fetcherLockKey } from "../../lib/news-keys.js"
 import { logger } from "../../lib/logger.js"
+import { sendSlackAlert } from "../../lib/slack.js"
 import type { RawNewsItem, SourceContext, SourceFetcher } from "./types.js"
 import { hnFetcher } from "./hn.js"
 import { rssFetcher } from "./rss.js"
@@ -30,6 +31,24 @@ const FETCHERS: Record<string, SourceFetcher> = {
 }
 
 const LOCK_TTL_SEC = 90
+
+const consecutiveFailureCount = new Map<string, number>()
+
+function recordFailure(sourceId: string, sourceKey: string, err: unknown): void {
+  const next = (consecutiveFailureCount.get(sourceId) ?? 0) + 1
+  consecutiveFailureCount.set(sourceId, next)
+  if (next >= 3) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    void sendSlackAlert(
+      `news fetch failing for "${sourceKey}" — ${next} consecutive errors. last: ${errMsg}`,
+      { severity: "error", dedupe: `news-source-${sourceId}` }
+    )
+  }
+}
+
+function recordSuccess(sourceId: string): void {
+  consecutiveFailureCount.delete(sourceId)
+}
 
 async function upsertItems(
   items: RawNewsItem[],
@@ -84,6 +103,7 @@ async function runOne(
       .update(newsSources)
       .set({ lastFetchedAt: new Date(), lastError: null, healthy: true })
       .where(eq(newsSources.id, source.id))
+    recordSuccess(source.id)
     return { inserted }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -92,6 +112,7 @@ async function runOne(
       .update(newsSources)
       .set({ lastFetchedAt: new Date(), lastError: msg, healthy: false })
       .where(eq(newsSources.id, source.id))
+    recordFailure(source.id, source.key, err)
     return { inserted: 0, error: msg }
   }
 }
@@ -118,9 +139,9 @@ async function withLock(sourceId: string, fn: () => Promise<void>): Promise<void
 
 export async function runFetchTick(minuteBucket: number): Promise<void> {
   const db = getDb()
-  const all = await db.select().from(newsSources)
+  const all = await db.select().from(newsSources).where(eq(newsSources.enabled, true))
   const due = all.filter((s) => minuteBucket % s.fetchIntervalMin === 0)
-  logger.info({ due: due.length, total: all.length, minuteBucket }, "news.fetch tick")
+  logger.info({ due: due.length, enabled: all.length, minuteBucket }, "news.fetch tick")
 
   for (const source of due) {
     await withLock(source.id, async () => {
