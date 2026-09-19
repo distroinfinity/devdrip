@@ -18,9 +18,15 @@ git push origin cli-v0.1.0
 1. Checks out the tagged commit.
 2. Installs deps via pnpm (frozen lockfile).
 3. Builds `@distrotv/cli` via `pnpm turbo run build --filter=@distrotv/cli`.
-4. Stages `packages/cli/dist`, `package.json`, `LICENSE`, and `README.md` (if present) into `.release-staging/`.
+4. Stages `packages/cli/dist`, a generated runtime `package.json`, `LICENSE`, and `README.md` (if present) into `.release-staging/`.
 5. Tars to `distrotv-cli.tar.gz`.
 6. Creates a GitHub Release with the tarball attached and the short HEAD SHA in the release notes.
+
+### Version is derived from the tag, not committed `package.json`
+
+The staged runtime `package.json` `version` is taken from the **release tag** (`cli-vX.Y.Z` → `X.Y.Z`), not from the committed `packages/cli/package.json`. The tag is the single source of truth.
+
+This matters because the installed CLI's `version` is what the update check compares against the latest release tag (`upgrade-check.ts`). If the tarball shipped a version that disagreed with its tag, users would be nudged to upgrade and the nudge would **never clear after upgrading** (installed version stays behind the tag forever). Deriving from the tag makes `installed version == tag` by construction, so a clean upgrade always clears the nudge. Bumping the committed `package.json` is still good hygiene (keeps source-built `distro` honest) but is no longer load-bearing for the release artifact.
 
 ## install.sh
 
@@ -100,6 +106,12 @@ wild keep working when the Vercel challenge isn't firing.
 2. Tag and push: `git tag cli-v0.1.0 -m "cli v0.1.0" && git push origin cli-v0.1.0`.
 3. Watch the Actions tab; the Release CLI workflow should produce the release.
 4. Verify `https://github.com/distroinfinity/devdrip/releases/latest/download/distrotv-cli.tar.gz` returns the tarball.
+
+## cli-v0.2.9 (2026-05-25)
+
+**Fixed:** the `init`/`doctor` health check no longer reports false **GitHub sign-in** / **backend reachable** failures. The two network probes ran on a 500ms abort budget while every real request uses 10s; warm-prod TLS/DNS on a freshly-spawned process routinely blew past 500ms, so probes timed out even though the backend was reachable. Probes now use a 2.5s budget and retry once at 5s on transient failures (timeout / network / 5xx), skipping the retry on definitive answers (4xx, not-signed-in).
+
+**Release hygiene:** `release-cli.yml` now derives the published `version` from the release tag (`cli-vX.Y.Z`) instead of the committed `package.json`, so the installed CLI always reports the exact version users were nudged to and a clean upgrade reliably clears the update nudge.
 
 ## cli-v0.2.7 (2026-05-25)
 
