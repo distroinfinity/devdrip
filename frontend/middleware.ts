@@ -40,6 +40,18 @@ export function middleware(req: NextRequest) {
     }
   }
 
+  // ad portal gate — same rule; the composer's prefill (ad copy only) rides along in `next`
+  if (req.nextUrl.pathname.startsWith("/advertisers/portal")) {
+    const session = req.cookies.get(SESSION_COOKIE)?.value
+    if (!session) {
+      const url = req.nextUrl.clone()
+      url.pathname = "/sign-in"
+      url.search = ""
+      url.searchParams.set("next", req.nextUrl.pathname + req.nextUrl.search)
+      return NextResponse.redirect(url)
+    }
+  }
+
   // expose the resolved path+search to server components (used by the admin
   // layout to preserve deep links in the sign-in `next` param)
   const requestHeaders = new Headers(req.headers)
