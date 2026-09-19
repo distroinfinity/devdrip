@@ -115,6 +115,8 @@ export interface DevdripPreferences {
   // convenience: when true AND no custom quiet hours set, daemon treats 22→07 as quiet.
   nightMode: boolean
   tzOffsetMinutes: number
+  // epoch ms; null = not muted. cleared when now >= muteUntil.
+  muteUntil: number | null
 }
 
 export interface User {

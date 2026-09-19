@@ -150,4 +150,84 @@ describe("daemon end-to-end (demo cache fallback)", () => {
       encoding: "utf8",
     })
   }, 10_000)
+
+  it("session-start wire event clears session state", async () => {
+    child = spawn("node", [binPath, "daemon", "run"], {
+      env: { ...process.env, HOME: tempHome },
+      stdio: "ignore",
+    })
+    child.unref()
+
+    await waitFor(() => {
+      try {
+        const hb = JSON.parse(readFileSync(join(devdripDir, "daemon.heartbeat"), "utf8"))
+        return typeof hb.pid === "number"
+      } catch {
+        return false
+      }
+    })
+
+    await sendSocket(JSON.stringify({ type: "session-start" }))
+
+    // the orchestrator logs "session state cleared" on clearSessionState effect
+    await waitFor(() => {
+      try {
+        const log = readFileSync(join(devdripDir, "daemon.log"), "utf8")
+        return log.includes("session state cleared")
+      } catch {
+        return false
+      }
+    }, 2000)
+
+    execFileSync("node", [binPath, "daemon", "stop"], {
+      env: { ...process.env, HOME: tempHome },
+      encoding: "utf8",
+    })
+  }, 10_000)
+
+  // rotation within one busy window — demo ads display for 4s each, inter-ad
+  // gap is 500ms, grace is 3s. 3000 + 4000 + 500 + ~1000 = 8.5s gets us two
+  // "showing ad" log lines (second ad just started).
+  it("rotates to a second ad within one busy window", async () => {
+    child = spawn("node", [binPath, "daemon", "run"], {
+      env: { ...process.env, HOME: tempHome },
+      stdio: "ignore",
+    })
+    child.unref()
+
+    await waitFor(() => {
+      try {
+        const hb = JSON.parse(readFileSync(join(devdripDir, "daemon.heartbeat"), "utf8"))
+        return typeof hb.pid === "number"
+      } catch {
+        return false
+      }
+    })
+
+    const target = join(tempHome, "fake-tty")
+    writeFileSync(target, "")
+    await sendSocket(JSON.stringify({ type: "idle-start", tty: target, pid: 1, ts: Date.now() }))
+
+    // grace (3s) + first display (4s) + inter-ad (0.5s) + buffer for second
+    // display to log "showing ad" → ~8.5s total.
+    await waitFor(() => {
+      try {
+        const log = readFileSync(join(devdripDir, "daemon.log"), "utf8")
+        const matches = log.match(/showing ad/g)
+        return (matches?.length ?? 0) >= 2
+      } catch {
+        return false
+      }
+    }, 12_000)
+
+    const log = readFileSync(join(devdripDir, "daemon.log"), "utf8")
+    const count = (log.match(/showing ad/g) ?? []).length
+    expect(count).toBeGreaterThanOrEqual(2)
+
+    await sendSocket(JSON.stringify({ type: "idle-end", ts: Date.now() }))
+    execFileSync("node", [binPath, "daemon", "stop"], {
+      env: { ...process.env, HOME: tempHome },
+      encoding: "utf8",
+    })
+  }, 15_000)
 })
