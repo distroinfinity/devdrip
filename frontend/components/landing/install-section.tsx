@@ -21,7 +21,7 @@ export function InstallSection() {
             className="font-display text-[24px] md:text-[28px] tracking-[-0.02em] text-[var(--ink-primary)]"
             style={{ fontWeight: 400 }}
           >
-            One line. Then <code className="font-data text-[20px] md:text-[24px]">distro init</code>
+            One curl, then <code className="font-data text-[20px] md:text-[24px]">distro init</code>
             .
           </h2>
         </motion.div>
@@ -47,7 +47,7 @@ export function InstallSection() {
             <code className="font-data text-[12px] bg-[var(--bg-inset)] px-1.5 py-0.5">
               distro init
             </code>{" "}
-            and you&apos;re broadcasting.
+            and you&apos;re tuned in.
           </p>
 
           <details className="mt-6 border border-[var(--rule-default)] bg-[var(--bg-surface)]">

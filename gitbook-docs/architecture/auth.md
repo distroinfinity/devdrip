@@ -63,19 +63,21 @@ GET  /devices/pair-poll    → del — single-use consume
 
 ## Error codes
 
-| Code                  | Meaning                                       |
-| --------------------- | --------------------------------------------- |
-| `pair_init_failed`    | Backend couldn't seed pair entry (redis down) |
-| `pair_expired`        | Pair code TTL elapsed or already consumed     |
-| `oauth_csrf_failed`   | State cookie missing or hash mismatch         |
-| `oauth_state_expired` | State TTL elapsed                             |
-| `oauth_user_denied`   | User clicked Cancel on GitHub                 |
-| `no_verified_email`   | GitHub returned no verified primary email     |
-| `github_rate_limited` | 429 from github.com                           |
-| `github_unavailable`  | 5xx or network error from github.com          |
-| `device_unknown`      | Bearer device.<secret> not in DB              |
-| `session_expired`     | JWT TTL elapsed                               |
-| `not_admin`           | Auth ok but email not in ADMIN_EMAILS         |
+| Code                  | Meaning                                         |
+| --------------------- | ----------------------------------------------- |
+| `pair_init_failed`    | Redis write failed while seeding the pair entry |
+| `pair_expired`        | Pair code TTL elapsed or already consumed       |
+| `oauth_csrf_failed`   | State cookie missing or hash mismatch           |
+| `oauth_state_expired` | State TTL elapsed                               |
+| `oauth_user_denied`   | User clicked Cancel on GitHub                   |
+| `no_verified_email`   | GitHub returned no verified primary email       |
+| `github_rate_limited` | 429 from github.com                             |
+| `github_unavailable`  | 5xx or network error from github.com            |
+| `device_unknown`      | Bearer device.<secret> not in DB                |
+| `session_expired`     | JWT TTL elapsed                                 |
+| `not_admin`           | Auth ok but email not in ADMIN_EMAILS           |
+
+`pair_init_failed` returns `503` with `retryable: true`. The route logs the underlying error via `logger.error` rather than swallowing it (a blank 503 once hid an exhausted Upstash command quota for days — reads/health still passed while writes failed). The CLI maps any 5xx here to a "sign-in temporarily unavailable — re-run `distro init`" message instead of the raw code.
 
 ## Out of scope (deferred)
 

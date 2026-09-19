@@ -40,7 +40,11 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next()
+  // expose the resolved path+search to server components (used by the admin
+  // layout to preserve deep links in the sign-in `next` param)
+  const requestHeaders = new Headers(req.headers)
+  requestHeaders.set("x-pathname", req.nextUrl.pathname + req.nextUrl.search)
+  return NextResponse.next({ request: { headers: requestHeaders } })
 }
 
 export const config = {

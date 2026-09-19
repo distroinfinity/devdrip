@@ -16,6 +16,8 @@ import { createConnection } from "node:net"
 import { join } from "node:path"
 import { daemonSocketPath } from "@distrotv/shared/daemon-socket"
 import { configDir } from "../config.js"
+import type { UpdateState } from "../install-layout.js"
+import { readUpdateState } from "../install-layout.js"
 
 // ── paths ───────────────────────────────────────────────────────────────
 
@@ -263,6 +265,43 @@ function formatField(v: unknown): string {
   } catch {
     return "<unserializable>"
   }
+}
+
+// ── probation rollback ───────────────────────────────────────────────────
+
+// wait this long after a swap with no fresh heartbeat before declaring the
+// new build a crash-loop and reverting. longer than the daemon's normal boot.
+export const PROBATION_FAIL_AFTER_MS = 90_000
+
+// pure: revert iff we're on probation, the previous version is known, the new
+// build has produced NO heartbeat since the swap, and enough time has elapsed.
+export function shouldRollbackOnRespawn(args: {
+  state: UpdateState | null
+  lastHeartbeatAt: number | null
+  now: number
+}): boolean {
+  const { state, lastHeartbeatAt, now } = args
+  if (!state || state.phase !== "probation" || !state.previousVersion) return false
+  const healthySinceSwap = lastHeartbeatAt !== null && lastHeartbeatAt >= state.swappedAt
+  if (healthySinceSwap) return false
+  return now - state.swappedAt >= PROBATION_FAIL_AFTER_MS
+}
+
+// called from the respawn decision. fs-only + pure decision; only when a
+// rollback is actually warranted do we dynamically import the (heavier)
+// auto-update module to perform it. returns true if it rolled back.
+export async function preflightRollbackIfStuck(now: number = Date.now()): Promise<boolean> {
+  const state = readUpdateState()
+  const hb = readHeartbeat()
+  if (!shouldRollbackOnRespawn({ state, lastHeartbeatAt: hb?.lastHeartbeat ?? null, now })) {
+    return false
+  }
+  const { rollback } = await import("../auto-update.js")
+  rollback()
+  appendLog("warn", "auto-update probation failed — rolled back", {
+    newVersion: state?.newVersion,
+  })
+  return true
 }
 
 // ── socket probe ────────────────────────────────────────────────────────

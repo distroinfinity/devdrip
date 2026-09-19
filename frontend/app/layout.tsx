@@ -8,9 +8,9 @@ import { SITE_URL } from "@/lib/env"
 
 const siteUrl = SITE_URL
 
-const title = "Distro TV"
+const title = "Distro TV — the channel that runs while your agent codes"
 const description =
-  "Channels for the moments your agent runs the keyboard. Ambient news, markets, and more — surfaces only while your AI coding tool works."
+  "A terminal channel surface that plays tech news and your market watchlist while your AI agent works — gone the instant you type. Two channels live, more queued."
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

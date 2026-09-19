@@ -7,6 +7,11 @@ export const GRACE_PERIOD_MS = 0
 // every slot (news + ticker) shows for this long before rotating.
 export const MAX_AD_DURATION_MS = 12_000
 
+// A tty session only renders slots if it saw a real hook/key event within this
+// window. Stops idle/stalled/background terminals from rotating slots (and the
+// now-playing + content API traffic that drives) when the user isn't on them.
+export const ACTIVE_WINDOW_MS = 60_000
+
 // daemonSocketPath moved to @distrotv/shared/daemon-socket — kept out of the
 // main barrel so the frontend bundle doesn't pull node:os / node:path through
 // the shared package. CLI imports from "@distrotv/shared/daemon-socket".

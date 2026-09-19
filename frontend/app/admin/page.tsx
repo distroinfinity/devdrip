@@ -128,7 +128,6 @@ function SystemHealthCard({
             <StatusDot status={p.status} />
             <span className="font-bold text-[11px]">{p.provider}</span>
             <span className="text-[var(--ink-tertiary)] flex-1">
-              {p.enabledSymbolCount} symbols ·{" "}
               {p.lastQuoteAt ? `last quote ${relativeTime(p.lastQuoteAt)}` : "no quote"}
             </span>
           </div>
@@ -169,7 +168,7 @@ function SignupsCard({
         {recent.slice(0, 5).map((r) => (
           <Link
             key={r.id}
-            href={`/users/${r.id}`}
+            href={`/admin/users/${r.id}`}
             className="flex justify-between hover:bg-[var(--bg-surface-hover)] px-1 py-0.5"
           >
             <span className="truncate">{r.email ?? r.id.slice(0, 8)}</span>
@@ -293,7 +292,7 @@ function RecentAlertsCard({ alerts }: { alerts: OverviewDto["recentAlerts"] }) {
           {alerts.slice(0, 8).map((a) => (
             <Link
               key={a.id}
-              href={`/users/${a.userId}`}
+              href={`/admin/users/${a.userId}`}
               className="grid grid-cols-[60px_1fr_60px] gap-2 hover:bg-[var(--bg-surface-hover)] px-1 py-0.5"
             >
               <span className="text-[var(--ink-tertiary)]">{relativeTime(a.firedAt)}</span>

@@ -103,7 +103,7 @@ Eight probes in fixed order, each with a remediation hint on failure:
 1. auth valid (`GET /me`)
 2. device registered
 3. hooks installed in `~/.claude/settings.json` (all three Claude events)
-4. backend reachable (`GET /health`, 500ms budget)
+4. backend reachable (`GET /health`)
 5. daemon running (heartbeat age < 20s)
 6. slot cache populated (≥1 slot, `expiresAt > now`)
 7. tty writable
@@ -111,13 +111,29 @@ Eight probes in fixed order, each with a remediation hint on failure:
 
 Flags: `--json` for scripting. Exit codes: 0 = all pass, 1 = any fail.
 
+The two network probes (`/me`, `/health`) run with a 2.5s budget and retry once at 5s on a transient failure (timeout, network blip, or 5xx) before reporting `✗`; definitive answers (4xx, not-signed-in) skip the retry. The earlier 500ms single-shot budget produced false negatives against a warm prod backend — TLS/DNS on a freshly-spawned process routinely pushed a healthy round-trip past 500ms, so `init`/`doctor` would report sign-in + backend as down while the daemon (10s budget) was fetching slots fine.
+
 ## `distro demo`
 
 Fetches one real slot from `/me/content/next`, renders with a `[DEMO]` badge. Vanish latency is measured and printed (`dismiss → vanish: Nms (target <200ms)`). Falls back to bundled fixtures if backend is down.
 
 ## `distro upgrade`
 
-Checks the GitHub Releases API for a newer `distrotv-cli.tar.gz`. No auto-install; prints the download URL for the user's package manager / installer. 7-day cache at `~/.distro/upgrade-check.json`.
+Downloads, verifies, and activates the latest release. The pipeline: download tarball → extract to a staging dir → `npm install` native deps → verify (`node <staged>/dist/index.js --version` must match the release tag AND `daemon self-check` must exit 0) → atomically move into `~/.distrotv/versions/<v>/` and repoint the `~/.distrotv/current` symlink → restart the daemon through `current`.
+
+The tarball URL comes from the server's update-check response (see Auto-update below), not a cached local file — so `distro upgrade` always reflects the server's current `LATEST_CLI_VERSION`.
+
+## Auto-update
+
+The daemon runs the update check on boot and on its regular tick. It calls `GET /cli/version-check?current=<semver>` on our API, which returns `{ latest, outdated, tarballUrl }`. When `outdated: true` it runs the same download → verify → activate pipeline automatically, then restarts itself. No version-check file cache — the server call is cheap and the server is the authority.
+
+**Server-side rollout control:** the API reads `LATEST_CLI_VERSION` env var. If unset or empty, the endpoint returns `outdated: false` (safe default — nothing auto-updates). Setting it to the target release version makes all connected clients see an update. To halt a rollout, unset or lower `LATEST_CLI_VERSION`; to release, bump it. Tarballs still live on GitHub Releases — only the version signal moved to our server.
+
+**Versioned install layout:** `install.sh` extracts each release into `~/.distrotv/versions/<v>/` and keeps `~/.distrotv/current` pointing at the active version. Shims (`~/.local/bin/distro`, `dtv`) and Claude hook entries always resolve through the stable `~/.distrotv/current/dist/index.js` path, so a version swap is invisible to them. A legacy flat `~/.distrotv/dist` install is self-migrated into the versioned layout on first boot (`migrateFlatInstall`).
+
+**Safety / rollback:** activation writes rollback state (`update-state.json`, phase `probation`, `previousVersion`) before the symlink swap. After restart the new daemon runs on probation; once healthy for ~60s it promotes to `stable` and prunes old versions (keeps last 1, semver-aware). If the new build crash-loops (no heartbeat past a ~90s threshold), the Claude hook respawn path performs an fs-only rollback — reverts `current` to the previous version and marks the bad version for a 1-hour backoff — without ever blocking Claude Code (hooks always exit 0). See [daemon-and-hooks.md](./daemon-and-hooks.md#auto-update--rollback).
+
+**Opt-out:** auto-update is on by default. Disable with `DISTRO_NO_AUTOUPDATE=1` (env) or `cli.autoUpdate: false` in `~/.distro/config.json`. When disabled, the daemon falls back to the passive status-line nudge.
 
 ## What is missing
 

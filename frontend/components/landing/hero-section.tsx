@@ -44,13 +44,13 @@ export function HeroSection({
               className="font-display text-[32px] md:text-[38px] leading-[1.04] tracking-[-0.025em] text-[var(--ink-primary)] mb-4"
               style={{ fontWeight: 400 }}
             >
-              Channels for the moments
+              Channels for your agent&apos;s
               <br />
-              your agent runs the keyboard.
+              idle minutes.
             </h1>
 
             <p className="font-body text-[14px] leading-[1.55] text-[var(--ink-secondary)] mb-6 max-w-[42ch]">
-              An ambient surface that runs while your AI codes. Vanishes the instant you type.
+              News and your watchlist, ambient in your terminal.
             </p>
 
             <div className="mb-3">

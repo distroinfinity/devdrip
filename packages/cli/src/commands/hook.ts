@@ -2,7 +2,11 @@ import { Command } from "commander"
 import { daemonSocketPath } from "@distrotv/shared/daemon-socket"
 import { sendHookEvent } from "../lib/daemon/hook-client.js"
 import { resolveTty } from "../lib/daemon/tty.js"
-import { spawnDaemonDetached, tryClaimRespawn } from "../lib/daemon/lifecycle.js"
+import {
+  spawnDaemonDetached,
+  tryClaimRespawn,
+  preflightRollbackIfStuck,
+} from "../lib/daemon/lifecycle.js"
 import { readConfig } from "../lib/config.js"
 import type { WireEvent } from "../lib/daemon/protocol.js"
 
@@ -27,6 +31,10 @@ async function maybeRevive(): Promise<void> {
     const cfg = await readConfig()
     const bin = cfg?.cli?.binPath
     if (!cfg?.user?.id || !cfg?.device?.id || !bin) return
+    // roll back a crash-looping update before respawning so the daemon boots
+    // on the previous good version. swallowed — a failed rollback must not
+    // block the respawn.
+    await preflightRollbackIfStuck().catch(() => {})
     spawnDaemonDetached(bin)
   } catch {
     /* swallow — hook still exits 0 */

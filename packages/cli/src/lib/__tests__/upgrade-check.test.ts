@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest"
-import { compareSemver, maybeCheck } from "../upgrade-check.js"
+import { describe, expect, it, vi } from "vitest"
+import { checkForUpdate, compareSemver } from "../upgrade-check.js"
+
+vi.mock("../api-client.js", () => ({
+  apiFetchPublic: vi.fn(),
+}))
+
+import { apiFetchPublic } from "../api-client.js"
+const mockApiFetch = vi.mocked(apiFetchPublic)
 
 describe("compareSemver", () => {
   it.each([
@@ -19,51 +26,50 @@ describe("compareSemver", () => {
   })
 })
 
-describe("maybeCheck", () => {
-  it("passive timeout returns null on network error", async () => {
-    const result = await maybeCheck("1.0.0", {
-      force: true,
-      timeoutMs: 10,
-      fetchLatest: (signal) =>
-        new Promise((_resolve, reject) => {
-          signal?.addEventListener("abort", () => reject(new Error("aborted")))
-          // never resolve — rely on the abort to settle
-        }),
-      now: () => 0,
+describe("checkForUpdate", () => {
+  it("returns server payload when outdated", async () => {
+    mockApiFetch.mockResolvedValueOnce({
+      latest: "0.2.0",
+      outdated: true,
+      tarballUrl: "https://example.com/distrotv-cli.tar.gz",
     })
+    const result = await checkForUpdate("0.1.0")
+    expect(result?.latest).toBe("0.2.0")
+    expect(result?.outdated).toBe(true)
+    expect(result?.tarballUrl).toBe("https://example.com/distrotv-cli.tar.gz")
+    expect(mockApiFetch).toHaveBeenCalledWith("/cli/version-check", {
+      query: { current: "0.1.0" },
+      timeoutMs: undefined,
+    })
+  })
+
+  it("returns server payload when up to date", async () => {
+    mockApiFetch.mockResolvedValueOnce({
+      latest: "0.2.0",
+      outdated: false,
+      tarballUrl: "",
+    })
+    const result = await checkForUpdate("0.2.0")
+    expect(result?.outdated).toBe(false)
+    expect(result?.tarballUrl).toBe("")
+  })
+
+  it("returns null on network failure", async () => {
+    mockApiFetch.mockRejectedValueOnce(new Error("network error"))
+    const result = await checkForUpdate("0.1.0")
     expect(result).toBeNull()
   })
 
-  it("reports outdated when fetch returns a newer version", async () => {
-    const result = await maybeCheck("0.1.0", {
-      force: true,
-      fetchLatest: async () => "0.2.0",
-      now: () => 0,
+  it("passes timeoutMs to apiFetchPublic", async () => {
+    mockApiFetch.mockResolvedValueOnce({
+      latest: "0.1.0",
+      outdated: false,
+      tarballUrl: "",
     })
-    // writeCache may fail in an empty home dir; just assert shape
-    expect(result?.latest).toBe("0.2.0")
-    expect(result?.outdated).toBe(true)
-    expect(result?.cached).toBe(false)
-  })
-
-  it("reports up-to-date when versions match", async () => {
-    const result = await maybeCheck("0.2.0", {
-      force: true,
-      fetchLatest: async () => "0.2.0",
-      now: () => 0,
+    await checkForUpdate("0.1.0", { timeoutMs: 500 })
+    expect(mockApiFetch).toHaveBeenCalledWith("/cli/version-check", {
+      query: { current: "0.1.0" },
+      timeoutMs: 500,
     })
-    expect(result?.outdated).toBe(false)
-  })
-
-  it("throws on non-timeout failure when timeoutMs is undefined", async () => {
-    await expect(
-      maybeCheck("0.1.0", {
-        force: true,
-        fetchLatest: async () => {
-          throw new Error("boom")
-        },
-        now: () => 0,
-      })
-    ).rejects.toThrow(/boom/)
   })
 })

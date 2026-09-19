@@ -12,7 +12,7 @@
 - CORS: credentials enabled, origins from `ALLOWED_ORIGINS`
 - security headers: Helmet
 - logs: Pino + `pino-http`
-- rate limit: Upstash Redis, fail-open on Redis errors
+- rate limit: in-memory fixed-window per API instance (single Railway instance, so per-process counters are authoritative). Costs zero Redis commands — see [Rate Limit Tiers](#rate-limit-tiers).
 - `DISTRO_ENV` bundle: `local | staging | prod` resolves api/web/email URLs
 
 ## Layered Architecture
@@ -52,7 +52,7 @@ health endpoint with component-level DB and Redis status.
 Behavior:
 
 - not behind the global limiter
-- probes DB and Redis on request
+- probes DB and Redis on request — the Redis `PING` result is cached ~30s (`probes.ts`) so frequent platform/monitoring polls don't each spend a Redis command
 - returns `200` if DB is healthy
 - returns `503` if DB is unhealthy
 - returns overall `status: "ok"` only when DB and Redis are both healthy
@@ -71,6 +71,48 @@ Response shape:
   }
 }
 ```
+
+## `GET /cli/version-check`
+
+Purpose:
+server-driven update check for the CLI. Called by the daemon on boot and each tick, and by `distro upgrade` / `distro status`.
+
+Auth: none (public)
+
+Query params:
+
+- `current` — semver string of the installed CLI (e.g. `0.2.10`)
+
+Behavior:
+
+- reads `LATEST_CLI_VERSION` env var from the API process
+- if unset or empty → returns `outdated: false` (kill-switch / safe default; no update is advertised)
+- if set → compares `current` against `LATEST_CLI_VERSION` using semver; `outdated = current < latest`
+- `tarballUrl` is only included when `outdated: true`; it points at the version-specific GitHub Releases asset
+
+Response shape:
+
+```json
+{
+  "latest": "0.2.11",
+  "outdated": true,
+  "tarballUrl": "https://github.com/distroinfinity/devdrip/releases/download/cli-v0.2.11/distrotv-cli.tar.gz"
+}
+```
+
+When `outdated: false`:
+
+```json
+{ "latest": "0.2.11", "outdated": false }
+```
+
+When `LATEST_CLI_VERSION` is unset:
+
+```json
+{ "latest": null, "outdated": false }
+```
+
+Operational note: set `LATEST_CLI_VERSION` on the Railway API service after each CLI release to trigger auto-updates. Unset or lower it to halt a rollout. Tarballs remain on GitHub Releases — only the version signal lives here.
 
 ## `GET /auth/github/redirect`
 
@@ -939,6 +981,8 @@ batch-record impressions and clicks from the CLI sync loop.
 
 Auth: bearer token (`requireAuth`). Rate-limited: 300 requests / 60s keyed by `deviceId` peeked from the first item's `deliveryToken` (`machineLimiter`).
 
+Served-set advance is **batched**: rendered news IDs (durationMs > 0) are grouped per device and flushed with one `SADD` (multiple members) + one `EXPIRE` per device per request (`markServedOnImpression`), instead of two Redis ops per impression.
+
 Body-parser limit: 1mb scoped to this route only.
 
 Request body:
@@ -1001,7 +1045,7 @@ Terminal per-item errors → CLI marks `synced_at = -1` (tombstone, stops retryi
 
 ## News + Reading endpoints
 
-- `GET /me/content/next?deviceId=<uuid>&n=<int>&surface=<terminal-tv>` — returns `{ items: SlotContent[] }` based on user's `channelMode`. The daemon batches this every 8 minutes (slot-cache TTL).
+- `GET /me/content/next?deviceId=<uuid>&n=<int>&surface=<terminal-tv>` — returns `{ items: SlotContent[] }` based on user's `channelMode`. The daemon batches this (slot-cache TTL is 15 min, batch size 20 — raised to cut round-trips). Also bumps `device.last_heartbeat` (throttled, ≤1 write / 2 min) so alert evaluation knows the user is online.
 - `POST /me/reading` — body: `{ newsId, source, headline, url, score }`. Idempotent on `(user_id, news_id)`; returns 201 if new, 200 if existing.
 - `GET /me/reading?limit=N` — returns `{ items, hasMore }`. Default + max limit 100 in MVP.
 - `DELETE /me/reading/:id` — 204 on success, 404 if not owned.
@@ -1307,6 +1351,8 @@ Headers set on limited routes:
 - `X-RateLimit-Remaining`
 - `X-RateLimit-Reset`
 - `Retry-After` on `429`
+
+**Backend: in-memory, not Redis.** `middleware/rate-limit.ts` keeps fixed-window counters in a per-process `Map`. The API runs as a single Railway instance, so per-process counters are authoritative. Previously each request spent 2+ Upstash commands here (often `global` + `user` stacked); combined with the daemon's per-slot now-playing writes, that silently drained the Upstash free-tier 500k commands/month quota and took `/devices/pair-init` down (writes started failing while reads still passed health checks). Revisit only if we ever run multiple API instances. Counters reset on deploy/restart — acceptable for abuse protection.
 
 ## World Chain Endpoints (pre-pivot — removed)
 

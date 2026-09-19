@@ -19,6 +19,17 @@ export default defineConfig({
   // stay external — they ship per-platform prebuilds via npm and can't be
   // bundled. Install.sh runs `npm install --omit=dev` against a stripped
   // runtime package.json (built in the release workflow) for those.
-  noExternal: ["@distrotv/shared", "@clack/prompts", "cli-table3", "commander", "qrcode-terminal"],
+  // `tar` is pure-JS and used by the auto-updater at runtime — it MUST be
+  // bundled, else the released CLI (which only `npm install`s better-sqlite3
+  // from the stripped runtime package.json) crashes with "Cannot find package
+  // 'tar'" the moment auto-update runs.
+  noExternal: [
+    "@distrotv/shared",
+    "@clack/prompts",
+    "cli-table3",
+    "commander",
+    "qrcode-terminal",
+    "tar",
+  ],
   external: ["better-sqlite3"],
 })

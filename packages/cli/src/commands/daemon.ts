@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process"
-import { unwatchFile, watchFile } from "node:fs"
+import { rmSync, unwatchFile, watchFile } from "node:fs"
 import { createConnection } from "node:net"
 import { platform } from "node:os"
 import { Command } from "commander"
@@ -10,7 +10,7 @@ import { showAd } from "../lib/daemon/display.js"
 import { cliVersion, refreshDeviceMetadata } from "../lib/device.js"
 import { clearStatusLine } from "../lib/statusline-state.js"
 import { setPendingUpdate } from "../lib/update-nudge.js"
-import { maybeCheck } from "../lib/upgrade-check.js"
+import { checkForUpdate } from "../lib/upgrade-check.js"
 import { createKeyCapture } from "../lib/daemon/input.js"
 import {
   acquireSingletonLock,
@@ -31,9 +31,44 @@ import { createOrchestrator } from "../lib/daemon/orchestrator.js"
 import { startDaemonServer } from "../lib/daemon/server.js"
 import { createSyncLoop } from "../lib/daemon/sync.js"
 import { syncPreferencesOnce } from "../lib/daemon/prefs-sync.js"
+import {
+  downloadAndStage,
+  verifyStaged,
+  activate,
+  pruneOldVersions,
+  isVersionBad,
+  markVersionBad,
+} from "../lib/auto-update.js"
+import { autoUpdateEnabled } from "../lib/auto-update-config.js"
+import {
+  migrateFlatInstall,
+  readUpdateState,
+  writeUpdateState,
+  currentEntryPath,
+} from "../lib/install-layout.js"
 
 const HEARTBEAT_INTERVAL_MS = 10_000
 const START_POLL_DEADLINE_MS = 2_000
+
+let updateInFlight = false
+
+function scheduleDaemonRestart(log: {
+  warn: (msg: string, fields?: Record<string, unknown>) => void
+}): void {
+  setTimeout(() => {
+    try {
+      const child = spawn(process.execPath, [currentEntryPath(), "daemon", "run"], {
+        detached: true,
+        stdio: "ignore",
+        env: process.env,
+      })
+      child.unref()
+    } catch (e) {
+      log.warn("restart spawn failed", { error: (e as Error).message })
+    }
+    process.exit(0)
+  }, 1500)
+}
 
 export async function runStart(): Promise<number> {
   const cfg = await readConfig()
@@ -172,6 +207,13 @@ export async function runDaemon(): Promise<number> {
     return 1
   }
 
+  // A. migrate flat install → versioned layout (no-op if already migrated).
+  try {
+    migrateFlatInstall(cliVersion())
+  } catch (e) {
+    appendLog("warn", "layout migrate skipped", { error: (e as Error).message })
+  }
+
   const socketPath = resolveSocketPath()
   unlinkSocketIfExists(socketPath)
 
@@ -192,6 +234,22 @@ export async function runDaemon(): Promise<number> {
   const syncLoop = createSyncLoop({ ledger, log })
   syncLoop.start()
 
+  // A (continued). probation promotion: if the last update is on probation,
+  // promote to stable after 60s of clean boot (no crash = healthy).
+  const upState = readUpdateState()
+  if (upState?.phase === "probation") {
+    const promo = setTimeout(() => {
+      try {
+        writeUpdateState({ ...upState, phase: "stable" })
+        pruneOldVersions()
+        log.info("update promoted to stable", { version: upState.newVersion })
+      } catch (e) {
+        log.warn("probation promotion failed", { error: (e as Error).message })
+      }
+    }, 60_000)
+    promo.unref?.()
+  }
+
   // Eager prefs fetch on boot so dashboard changes apply immediately —
   // without this we'd wait up to 30 min for the first sync tick. Fire and
   // forget; the ingest loop will retry within 30 min if this one fails.
@@ -207,17 +265,44 @@ export async function runDaemon(): Promise<number> {
     .catch((err) => log.warn("device metadata refresh failed", { error: (err as Error).message }))
 
   // periodic update check drives the status-line "update available" nudge.
-  // maybeCheck has its own 7-day fetch cache, so the 6h interval is cheap.
+  // every 15 min so a freshly-published release surfaces fast — the server
+  // call is cheap and stateless (no local cache). runs once on daemon boot,
+  // then on the interval.
+  // B. auto-update trigger: when outdated + enabled + version not bad + no
+  // update already in flight, download, verify, activate, and restart.
   const runUpdateCheck = (): void => {
-    maybeCheck(cliVersion())
-      .then((r) => {
+    checkForUpdate(cliVersion())
+      .then(async (r) => {
         setPendingUpdate(r?.outdated ? r.latest : null)
         log.debug("update check", { outdated: r?.outdated ?? false, latest: r?.latest })
+        if (!r?.outdated) return
+        const cfg = await readConfig()
+        if (!autoUpdateEnabled(cfg?.cli ?? {}) || isVersionBad(r.latest) || updateInFlight) return
+        updateInFlight = true
+        try {
+          log.info("auto-update: downloading", { version: r.latest })
+          const staged = await downloadAndStage(r.tarballUrl, r.latest)
+          if (!(await verifyStaged(staged, r.latest))) {
+            rmSync(staged, { recursive: true, force: true })
+            markVersionBad(r.latest)
+            log.warn("auto-update: staged build failed verification — skipped", {
+              version: r.latest,
+            })
+            return
+          }
+          activate(staged, r.latest)
+          log.info("auto-update: activated, restarting daemon", { version: r.latest })
+          scheduleDaemonRestart(log)
+        } catch (e) {
+          log.warn("auto-update failed", { error: (e as Error).message })
+        } finally {
+          updateInFlight = false
+        }
       })
       .catch((err) => log.debug("update check failed", { error: (err as Error).message }))
   }
   runUpdateCheck()
-  const updateCheckInterval = setInterval(runUpdateCheck, 6 * 60 * 60 * 1000)
+  const updateCheckInterval = setInterval(runUpdateCheck, 15 * 60 * 1000)
   updateCheckInterval.unref?.()
 
   // forward declaration: keyCapture.onKey closes over orchestrator, but
@@ -439,5 +524,13 @@ export const daemonCmd = new Command("daemon")
       .action(async () => {
         const code = await runDaemon()
         process.exit(code)
+      })
+  )
+  .addCommand(
+    new Command("self-check")
+      .description("verify this build can boot (used by auto-update before activating)")
+      .action(async () => {
+        const { runSelfCheck } = await import("../lib/self-check.js")
+        process.exit(await runSelfCheck())
       })
   )
