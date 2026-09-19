@@ -1,51 +1,44 @@
-"use client";
+"use client"
 
-import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { tokens, terminalColors as tc } from "@/lib/design-tokens";
-import { BlurFade } from "@/components/ui/blur-fade";
-import { DotGrid } from "@/components/shared/dot-grid";
-import { SurfaceInfoBar } from "./surfaces/surface-info-bar";
-import {
-  Monitor,
-  PanelRight,
-  AppWindow,
-  Newspaper,
-  Trophy,
-  Volume2,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react"
+import { motion, AnimatePresence } from "motion/react"
+import { tokens, terminalColors as tc } from "@/lib/design-tokens"
+import { BlurFade } from "@/components/ui/blur-fade"
+import { DotGrid } from "@/components/shared/dot-grid"
+import { SurfaceInfoBar } from "./surfaces/surface-info-bar"
+import { Monitor, PanelRight, AppWindow, Newspaper, Trophy, Volume2 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 
 // -- lazy-loaded demos --
 
-const TerminalTVDemo = lazy(
-  () => import("./surfaces/terminal-tv-demo").then((m) => ({ default: m.TerminalTVDemo }))
-);
-const CompanionTabDemo = lazy(
-  () => import("./surfaces/companion-tab-demo").then((m) => ({ default: m.CompanionTabDemo }))
-);
-const IdleWidgetDemo = lazy(
-  () => import("./surfaces/idle-widget-demo").then((m) => ({ default: m.IdleWidgetDemo }))
-);
-const MorningDigestDemo = lazy(
-  () => import("./surfaces/morning-digest-demo").then((m) => ({ default: m.MorningDigestDemo }))
-);
-const SponsoredChallengeDemo = lazy(
-  () => import("./surfaces/sponsored-challenge-demo").then((m) => ({ default: m.SponsoredChallengeDemo }))
-);
-const AudioCompanionDemo = lazy(
-  () => import("./surfaces/audio-companion-demo").then((m) => ({ default: m.AudioCompanionDemo }))
-);
+const TerminalTVDemo = lazy(() =>
+  import("./surfaces/terminal-tv-demo").then((m) => ({ default: m.TerminalTVDemo }))
+)
+const CompanionTabDemo = lazy(() =>
+  import("./surfaces/companion-tab-demo").then((m) => ({ default: m.CompanionTabDemo }))
+)
+const IdleWidgetDemo = lazy(() =>
+  import("./surfaces/idle-widget-demo").then((m) => ({ default: m.IdleWidgetDemo }))
+)
+const MorningDigestDemo = lazy(() =>
+  import("./surfaces/morning-digest-demo").then((m) => ({ default: m.MorningDigestDemo }))
+)
+const SponsoredChallengeDemo = lazy(() =>
+  import("./surfaces/sponsored-challenge-demo").then((m) => ({ default: m.SponsoredChallengeDemo }))
+)
+const AudioCompanionDemo = lazy(() =>
+  import("./surfaces/audio-companion-demo").then((m) => ({ default: m.AudioCompanionDemo }))
+)
 
 // -- surface data --
 
 interface SurfaceTab {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  earningRate: string;
-  dismissMechanism: string;
-  keyDetail: string;
+  id: string
+  label: string
+  icon: LucideIcon
+  earningRate: string
+  dismissMechanism: string
+  keyDetail: string
 }
 
 const SURFACES: SurfaceTab[] = [
@@ -97,7 +90,7 @@ const SURFACES: SurfaceTab[] = [
     dismissMechanism: "Any keystroke mutes instantly",
     keyDetail: "Eyes on terminal. 15 seconds max.",
   },
-];
+]
 
 // -- preload map for hover-triggered loading --
 
@@ -108,7 +101,7 @@ const preloadMap: Record<string, () => void> = {
   "morning-digest": () => import("./surfaces/morning-digest-demo"),
   "sponsored-challenge": () => import("./surfaces/sponsored-challenge-demo"),
   "audio-companion": () => import("./surfaces/audio-companion-demo"),
-};
+}
 
 // -- loading skeleton --
 
@@ -118,14 +111,11 @@ function DemoSkeleton() {
       className="min-h-[320px] rounded-lg flex items-center justify-center"
       style={{ background: tc.bg, border: `1px solid ${tc.border}` }}
     >
-      <span
-        className="font-data text-data-xs animate-pulse"
-        style={{ color: tc.textTertiary }}
-      >
+      <span className="font-data text-data-xs animate-pulse" style={{ color: tc.textTertiary }}>
         Loading...
       </span>
     </div>
-  );
+  )
 }
 
 // -- demo renderer --
@@ -133,55 +123,55 @@ function DemoSkeleton() {
 function DemoContent({ surfaceId }: { surfaceId: string }) {
   switch (surfaceId) {
     case "terminal-tv":
-      return <TerminalTVDemo />;
+      return <TerminalTVDemo />
     case "companion-tab":
-      return <CompanionTabDemo />;
+      return <CompanionTabDemo />
     case "idle-widget":
-      return <IdleWidgetDemo />;
+      return <IdleWidgetDemo />
     case "morning-digest":
-      return <MorningDigestDemo />;
+      return <MorningDigestDemo />
     case "sponsored-challenge":
-      return <SponsoredChallengeDemo />;
+      return <SponsoredChallengeDemo />
     case "audio-companion":
-      return <AudioCompanionDemo />;
+      return <AudioCompanionDemo />
     default:
-      return null;
+      return null
   }
 }
 
 // -- main section --
 
 export function SurfacesSection() {
-  const [activeTab, setActiveTab] = useState(SURFACES[0].id);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [activeTab, setActiveTab] = useState(SURFACES[0].id)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // cleanup hover preload timer on unmount
   useEffect(() => {
     return () => {
-      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    };
-  }, []);
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    }
+  }, [])
 
-  const activeSurface = SURFACES.find((s) => s.id === activeTab)!;
+  const activeSurface = SURFACES.find((s) => s.id === activeTab)!
 
   const handleTabClick = useCallback((id: string) => {
-    setActiveTab(id);
+    setActiveTab(id)
 
     // auto-scroll active tab into view on mobile
-    const btn = document.getElementById(`surface-tab-${id}`);
-    btn?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-  }, []);
+    const btn = document.getElementById(`surface-tab-${id}`)
+    btn?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" })
+  }, [])
 
   const handleTabHover = useCallback((id: string) => {
-    hoverTimerRef.current = setTimeout(() => preloadMap[id]?.(), 200);
-  }, []);
+    hoverTimerRef.current = setTimeout(() => preloadMap[id]?.(), 200)
+  }, [])
 
   const handleTabLeave = useCallback(() => {
     if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = null;
+      clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = null
     }
-  }, []);
+  }, [])
 
   return (
     <section id="surfaces" className="relative overflow-hidden scroll-mt-20">
@@ -212,8 +202,8 @@ export function SurfacesSection() {
               style={{ scrollSnapType: "x mandatory" }}
             >
               {SURFACES.map((surface) => {
-                const isActive = activeTab === surface.id;
-                const Icon = surface.icon;
+                const isActive = activeTab === surface.id
+                const Icon = surface.icon
                 return (
                   <button
                     key={surface.id}
@@ -228,9 +218,7 @@ export function SurfacesSection() {
                     className="relative flex items-center gap-1.5 px-3 py-2.5 font-body text-[12px] font-medium whitespace-nowrap transition-colors shrink-0"
                     style={{
                       scrollSnapAlign: "start",
-                      color: isActive
-                        ? "var(--ink-primary)"
-                        : "var(--ink-tertiary)",
+                      color: isActive ? "var(--ink-primary)" : "var(--ink-tertiary)",
                     }}
                   >
                     <Icon size={14} strokeWidth={1.5} />
@@ -249,7 +237,7 @@ export function SurfacesSection() {
                       />
                     )}
                   </button>
-                );
+                )
               })}
             </div>
 
@@ -288,14 +276,8 @@ export function SurfacesSection() {
         {/* trust strip */}
         <BlurFade inView delay={0.2}>
           <div className="mt-12 pt-6 border-t border-[var(--rule-default)] flex flex-wrap justify-center gap-x-6 gap-y-2">
-            {[
-              "Every surface is opt-in individually",
-              "Content matches environment",
-            ].map((item) => (
-              <span
-                key={item}
-                className="font-body text-[11px] text-[var(--ink-tertiary)]"
-              >
+            {["Every surface is opt-in individually", "Content matches environment"].map((item) => (
+              <span key={item} className="font-body text-[11px] text-[var(--ink-tertiary)]">
                 {item}
               </span>
             ))}
@@ -303,5 +285,5 @@ export function SurfacesSection() {
         </BlurFade>
       </div>
     </section>
-  );
+  )
 }

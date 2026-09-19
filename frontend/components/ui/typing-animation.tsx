@@ -53,10 +53,7 @@ export function TypingAnimation({
     once: true,
   })
 
-  const wordsToAnimate = useMemo(
-    () => words || (children ? [children] : []),
-    [words, children]
-  )
+  const wordsToAnimate = useMemo(() => words || (children ? [children] : []), [words, children])
   const hasMultipleWords = wordsToAnimate.length > 1
 
   const typingSpeed = typeSpeed || duration
@@ -128,9 +125,7 @@ export function TypingAnimation({
     delay,
   ])
 
-  const currentWordGraphemes = Array.from(
-    wordsToAnimate[currentWordIndex] || ""
-  )
+  const currentWordGraphemes = Array.from(wordsToAnimate[currentWordIndex] || "")
   const isComplete =
     !loop &&
     currentWordIndex === wordsToAnimate.length - 1 &&
@@ -163,9 +158,7 @@ export function TypingAnimation({
     >
       {displayedText}
       {shouldShowCursor && (
-        <span
-          className={cn("inline-block", blinkCursor && "animate-blink-cursor")}
-        >
+        <span className={cn("inline-block", blinkCursor && "animate-blink-cursor")}>
           {getCursorChar()}
         </span>
       )}

@@ -1,8 +1,8 @@
 interface SurfaceInfoBarProps {
-  earning: string;
-  dismiss: string;
-  detail: string;
-  description?: string;
+  earning: string
+  dismiss: string
+  detail: string
+  description?: string
 }
 
 export function SurfaceInfoBar({ earning, dismiss, detail, description }: SurfaceInfoBarProps) {
@@ -21,19 +21,15 @@ export function SurfaceInfoBar({ earning, dismiss, detail, description }: Surfac
           <div className="font-body text-[9px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.08em] mb-1">
             Earning Rate
           </div>
-          <div className="font-data text-data-s font-bold text-[var(--ink-primary)]">
-            {earning}
-          </div>
+          <div className="font-data text-data-s font-bold text-[var(--ink-primary)]">{earning}</div>
         </div>
         <div>
           <div className="font-body text-[9px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.08em] mb-1">
             Dismiss
           </div>
-          <div className="font-data text-data-xs text-[var(--ink-secondary)]">
-            {dismiss}
-          </div>
+          <div className="font-data text-data-xs text-[var(--ink-secondary)]">{dismiss}</div>
         </div>
       </div>
     </div>
-  );
+  )
 }

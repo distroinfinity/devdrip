@@ -1,4 +1,3 @@
-
 # Monetizing developer idle time with ads and crypto: a viability analysis
 
 **The math is challenging but not impossible — and the biggest risk isn't economics, it's developer psychology.** A product showing ads during AI coding tool wait times and paying developers in crypto micropayments addresses a real pain point (tool costs of $10–$200/month) among a massive, growing user base (20M+ paid AI coding tool subscribers). However, realistic ad revenue projections of **$10–$30/month per active developer** barely cover basic-tier subscriptions, while the developer community has historically revolted against ads in workflow tools. The 2019 npm terminal ads experiment — which was shut down within days after fierce backlash and led to an outright policy ban — stands as the most relevant and cautionary precedent. OpenAI's February 2026 launch of ads in ChatGPT is slowly normalizing ads in AI tools, but Anthropic has explicitly positioned Claude as the ad-free alternative, suggesting the market may bifurcate rather than universally accept advertising.
@@ -15,23 +14,23 @@ Other "attention economy" platforms reinforce this pattern. Sweatcoin's 140M+ re
 
 **The AI tools ad landscape is shifting rapidly.** OpenAI began testing ads in ChatGPT's free tier on February 9, 2026, showing sponsored content at the bottom of responses for US users. Free and $8/month "Go" tier users see ads; $20+ subscribers remain ad-free. This is the first major AI tool to adopt advertising, and Anthropic responded with a Super Bowl ad declaring "Ads are coming to AI. But not to Claude." Google's Gemini remains ad-free for now, though Google AI Overviews in Search already contain ads. The proposed product would be entering a market where the ad-supported AI model is just being born.
 
-**No one has successfully put ads in developer workflow tools.** The npm terminal ads experiment of August 2019 is the definitive precedent. Developer Feross Aboukhadijeh displayed text ads from Linode and LogRocket during `npm install` of his popular StandardJS package. The community response was immediate and vicious — developers created the world's first CLI ad blocker within hours, both sponsors withdrew, and npm officially **banned all terminal advertising** in its package policies. One developer's reaction captured the sentiment: *"My terminal is the one last stronghold that doesn't endlessly serve me ads."* The experiment raised just **$2,000** before being killed.
+**No one has successfully put ads in developer workflow tools.** The npm terminal ads experiment of August 2019 is the definitive precedent. Developer Feross Aboukhadijeh displayed text ads from Linode and LogRocket during `npm install` of his popular StandardJS package. The community response was immediate and vicious — developers created the world's first CLI ad blocker within hours, both sponsors withdrew, and npm officially **banned all terminal advertising** in its package policies. One developer's reaction captured the sentiment: _"My terminal is the one last stronghold that doesn't endlessly serve me ads."_ The experiment raised just **$2,000** before being killed.
 
 ---
 
 ## Developer ad economics: the numbers are tight but potentially workable
 
-The revenue math for this product hinges on which ad formats are deployed and what CPM rates developer-targeted inventory can command. Developer-specific ad networks like Carbon Ads pay publishers **$0.50–$1.60 CPM**, while EthicalAds achieves **$2.00–$2.50 CPM** for North American/European traffic. These rates are actually *lower* than general web programmatic CPMs (~$7.50 average) due to rampant ad blocker usage and limited advertiser demand in niche networks.
+The revenue math for this product hinges on which ad formats are deployed and what CPM rates developer-targeted inventory can command. Developer-specific ad networks like Carbon Ads pay publishers **$0.50–$1.60 CPM**, while EthicalAds achieves **$2.00–$2.50 CPM** for North American/European traffic. These rates are actually _lower_ than general web programmatic CPMs (~$7.50 average) due to rampant ad blocker usage and limited advertiser demand in niche networks.
 
 However, the proposed product's "idle time" model maps most closely to **rewarded video ads** from mobile gaming — the highest-CPM format in digital advertising. In rewarded video, users voluntarily opt into watching a 15–30 second ad in exchange for a benefit, achieving completion rates above **95%** and eCPMs of **$15–$30 in Tier 1 markets** (US iOS: $19.63 average). This is 10–30x higher than static banner or native display ads.
 
 Here's what the unit economics look like at different CPM levels, assuming 15–20 natural idle moments per hour and 5 hours of daily AI tool usage:
 
-| CPM scenario | Revenue per hour | Monthly revenue (110 hrs) | % of $20/mo subscription covered |
-|---|---|---|---|
-| $2.50 (basic native display) | $0.05 | $5.50 | 28% |
-| $10 (mid-range rewarded video) | $0.15 | $16.50 | 83% |
-| $20 (premium Tier 1 rewarded video) | $0.30 | $33.00 | 165% |
+| CPM scenario                        | Revenue per hour | Monthly revenue (110 hrs) | % of $20/mo subscription covered |
+| ----------------------------------- | ---------------- | ------------------------- | -------------------------------- |
+| $2.50 (basic native display)        | $0.05            | $5.50                     | 28%                              |
+| $10 (mid-range rewarded video)      | $0.15            | $16.50                    | 83%                              |
+| $20 (premium Tier 1 rewarded video) | $0.30            | $33.00                    | 165%                             |
 
 **At mid-range CPMs ($10–$15), a developer generating 15 ad views per hour across 5 hours daily could earn roughly $16–$25/month** — enough to cover a GitHub Copilot Pro subscription ($10/month) with room to spare, or most of a Cursor Pro subscription ($20/month). Covering premium tiers ($60–$200/month) through ads alone appears implausible.
 
@@ -64,7 +63,7 @@ The most compelling market segment isn't US developers earning $132K/year who ba
 
 **India** is the epicenter of this opportunity. With **5.4 million developers** (projected to surpass the US by 2028), India became the **world's largest market for GenAI app downloads in 2025** with 207% year-over-year growth. But the conversion gap is staggering: India represents roughly **20% of global GenAI app downloads but only ~1% of in-app purchases**. Entry-level developer salaries of **$4,500–$9,000/year** mean a $20/month AI tool subscription consumes **2.7–5.3% of annual income** — versus 0.1–0.2% for a US developer. AI app revenue in India **fell 18–22% month-over-month** in late 2025 when promotional pricing ended, demonstrating intense price sensitivity.
 
-Students represent another underserved segment. GitHub offers free Copilot Pro to verified students (capped at 300 premium requests/month), but **no equivalent free access exists for Cursor, Claude Code, or other premium tools**. Students hitting rate limits express frustration — one wrote: *"Copilot has been an incredible tool for education, and these limits make it difficult to use for learning."*
+Students represent another underserved segment. GitHub offers free Copilot Pro to verified students (capped at 300 premium requests/month), but **no equivalent free access exists for Cursor, Claude Code, or other premium tools**. Students hitting rate limits express frustration — one wrote: _"Copilot has been an incredible tool for education, and these limits make it difficult to use for learning."_
 
 Freelance and indie developers face similar pressure. Full-time developer employment in the US dropped from 69% to 65% between 2023 and 2024, pushing more developers into independent work where every tool subscription comes directly from their pocket. One developer documented spending **$4,800 on AI coding tools in 2025** and concluded the net result was **negative 150 hours** — losing more time debugging AI-generated code than saved.
 

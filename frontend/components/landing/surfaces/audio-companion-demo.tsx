@@ -1,73 +1,71 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { motion } from "motion/react";
-import { terminalColors as tc, tokens } from "@/lib/design-tokens";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import { motion } from "motion/react"
+import { terminalColors as tc, tokens } from "@/lib/design-tokens"
 
 const TRANSCRIPT_LINES = [
   "This task is sponsored by Sentry.",
   "Quick tip: Use AI grouping to reduce alert noise by 40%.",
   "Learn more at sentry.io/devdrip",
-];
+]
 
 // each line reveals at these elapsed-second thresholds
-const LINE_THRESHOLDS = [0, 5, 10];
+const LINE_THRESHOLDS = [0, 5, 10]
 
-const BAR_COUNT = 7;
+const BAR_COUNT = 7
 
 export function AudioCompanionDemo() {
-  const [elapsed, setElapsed] = useState(0);
-  const [muted, setMuted] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const muteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [elapsed, setElapsed] = useState(0)
+  const [muted, setMuted] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const muteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // stable heights computed once per mount
   const barHeights = useMemo(
     () => Array.from({ length: BAR_COUNT }, () => 20 + Math.random() * 20),
-    [],
-  );
+    []
+  )
 
   // timer ticks 0→15
   useEffect(() => {
-    if (muted) return;
+    if (muted) return
     if (elapsed >= 15) {
-      const t = setTimeout(() => setElapsed(0), 2000);
-      return () => clearTimeout(t);
+      const t = setTimeout(() => setElapsed(0), 2000)
+      return () => clearTimeout(t)
     }
-    const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => clearInterval(interval);
-  }, [elapsed, muted]);
+    const interval = setInterval(() => setElapsed((e) => e + 1), 1000)
+    return () => clearInterval(interval)
+  }, [elapsed, muted])
 
   // auto-unmute after 3s
   useEffect(() => {
-    if (!muted) return;
+    if (!muted) return
     muteTimerRef.current = setTimeout(() => {
-      setMuted(false);
-      setElapsed(0);
-    }, 3000);
+      setMuted(false)
+      setElapsed(0)
+    }, 3000)
     return () => {
-      if (muteTimerRef.current) clearTimeout(muteTimerRef.current);
-    };
-  }, [muted]);
+      if (muteTimerRef.current) clearTimeout(muteTimerRef.current)
+    }
+  }, [muted])
 
   const handleMute = useCallback(() => {
-    if (!muted) setMuted(true);
-  }, [muted]);
+    if (!muted) setMuted(true)
+  }, [muted])
 
   // any keystroke mutes
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const el = containerRef.current
+    if (!el) return
     const handler = () => {
-      handleMute();
-    };
-    el.addEventListener("keydown", handler);
-    return () => el.removeEventListener("keydown", handler);
-  }, [handleMute]);
+      handleMute()
+    }
+    el.addEventListener("keydown", handler)
+    return () => el.removeEventListener("keydown", handler)
+  }, [handleMute])
 
-  const visibleLines = TRANSCRIPT_LINES.filter(
-    (_, i) => elapsed >= LINE_THRESHOLDS[i],
-  );
+  const visibleLines = TRANSCRIPT_LINES.filter((_, i) => elapsed >= LINE_THRESHOLDS[i])
 
   return (
     <div
@@ -83,17 +81,11 @@ export function AudioCompanionDemo() {
       >
         <div className="flex items-center gap-2">
           <span style={{ color: tc.text }}>&#x1F50A;</span>
-          <span
-            className="font-display text-[12px] font-bold"
-            style={{ color: tc.text }}
-          >
+          <span className="font-display text-[12px] font-bold" style={{ color: tc.text }}>
             Dev Drip Audio
           </span>
         </div>
-        <span
-          className="font-data text-data-xs font-bold"
-          style={{ color: "var(--accent-color)" }}
-        >
+        <span className="font-data text-data-xs font-bold" style={{ color: "var(--accent-color)" }}>
           +$0.02
         </span>
       </div>
@@ -137,20 +129,14 @@ export function AudioCompanionDemo() {
             >
               {muted ? "Muted" : "Playing..."}
             </div>
-            <div
-              className="font-data text-[10px]"
-              style={{ color: tc.textTertiary }}
-            >
+            <div className="font-data text-[10px]" style={{ color: tc.textTertiary }}>
               {muted ? "Auto-resumes in 3s" : `${elapsed}s / 15s`}
             </div>
           </div>
 
           {/* progress arc (simple bar) */}
           <div className="w-[60px]">
-            <div
-              className="h-1 rounded-pill overflow-hidden"
-              style={{ background: tc.textFaint }}
-            >
+            <div className="h-1 rounded-pill overflow-hidden" style={{ background: tc.textFaint }}>
               <div
                 className="h-full rounded-pill transition-all duration-1000 ease-linear"
                 style={{
@@ -191,20 +177,14 @@ export function AudioCompanionDemo() {
 
         {/* footer */}
         <div className="flex items-center justify-between mt-3">
-          <span
-            className="font-data text-[10px]"
-            style={{ color: tc.textTertiary }}
-          >
+          <span className="font-data text-[10px]" style={{ color: tc.textTertiary }}>
             Any keystroke mutes instantly
           </span>
-          <span
-            className="font-data text-[10px]"
-            style={{ color: tc.textTertiary }}
-          >
+          <span className="font-data text-[10px]" style={{ color: tc.textTertiary }}>
             Double opt-in required
           </span>
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,27 +1,27 @@
-"use client";
-import React from "react";
-import { Check, Copy } from "lucide-react";
-import { cn } from "@/lib/utils";
+"use client"
+import React from "react"
+import { Check, Copy } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 type CodeBlockProps = {
-  language: string;
-  filename: string;
-  highlightLines?: number[];
+  language: string
+  filename: string
+  highlightLines?: number[]
 } & (
   | {
-      code: string;
-      tabs?: never;
+      code: string
+      tabs?: never
     }
   | {
-      code?: never;
+      code?: never
       tabs: Array<{
-        name: string;
-        code: string;
-        language?: string;
-        highlightLines?: number[];
-      }>;
+        name: string
+        code: string
+        language?: string
+        highlightLines?: number[]
+      }>
     }
-);
+)
 
 export const CodeBlock = ({
   language,
@@ -30,26 +30,24 @@ export const CodeBlock = ({
   highlightLines = [],
   tabs = [],
 }: CodeBlockProps) => {
-  const [copied, setCopied] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState(0);
+  const [copied, setCopied] = React.useState(false)
+  const [activeTab, setActiveTab] = React.useState(0)
 
-  const tabsExist = tabs.length > 0;
+  const tabsExist = tabs.length > 0
 
   const copyToClipboard = async () => {
-    const textToCopy = tabsExist ? tabs[activeTab].code : code;
+    const textToCopy = tabsExist ? tabs[activeTab].code : code
     if (textToCopy) {
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(textToCopy)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     }
-  };
+  }
 
-  const activeCode = tabsExist ? tabs[activeTab].code : code;
-  const activeHighlightLines = tabsExist
-    ? tabs[activeTab].highlightLines || []
-    : highlightLines;
+  const activeCode = tabsExist ? tabs[activeTab].code : code
+  const activeHighlightLines = tabsExist ? tabs[activeTab].highlightLines || [] : highlightLines
 
-  const lines = String(activeCode).split("\n");
+  const lines = String(activeCode).split("\n")
 
   return (
     <div className="relative w-full rounded-md bg-[#0E0E11] p-4 font-data text-sm border border-[var(--rule-default)]">
@@ -62,9 +60,7 @@ export const CodeBlock = ({
                 onClick={() => setActiveTab(index)}
                 className={cn(
                   "px-3 py-2 text-xs transition-colors font-body",
-                  activeTab === index
-                    ? "text-[#EDEDF0]"
-                    : "text-[#5C5C66] hover:text-[#8A8A94]"
+                  activeTab === index ? "text-[#EDEDF0]" : "text-[#5C5C66] hover:text-[#8A8A94]"
                 )}
               >
                 {tab.name}
@@ -88,12 +84,7 @@ export const CodeBlock = ({
         <table className="w-full border-collapse">
           <tbody>
             {lines.map((line, i) => (
-              <tr
-                key={i}
-                className={cn(
-                  activeHighlightLines.includes(i + 1) && "bg-white/[0.06]"
-                )}
-              >
+              <tr key={i} className={cn(activeHighlightLines.includes(i + 1) && "bg-white/[0.06]")}>
                 <td className="select-none pr-4 text-right text-[#3A3A40] w-8 align-top">
                   {i + 1}
                 </td>
@@ -104,5 +95,5 @@ export const CodeBlock = ({
         </table>
       </div>
     </div>
-  );
-};
+  )
+}

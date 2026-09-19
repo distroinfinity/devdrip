@@ -1,18 +1,18 @@
-"use client";
+"use client"
 
-import { terminalColors as tc } from "@/lib/design-tokens";
+import { terminalColors as tc } from "@/lib/design-tokens"
 
 // vs code tab data
 const TABS = [
   { name: "app.tsx", active: false },
   { name: "utils.ts", active: false },
   { name: "Dev Drip", active: true, icon: true },
-];
+]
 
 const TRENDING = [
   { name: "Bun v1.2", desc: "2x faster test runner", tag: "RUNTIME" },
   { name: "Biome 2.0", desc: "Format + lint in one pass", tag: "TOOLING" },
-];
+]
 
 export function CompanionTabDemo() {
   return (
@@ -30,10 +30,7 @@ export function CompanionTabDemo() {
           <div className="w-[10px] h-[10px] rounded-full bg-[#FFBD2E]" />
           <div className="w-[10px] h-[10px] rounded-full bg-[#28C840]" />
         </div>
-        <span
-          className="font-body text-[10px] ml-2"
-          style={{ color: tc.textTertiary }}
-        >
+        <span className="font-body text-[10px] ml-2" style={{ color: tc.textTertiary }}>
           Visual Studio Code
         </span>
         <div className="flex-1" />
@@ -57,14 +54,10 @@ export function CompanionTabDemo() {
             style={{
               color: tab.active ? tc.text : tc.textTertiary,
               background: tab.active ? tc.bg : "transparent",
-              borderBottom: tab.active
-                ? `2px solid ${tc.text}`
-                : "2px solid transparent",
+              borderBottom: tab.active ? `2px solid ${tc.text}` : "2px solid transparent",
             }}
           >
-            {tab.icon && (
-              <span className="text-[var(--accent-color)]">&#x1F3AF;</span>
-            )}
+            {tab.icon && <span className="text-[var(--accent-color)]">&#x1F3AF;</span>}
             <span>{tab.name}</span>
           </div>
         ))}
@@ -88,10 +81,7 @@ export function CompanionTabDemo() {
               >
                 Sponsored
               </span>
-              <h4
-                className="font-display text-[15px] font-bold mt-0.5"
-                style={{ color: tc.text }}
-              >
+              <h4 className="font-display text-[15px] font-bold mt-0.5" style={{ color: tc.text }}>
                 Vercel Edge Functions
               </h4>
             </div>
@@ -189,10 +179,7 @@ export function CompanionTabDemo() {
                 >
                   {item.name}
                 </div>
-                <div
-                  className="font-body text-[10px] mt-0.5"
-                  style={{ color: tc.textSecondary }}
-                >
+                <div className="font-body text-[10px] mt-0.5" style={{ color: tc.textSecondary }}>
                   {item.desc}
                 </div>
               </div>
@@ -201,5 +188,5 @@ export function CompanionTabDemo() {
         </div>
       </div>
     </div>
-  );
+  )
 }

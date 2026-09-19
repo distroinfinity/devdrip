@@ -30,9 +30,10 @@ These are non-negotiable constraints that flow directly from our "Industrial Pap
 
 ### 1.1 Show the Machinery
 
-From DESIGN_SYSTEM.md: *"The financial machinery is visible. You see the USDC flowing. You see the CPM math. You see the ad lifecycle states. We don't hide behind smooth abstractions — we expose the system, and that exposure IS the trust signal."*
+From DESIGN*SYSTEM.md: *"The financial machinery is visible. You see the USDC flowing. You see the CPM math. You see the ad lifecycle states. We don't hide behind smooth abstractions — we expose the system, and that exposure IS the trust signal."\_
 
 **On the landing page this means:**
+
 - Don't say "earn money." Show the `+$0.03` counter ticking up in real-time.
 - Don't say "non-intrusive ads." Show the Terminal TV appearing and vanishing.
 - Don't say "you're in control." Show the `[S]kip  [K]ill  [M]ute 30min` keybindings.
@@ -42,7 +43,7 @@ From DESIGN_SYSTEM.md: *"The financial machinery is visible. You see the USDC fl
 
 ### 1.2 No Selling, Only Demonstrating
 
-The user's directive: *"We are not selling anything to anyone, it's a tool built by devs for devs."*
+The user's directive: _"We are not selling anything to anyone, it's a tool built by devs for devs."_
 
 This changes the entire tone. We're not persuading. We're showing. The page reads more like a well-written README.md than a SaaS marketing site. Think:
 
@@ -54,11 +55,12 @@ No "revolutionize your workflow." No "unlock your earning potential." No testimo
 
 ### 1.3 Own the Ads Thing
 
-From the user: *"We do ads, we own it, but we don't sell you ads — our ads are cool."*
+From the user: _"We do ads, we own it, but we don't sell you ads — our ads are cool."_
 
 The worst thing we can do is be defensive about ads. The npm backlash happened because ads were **snuck in**. We do the opposite — we lead with it, explain why it's different, and show it working. The confidence IS the differentiator.
 
 Messaging direction:
+
 - "Yes, there are ads. Here's exactly what they look like."
 - "You press S to skip. K to kill. M to mute for 30 minutes."
 - "Every ad vanishes in under 200ms when you start typing."
@@ -83,6 +85,7 @@ The landing page IS the first product experience. If we claim "precision, not fl
 The hero must accomplish our 6-second job. Several directions explored below — pick and refine:
 
 **Direction A: "The Reframe" (Lead with what changes)**
+
 ```
 Headline:    Your agent is working. You're earning.
 Subhead:     Dev Drip turns AI coding tool idle time into USDC
@@ -92,6 +95,7 @@ Data strip:  $14.72 this month  |  2,725 impressions  |  <200ms dismiss
 ```
 
 **Direction B: "The Honesty Play" (Lead with the elephant)**
+
 ```
 Headline:    We put ads in your terminal.
              And developers actually want them.
@@ -102,6 +106,7 @@ Data strip:  70% revenue share  |  USDC on Base  |  5% to open source
 ```
 
 **Direction C: "The Money Signal" (Lead with JetBrains Mono)**
+
 ```
 Headline:    $14.72
              earned this month while your agent coded.
@@ -112,6 +117,7 @@ Data strip:  4,700+ beta devs  |  $0.002 transaction fee  |  skip anything
 ```
 
 **Direction D: "The Developer Vernacular" (Lead with the terminal)**
+
 ```
 Headline:    $ dev-drip --status
              > earning: $14.72 this month
@@ -139,14 +145,14 @@ Left side: a simulated terminal showing an agent working (`⠋ Thinking...`) wit
 
 Below the headline, a row of key metrics in JetBrains Mono — our "Bloomberg strip." This is the "show the machinery" principle. Possible data points:
 
-| Data Point | Purpose |
-|---|---|
-| `$14.72 this month` | Makes earnings tangible (not "up to" — an actual realistic number) |
-| `<200ms dismiss` | Signals respect for developer time |
-| `70% to you` | Revenue split transparency |
-| `USDC on Base` | Grounds the crypto element (stablecoin, not speculation) |
-| `5% to open source` | Community angle |
-| `[S]kip [K]ill [M]ute` | Shows control in one glance |
+| Data Point             | Purpose                                                            |
+| ---------------------- | ------------------------------------------------------------------ |
+| `$14.72 this month`    | Makes earnings tangible (not "up to" — an actual realistic number) |
+| `<200ms dismiss`       | Signals respect for developer time                                 |
+| `70% to you`           | Revenue split transparency                                         |
+| `USDC on Base`         | Grounds the crypto element (stablecoin, not speculation)           |
+| `5% to open source`    | Community angle                                                    |
+| `[S]kip [K]ill [M]ute` | Shows control in one glance                                        |
 
 Pick 3-4 of these. The strip itself IS a trust signal — we're leading with specifics, not promises.
 
@@ -155,7 +161,8 @@ Pick 3-4 of these. The strip itself IS a trust signal — we're leading with spe
 ## 3. Section Architecture
 
 ### Section 1: HERO
-*Goal: 6-second reframe. Name the thing, show it working, make it real.*
+
+_Goal: 6-second reframe. Name the thing, show it working, make it real._
 
 See Section 2 above for detailed options.
 
@@ -163,7 +170,7 @@ See Section 2 above for detailed options.
 
 ### Section 2: "THE DEAD TIME" — Problem Statement
 
-*Goal: Make the visitor feel the problem viscerally. They should nod and think "yeah, that's me."*
+_Goal: Make the visitor feel the problem viscerally. They should nod and think "yeah, that's me."_
 
 **Messaging direction:**
 
@@ -185,18 +192,19 @@ Dev Drip fills it with something that actually pays you.
 A simulated terminal or IDE showing an agent working, with a subtle clock/timer accumulating idle time. Show the real experience: `⠋ Claude Code: Refactoring auth module across 4 files...` with a counter below: `idle time today: 34 min`. No stock photos. No illustrations. Just the actual developer experience, rendered in our terminal aesthetic.
 
 **Key data points to surface:**
+
 - 15–60 minutes daily idle time (from PRD research)
 - 85% of developers now use AI coding tools regularly
 - Agentic tasks take 30 seconds to several minutes
 - This idle window is GROWING as agents take on more complex tasks
 
-**Tone:** Empathetic observation, not dramatic pain-point marketing. The visitor should feel *seen*, not sold to.
+**Tone:** Empathetic observation, not dramatic pain-point marketing. The visitor should feel _seen_, not sold to.
 
 ---
 
 ### Section 3: "HOW IT WORKS" — The Three-Step Flow
 
-*Goal: Demystify the product in under 30 seconds of reading.*
+_Goal: Demystify the product in under 30 seconds of reading._
 
 **The flow in three beats:**
 
@@ -229,6 +237,7 @@ ACTIVE (coding) → WARMING (3s grace) → IDLE (earning) → ACTIVE (typing)
 This could be an interactive component: the visitor sees a simulated agent task start, the warming state appear, the Terminal TV slide in, earnings tick up, then a simulated keypress makes everything vanish instantly. **The speed of the vanish IS the selling point** — make the visitor feel it.
 
 **Critical messaging detail:**
+
 - Emphasize that inline completions (30-200ms) NEVER trigger content
 - Only agentic tasks that create genuine waiting
 - 8-second minimum idle before first content appears
@@ -238,22 +247,23 @@ This could be an interactive component: the visitor sees a simulated agent task 
 
 ### Section 4: "THE SURFACES" — What the Ads Actually Look Like
 
-*Goal: Show, don't tell. Let the visitor see every ad format and judge for themselves.*
+_Goal: Show, don't tell. Let the visitor see every ad format and judge for themselves._
 
 This is the section where we own the ads thing completely. Show all six surfaces as live, interactive components:
 
 **Surface showcase (tabbed or scrollable):**
 
-| Surface | Visual | Key Detail |
-|---|---|---|
-| **Terminal TV** | Live component — the retro CRT frame in the terminal | "Rendered in pure ANSI. Feels like it belongs." |
-| **Companion Tab** | VS Code mockup with the tab appearing unfocused | "Opens alongside your code. Never steals focus." |
-| **Idle Widget** | Floating mini-player style widget | "Works across any IDE. Minimizes to a pill." |
-| **Morning Digest** | Newsletter-style card | "2-3 curated items at session start. That's it." |
-| **Sponsored Challenge** | MongoDB quiz in terminal frame | "Earn $0.10 while learning. Recruiters pay, you benefit." |
-| **Audio Companion** | Waveform visualization + transcript | "Eyes stay on terminal. 15 seconds max." |
+| Surface                 | Visual                                               | Key Detail                                                |
+| ----------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
+| **Terminal TV**         | Live component — the retro CRT frame in the terminal | "Rendered in pure ANSI. Feels like it belongs."           |
+| **Companion Tab**       | VS Code mockup with the tab appearing unfocused      | "Opens alongside your code. Never steals focus."          |
+| **Idle Widget**         | Floating mini-player style widget                    | "Works across any IDE. Minimizes to a pill."              |
+| **Morning Digest**      | Newsletter-style card                                | "2-3 curated items at session start. That's it."          |
+| **Sponsored Challenge** | MongoDB quiz in terminal frame                       | "Earn $0.10 while learning. Recruiters pay, you benefit." |
+| **Audio Companion**     | Waveform visualization + transcript                  | "Eyes stay on terminal. 15 seconds max."                  |
 
 **For each surface, show:**
+
 1. The actual UI component (from our design system)
 2. The dismiss mechanism (`[S]kip`, `[K]ill`, Tab closes, etc.)
 3. The earning rate for that surface
@@ -270,7 +280,7 @@ Show that Terminal TV is rendered in ANSI/Unicode. Show that the Companion Tab l
 
 ### Section 5: "YOUR RULES" — The Control Panel
 
-*Goal: Obliterate the "I'll lose control" fear. Show the granularity of developer agency.*
+_Goal: Obliterate the "I'll lose control" fear. Show the granularity of developer agency._
 
 This is where we differentiate from every ad platform ever. Show the actual control panel:
 
@@ -330,18 +340,18 @@ This list is the trust anchor. It's our "Terms of Engagement" — and presenting
 
 ### Section 6: "THE MATH" — Transparent Earnings Breakdown
 
-*Goal: Ground the promise in real numbers. No "up to" language. Show the actual model.*
+_Goal: Ground the promise in real numbers. No "up to" language. Show the actual model._
 
 From our design system: money is communicated through JetBrains Mono Bold, tabular alignment, and density. This section should feel like a Bloomberg terminal — all data, no decoration.
 
 **Earnings table:**
 
-| Profile | Daily Idle Time | Daily Views | Monthly Earnings |
-|---|---|---|---|
-| Light user (autocomplete only) | 5 min | 5–10 | $1–$3 |
-| Moderate (some agentic tasks) | 20 min | 30–50 | $8–$15 |
-| Heavy agentic user | 45 min | 60–90 | $18–$30 |
-| Power user + challenges + audio | 60 min | 80–120 | $25–$40 |
+| Profile                         | Daily Idle Time | Daily Views | Monthly Earnings |
+| ------------------------------- | --------------- | ----------- | ---------------- |
+| Light user (autocomplete only)  | 5 min           | 5–10        | $1–$3            |
+| Moderate (some agentic tasks)   | 20 min          | 30–50       | $8–$15           |
+| Heavy agentic user              | 45 min          | 60–90       | $18–$30          |
+| Power user + challenges + audio | 60 min          | 80–120      | $25–$40          |
 
 **Revenue split visualization:**
 
@@ -382,7 +392,7 @@ rewarded content. Here's how we calculated them.
 
 ### Section 7: "THE PAYMENT RAIL" — USDC, Not Magic Internet Money
 
-*Goal: Kill the "crypto scam" reflex in 10 seconds.*
+_Goal: Kill the "crypto scam" reflex in 10 seconds._
 
 **Messaging:**
 
@@ -407,6 +417,7 @@ that would be economically impossible any other way.
 **Visual treatment:** Show a simulated USDC transaction: from Dev Drip to the developer's wallet, with the fee shown. The `0xA1b2...F9e3` address in JetBrains Mono. Factual, grounded, inspectable.
 
 **Key anti-scam signals:**
+
 - "USDC" not "our token" — immediately signals stability
 - "Coinbase's L2" — associates with trusted brand
 - "$0.002 fee" — specific number, not marketing language
@@ -414,6 +425,7 @@ that would be economically impossible any other way.
 - The DESIGN_SYSTEM.md anti-scam checklist should be satisfied here
 
 **What NOT to do:**
+
 - No "to the moon" language
 - No token price charts
 - No "staking" or "yield" language
@@ -424,7 +436,7 @@ that would be economically impossible any other way.
 
 ### Section 8: "THE OPEN SOURCE FUND" — 5% to Maintainers
 
-*Goal: Turn "this company profits from ads" into "this company funds the ecosystem."*
+_Goal: Turn "this company profits from ads" into "this company funds the ecosystem."_
 
 **Messaging:**
 
@@ -440,6 +452,7 @@ It's not charity. It's the supply chain getting paid.
 ```
 
 **This section serves a dual purpose:**
+
 1. **Goodwill** — it's genuinely a good thing
 2. **Narrative armor** — when the inevitable HN thread appears, "but 5% goes to open source" is a talking point that shifts the conversation
 
@@ -451,9 +464,9 @@ It's not charity. It's the supply chain getting paid.
 
 ### Section 9: "FOR DEVELOPERS WHO FEEL THE COST" — Emerging Market Angle
 
-*Goal: Acknowledge the strongest use case without being patronizing.*
+_Goal: Acknowledge the strongest use case without being patronizing._
 
-From our market research: *"Entry-level developer salaries of $4,500–$9,000/year mean a $20/month AI tool subscription consumes 2.7–5.3% of annual income."*
+From our market research: _"Entry-level developer salaries of $4,500–$9,000/year mean a $20/month AI tool subscription consumes 2.7–5.3% of annual income."_
 
 **Messaging (careful — must not be condescending):**
 
@@ -474,11 +487,12 @@ who gets to use them.
 
 ### Section 10: "FAQ / OBJECTION HANDLING" — The Honest Answers
 
-*Goal: Address every objection a developer will have, directly and without spin.*
+_Goal: Address every objection a developer will have, directly and without spin._
 
 This section should feel like a well-written FAQ in a GitHub README — direct, technical, honest. No corporate evasion.
 
 **Q: Aren't ads in developer tools a terrible idea?**
+
 ```
 The npm terminal ads experiment of 2019 was terrible because
 ads were injected into a package manager without consent during
@@ -496,6 +510,7 @@ hate losing control." We agree. That's why you have all of it.
 ```
 
 **Q: Will this slow down my IDE / terminal?**
+
 ```
 The SDK adds <2ms of latency to idle detection.
 Ad content is pre-fetched and rendered locally.
@@ -504,6 +519,7 @@ not a marketing claim — we measure it in CI.
 ```
 
 **Q: Is this a crypto scam?**
+
 ```
 We use USDC (a dollar-pegged stablecoin) because it's the
 only way to send someone $0.03 without the transaction fee
@@ -513,6 +529,7 @@ cheaper plumbing.
 ```
 
 **Q: What data do you collect?**
+
 ```
 Cohort-level targeting only. We know "developer using
 VS Code in the US" — not your name, your code, or your
@@ -522,6 +539,7 @@ in Settings → Data Sharing.
 ```
 
 **Q: What if my AI tool gets faster and idle time shrinks?**
+
 ```
 Inline completions (30-200ms) already don't trigger content.
 But the trend is toward more agentic, multi-step AI tasks —
@@ -531,6 +549,7 @@ We're betting on the agentic future.
 ```
 
 **Q: Can I use an ad blocker?**
+
 ```
 Content is rendered natively by the SDK, not fetched via HTTP
 requests that DNS blockers intercept. But honestly — you opted
@@ -539,6 +558,7 @@ you toggle us off than fight us with a Pi-hole.
 ```
 
 **Q: How do taxes work?**
+
 ```
 Crypto earnings are taxable income in most jurisdictions.
 We issue 1099-MISC for US users earning over $600/year.
@@ -550,7 +570,7 @@ for tax reporting. Talk to your accountant — we're not one.
 
 ### Section 11: "WE'RE BUILDING THIS" — The Waitlist
 
-*Goal: Convert interest into a signup. Signal momentum without faking it. Convey: this is real, it's being built, and it's coming soon.*
+_Goal: Convert interest into a signup. Signal momentum without faking it. Convey: this is real, it's being built, and it's coming soon._
 
 **Messaging:**
 
@@ -589,6 +609,7 @@ The waitlist section should feel like a milestone tracker — showing progress w
 ```
 
 This does two things:
+
 1. **Proves the product is real** — specific components are done, not "coming soon™"
 2. **Creates anticipation** — the visitor sees what's next and wants to be there when it ships
 
@@ -597,6 +618,7 @@ This does two things:
 Minimal. One field: email. One button: "Join the Waitlist" in our monochrome primary button style (dark ink on paper). No name, no company, no "what tools do you use" survey. Reduce friction to zero.
 
 Below the form, a single line:
+
 ```
 We'll email you once. When it's your turn.
 ```
@@ -604,6 +626,7 @@ We'll email you once. When it's your turn.
 **Optional: counter showing waitlist size**
 
 If we want social proof without fabricating it:
+
 ```
 1,247 developers on the waitlist
 ```
@@ -611,6 +634,7 @@ If we want social proof without fabricating it:
 Only show this when the number is real and meaningful (>500). If we're at 12 signups, don't show it — it hurts more than helps. When it does appear, render it in JetBrains Mono Bold with tabular figures. The number itself is the social proof.
 
 **The waitlist button also lives in:**
+
 - The **hero section** (primary CTA on first fold — the most important placement)
 - The **nav bar** (persistent across scroll — always accessible)
 - The **waitlist section** near the bottom (for visitors who scrolled the whole page and are now convinced)
@@ -622,6 +646,7 @@ Three touchpoints, same button, same destination. No other CTAs compete for atte
 ### Section 12: FOOTER
 
 Minimal. The footer should contain:
+
 - Dev Drip wordmark (Space Mono)
 - Links: Docs, GitHub, Privacy, Terms
 - "Powered by USDC on Base" (JetBrains Mono, ink-faint)
@@ -633,13 +658,13 @@ Minimal. The footer should contain:
 
 ### 4.1 Voice Characteristics
 
-| Characteristic | Description | Example |
-|---|---|---|
-| **Precise** | Use specific numbers, never vague promises | "$0.03 per view" not "earn rewards" |
-| **Technical** | Speak developer-to-developer | "rendered in ANSI/Unicode" not "beautiful interface" |
-| **Honest** | Name the risks and trade-offs | "earnings depend on CPM rates and your idle time" |
-| **Calm** | No urgency, no hype, no exclamation marks | "Try it if it sounds useful" not "Don't miss out!" |
-| **Dry** | Subtle wit, never forced | The `--status` terminal hero direction is peak tone |
+| Characteristic | Description                                | Example                                              |
+| -------------- | ------------------------------------------ | ---------------------------------------------------- |
+| **Precise**    | Use specific numbers, never vague promises | "$0.03 per view" not "earn rewards"                  |
+| **Technical**  | Speak developer-to-developer               | "rendered in ANSI/Unicode" not "beautiful interface" |
+| **Honest**     | Name the risks and trade-offs              | "earnings depend on CPM rates and your idle time"    |
+| **Calm**       | No urgency, no hype, no exclamation marks  | "Try it if it sounds useful" not "Don't miss out!"   |
+| **Dry**        | Subtle wit, never forced                   | The `--status` terminal hero direction is peak tone  |
 
 ### 4.2 Words We Use
 
@@ -684,6 +709,7 @@ The `EarningsCounter` component from our design system. It ticks up every ~4 sec
 ### 5.2 The Terminal TV Demo (Surfaces Section)
 
 An interactive Terminal TV that the visitor can interact with:
+
 - Press `S` to skip to next content
 - Press `D` to "discover" (opens nothing, but shows the interaction)
 - Press `M` to mute (shows "Muted for 30 min" confirmation)
@@ -806,6 +832,7 @@ This list is as important as what's on the page:
 ## 8. SEO and Meta Strategy
 
 ### 8.1 Primary Keywords
+
 - "earn while coding" (new category we're defining)
 - "AI coding tool idle time"
 - "developer ad monetization"
@@ -813,6 +840,7 @@ This list is as important as what's on the page:
 - "USDC developer payments"
 
 ### 8.2 Meta Tags Direction
+
 ```
 Title: Dev Drip — Earn USDC while your AI agent codes
 Description: Opt-in developer content during AI tool idle time.
@@ -820,6 +848,7 @@ Description: Opt-in developer content during AI tool idle time.
 ```
 
 ### 8.3 Open Graph Image
+
 A monochrome card showing the Terminal TV component with earnings counter. Should look like a screenshot of the actual product, not a marketing graphic. JetBrains Mono `$14.72` prominent.
 
 ---
@@ -841,6 +870,7 @@ Developers will likely first see this page on desktop (they're at their IDE). Bu
 The landing page doesn't exist in isolation. It's the anchor of a launch narrative:
 
 **Sequence:**
+
 1. **Landing page goes live** (quiet, no announcement)
 2. **Blog post** — "Why we built Dev Drip" (honest, technical, addresses npm precedent directly)
 3. **GitHub repo** — open source the SDK (or at minimum, the idle detection engine)
@@ -877,4 +907,4 @@ Before I finalize this into a sprint-ready spec, I want to understand a few thin
 
 ---
 
-*This document is the input for the sprint plan. Once the open questions are resolved, every section becomes a buildable ticket.*
+_This document is the input for the sprint plan. Once the open questions are resolved, every section becomes a buildable ticket._

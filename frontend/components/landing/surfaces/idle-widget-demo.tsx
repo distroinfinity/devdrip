@@ -1,23 +1,23 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState, useEffect } from "react"
+import { motion, AnimatePresence } from "motion/react"
 
 const SPONSOR = {
   name: "Railway",
   description: "Deploy any app in seconds. Zero config.",
   tag: "INFRA",
-};
+}
 
 export function IdleWidgetDemo() {
-  const [minimized, setMinimized] = useState(false);
+  const [minimized, setMinimized] = useState(false)
 
   // auto-expand from pill after 3s to keep demo interesting
   useEffect(() => {
-    if (!minimized) return;
-    const t = setTimeout(() => setMinimized(false), 3000);
-    return () => clearTimeout(t);
-  }, [minimized]);
+    if (!minimized) return
+    const t = setTimeout(() => setMinimized(false), 3000)
+    return () => clearTimeout(t)
+  }, [minimized])
 
   return (
     <div className="flex items-center justify-center min-h-[320px]">
@@ -88,9 +88,7 @@ export function IdleWidgetDemo() {
                   <span className="font-body text-[10px] text-[var(--ink-secondary)]">
                     Editing 3 files...
                   </span>
-                  <span className="font-data text-[10px] text-[var(--ink-tertiary)]">
-                    62%
-                  </span>
+                  <span className="font-data text-[10px] text-[var(--ink-tertiary)]">62%</span>
                 </div>
                 <div className="h-1.5 bg-[var(--bg-inset)] rounded-pill overflow-hidden">
                   <motion.div
@@ -140,9 +138,7 @@ export function IdleWidgetDemo() {
               >
                 Minimize
               </button>
-              <span className="font-data text-[10px] text-[var(--ink-tertiary)]">
-                Settings
-              </span>
+              <span className="font-data text-[10px] text-[var(--ink-tertiary)]">Settings</span>
             </div>
           </motion.div>
         ) : (
@@ -178,5 +174,5 @@ export function IdleWidgetDemo() {
         )}
       </AnimatePresence>
     </div>
-  );
+  )
 }

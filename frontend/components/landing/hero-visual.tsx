@@ -1,14 +1,14 @@
-"use client";
+"use client"
 
-import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
-import { DotGrid } from "@/components/shared/dot-grid";
-import { AgentTerminal } from "@/components/shared/agent-terminal";
-import { TerminalTV } from "@/components/shared/terminal-tv";
-import { EarningsCounter } from "@/components/shared/earnings-counter";
+import { motion } from "motion/react"
+import { cn } from "@/lib/utils"
+import { DotGrid } from "@/components/shared/dot-grid"
+import { AgentTerminal } from "@/components/shared/agent-terminal"
+import { TerminalTV } from "@/components/shared/terminal-tv"
+import { EarningsCounter } from "@/components/shared/earnings-counter"
 
 interface HeroVisualProps {
-  className?: string;
+  className?: string
 }
 
 export function HeroVisual({ className }: HeroVisualProps) {
@@ -53,5 +53,5 @@ export function HeroVisual({ className }: HeroVisualProps) {
         </div>
       </div>
     </motion.div>
-  );
+  )
 }

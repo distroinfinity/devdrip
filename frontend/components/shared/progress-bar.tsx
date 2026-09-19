@@ -1,31 +1,24 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
 
 interface ProgressBarProps {
-  label: string;
-  current: number;
-  total: number;
-  className?: string;
+  label: string
+  current: number
+  total: number
+  className?: string
 }
 
-export function ProgressBar({
-  label,
-  current,
-  total,
-  className,
-}: ProgressBarProps) {
-  const percentage = Math.min((current / total) * 100, 100);
+export function ProgressBar({ label, current, total, className }: ProgressBarProps) {
+  const percentage = Math.min((current / total) * 100, 100)
 
   return (
     <div
       className={cn(
         "bg-[var(--bg-surface)] border border-[var(--rule-default)] rounded-md p-5",
-        className,
+        className
       )}
     >
       <div className="flex justify-between items-baseline mb-2">
-        <span className="font-body text-body-s font-medium text-[var(--ink-primary)]">
-          {label}
-        </span>
+        <span className="font-body text-body-s font-medium text-[var(--ink-primary)]">{label}</span>
         <span className="font-data text-[13px] font-semibold text-[var(--ink-primary)]">
           ${current.toFixed(2)} / ${total.toFixed(2)}
         </span>
@@ -40,5 +33,5 @@ export function ProgressBar({
         {percentage.toFixed(1)}% covered this month
       </div>
     </div>
-  );
+  )
 }

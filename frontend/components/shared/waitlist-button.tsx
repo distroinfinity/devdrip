@@ -1,18 +1,18 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { cn } from "@/lib/utils";
+import { useState } from "react"
+import { motion, AnimatePresence } from "motion/react"
+import { cn } from "@/lib/utils"
 
-type WaitlistState = "idle" | "submitting" | "success";
+type WaitlistState = "idle" | "submitting" | "success"
 
 interface WaitlistButtonProps {
-  onClick?: () => void | Promise<void>;
-  href?: string;
-  className?: string;
-  idleLabel?: string;
-  submittingLabel?: string;
-  successLabel?: string;
+  onClick?: () => void | Promise<void>
+  href?: string
+  className?: string
+  idleLabel?: string
+  submittingLabel?: string
+  successLabel?: string
 }
 
 export function WaitlistButton({
@@ -23,7 +23,7 @@ export function WaitlistButton({
   submittingLabel = "Requesting...",
   successLabel = "Request sent.",
 }: WaitlistButtonProps) {
-  const [state, setState] = useState<WaitlistState>("idle");
+  const [state, setState] = useState<WaitlistState>("idle")
 
   // when href is provided, render as a simple scroll link — no state machine
   if (href) {
@@ -33,24 +33,24 @@ export function WaitlistButton({
         className={cn(
           "relative inline-flex items-center justify-center h-11 px-6 rounded-sm font-body text-sm font-medium transition-all overflow-hidden",
           "bg-[var(--ink-primary)] text-[var(--ink-inverse)] hover:bg-[var(--em-hover)]",
-          className,
+          className
         )}
       >
         {idleLabel}
       </a>
-    );
+    )
   }
 
   const handleClick = async () => {
-    if (state !== "idle") return;
-    setState("submitting");
+    if (state !== "idle") return
+    setState("submitting")
     try {
-      await onClick?.();
-      setState("success");
+      await onClick?.()
+      setState("success")
     } catch {
-      setState("idle");
+      setState("idle")
     }
-  };
+  }
 
   return (
     <button
@@ -58,10 +58,11 @@ export function WaitlistButton({
       disabled={state !== "idle"}
       className={cn(
         "relative h-11 px-6 rounded-sm font-body text-sm font-medium transition-all overflow-hidden",
-        state === "idle" && "bg-[var(--ink-primary)] text-[var(--ink-inverse)] hover:bg-[var(--em-hover)] cursor-pointer",
+        state === "idle" &&
+          "bg-[var(--ink-primary)] text-[var(--ink-inverse)] hover:bg-[var(--em-hover)] cursor-pointer",
         state === "submitting" && "bg-[var(--ink-primary)] text-[var(--ink-inverse)] cursor-wait",
         state === "success" && "bg-[var(--accent-color)] text-white cursor-default",
-        className,
+        className
       )}
       aria-live="polite"
     >
@@ -102,5 +103,5 @@ export function WaitlistButton({
         )}
       </AnimatePresence>
     </button>
-  );
+  )
 }

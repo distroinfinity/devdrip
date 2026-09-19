@@ -1,16 +1,16 @@
-"use client";
+"use client"
 
-import { BlurFade } from "@/components/ui/blur-fade";
-import { DotGrid } from "@/components/shared/dot-grid";
-import { AgentTerminal } from "@/components/shared/agent-terminal";
-import { DataStrip } from "@/components/shared/data-strip";
+import { BlurFade } from "@/components/ui/blur-fade"
+import { DotGrid } from "@/components/shared/dot-grid"
+import { AgentTerminal } from "@/components/shared/agent-terminal"
+import { DataStrip } from "@/components/shared/data-strip"
 
 const DATA_POINTS = [
   { label: "daily idle time", value: "15–60 min" },
   { label: "devs use AI tools", value: "85%" },
   { label: "per agentic task", value: "30s+" },
   { label: "as agents improve", value: "↑ YoY" },
-];
+]
 
 export function DeadTimeSection() {
   return (
@@ -29,7 +29,10 @@ export function DeadTimeSection() {
               <div className="font-body text-[10px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.1em] mb-3">
                 The Problem
               </div>
-              <h2 id="dead-time-heading" className="font-display text-h2 md:text-h1 font-bold text-[var(--ink-primary)] mb-6">
+              <h2
+                id="dead-time-heading"
+                className="font-display text-h2 md:text-h1 font-bold text-[var(--ink-primary)] mb-6"
+              >
                 The Dead Time
               </h2>
             </BlurFade>
@@ -37,15 +40,12 @@ export function DeadTimeSection() {
             <BlurFade inView delay={0.1}>
               <div className="max-w-content space-y-4 mb-10">
                 <p className="font-body text-body text-[var(--ink-secondary)]">
-                  Your agent is refactoring 4 files. You can&apos;t code.
-                  You can&apos;t leave. So you check Slack, scroll Twitter,
-                  stare at the terminal.
+                  Your agent is refactoring 4 files. You can&apos;t code. You can&apos;t leave. So
+                  you check Slack, scroll Twitter, stare at the terminal.
                 </p>
                 <p className="font-body text-body text-[var(--ink-secondary)]">
                   That&apos;s 15 to 60 minutes every day.{" "}
-                  <span className="font-semibold text-[var(--ink-primary)]">
-                    Dead time.
-                  </span>
+                  <span className="font-semibold text-[var(--ink-primary)]">Dead time.</span>
                 </p>
                 <p className="font-body text-body text-[var(--ink-primary)]">
                   Dev Drip fills it with content that pays you.
@@ -65,5 +65,5 @@ export function DeadTimeSection() {
         </div>
       </div>
     </section>
-  );
+  )
 }

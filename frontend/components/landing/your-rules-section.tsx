@@ -1,9 +1,9 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { BlurFade } from "@/components/ui/blur-fade";
-import { DotGrid } from "@/components/shared/dot-grid";
+import { useState } from "react"
+import { cn } from "@/lib/utils"
+import { BlurFade } from "@/components/ui/blur-fade"
+import { DotGrid } from "@/components/shared/dot-grid"
 
 // --- data ---
 
@@ -14,9 +14,9 @@ const SURFACES = [
   { key: "audio", label: "Audio" },
   { key: "widget", label: "Widget" },
   { key: "digest", label: "Digest" },
-] as const;
+] as const
 
-type SurfaceKey = (typeof SURFACES)[number]["key"];
+type SurfaceKey = (typeof SURFACES)[number]["key"]
 
 const SURFACE_DEFAULTS: Record<SurfaceKey, boolean> = {
   terminalTv: true,
@@ -25,7 +25,7 @@ const SURFACE_DEFAULTS: Record<SurfaceKey, boolean> = {
   audio: false,
   widget: true,
   digest: true,
-};
+}
 
 const CATEGORIES = [
   { key: "devTools", label: "Dev tools" },
@@ -34,9 +34,9 @@ const CATEGORIES = [
   { key: "recruiting", label: "Recruiting" },
   { key: "education", label: "Education" },
   { key: "openSource", label: "Open source" },
-] as const;
+] as const
 
-type CategoryKey = (typeof CATEGORIES)[number]["key"];
+type CategoryKey = (typeof CATEGORIES)[number]["key"]
 
 const CATEGORY_DEFAULTS: Record<CategoryKey, boolean> = {
   devTools: true,
@@ -45,7 +45,7 @@ const CATEGORY_DEFAULTS: Record<CategoryKey, boolean> = {
   recruiting: false,
   education: false,
   openSource: true,
-};
+}
 
 const NEVER_ITEMS = [
   "show content during active coding",
@@ -56,13 +56,13 @@ const NEVER_ITEMS = [
   "show competitor ads for your current tools",
   "degrade the ad-free experience",
   "exceed your frequency preferences",
-];
+]
 
 const HOURS = Array.from({ length: 24 }, (_, i) => {
-  const period = i < 12 ? "AM" : "PM";
-  const hour = i === 0 ? 12 : i > 12 ? i - 12 : i;
-  return { value: `${String(i).padStart(2, "0")}:00`, label: `${hour}:00 ${period}` };
-});
+  const period = i < 12 ? "AM" : "PM"
+  const hour = i === 0 ? 12 : i > 12 ? i - 12 : i
+  return { value: `${String(i).padStart(2, "0")}:00`, label: `${hour}:00 ${period}` }
+})
 
 // --- sub-components ---
 
@@ -71,9 +71,9 @@ function SurfaceToggle({
   enabled,
   onToggle,
 }: {
-  label: string;
-  enabled: boolean;
-  onToggle: () => void;
+  label: string
+  enabled: boolean
+  onToggle: () => void
 }) {
   return (
     <div className="flex items-center justify-between py-2">
@@ -87,18 +87,18 @@ function SurfaceToggle({
         className={cn(
           "relative w-9 h-5 rounded-full transition-colors duration-200 cursor-pointer",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-primary)] focus-visible:ring-offset-2",
-          enabled ? "bg-[var(--ink-primary)]" : "bg-[var(--rule-default)]",
+          enabled ? "bg-[var(--ink-primary)]" : "bg-[var(--rule-default)]"
         )}
       >
         <span
           className={cn(
             "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-            enabled && "translate-x-4",
+            enabled && "translate-x-4"
           )}
         />
       </button>
     </div>
-  );
+  )
 }
 
 function RangeControl({
@@ -109,15 +109,15 @@ function RangeControl({
   onChange,
   formatValue,
 }: {
-  label: string;
-  min: number;
-  max: number;
-  value: number;
-  onChange: (v: number) => void;
-  formatValue: (v: number) => string;
+  label: string
+  min: number
+  max: number
+  value: number
+  onChange: (v: number) => void
+  formatValue: (v: number) => string
 }) {
   // fill percentage for the track gradient
-  const pct = ((value - min) / (max - min)) * 100;
+  const pct = ((value - min) / (max - min)) * 100
 
   return (
     <div className="py-2.5">
@@ -157,14 +157,14 @@ function RangeControl({
           // firefox track
           "[&::-moz-range-track]:h-1",
           "[&::-moz-range-track]:rounded-full",
-          "[&::-moz-range-track]:bg-transparent",
+          "[&::-moz-range-track]:bg-transparent"
         )}
         style={{
           background: `linear-gradient(to right, var(--ink-tertiary) 0%, var(--ink-tertiary) ${pct}%, var(--rule-default) ${pct}%, var(--rule-default) 100%)`,
         }}
       />
     </div>
-  );
+  )
 }
 
 function ScheduleRow({
@@ -172,15 +172,13 @@ function ScheduleRow({
   value,
   onChange,
 }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
+  label: string
+  value: string
+  onChange: (v: string) => void
 }) {
   return (
     <div className="flex items-center gap-3 py-2">
-      <span className="font-body text-body-s text-[var(--ink-secondary)] shrink-0">
-        {label}
-      </span>
+      <span className="font-body text-body-s text-[var(--ink-secondary)] shrink-0">{label}</span>
       <select
         value={value}
         aria-label={label}
@@ -189,7 +187,7 @@ function ScheduleRow({
           "font-data text-data-s text-[var(--ink-primary)]",
           "bg-transparent border-b border-[var(--rule-default)]",
           "pb-0.5 pr-1 cursor-pointer outline-none",
-          "focus:border-[var(--ink-primary)] transition-colors",
+          "focus:border-[var(--ink-primary)] transition-colors"
         )}
       >
         {HOURS.map((h) => (
@@ -203,7 +201,7 @@ function ScheduleRow({
         ))}
       </select>
     </div>
-  );
+  )
 }
 
 function CategoryCheckbox({
@@ -211,9 +209,9 @@ function CategoryCheckbox({
   checked,
   onToggle,
 }: {
-  label: string;
-  checked: boolean;
-  onToggle: () => void;
+  label: string
+  checked: boolean
+  onToggle: () => void
 }) {
   return (
     <button
@@ -228,7 +226,7 @@ function CategoryCheckbox({
           "w-4 h-4 rounded-sm border flex items-center justify-center transition-colors duration-150 shrink-0",
           checked
             ? "bg-[var(--ink-primary)] border-[var(--ink-primary)]"
-            : "bg-transparent border-[var(--rule-strong)]",
+            : "bg-transparent border-[var(--rule-strong)]"
         )}
       >
         {checked && (
@@ -245,24 +243,22 @@ function CategoryCheckbox({
       </span>
       <span className="font-body text-body-s text-[var(--ink-secondary)]">{label}</span>
     </button>
-  );
+  )
 }
 
 // --- control panel ---
 
 function ControlPanel() {
-  const [surfaces, setSurfaces] = useState(SURFACE_DEFAULTS);
-  const [frequency, setFrequency] = useState(20);
-  const [idleSensitivity, setIdleSensitivity] = useState(5);
-  const [scheduleStart, setScheduleStart] = useState("09:00");
-  const [scheduleEnd, setScheduleEnd] = useState("23:00");
-  const [categories, setCategories] = useState(CATEGORY_DEFAULTS);
+  const [surfaces, setSurfaces] = useState(SURFACE_DEFAULTS)
+  const [frequency, setFrequency] = useState(20)
+  const [idleSensitivity, setIdleSensitivity] = useState(5)
+  const [scheduleStart, setScheduleStart] = useState("09:00")
+  const [scheduleEnd, setScheduleEnd] = useState("23:00")
+  const [categories, setCategories] = useState(CATEGORY_DEFAULTS)
 
-  const toggleSurface = (key: SurfaceKey) =>
-    setSurfaces((s) => ({ ...s, [key]: !s[key] }));
+  const toggleSurface = (key: SurfaceKey) => setSurfaces((s) => ({ ...s, [key]: !s[key] }))
 
-  const toggleCategory = (key: CategoryKey) =>
-    setCategories((c) => ({ ...c, [key]: !c[key] }));
+  const toggleCategory = (key: CategoryKey) => setCategories((c) => ({ ...c, [key]: !c[key] }))
 
   return (
     <div className="relative rounded-md border border-[var(--rule-default)] bg-[var(--bg-surface)] overflow-hidden">
@@ -320,11 +316,7 @@ function ControlPanel() {
             value={scheduleStart}
             onChange={setScheduleStart}
           />
-          <ScheduleRow
-            label="No content after"
-            value={scheduleEnd}
-            onChange={setScheduleEnd}
-          />
+          <ScheduleRow label="No content after" value={scheduleEnd} onChange={setScheduleEnd} />
         </div>
 
         <div className="border-t border-[var(--rule-default)] my-1" />
@@ -347,7 +339,7 @@ function ControlPanel() {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 // --- never list ---
@@ -360,7 +352,7 @@ function NeverList() {
           <div
             className={cn(
               "flex items-start gap-4 py-4",
-              i < NEVER_ITEMS.length - 1 && "border-b border-[var(--rule-subtle)]",
+              i < NEVER_ITEMS.length - 1 && "border-b border-[var(--rule-subtle)]"
             )}
           >
             <span className="font-display text-[13px] font-bold text-[var(--ink-primary)] tracking-[0.06em] uppercase shrink-0 mt-0.5">
@@ -373,7 +365,7 @@ function NeverList() {
         </BlurFade>
       ))}
     </div>
-  );
+  )
 }
 
 // --- section ---
@@ -405,7 +397,8 @@ export function YourRulesSection() {
 
             <BlurFade inView delay={0.1}>
               <p className="font-body text-body text-[var(--ink-secondary)] leading-[1.6] mb-2">
-                Surfaces, frequency, categories, schedule. If you say 5 per day, that&apos;s the ceiling.
+                Surfaces, frequency, categories, schedule. If you say 5 per day, that&apos;s the
+                ceiling.
               </p>
             </BlurFade>
 
@@ -419,5 +412,5 @@ export function YourRulesSection() {
         </div>
       </div>
     </section>
-  );
+  )
 }
