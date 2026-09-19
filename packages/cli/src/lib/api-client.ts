@@ -302,9 +302,12 @@ export function reportError(err: unknown): never {
   if (!(err instanceof NotAuthenticatedError)) {
     captureCliException(err, process.argv[2])
   }
+  // Flush bounded, then exit. Do NOT call process.exit synchronously here — that
+  // would abort the in-flight flush and drop the just-captured error. The
+  // (un-unref'd) timeout inside flushCliTelemetry keeps the event loop alive
+  // until the flush settles (≤1.5s), then .finally performs the real exit.
   void flushCliTelemetry().finally(() => process.exit(1))
-  // unreachable — process.exit fires inside the finally above; satisfies `never`
-  process.exit(1)
+  return undefined as never
 }
 
 // keep CONFIG_VERSION re-export to avoid import churn in callers that imported it from here
