@@ -1,6 +1,6 @@
 import "dotenv/config"
 import { app } from "./app.js"
-import { env } from "./config/env.js"
+import { env, assertEnvSafe } from "./config/env.js"
 import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
 import { ensureCarbonSystemCampaign } from "./lib/carbon-system-campaign.js"
@@ -8,6 +8,8 @@ import { deactivateStaleCarbonCreatives } from "./services/carbon-cleanup.servic
 import type { Socket } from "node:net"
 
 async function start() {
+  assertEnvSafe()
+
   const [dbResult, redisResult] = await Promise.allSettled([probeDb(), probeRedis()])
 
   if (dbResult.status === "fulfilled") {

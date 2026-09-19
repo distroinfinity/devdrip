@@ -38,3 +38,6 @@ pnpm-debug.log*
 
 # claude
 .claude/
+
+# superset worktree tool metadata
+.superset/

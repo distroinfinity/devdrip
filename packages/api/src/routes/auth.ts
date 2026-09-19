@@ -25,9 +25,52 @@ import { authLimiter, refreshLimiter } from "../middleware/rate-limit.js"
 
 export const authRouter: ReturnType<typeof Router> = Router()
 
+// CLI auth flow: the `devdrip auth` command passes cli_port so the browser
+// round-trip can land back on the user's machine. Port range is locked down to
+// prevent open-redirect abuse.
+const CLI_PORT_MIN = 54321
+const CLI_PORT_MAX = 54330
+const STATE_TTL_SECONDS = 600
+
+function parseCliPort(raw: unknown): number | null {
+  if (typeof raw !== "string") return null
+  if (!/^\d+$/.test(raw)) return null
+  const n = Number(raw)
+  if (n < CLI_PORT_MIN || n > CLI_PORT_MAX) return null
+  return n
+}
+
+async function consumeStateContext(state: string): Promise<{ cliPort?: number } | null> {
+  const raw = await getRedis().getdel<string>(`auth:state:${state}`)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as { cliPort?: number }
+  } catch {
+    return null
+  }
+}
+
+function buildRedirectUrl(cliPort: number | undefined, params: Record<string, string>): string {
+  const url = cliPort
+    ? new URL(`http://localhost:${cliPort}/callback`)
+    : new URL(env.clientRedirectUrl)
+  for (const [k, v] of Object.entries(params)) {
+    url.searchParams.set(k, v)
+  }
+  return url.toString()
+}
+
 // ── GET /auth/github/redirect ───────────────────────────────────────────────
-authRouter.get("/github/redirect", authLimiter, async (_req, res) => {
+authRouter.get("/github/redirect", authLimiter, async (req, res) => {
   const state = randomBytes(16).toString("hex")
+  const cliPort = parseCliPort(req.query["cli_port"])
+
+  if (cliPort !== null) {
+    await getRedis().set(`auth:state:${state}`, JSON.stringify({ cliPort }), {
+      ex: STATE_TTL_SECONDS,
+    })
+  }
+
   const params = new URLSearchParams({
     client_id: env.githubClientId,
     redirect_uri: env.githubCallbackUrl,
@@ -38,7 +81,7 @@ authRouter.get("/github/redirect", authLimiter, async (_req, res) => {
   res.cookie("gh_oauth_state", state, {
     httpOnly: true,
     sameSite: "lax",
-    maxAge: 600_000,
+    maxAge: STATE_TTL_SECONDS * 1000,
     secure: env.nodeEnv === "production",
   })
 
@@ -47,17 +90,26 @@ authRouter.get("/github/redirect", authLimiter, async (_req, res) => {
 
 // ── GET /auth/github/callback ───────────────────────────────────────────────
 authRouter.get("/github/callback", authLimiter, async (req, res) => {
-  const { code, state } = req.query
+  const { code, state, error: ghError } = req.query
   const cookieState = req.cookies["gh_oauth_state"] as string | undefined
 
-  if (!state || !cookieState || state !== cookieState) {
+  if (!state || typeof state !== "string" || !cookieState || state !== cookieState) {
+    // state invalid → can't look up cli_port safely; fall back to web redirect
     await res.redirect(`${env.clientRedirectUrl}?error=invalid_state`)
     return
   }
   res.clearCookie("gh_oauth_state")
 
+  const ctx = await consumeStateContext(state)
+  const cliPort = ctx?.cliPort
+
+  if (typeof ghError === "string" && ghError) {
+    await res.redirect(buildRedirectUrl(cliPort, { error: ghError }))
+    return
+  }
+
   if (!code || typeof code !== "string") {
-    await res.redirect(`${env.clientRedirectUrl}?error=missing_code`)
+    await res.redirect(buildRedirectUrl(cliPort, { error: "missing_code" }))
     return
   }
 
@@ -107,7 +159,7 @@ authRouter.get("/github/callback", authLimiter, async (req, res) => {
       .returning()
 
     if (!user) {
-      await res.redirect(`${env.clientRedirectUrl}?error=user_creation_failed`)
+      await res.redirect(buildRedirectUrl(cliPort, { error: "user_creation_failed" }))
       return
     }
 
@@ -133,12 +185,10 @@ authRouter.get("/github/callback", authLimiter, async (req, res) => {
       { ex: 60 }
     )
 
-    const redirectUrl = new URL(env.clientRedirectUrl)
-    redirectUrl.searchParams.set("code", exchangeCode)
-    await res.redirect(redirectUrl.toString())
+    await res.redirect(buildRedirectUrl(cliPort, { code: exchangeCode }))
   } catch (err) {
     logger.error({ err }, "oauth callback error")
-    await res.redirect(`${env.clientRedirectUrl}?error=auth_failed`)
+    await res.redirect(buildRedirectUrl(cliPort, { error: "auth_failed" }))
   }
 })
 
@@ -157,7 +207,14 @@ authRouter.post("/exchange", authLimiter, async (req, res) => {
     return
   }
 
-  const tokens = JSON.parse(raw) as { accessToken: string; refreshToken: string }
+  let tokens: { accessToken: string; refreshToken: string }
+  try {
+    tokens = JSON.parse(raw) as { accessToken: string; refreshToken: string }
+  } catch (err) {
+    logger.error({ err }, "malformed exchange payload in redis")
+    await res.status(500).json({ error: "internal_error" })
+    return
+  }
   await res.json({ token: tokens.accessToken, refresh_token: tokens.refreshToken })
 })
 

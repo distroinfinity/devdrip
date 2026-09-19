@@ -34,9 +34,7 @@ Most commands only print a `TODO` message.
 That includes:
 
 - `init`
-- `auth`
 - `config`
-- `status`
 - `daemon start`
 - `daemon stop`
 - `daemon status`
@@ -51,6 +49,73 @@ That includes:
 - `hook pre-tool`
 - `hook stop`
 - `hook prompt-submit`
+
+## `auth` + `status` (S2-06)
+
+`devdrip auth` runs the GitHub OAuth round-trip and persists the session locally. `devdrip status` reads that session and shows the signed-in identity.
+
+### `devdrip auth`
+
+Flow:
+
+1. picks the first free TCP port in `[54321, 54330]` on `127.0.0.1` and starts a one-route HTTP server there.
+2. opens the default browser (`open` / `xdg-open` / `cmd start`) to `${DEVDRIP_API_URL}/auth/github/redirect?cli_port=<port>`.
+3. waits up to 60 seconds for the browser round-trip. On timeout or SIGINT the server closes and the command exits non-zero.
+4. the backend handles GitHub consent, mints a one-time exchange code, and redirects the browser to `http://localhost:<port>/callback?code=<one-time>` (or `?error=<reason>`).
+5. `POST /auth/exchange` with the one-time code → `{ token, refresh_token }`.
+6. `GET /me` with the bearer token → user profile (`id`, `githubLogin`, `email`, `avatarUrl`).
+7. writes `~/.devdrip/config.json` atomically (tmp file + rename) with mode `0600`. Parent directory is created with mode `0700`.
+
+Flags:
+
+- `--logout` — revokes refresh tokens via `POST /auth/logout` and deletes `~/.devdrip/config.json`. No-ops (exit 0) when no config exists.
+- `-f, --force` — skip the "already signed in, re-authenticate?" confirmation prompt.
+
+Error handling:
+
+- ports 54321–54330 all in use → exit 1 with a clear message.
+- user denies GitHub consent → local server receives `?error=access_denied`, prints `auth cancelled`, exits 1.
+- 60-second timeout with no callback → exit 1.
+- backend 5xx during exchange → exit 1, no token persisted.
+
+### `devdrip status`
+
+Reads `~/.devdrip/config.json` and calls `GET /me`. If the access token is expired, the CLI's `apiFetch` transparently rotates it via `POST /auth/refresh` and retries. Output:
+
+- no config → `auth: not signed in (run \`devdrip auth\`)`
+- healthy → `auth: signed in as @<login>` + email
+- refresh-invalid → config is cleared, message prompts re-auth
+- api unreachable → falls back to cached identity with an offline indicator
+
+### Config file shape
+
+`~/.devdrip/config.json` (mode `0600`):
+
+```json
+{
+  "version": 1,
+  "apiUrl": "https://api.devdrip.sh",
+  "auth": {
+    "accessToken": "jwt",
+    "refreshToken": "hex",
+    "accessTokenExpiresAt": "2026-04-20T15:24:00.000Z"
+  },
+  "user": {
+    "id": "uuid",
+    "githubLogin": "manu",
+    "email": "manu@example.com",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/123"
+  }
+}
+```
+
+`version` exists for future migrations. `apiUrl` is captured at sign-in so subsequent commands don't need `DEVDRIP_API_URL` set. `DEVDRIP_API_URL` still takes precedence when present.
+
+### Library layout
+
+- `src/lib/config.ts` — atomic read/write/delete with mode enforcement.
+- `src/lib/auth-flow.ts` — port scanner, one-shot callback server, browser opener.
+- `src/lib/api-client.ts` — `apiFetch` (bearer + transparent refresh-on-401) and `apiFetchPublic` (no auth — used for `/auth/exchange` and `/auth/refresh`). Throws `NotAuthenticatedError` when refresh fails; throws `ApiError` on other non-2xx responses.
 
 ## `admin` Subcommands
 
@@ -96,17 +161,10 @@ Fallback behavior:
 
 ## Current Intent Visible In Code
 
-The `auth` command contains a note that, after successful token exchange, it should call `registerDevice()` and persist the returned device ID.
-
-This tells us:
-
-- CLI auth is expected to end in backend device registration
-- the local device identity path is already partly defined
+`devdrip init` is still a placeholder but owns device registration — `registerDevice()` is called there, not in `auth`. This keeps the auth command focused on identity and lets repeat-install flows re-run `init` without re-authenticating.
 
 ## What Is Missing For A Real CLI
 
-- token storage
-- settings or config persistence
 - daemon process lifecycle
 - hook handling
 - local ledger
@@ -115,7 +173,8 @@ This tells us:
 - sync pipeline
 - payout flow
 - doctor checks
+- `devdrip init` wiring (device registration after auth)
 
 ## Engineering Takeaway
 
-Treat `packages/cli` as interface scaffolding plus one reusable device helper. If you are implementing local product behavior next, this package still needs core runtime work rather than cleanup work.
+`packages/cli` now has working identity plus the config/api-client/auth-flow helpers that every future command will lean on. New commands that hit the backend should use `apiFetch` from `src/lib/api-client.ts` so they inherit transparent token refresh. The remaining gaps are local runtime pieces — daemon, hooks, ledger, renderer.

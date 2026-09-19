@@ -74,13 +74,18 @@ Response shape:
 ## `GET /auth/github/redirect`
 
 Purpose:
-start GitHub OAuth.
+start GitHub OAuth. Used by both the web dashboard and the `devdrip auth` CLI.
+
+Query params:
+
+- `cli_port` (optional) — integer in `[54321, 54330]`. When present and valid, the callback later redirects the browser to `http://localhost:<cli_port>/callback` instead of `CLIENT_REDIRECT_URL`. Out-of-range or non-numeric values are silently ignored.
 
 Behavior:
 
 - rate limited by `authLimiter`
 - generates random state
 - stores state in `gh_oauth_state` cookie
+- if a valid `cli_port` is supplied, stores `{ cliPort }` in Redis at `auth:state:<state>` with 10-minute TTL
 - redirects to GitHub with `read:user user:email`
 
 ## `GET /auth/github/callback`
@@ -91,6 +96,8 @@ complete GitHub OAuth and prepare token exchange.
 Behavior:
 
 - validates query `state` against cookie
+- consumes the Redis entry at `auth:state:<state>` to recover `cliPort` (if any)
+- if GitHub returned `?error` (e.g. user denied consent), forwards that error to the resolved redirect target
 - validates `code`
 - exchanges code for GitHub token
 - fetches GitHub profile
@@ -99,12 +106,13 @@ Behavior:
 - upserts user by `githubId`
 - inserts a refresh token row
 - stores access token and refresh token behind a one-time Redis code with 60 second TTL
-- redirects to `CLIENT_REDIRECT_URL?code=<exchangeCode>`
+- redirects the browser to `http://localhost:<cliPort>/callback?code=<exchangeCode>` when `cliPort` is present, otherwise `CLIENT_REDIRECT_URL?code=<exchangeCode>`
 
-Failure redirects:
+Failure redirects (target same as above — CLI port when known, web otherwise):
 
-- `?error=invalid_state`
+- `?error=invalid_state` (always web — state is untrusted so we don't look up the CLI port)
 - `?error=missing_code`
+- `?error=access_denied` (or any other error GitHub returned)
 - `?error=user_creation_failed`
 - `?error=auth_failed`
 
@@ -199,7 +207,7 @@ Response:
 ## `GET /me`
 
 Purpose:
-return the authenticated user identity from the JWT.
+return the authenticated user's core profile. Used by the CLI to populate `~/.devdrip/config.json` after sign-in and to render `devdrip status`.
 
 Auth:
 
@@ -209,16 +217,21 @@ Success response:
 
 ```json
 {
-  "userId": "uuid",
-  "githubLogin": "login"
+  "id": "uuid",
+  "githubLogin": "login",
+  "email": "user@example.com",
+  "avatarUrl": "https://avatars.githubusercontent.com/u/123"
 }
 ```
+
+`githubLogin` and `avatarUrl` may be `null` for users created outside the GitHub OAuth flow.
 
 Errors:
 
 - `401 missing_token`
 - `401 token_expired`
 - `401 invalid_token`
+- `404 user_not_found`
 
 ## `POST /devices`
 
