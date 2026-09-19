@@ -1,5 +1,4 @@
-import { lstatSync, unlinkSync } from "node:fs"
-import { readFile, rm, stat, unlink, writeFile } from "node:fs/promises"
+import { lstat, readFile, rm, stat, unlink, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { Command } from "commander"
@@ -21,8 +20,12 @@ function claudeBackupPath(): string {
   return `${claudeSettingsPath()}.distro-backup`
 }
 
-function distroBinLinkPath(): string {
-  return join(homedir(), ".distro", "bin", "distro")
+function localBinDir(): string {
+  return process.env["DISTROTV_BIN"] ?? join(homedir(), ".local", "bin")
+}
+
+function installHomeDir(): string {
+  return process.env["DISTROTV_HOME"] ?? join(homedir(), ".distrotv")
 }
 
 async function restoreOrStripHooks(): Promise<{ restored: boolean; stripped: boolean }> {
@@ -59,19 +62,38 @@ async function restoreOrStripHooks(): Promise<{ restored: boolean; stripped: boo
   return { restored: false, stripped: changed }
 }
 
-function removeBinSymlink(): boolean {
-  const p = distroBinLinkPath()
+async function pathExists(p: string): Promise<boolean> {
   try {
-    lstatSync(p)
-  } catch {
-    return false
-  }
-  try {
-    unlinkSync(p)
+    await lstat(p)
     return true
   } catch {
     return false
   }
+}
+
+// remove everything the curl installer + `distro init` put on disk: the
+// wrapper(s) on PATH, the init-created symlinks, and the install dir holding
+// dist/ + node_modules. deleting the running binary is safe on unix (the inode
+// survives until the process exits). missing paths are skipped.
+async function removeInstalledFiles(): Promise<string[]> {
+  const targets = [
+    join(localBinDir(), "distro"),
+    join(localBinDir(), "dtv"),
+    join(homedir(), ".distro", "bin", "distro"),
+    join(homedir(), ".distro", "bin", "dtv"),
+    installHomeDir(),
+  ]
+  const removed: string[] = []
+  for (const t of targets) {
+    if (!(await pathExists(t))) continue
+    try {
+      await rm(t, { recursive: true, force: true })
+      removed.push(t)
+    } catch {
+      /* non-fatal */
+    }
+  }
+  return removed
 }
 
 export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Promise<number> {
@@ -108,9 +130,12 @@ export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Pr
     log.warn(`hook removal failed: ${(err as Error).message}`)
   }
 
-  // 3. drop the cli symlink so a future `which distro` can't dead-link into
-  // ~/.distro/bin/. harmless if missing.
-  if (removeBinSymlink()) log.success("removed ~/.distro/bin/distro symlink")
+  // 3. remove the installed binary + wrappers + symlinks so `distro` is
+  // actually gone from PATH (not just unhooked from claude code).
+  const removed = await removeInstalledFiles()
+  if (removed.length > 0)
+    log.success(`removed installed binary + wrappers (${removed.length} paths)`)
+  else log.info("no installed binary found on disk (dev build?)")
 
   // 4. print data retention note BEFORE any purge.
   note(
@@ -140,7 +165,7 @@ export async function runUninstall(opts: { yes?: boolean; purge?: boolean }): Pr
     log.info(`kept ${configDir()} (use --purge to delete local state)`)
   }
 
-  outro("done — run `npm uninstall -g @distrotv/cli` to remove the binary")
+  outro("done — distro removed. reinstall anytime with the curl one-liner.")
   return 0
 }
 
