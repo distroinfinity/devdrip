@@ -1,4 +1,4 @@
-import type { AdCategory, ChannelMode, NewsTopic, SyncedPreferences } from "@devdrip/shared"
+import type { AdCategory, ChannelMode, NewsTopic, SyncedPreferences } from "@distrotv/shared"
 import { apiFetch } from "./api"
 
 // ── analytics (existing /me/analytics/impressions) ──────────────────────────

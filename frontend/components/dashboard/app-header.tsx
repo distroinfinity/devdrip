@@ -1,4 +1,4 @@
-import { ThemeToggle } from "@devdrip/design-system/components/theme-toggle"
+import { ThemeToggle } from "@distrotv/design-system/components/theme-toggle"
 import { BrandMark } from "./brand-mark"
 import { SocialStrip } from "./social-strip"
 

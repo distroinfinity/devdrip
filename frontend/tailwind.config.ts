@@ -1,5 +1,5 @@
 import type { Config } from "tailwindcss"
-import preset from "@devdrip/design-system/tailwind-preset"
+import preset from "@distrotv/design-system/tailwind-preset"
 
 const config: Config = {
   presets: [preset as Config],

@@ -1,22 +1,24 @@
-# DevDrip Engineering Docs
+# Distro TV Engineering Docs
 
 Current-state docs for engineers working in this repo.
 
-> **Direction shift in flight.** DevDrip is pivoting to an agent-treasury model on Base Sepolia, powered by KeeperHub + Uniswap. World ID, World Chain, and the Mini App are being removed. Read [Agent Treasury Pivot](architecture/agent-treasury-pivot.md) before anything else — pages flagged "(deprecated)" describe surface that's being torn out on the `pivot/agent-treasury` branch.
+> _Distro TV is the post-pivot product (2026-05-05). Sections describing earnings/payouts/wallet/world will be revised as M1-M8 land. See `docs/superpowers/specs/2026-05-05-distro-tv-pivot-design.md` for the full design._
 
-## What DevDrip Is
+> **Previously DevDrip.** The product was originally called DevDrip (opt-in ads + USDC micropayments). In May 2026 it pivoted to Distro TV — an ambient news + market terminal feed. Pages flagged "(deprecated)" describe surfaces being torn out. The agent-treasury pivot page describes a prior intermediate direction that was also superseded.
 
-DevDrip is building an opt-in monetization layer around AI coding tool idle time. Earnings are routed into **vault rules** — recurring or conditional Uniswap swaps executed durably by KeeperHub workflows, surfaced to the user via dashboard, CLI, and an MCP server agents can call directly.
+## What Distro TV Is
+
+Distro TV anchors an ambient content slot at the bottom of the terminal during AI coding tool idle time. Tech and finance news from HN, TechCrunch, Bloomberg, and Reuters. A watchlist of stocks and crypto with sparklines and key stats. Three modes: news-only, markets-only, or alternating mix with alert-driven priority bumps.
 
 In the repo today, the implemented product surface is split across these packages:
 
 - `frontend` runs the public landing page and the waitlist intake flow.
-- `packages/api` runs the backend API for health, auth, device registration, and campaign management (advertisers, campaigns, creatives CRUD with budget pacing).
-- `packages/shared` holds shared enums, types, and constants for the product model.
-- `packages/cli` exposes the planned CLI command surface, with most commands still stubbed.
+- `packages/api` runs the backend API for health, auth, device registration, and slot impression ingestion.
+- `packages/shared` holds shared enums, slot payload types, and constants.
+- `packages/cli` exposes the CLI command surface (`distro init`, `distro daemon`, `distro status`, `distro watchlist`, etc.).
 - `packages/dashboard` is a separate dashboard app shell with minimal UI today.
 
-## Current State
+## Current State (post-M1)
 
 ```text
 browser
@@ -25,7 +27,7 @@ browser
      -> neon postgres
      -> resend email
 
-cli / dashboard
+cli / daemon
   -> packages/api
      -> github oauth
      -> jwt auth
@@ -33,31 +35,24 @@ cli / dashboard
      -> redis via upstash
 ```
 
-What is real right now:
+What is real right now (end of M1):
 
-- landing page sections and waitlist form
-- waitlist insert and confirmation email flow
-- backend health checks
-- GitHub OAuth callback flow
-- one-time auth code exchange
-- refresh token rotation
-- authenticated device registration
-- admin-protected CRUD for advertisers, campaigns, and creatives
-- campaign status state machine (draft → active → paused ↔ active → completed) with activation guards
-- Redis-backed budget pacing engine (daily/hourly tracking, even/front_loaded/asap strategies)
-- creative round-robin rotation via Redis
-- campaign stats aggregation (impressions, clicks, CTR, live spend)
-- shared domain model for impressions, earnings, payouts, and referrals
+- landing page and waitlist flow
+- GitHub OAuth + JWT auth
+- device registration
+- slot impression ingestion (news kind)
+- slot cache (reads `/me/content/next`, falls back to demo fixtures)
+- daemon lifecycle (start/stop/status/heartbeat)
+- hook IPC (PreToolUse, Stop, UserPromptSubmit → daemon socket)
+- reading list ledger (local SQLite)
+- `distro init`, `distro doctor`, `distro status`, `distro watchlist`, `distro demo`
 
-What is not built yet:
+What arrives in upcoming milestones:
 
-- daemon flow
-- local ledger flow
-- ad serving waterfall
-- impression ingestion API
-- earnings and payout APIs
-- real dashboard product pages
-- operational CLI behavior beyond scaffolding
+- M2: auth stabilization + real device-registration round-trip
+- M3: live news slot rendering from API
+- M4: ticker slots + watchlist management
+- M5: demo loop end-to-end → merge to main
 
 ## Read This Next
 
@@ -67,7 +62,8 @@ What is not built yet:
 - [Data Model](backend/data-model.md)
 - [Landing And Waitlist](frontend/landing-and-waitlist.md)
 - [CLI Current State](cli/current-state.md)
-- [Dashboard Current State](dashboard/current-state.md)
+- [Daemon + Hook IPC](cli/daemon-and-hooks.md)
+- [News and Reading (CLI)](cli/news-and-reading.md)
 - [Dev Workflow](engineering/dev-workflow.md)
 - [Known Gaps](engineering/known-gaps.md)
 - [Glossary](engineering/glossary.md)

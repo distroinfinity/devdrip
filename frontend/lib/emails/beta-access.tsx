@@ -19,18 +19,18 @@ export function BetaAccessEmail({ position = 1 }: BetaAccessEmailProps) {
   return (
     <Html>
       <Head />
-      <Preview>{`You're #${position} in line for Dev Drip beta access.`}</Preview>
+      <Preview>{`You're #${position} in line for Distro TV beta access.`}</Preview>
       <Body style={body}>
         <Container style={container}>
           {/* logo */}
-          <Text style={logo}>dev drip</Text>
+          <Text style={logo}>distro tv</Text>
 
           <Hr style={divider} />
 
           <Heading style={heading}>Request for Beta Access</Heading>
 
           <Text style={paragraph}>
-            Hey, thank you for showing interest in Dev Drip. That genuinely means a lot.
+            Hey, thank you for showing interest in Distro TV. That genuinely means a lot.
           </Text>
 
           <Section style={positionBox}>
@@ -57,7 +57,7 @@ export function BetaAccessEmail({ position = 1 }: BetaAccessEmailProps) {
 
           <Hr style={divider} />
 
-          <Text style={footer}>Dev Drip | earn while your agent thinks.</Text>
+          <Text style={footer}>Distro TV | your terminal&apos;s news + market feed.</Text>
         </Container>
       </Body>
     </Html>

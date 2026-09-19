@@ -1,1 +1,1 @@
-export { spaceMono, dmSans, jetbrainsMono, fontVariables } from "@devdrip/design-system/fonts"
+export { spaceMono, dmSans, jetbrainsMono, fontVariables } from "@distrotv/design-system/fonts"

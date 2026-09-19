@@ -1,6 +1,6 @@
 import { cache } from "react"
 import { cookies } from "next/headers"
-import { ACCESS_COOKIE, REFRESH_COOKIE } from "./cookies"
+import { ACCESS_COOKIE } from "./cookies"
 import { apiFetch, UnauthenticatedError } from "./api"
 
 export interface SessionUser {
@@ -18,7 +18,6 @@ interface MeResponse {
   avatarUrl: string | null
   reposCount?: number
   primaryLanguage?: string | null
-  walletAddress?: string | null
   streakDays?: number
   createdAt?: string
 }
@@ -27,7 +26,7 @@ interface MeResponse {
 // fan-out to the backend
 export const getServerUser = cache(async (): Promise<SessionUser | null> => {
   const jar = cookies()
-  if (!jar.get(ACCESS_COOKIE)?.value && !jar.get(REFRESH_COOKIE)?.value) {
+  if (!jar.get(ACCESS_COOKIE)?.value) {
     return null
   }
 

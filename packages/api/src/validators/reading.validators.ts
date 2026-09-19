@@ -1,4 +1,4 @@
-import { NewsSource } from "@devdrip/shared"
+import { NewsSource } from "@distrotv/shared"
 import { ValidationError } from "../errors/index.js"
 import { requireBody, validateEnumValue, validateStringField, validateUrl } from "./common.js"
 

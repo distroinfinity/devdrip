@@ -109,6 +109,9 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
   }
 
   async function doRunOnce(): Promise<SyncResult> {
+    // post-pivot: ad impressions/clicks are gone. listUnsynced + listUnsyncedClicks
+    // will always return [] but we still call them so the ledger stays coherent if
+    // a legacy ledger row somehow exists.
     const impressions = deps.ledger.listUnsynced(IMPRESSION_BATCH_CAP)
     const clicks = deps.ledger.listUnsyncedClicks(CLICK_BATCH_CAP)
     const newsImpressions = deps.ledger.listUnsyncedNewsImpressions(NEWS_IMPRESSION_BATCH_CAP)
@@ -121,25 +124,23 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
       terminal: 0,
     }
 
-    if (impressions.length > 0 || clicks.length > 0 || newsImpressions.length > 0) {
+    if (newsImpressions.length > 0) {
       let res: IngestResponse
       try {
         const body = {
-          impressions: impressions.map((i) => ({ deliveryToken: i.deliveryToken })),
-          clicks: clicks.map((c) => ({ deliveryToken: c.deliveryToken })),
-          ...(newsImpressions.length > 0
-            ? {
-                newsImpressions: newsImpressions.map((n) => ({
-                  newsId: n.newsId,
-                  source: n.source,
-                  deviceId: n.deviceId,
-                  durationMs: n.durationMs,
-                  result: n.result,
-                  openedUrl: n.openedUrl,
-                  saved: n.saved,
-                })),
-              }
-            : {}),
+          // M1: only newsImpressions go to the server. impressions/clicks are
+          // dead post-pivot; omit them to keep the request body clean.
+          impressions: [] as { deliveryToken: string }[],
+          clicks: [] as { deliveryToken: string }[],
+          newsImpressions: newsImpressions.map((n) => ({
+            newsId: n.newsId,
+            source: n.source,
+            deviceId: n.deviceId,
+            durationMs: n.durationMs,
+            result: n.result,
+            openedUrl: n.openedUrl,
+            saved: n.saved,
+          })),
         }
         res = await post(body)
       } catch (err) {

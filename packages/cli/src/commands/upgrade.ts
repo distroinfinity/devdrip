@@ -19,7 +19,7 @@ function printResult(current: string, latest: string, cached: boolean): void {
   process.stdout.write(`current: ${current}\n`)
   process.stdout.write(`latest:  ${latest}${cacheTag}\n`)
   if (cmp < 0) {
-    process.stdout.write(`\n${yellow("→ npm install -g @devdrip/cli@latest", color)}\n`)
+    process.stdout.write(`\n${yellow("→ npm install -g @distrotv/cli@latest", color)}\n`)
   } else if (cmp === 0) {
     process.stdout.write(`\n${green("you're up to date", color)}\n`)
   } else {

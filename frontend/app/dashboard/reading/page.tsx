@@ -1,4 +1,4 @@
-import { BlurFade } from "@devdrip/design-system/components/blur-fade"
+import { BlurFade } from "@distrotv/design-system/components/blur-fade"
 import { apiFetchOrRefresh } from "@/lib/api"
 import { ReadingList } from "@/components/dashboard/reading/reading-list"
 import type { ReadingListResponse } from "@/lib/dashboard-api"

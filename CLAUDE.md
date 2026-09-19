@@ -2,34 +2,36 @@
 
 ## Project Overview
 
-Dev Drip monetizes AI coding tool idle time with opt-in ads. Developers earn USDC micropayments while Claude Code thinks. Phase 0 (landing page) complete. Phase 1: working product — CLI, backend API, dashboard, USDC payouts.
+Distro TV is an ambient news + market terminal feed that surfaces while AI coding tools think. Developers see tech/finance news from HN, TechCrunch, Bloomberg, and Reuters, plus a watchlist of stocks and crypto with sparklines. Originally launched as DevDrip (opt-in ads + USDC micropayments); pivoted to Distro TV in May 2026.
 
 ## Architecture
 
-- **CLI + Daemon** — `@devdrip/cli` npm package. Hooks into Claude Code via settings.json (PreToolUse, Stop, UserPromptSubmit). Daemon on Unix socket manages ad display, key capture, local ledger (SQLite).
-- **Backend API** — Express + Drizzle ORM + Neon PostgreSQL + Upstash Redis. Campaign management, ad waterfall (Manual → Carbon Ads), impression ingestion, earnings, payouts.
-- **Dashboard** — Next.js 14, App Router, Tailwind. Earnings, analytics, preferences, wallet, claim USDC.
-- **Payments** — x402 protocol for everything. EIP-3009 + CDP facilitator (gasless). Base Sepolia testnet.
+- **CLI + Daemon** — `@distrotv/cli` npm package (binary: `distro`). Hooks into Claude Code via settings.json (PreToolUse, Stop, UserPromptSubmit). Daemon on Unix socket manages slot display, key capture, local ledger (SQLite).
+- **Backend API** — Express + Drizzle ORM + Neon PostgreSQL + Upstash Redis. Auth, device registration, channels, watchlists, alerts, slot impression ingestion.
+- **Dashboard** — Next.js 14, App Router, Tailwind. Reading list, watchlist management, preferences.
+- **Payments** — deferred post-M1. Base Sepolia testnet targeted for M6+.
 
 ## Tech Stack
 
 - **everything TypeScript** — monorepo via Turborepo + pnpm workspaces
 - packages: `cli`, `api`, `dashboard`, `shared`
-- Express, Drizzle, Neon, Upstash, wagmi, viem, @x402/evm, better-sqlite3, commander, tsup
+- Express, Drizzle, Neon, Upstash, better-sqlite3, commander, tsup
 - deploy: Railway GitHub autodeploy (API), Vercel via GitHub Actions (frontend), npm (CLI)
 
-## Sprint Reference
+## Milestones
 
-- Notion board: https://www.notion.so/b0675f57e5a3481ebb76c823d889ac95
-- Sprint overview: https://www.notion.so/3404bbb2d003812e81f2c1ab6c21d91b
-- 61 tickets, 5 sprints, 4 parallel tracks (Infra, Backend, CLI, Frontend)
+- M1 (current): rename + rip — packages renamed to `@distrotv/*`, ads ripped, slot types added
+- M2: auth + device registration
+- M3: news slot rendering
+- M4: ticker slot + watchlist
+- M5: demo loop end-to-end → merge to main
 
 ## Hard Rules
 
-- &lt;200ms ad vanish — hard requirement, measure it, log it
+- &lt;200ms slot vanish — hard requirement, measure it, log it
 - hooks always exit 0 — never block Claude Code
 - local ledger is ground truth — backend can be down
-- 3s grace period before showing ads — no ads on fast tool calls
+- 3s grace period before showing slots — no slots on fast tool calls
 
 ## Dev Rules
 

@@ -1,4 +1,4 @@
-import { BlurFade } from "@devdrip/design-system/components/blur-fade"
+import { BlurFade } from "@distrotv/design-system/components/blur-fade"
 import { apiFetchOrRefresh } from "@/lib/api"
 import { PreferencesForm } from "@/components/dashboard/preferences/preferences-form"
 import type { PreferencesPayload } from "@/lib/dashboard-api"

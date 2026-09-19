@@ -36,6 +36,7 @@ export async function verifyAccessToken(token: string, secret: string): Promise<
   return { sub: payload.sub as string, github_login: payload["github_login"] as string }
 }
 
+// dead in M1; M2 wires these into auth_tokens refresh rotation
 export function generateRefreshToken(): string {
   return randomBytes(32).toString("hex")
 }

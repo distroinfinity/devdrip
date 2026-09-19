@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@devdrip/design-system/utils"
+import { cn } from "@distrotv/design-system/utils"
 
 interface AdvancedBlockProps {
   idleSensitivityMs: number

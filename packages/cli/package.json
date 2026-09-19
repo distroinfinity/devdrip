@@ -1,10 +1,11 @@
 {
-  "name": "@devdrip/cli",
+  "name": "@distrotv/cli",
   "version": "0.0.0",
   "private": false,
   "type": "module",
   "bin": {
-    "devdrip": "./dist/index.js"
+    "distro": "./dist/index.js",
+    "dtv": "./dist/index.js"
   },
   "files": [
     "dist"
@@ -26,7 +27,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^0.9.0",
-    "@devdrip/shared": "workspace:*",
+    "@distrotv/shared": "workspace:*",
     "better-sqlite3": "^11.8.1",
     "cli-table3": "^0.6.5",
     "commander": "^13.0.0",

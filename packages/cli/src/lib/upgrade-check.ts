@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { configDir } from "./config.js"
 
-const REGISTRY_URL = "https://registry.npmjs.org/@devdrip/cli/latest"
+const REGISTRY_URL = "https://registry.npmjs.org/@distrotv/cli/latest"
 const FETCH_TIMEOUT_MS = 1500
 // Sprint-5 ticket says "weekly" auto-check. 7 days keeps the nudge visible
 // without hammering the registry. overridden by --force in the upgrade cmd.

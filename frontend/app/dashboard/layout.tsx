@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { ChannelMode } from "@devdrip/shared"
+import { ChannelMode } from "@distrotv/shared"
 import { AppShell } from "@/components/dashboard/app-shell"
 import { getServerUser } from "@/lib/auth"
 import { apiFetchOrRefresh } from "@/lib/api"

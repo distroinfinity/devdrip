@@ -82,7 +82,7 @@ export async function GET() {
             letterSpacing: "-1px",
           }}
         >
-          dev drip
+          distro tv
         </div>
         <div
           style={{
@@ -94,7 +94,7 @@ export async function GET() {
             letterSpacing: "-0.3px",
           }}
         >
-          Earn USD while your AI agent thinks.
+          your terminal&apos;s news + market feed, while the agent works.
         </div>
       </div>
 
@@ -111,7 +111,7 @@ export async function GET() {
           letterSpacing: "2px",
         }}
       >
-        devdrip.xyz
+        distrotv.xyz
       </div>
     </div>,
     {

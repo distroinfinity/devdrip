@@ -1,6 +1,6 @@
 import { Command } from "commander"
 import { intro, outro, select, log, isCancel, cancel } from "@clack/prompts"
-import type { ChannelMode, SyncedPreferences } from "@devdrip/shared"
+import type { ChannelMode, SyncedPreferences } from "@distrotv/shared"
 import { reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { getPreferences, putPreferences } from "../lib/preferences-client.js"
@@ -40,7 +40,7 @@ async function showMenu(currentMode: ChannelMode): Promise<Action> {
 }
 
 async function runPreferences(): Promise<void> {
-  intro("devdrip preferences")
+  intro("distro preferences")
   let prefs = await getPreferences()
 
   // loop until cancel so multi-edit in one session works

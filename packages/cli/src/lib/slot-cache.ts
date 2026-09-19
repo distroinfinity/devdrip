@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto"
 import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import type { SlotContent } from "@devdrip/shared"
+import type { SlotPayload } from "@distrotv/shared"
 import { apiFetch as defaultApiFetch } from "./api-client.js"
 import { DEMO_SLOTS } from "./slot-cache-fixtures.js"
 import { configDir } from "./config.js"
@@ -9,11 +9,11 @@ import { configDir } from "./config.js"
 const CACHE_TTL_MS = 8 * 60 * 1000
 const REFRESH_THRESHOLD = 3
 const BATCH_SIZE = 10
-// Bumped to 3: cache now stores SlotContent (discriminated union), not just CachedAd.
+// Bumped to 3: cache now stores SlotPayload (discriminated union), not just CachedAd.
 // Old "ad-cache.json" (version 2) will fail the check and be silently dropped.
 const CACHE_FILE_VERSION = 3
 
-export type CachedSlot = SlotContent & { cacheSource: "api" | "demo" }
+export type CachedSlot = SlotPayload & { cacheSource: "api" | "demo" }
 
 interface CacheFile {
   version: 3
@@ -46,10 +46,10 @@ export interface SlotCacheDeps {
   now?: () => number
 }
 
-// Server returns { items: SlotContent[] } from /me/content/next.
-// SlotContent is already camelCase (no field-shape transform needed).
+// Server returns { items: SlotPayload[] } from /me/content/next.
+// SlotPayload is already camelCase (no field-shape transform needed).
 interface ContentResponse {
-  items?: SlotContent[]
+  items?: SlotPayload[]
 }
 
 function readCacheFile(identity: {

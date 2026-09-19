@@ -1,5 +1,5 @@
 {
-  "name": "devdrip-monorepo",
+  "name": "distrotv-monorepo",
   "private": true,
   "version": "0.0.0",
   "packageManager": "pnpm@10.33.0",
@@ -13,8 +13,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "test:integration": "pnpm --filter @devdrip/api test:integration",
-    "release": "turbo run build --filter=@devdrip/cli && pnpm publish --filter=@devdrip/cli --access public --no-git-checks",
+    "test:integration": "pnpm --filter @distrotv/api test:integration",
+    "release": "turbo run build --filter=@distrotv/cli && pnpm publish --filter=@distrotv/cli --access public --no-git-checks",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\" --ignore-path .prettierignore",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\" --ignore-path .prettierignore",
     "clean": "turbo run clean",

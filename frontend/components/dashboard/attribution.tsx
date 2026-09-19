@@ -1,4 +1,4 @@
-import { HeartPixel } from "@devdrip/design-system/components/heart-pixel"
+import { HeartPixel } from "@distrotv/design-system/components/heart-pixel"
 
 export function Attribution() {
   return (

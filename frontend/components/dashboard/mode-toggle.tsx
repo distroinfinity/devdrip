@@ -1,10 +1,10 @@
 "use client"
 
 import { useRef, useState, useTransition } from "react"
-import type { ChannelMode } from "@devdrip/shared"
+import type { ChannelMode } from "@distrotv/shared"
 import { updateChannelMode } from "@/app/dashboard/actions"
 
-// string literals match the ChannelMode enum values in @devdrip/shared
+// string literals match the ChannelMode enum values in @distrotv/shared
 // (kept inline to avoid bundling shared's node:path import into the client)
 const OPTIONS: { value: ChannelMode; label: string; emoji: string }[] = [
   { value: "learn" as ChannelMode, label: "learn", emoji: "📰" },

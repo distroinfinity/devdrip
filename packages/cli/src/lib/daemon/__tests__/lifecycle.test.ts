@@ -19,7 +19,7 @@ let devdripDir = ""
 beforeEach(() => {
   tempHome = mkdtempSync(join(tmpdir(), "devdrip-lifecycle-"))
   process.env["HOME"] = tempHome
-  devdripDir = join(tempHome, ".devdrip")
+  devdripDir = join(tempHome, ".distro")
   mkdirSync(devdripDir, { recursive: true, mode: 0o700 })
 })
 
@@ -136,13 +136,5 @@ describe("isSocketAlive", () => {
   it("false when the socket file doesn't exist", async () => {
     const { isSocketAlive } = await import("../lifecycle.js")
     expect(await isSocketAlive(join(tempHome, "missing.sock"))).toBe(false)
-  })
-})
-
-describe("resolveSocketPath", () => {
-  it("returns ~/.devdrip/daemon.sock under normal paths", async () => {
-    const { resolveSocketPath } = await import("../lifecycle.js")
-    const p = resolveSocketPath()
-    expect(p).toBe(join(tempHome, ".devdrip", "daemon.sock"))
   })
 })

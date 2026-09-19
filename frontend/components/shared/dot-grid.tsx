@@ -1,1 +1,1 @@
-export { DotGrid } from "@devdrip/design-system/components/dot-grid"
+export { DotGrid } from "@distrotv/design-system/components/dot-grid"

@@ -1,12 +1,6 @@
 import fs, { constants as fsConstants } from "node:fs"
 import { WriteStream } from "node:tty"
-import {
-  renderBox,
-  renderNewsBox,
-  type EarningsPopup,
-  type NewsRenderOpts,
-  type RenderBoxOpts,
-} from "../render-box.js"
+import { renderNewsBox, type NewsRenderOpts } from "../render-box.js"
 import type { CachedSlot } from "../slot-cache.js"
 
 const MAX_WRITE_ATTEMPTS = 3
@@ -40,7 +34,6 @@ function readTtyDimensions(fd: number): { rows: number; cols: number; ws: WriteS
 }
 
 export interface RenderCtx {
-  earningsUsdc?: number
   source?: string
   width?: number
 }
@@ -53,13 +46,11 @@ export interface DisplayHandle {
   // rotation re-anchors with fresh dimensions.
   onResize(cb: () => void): void
   // visually highlight the box border to confirm to the user that their
-  // keystroke was captured by DevDrip and not consumed by Claude. The
+  // keystroke was captured by Distro TV and not consumed by Claude. The
   // highlight stays until the orchestrator vanishes the box (~150ms later).
   flash(): void
-  // S3-04/05: redraw the box with a new progress value and optional earnings
-  // popup. cheap re-render — reuses the scroll region anchor. `popup` is the
-  // in-box earnings confirmation; null means "no popup this frame".
-  updateProgress(progress: number, elapsedMs: number, popup: EarningsPopup | null): void
+  // redraw the box with a new progress value. cheap re-render — reuses the scroll region anchor.
+  updateProgress(progress: number, elapsedMs: number): void
 }
 
 export function writeWithRetry(fd: number, data: string): void {
@@ -91,37 +82,20 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
   let ws: WriteStream | null
   // captured for flash() so we can re-emit the box with highlighted chrome.
   let lastRenderedText = ""
-  // base opts objects per slot kind — captured once so updateProgress can
-  // re-render without the caller threading every option through.
-  const baseAdOpts: RenderBoxOpts = {
-    earningsUsdc: ctx.earningsUsdc,
-    source: ctx.source,
-    width: ctx.width,
-  }
   const baseNewsOpts: NewsRenderOpts = {
     source: ctx.source,
     width: ctx.width,
   }
 
   function renderInitial(): string {
-    if (slot.kind === "ad") return renderBox(slot.payload, baseAdOpts)
-    return renderNewsBox(slot.payload, baseNewsOpts)
+    return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], baseNewsOpts)
   }
 
-  function renderTick(progress: number, elapsedMs: number, popup: EarningsPopup | null): string {
-    if (slot.kind === "ad") {
-      return renderBox(slot.payload, {
-        ...baseAdOpts,
-        progress,
-        elapsedMs,
-        popup: popup ?? undefined,
-      })
-    }
-    return renderNewsBox(slot.payload, {
+  function renderTick(progress: number, elapsedMs: number): string {
+    return renderNewsBox(slot as Parameters<typeof renderNewsBox>[0], {
       ...baseNewsOpts,
       progress,
       elapsedMs,
-      // popup intentionally not passed — news has no earnings popup
     })
   }
 
@@ -131,7 +105,6 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     initialCols = dims.cols
     ws = dims.ws
 
-    baseAdOpts.width = ctx.width ?? initialCols
     baseNewsOpts.width = ctx.width ?? initialCols
     const text = renderInitial()
     const adHeight = text.split("\n").length
@@ -241,15 +214,13 @@ export function showAd(ttyPath: string, slot: CachedSlot, ctx: RenderCtx = {}): 
     },
     flash(): void {
       // bright green highlight to confirm the keystroke was captured by
-      // DevDrip TV, not Claude. the orchestrator vanishes the box ~150ms
+      // Distro TV, not Claude. the orchestrator vanishes the box ~150ms
       // later, so the green pulse stays on until vanish — no revert needed.
       rewriteBox("\x1b[1;92m")
     },
-    updateProgress(progress: number, elapsedMs: number, popup: EarningsPopup | null): void {
+    updateProgress(progress: number, elapsedMs: number): void {
       if (closed || resizeFired) return
-      // re-render with the new progress. keeps the slot layout identical so the
-      // pane height stays constant — no scroll region drift.
-      const text = renderTick(progress, elapsedMs, popup)
+      const text = renderTick(progress, elapsedMs)
       lastRenderedText = text
       writePane(text, "")
     },

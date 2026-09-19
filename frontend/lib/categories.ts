@@ -1,5 +1,5 @@
 // canonical category slugs + labels shown in the UI.
-// keep in sync with AdCategory in @devdrip/shared. Defined as plain strings so
+// keep in sync with AdCategory in @distrotv/shared. Defined as plain strings so
 // client bundles don't pull the shared package's node-only imports.
 export const CATEGORY_SLUGS = [
   "cloud-infrastructure",

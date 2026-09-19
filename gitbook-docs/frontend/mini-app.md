@@ -29,7 +29,7 @@ The Mini App session cookie `dd_miniapp` is scoped to `Path=/miniapp` (RFC 6265 
 ```js
 // frontend/next.config.mjs
 async rewrites() {
-  const apiBase = process.env.DEVDRIP_API_BASE_URL || "http://localhost:3001"
+  const apiBase = process.env.DISTRO_API_BASE_URL || "http://localhost:3001"
   return [
     { source: "/api/miniapp/:path*", destination: `${apiBase}/miniapp/:path*` },
     { source: "/api/me", destination: `${apiBase}/me` },
@@ -120,5 +120,5 @@ Mini App pages can be hit at `http://localhost:3000/m/*` from a regular browser 
 | Var                        | Where                | Notes                                                                                                      |
 | -------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_WORLD_APP_ID` | Vercel (and `.env`)  | Public — embedded in the client bundle. From developer.world.org.                                          |
-| `DEVDRIP_API_BASE_URL`     | Vercel (server-only) | Backend API URL for the next.config.mjs rewrites.                                                          |
+| `DISTRO_API_BASE_URL`      | Vercel (server-only) | Backend API URL for the next.config.mjs rewrites.                                                          |
 | `MINIAPP_BASE_URL`         | Railway API          | Frontend URL where the GitHub OAuth callback redirects back to. Should match the production frontend host. |

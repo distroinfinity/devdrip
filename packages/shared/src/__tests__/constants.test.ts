@@ -13,18 +13,18 @@ describe("daemonSocketPath", () => {
   it("returns a path under the current home dir", () => {
     const p = daemonSocketPath()
     expect(p.startsWith(homedir())).toBe(true)
-    expect(p.endsWith("/.devdrip/daemon.sock")).toBe(true)
+    expect(p.endsWith("/.distro/daemon.sock")).toBe(true)
   })
 
   it("tracks changes to process.env.HOME (lazy eval)", () => {
-    process.env["HOME"] = "/tmp/devdrip-test-home"
-    expect(daemonSocketPath()).toBe("/tmp/devdrip-test-home/.devdrip/daemon.sock")
+    process.env["HOME"] = "/tmp/distro-test-home"
+    expect(daemonSocketPath()).toBe("/tmp/distro-test-home/.distro/daemon.sock")
   })
 
-  it("falls back to /tmp/devdrip-<uid>.sock when preferred path overflows sun_path", () => {
+  it("falls back to /tmp/distro-<uid>.sock when preferred path overflows sun_path", () => {
     // 150-char home dir puts the preferred path >104 bytes
     process.env["HOME"] = "/tmp/" + "x".repeat(140)
     const p = daemonSocketPath(1234)
-    expect(p).toBe("/tmp/devdrip-1234.sock")
+    expect(p).toBe("/tmp/distro-1234.sock")
   })
 })

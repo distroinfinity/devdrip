@@ -1,1 +1,1 @@
-export { BlurFade } from "@devdrip/design-system/components/blur-fade"
+export { BlurFade } from "@distrotv/design-system/components/blur-fade"

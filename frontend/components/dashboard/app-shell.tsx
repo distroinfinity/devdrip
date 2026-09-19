@@ -1,5 +1,5 @@
-import type { ChannelMode } from "@devdrip/shared"
-import { DotGrid } from "@devdrip/design-system/components/dot-grid"
+import type { ChannelMode } from "@distrotv/shared"
+import { DotGrid } from "@distrotv/design-system/components/dot-grid"
 import { AppHeader } from "./app-header"
 import { AppFooter } from "./app-footer"
 import { NavPill } from "./nav-pill"
@@ -18,12 +18,10 @@ export function AppShell({ user, initialMode, children }: AppShellProps) {
   // right active state without the layout having to know which one it is.
   const pills = (
     <>
-      <NavPill href="/dashboard" label="Earnings" exact />
-      <NavPill href="/dashboard/history" label="History" />
-      <NavPill href="/dashboard/analytics" label="Analytics" />
+      <NavPill href="/dashboard" label="Overview" exact />
       <NavPill href="/dashboard/reading" label="Reading" />
       <NavPill href="/dashboard/preferences" label="Preferences" />
-      <NavPill href="/dashboard/wallet" label="Wallet" />
+      {/* M6 adds: /dashboard/watchlists, /dashboard/portfolio, /dashboard/account */}
     </>
   )
 

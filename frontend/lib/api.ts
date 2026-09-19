@@ -52,18 +52,18 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return body as T
 }
 
-// server-component shortcut: on 401 redirect to /auth/refresh.
-// callers that want to branch on error should use apiFetch directly.
+// server-component shortcut: on 401 redirect to /sign-in.
+// M2 magic-link will reintroduce token refresh; for M1 device bearer never expires.
 export async function apiFetchOrRefresh<T>(
   path: string,
-  nextPath: string,
+  _nextPath: string,
   init: RequestInit = {}
 ): Promise<T> {
   try {
     return await apiFetch<T>(path, init)
   } catch (err) {
     if (err instanceof UnauthenticatedError) {
-      redirect(`/auth/refresh?next=${encodeURIComponent(nextPath)}`)
+      redirect("/sign-in")
     }
     throw err
   }

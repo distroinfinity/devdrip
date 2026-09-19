@@ -1,34 +1,30 @@
 import type { Metadata } from "next"
-import { spaceMono, dmSans, jetbrainsMono } from "@devdrip/design-system/fonts"
-import { themeInitScript } from "@devdrip/design-system/theme"
+import { spaceMono, dmSans, jetbrainsMono } from "@distrotv/design-system/fonts"
+import { themeInitScript } from "@distrotv/design-system/theme"
 import { Analytics } from "@vercel/analytics/react"
-import "@devdrip/design-system/tokens.css"
+import "@distrotv/design-system/tokens.css"
 import "./globals.css"
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://devdrip.xyz"
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://distrotv.xyz"
 
-const title = "Dev Drip — Earn while your AI agent codes"
-const description =
-  "Opt-in developer content during AI coding tool idle time. Skip anything. Earn USD. Offset your Copilot and Cursor subscriptions."
+const title = "Distro TV"
+const description = "Your terminal's news + market feed, while the agent works."
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
   description,
   keywords: [
-    "developer earnings",
-    "AI coding tool costs",
-    "earn while coding",
-    "developer passive income",
-    "offset copilot subscription",
-    "cursor subscription cost",
-    "developer tool idle time",
-    "opt-in developer ads",
+    "terminal news feed",
+    "developer news",
+    "market feed",
+    "ai agent idle",
+    "developer tool",
   ],
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "Dev Drip",
+    siteName: "Distro TV",
     title,
     description,
     url: siteUrl,
@@ -60,13 +56,13 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "WebSite",
-      name: "Dev Drip",
+      name: "Distro TV",
       url: siteUrl,
       description,
     },
     {
       "@type": "SoftwareApplication",
-      name: "Dev Drip",
+      name: "Distro TV",
       applicationCategory: "DeveloperApplication",
       operatingSystem: "Any",
       description,
@@ -78,7 +74,7 @@ const jsonLd = {
     },
     {
       "@type": "Organization",
-      name: "Dev Drip",
+      name: "Distro TV",
       url: siteUrl,
     },
   ],

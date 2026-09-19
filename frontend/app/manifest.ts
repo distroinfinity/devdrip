@@ -2,10 +2,9 @@ import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Dev Drip",
-    short_name: "Dev Drip",
-    description:
-      "Opt-in developer content during AI coding tool idle time. Skip anything. Earn USD.",
+    name: "Distro TV",
+    short_name: "Distro TV",
+    description: "Your terminal's news + market feed, while the agent works.",
     start_url: "/",
     display: "browser",
     background_color: "#F7F6F3",

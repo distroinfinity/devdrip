@@ -1,5 +1,5 @@
 import { multiselect, select, isCancel, cancel } from "@clack/prompts"
-import { AdCategory, ChannelMode } from "@devdrip/shared"
+import { AdCategory, ChannelMode } from "@distrotv/shared"
 
 const CATEGORY_LABELS: Record<AdCategory, string> = {
   [AdCategory.CloudInfrastructure]: "Cloud & infrastructure",
@@ -17,10 +17,10 @@ const ALL_CATEGORIES = Object.values(AdCategory) as AdCategory[]
 export async function pickChannelMode(current?: ChannelMode): Promise<ChannelMode> {
   const initialValue = current ?? ChannelMode.Mix
   const choice = await select<ChannelMode>({
-    message: "how would you like to use devdrip?",
+    message: "how would you like to use distro tv?",
     options: [
-      { value: ChannelMode.Learn, label: "📰 learn — tech news only, no ads, no earnings" },
-      { value: ChannelMode.Earn, label: "💰 earn — ads only, full usdc earnings" },
+      { value: ChannelMode.Learn, label: "📰 learn — tech news only" },
+      { value: ChannelMode.Earn, label: "📺 ads — sponsored slots only" },
       { value: ChannelMode.Mix, label: "🎭 both — alternates news and ads" },
     ],
     initialValue,

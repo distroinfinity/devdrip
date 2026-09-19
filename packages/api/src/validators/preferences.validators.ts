@@ -1,4 +1,4 @@
-import { AdCategory, ChannelMode, NewsTopic } from "@devdrip/shared"
+import { AdCategory, ChannelMode, NewsTopic } from "@distrotv/shared"
 import { ValidationError } from "../errors/index.js"
 import { requireBody, validateEnumArray, validateEnumValue } from "./common.js"
 

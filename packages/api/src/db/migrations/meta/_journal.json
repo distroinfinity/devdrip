@@ -64,6 +64,20 @@
       "when": 1777224303375,
       "tag": "0008_news_and_reading",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1778037509234,
+      "tag": "0009_distro_tv_pivot",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1746489600000,
+      "tag": "0010_anonymous_device",
+      "breakpoints": true
     }
   ]
 }
