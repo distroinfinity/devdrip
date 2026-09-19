@@ -2,9 +2,6 @@
 
 ## Ad-Subsidized AI Coding Tools via Opt-In Idle-Time Monetization
 
-**Version:** 0.9 — Draft for Internal Review
-**Last Updated:** February 2026
-
 ---
 
 ## 1. Problem Statement
@@ -21,8 +18,6 @@ This is dead time. The developer can't meaningfully code while the agent is work
 
 ## 2. Lessons From 12 Case Studies: What Makes Ads Tolerable (Even Wanted)
 
-Before defining our product, we studied every relevant model where users voluntarily engage with advertising without resentment. The patterns are remarkably consistent.
-
 ### 2.1 Rewarded Video in Mobile Gaming (Unity Ads, ironSource, AppLovin)
 
 Players voluntarily tap "Watch Ad" to earn an extra life, bonus coins, or continue a run. A 15–30 second video plays. The reward is instant.
@@ -37,7 +32,7 @@ Users enable Brave Rewards to see system-level push notifications containing ads
 
 **Why it partially fails:** Earnings are tiny ($0.50–$2/month). BAT token lost 93% of value. KYC requirements for withdrawal create friction.
 
-**Lesson for us:** Use USDC, not a proprietary token. Make earnings meaningful (>$10/month). Keep the ad **outside the primary workflow surface.**
+**Lesson for us:** Use USDC, not a proprietary token. Make earnings meaningful (&gt;$10/month). Keep the ad **outside the primary workflow surface.**
 
 ### 2.3 Hulu's "Pause Ads" and "Ad Selector"
 
@@ -75,7 +70,7 @@ Video ad plays before content. After 5 seconds, "Skip Ad" appears. Advertisers o
 
 Viewers voluntarily watch an ad, with revenue going to the streamer they support. This reframes ad-watching from self-interest to community support.
 
-**Lesson for us:** Consider a community angle — "Your ad earnings this month funded 2 hours of maintainer work on an open-source project" or "Watch an ad to contribute to [OSS project]."
+**Lesson for us:** Consider a community angle — "Your ad earnings this month funded 2 hours of maintainer work on an open-source project" or "Watch an ad to contribute to \[OSS project\]."
 
 ### 2.9 Waze's Zero-Speed Takeover
 
@@ -105,14 +100,14 @@ Ads are full-screen videos indistinguishable from organic content except for a s
 
 ## 3. Seven Design Principles (Synthesized From Case Studies)
 
-| # | Principle | Source Insight |
-|---|---|---|
+| \# | Principle | Source Insight |
+| --- | --- | --- |
 | 1 | **Opt-In Is Non-Negotiable** | Every successful model (Brave, rewarded video, Hulu selector) starts with explicit user consent. Dev Drip is OFF by default. |
 | 2 | **Ads Live in Idle, Die on Activity** | Waze zero-speed, Hulu pause ads: content appears ONLY during agent work, vanishes within 200ms when the agent finishes or needs input. |
 | 3 | **User Has Agency at Every Moment** | YouTube skip button, TikTok scroll-past, Hulu ad selector: skip buttons, category preferences, frequency caps, mute for N minutes. The developer is never trapped. |
 | 4 | **The Value Exchange Must Be Transparent** | Rewarded video best practice: state what the user gives (attention) and gets ($0.03 USDC) BEFORE the ad starts. No bait-and-switch. |
 | 5 | **Ads Must Be Native to the Environment** | TikTok's content-first philosophy, native advertising research: a terminal ad looks like terminal content, a VS Code ad looks like a VS Code panel. Foreign-looking ads destroy trust. |
-| 6 | **Content Quality > Ad Frequency** | Duolingo ML optimization, TikTok creative guidelines: fewer high-quality, relevant ads outperform many generic ones. Developer-tool discovery content > generic banner. |
+| 6 | **Content Quality &gt; Ad Frequency** | Duolingo ML optimization, TikTok creative guidelines: fewer high-quality, relevant ads outperform many generic ones. Developer-tool discovery content &gt; generic banner. |
 | 7 | **Earnings Must Be Meaningful** | Brave's failure at $0.50/month teaches: target $10–$25/month minimum, or the trade-off isn't worth the psychological cost. |
 
 ---
@@ -160,7 +155,7 @@ The core technical challenge: accurately distinguishing "agent working, develope
 - AI agent is streaming output (terminal shows `⠋ Thinking...`, progress indicators, file diffs being generated)
 - Multi-file edit operation in progress (Cursor Composer, Claude Code agentic mode)
 - Build/test/deploy process running that was triggered by the agent
-- No keyboard or mouse input for >5 seconds while agent process is active
+- No keyboard or mouse input for &gt;5 seconds while agent process is active
 - Terminal process is actively writing output (stdout/stderr active)
 
 **Active signals (developer needs focus — ads must vanish):**
@@ -209,7 +204,7 @@ The core technical challenge: accurately distinguishing "agent working, develope
 **Critical timing rules:**
 
 - **3-second grace period** before any ad appears after agent starts (matches Hulu pause ad delay — never show ads instantly on idle, let the developer settle)
-- **<200ms dismissal** — the moment ANY active signal fires, all ad content vanishes. This must be faster than the developer can perceive
+- **&lt;200ms dismissal** — the moment ANY active signal fires, all ad content vanishes. This must be faster than the developer can perceive
 - **Minimum idle duration of 8 seconds** before first ad — inline completions (30–200ms) never trigger ads. Only agentic tasks that create genuine waiting
 - **Re-engagement cooldown** — after an ad is dismissed by developer activity, no new ad for at least 15 seconds even if idle resumes (prevents "flickering" experience)
 
@@ -367,7 +362,7 @@ This is where product imagination matters most. Each surface is designed for a s
 **Trigger moments:**
 
 - IDE startup (first open of the day)
-- Return from a long break (>30 minutes of IDE inactivity)
+- Return from a long break (&gt;30 minutes of IDE inactivity)
 - End-of-day session summary
 - Weekly earnings report
 
@@ -401,7 +396,7 @@ This is where product imagination matters most. Each surface is designed for a s
 
 **Inspired by:** Duolingo's gamification, TikTok's branded hashtag challenges, coding challenge platforms
 
-**What it is:** During longer agent tasks (>60 seconds), the developer is offered a quick sponsored coding challenge, quiz, or puzzle. Complete it to earn a bonus payout.
+**What it is:** During longer agent tasks (&gt;60 seconds), the developer is offered a quick sponsored coding challenge, quiz, or puzzle. Complete it to earn a bonus payout.
 
 **Example:**
 
@@ -428,7 +423,7 @@ This is where product imagination matters most. Each surface is designed for a s
 
 **Design details:**
 
-- Only offered during long agent tasks (>60 seconds predicted remaining)
+- Only offered during long agent tasks (&gt;60 seconds predicted remaining)
 - Higher payout than passive ads ($0.05–$0.15 per challenge vs $0.01–$0.03 per passive view)
 - Challenges are genuinely educational — developer learns while earning
 - Leaderboards for competitive developers (optional)
@@ -478,9 +473,9 @@ This section defines the precise behavioral rules governing every ad interaction
 ### 6.1 Appearance Rules
 
 | Rule | Detail |
-|---|---|
+| --- | --- |
 | **Grace period** | No ad appears until 3 seconds after agent enters idle state. This prevents "flash" ads on quick operations. |
-| **Minimum idle prediction** | The system estimates remaining agent time. Ads only appear if predicted remaining time > 10 seconds. No ad for a task that's about to finish. |
+| **Minimum idle prediction** | The system estimates remaining agent time. Ads only appear if predicted remaining time &gt; 10 seconds. No ad for a task that's about to finish. |
 | **Frequency cap** | Maximum 4 ads per hour per surface. Maximum 8 total ads per hour across all surfaces. Developer can lower these caps. |
 | **Daily cap** | Default 60 ads/day maximum. Developer-adjustable. |
 | **Session warmup** | First 10 minutes of a coding session are ad-free, even during idle. Let the developer get into flow first. |
@@ -489,7 +484,7 @@ This section defines the precise behavioral rules governing every ad interaction
 ### 6.2 Disappearance Rules
 
 | Rule | Detail |
-|---|---|
+| --- | --- |
 | **Instant vanish** | ANY developer input (keypress, click, mouse movement in editor) triggers ad dismissal within 200ms. |
 | **Agent completion** | When agent output finishes and prompt returns, all ads vanish within 200ms. |
 | **Confirmation request** | If agent asks a question mid-task, ads vanish immediately to let developer read and respond. |
@@ -499,11 +494,11 @@ This section defines the precise behavioral rules governing every ad interaction
 ### 6.3 Skip and Control Mechanics
 
 | Control | Behavior |
-|---|---|
+| --- | --- |
 | **Skip (→)** | Single keypress advances to next ad. Current ad is marked "skipped" (affects targeting). |
 | **Mute 30min** | Pauses all ad delivery for 30 minutes. One-click. No penalty to earnings for already-earned amounts. |
 | **Mute rest of session** | No ads until IDE restart. |
-| **Category block** | "Don't show me [crypto/recruiting/cloud] ads" — permanent preference. |
+| **Category block** | "Don't show me \[crypto/recruiting/cloud\] ads" — permanent preference. |
 | **Thumbs down** | Flags a specific ad as unwanted. Affects ML targeting. |
 | **Thumbs up** | Saves ad for later viewing. Creates "bookmarked tools" list in dashboard. |
 
@@ -524,7 +519,7 @@ This is the "reward confirmation" from rewarded video best practices — making 
 ### 7.1 Revenue Share
 
 | Party | Share | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | Developer | **70%** | Matches Brave's industry-leading split. Must be highest to attract adoption. |
 | Dev Drip platform | **25%** | Covers ad exchange, payment processing, ML infrastructure, business operations. |
 | Open-source fund | **5%** | Automatically allocated to open-source maintainers based on developer's dependency tree. Unique differentiator and community goodwill driver. |
@@ -534,7 +529,7 @@ This is the "reward confirmation" from rewarded video best practices — making 
 Based on our market research analysis:
 
 - **USDC stablecoins** — no proprietary token, no price volatility, no SEC risk
-- **Base (Coinbase L2)** — transaction fees ~$0.002, Coinbase Wallet integration for 110M+ users
+- **Base (Coinbase L2)** — transaction fees \~$0.002, Coinbase Wallet integration for 110M+ users
 - **Zero-fee transfers** via Coinbase Wallet's Simple Mode on Base
 - **Minimum payout: $1.00** — achievable in 1–2 days of active use at projected earnings
 - **Auto-convert to fiat** option via Coinbase for developers who don't want crypto
@@ -545,7 +540,7 @@ Based on our market research analysis:
 Based on market research CPM analysis with our 70% developer share:
 
 | Developer Profile | Daily Agent Idle Time | Daily Ad Views | Monthly Earnings (Est.) |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Light user (autocomplete only) | 5 min | 5–10 | $1–$3 |
 | Moderate user (some agentic tasks) | 20 min | 30–50 | $8–$15 |
 | Heavy agentic user (Claude Code, Cursor Composer) | 45 min | 60–90 | $18–$30 |
@@ -562,7 +557,7 @@ Developer attention is among the most valuable ad inventory in digital advertisi
 ### 8.1 Target Advertiser Categories
 
 | Category | Example Advertisers | Expected CPM Range |
-|---|---|---|
+| --- | --- | --- |
 | Cloud infrastructure | AWS, Azure, GCP, Vercel, Railway, Render | $15–$25 |
 | Developer tools | JetBrains, Docker, Postman, GitKraken | $10–$20 |
 | Databases | MongoDB, Supabase, PlanetScale, Neon, Turso | $12–$20 |
@@ -670,7 +665,7 @@ Start with the safest, most controllable surface:
 Our market research identified 7 critical risks. Here's how each product decision mitigates them:
 
 | Risk | Mitigation |
-|---|---|
+| --- | --- |
 | **Developer backlash** | Triple opt-in: install, enable, choose surfaces. "Retro TV" framing creates psychological distance. Launch silently with invite-only beta. 5% open-source fund creates goodwill narrative. |
 | **Platform gatekeepers** | Terminal TV requires no marketplace approval (it's a CLI tool). VS Code extension follows marketplace policies. Long-term: partner with AI tool makers directly. |
 | **Insufficient revenue** | Focus on rewarded-video-tier CPMs ($10–$20) through interactive content and challenges, not banner ads. Supplement with recruiting revenue ($20–$35 CPM). |
@@ -684,17 +679,17 @@ Our market research identified 7 critical risks. Here's how each product decisio
 ## 12. Success Metrics
 
 | Metric | Target (Month 6) | Target (Month 12) |
-|---|---|---|
+| --- | --- | --- |
 | Active developers | 10,000 | 100,000 |
-| Monthly retention | >60% | >70% |
-| Avg monthly earnings per active dev | >$10 | >$15 |
-| Ad completion rate | >85% | >90% |
-| Developer NPS | >30 | >40 |
-| Advertiser fill rate | >40% | >70% |
-| Average eCPM (blended) | >$8 | >$12 |
-| Time-to-dismiss (p95) | <200ms | <150ms |
-| False-idle rate (ads shown during active coding) | <1% | <0.1% |
-| Open-source fund distributed | >$5,000 | >$50,000 |
+| Monthly retention | &gt;60% | &gt;70% |
+| Avg monthly earnings per active dev | &gt;$10 | &gt;$15 |
+| Ad completion rate | &gt;85% | &gt;90% |
+| Developer NPS | &gt;30 | &gt;40 |
+| Advertiser fill rate | &gt;40% | &gt;70% |
+| Average eCPM (blended) | &gt;$8 | &gt;$12 |
+| Time-to-dismiss (p95) | &lt;200ms | &lt;150ms |
+| False-idle rate (ads shown during active coding) | &lt;1% | &lt;0.1% |
+| Open-source fund distributed | &gt;$5,000 | &gt;$50,000 |
 
 ---
 
@@ -719,7 +714,7 @@ These are boundaries that protect the product from becoming the thing developers
 2. **Terminal rendering limits:** How reliably can we render rich ANSI content across different terminal emulators (iTerm2, Windows Terminal, Alacritty, Kitty)?
 3. **Recruiter economics:** Can sponsored coding challenges generate $30–$50 CPM reliably? What completion rates are recruiters willing to accept?
 4. **Emerging market CPMs:** What CPMs can we realistically achieve for developer-targeted ads served to Indian, Brazilian, and Southeast Asian developers?
-5. **Tax automation:** Can we build automated 1099-MISC generation for US developers earning >$600/year, and equivalent compliance for other jurisdictions?
+5. **Tax automation:** Can we build automated 1099-MISC generation for US developers earning &gt;$600/year, and equivalent compliance for other jurisdictions?
 6. **Agent time prediction:** How accurately can we predict remaining agent task time to avoid showing ads for tasks that are about to complete? What signals are most predictive?
 
 ---
