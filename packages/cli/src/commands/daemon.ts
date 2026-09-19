@@ -31,6 +31,7 @@ import {
 import { createOrchestrator } from "../lib/daemon/orchestrator.js"
 import { startDaemonServer } from "../lib/daemon/server.js"
 import { createSyncLoop } from "../lib/daemon/sync.js"
+import { createDebounced } from "../lib/daemon/debounce.js"
 import { syncPreferencesOnce } from "../lib/daemon/prefs-sync.js"
 import {
   downloadAndStage,
@@ -234,6 +235,17 @@ export async function runDaemon(): Promise<number> {
 
   const syncLoop = createSyncLoop({ ledger, log })
   syncLoop.start()
+  // ad impressions reach the dashboard within seconds: sync ~5s after the last
+  // one, at most 15s after the first. the 5-minute loop stays as the safety net.
+  const syncSoon = createDebounced(
+    () => {
+      syncLoop.forceSync().catch((err: Error) => {
+        log.warn("quick sync after ad impression failed", { error: err.message })
+      })
+    },
+    5_000,
+    15_000
+  )
 
   // A (continued). probation promotion: if the last update is on probation,
   // promote to stable after 60s of clean boot (no crash = healthy).
@@ -377,6 +389,7 @@ export async function runDaemon(): Promise<number> {
     log,
     deviceId: cfg.device.id,
     preferences: cfg.preferences,
+    onAdImpression: () => syncSoon.poke(),
   })
 
   function fingerprintPrefs(p: {
@@ -468,6 +481,7 @@ export async function runDaemon(): Promise<number> {
     clearInterval(updateCheckInterval)
     unwatchFile(watchedConfig)
     clearStatusLine()
+    syncSoon.cancel()
     await syncLoop.stop()
     await orchestrator.shutdown()
     await server.close()
