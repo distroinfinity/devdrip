@@ -32,6 +32,7 @@ export type Event =
   | { kind: "discover-key"; now: number; tty?: string | null }
   | { kind: "inter-ad-elapsed"; ad: CachedSlot | null; now: number; tty?: string | null }
   | { kind: "session-start"; now: number; tty?: string | null }
+  | { kind: "save-key"; now: number; tty?: string | null }
 
 export type Effect =
   | { kind: "startGraceTimer"; ms: number }
@@ -135,6 +136,7 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
       ],
     }
   }
+  if (event.kind === "save-key") return { state, effects: [] }
   // vanish-elapsed, skip-key, discover-key, inter-ad-elapsed
   // are stale in GRACE — orchestrator logs and drops
   return { state, effects: [] }
@@ -148,7 +150,8 @@ function stepShowing(
   if (
     event.kind === "idle-start" ||
     event.kind === "grace-elapsed" ||
-    event.kind === "inter-ad-elapsed"
+    event.kind === "inter-ad-elapsed" ||
+    event.kind === "save-key"
   ) {
     return { state, effects: [] }
   }
@@ -240,7 +243,7 @@ function stepInterAd(state: Extract<State, { kind: "INTER_AD" }>, event: Event):
       ],
     }
   }
-  // skip-key / discover-key / vanish-elapsed — stale in INTER_AD, ignore
+  // skip-key / discover-key / vanish-elapsed / save-key — stale in INTER_AD, ignore
   return { state, effects: [] }
 }
 

@@ -303,6 +303,38 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       session.adsInCurrentBusyWindow = 0
     }
 
+    // intercept save-key before normal flow — no state transition, only a ledger write + flash
+    if (event.kind === "save-key") {
+      const showing = session.state.kind === "SHOWING" ? session.state : null
+      const slot = showing?.ad ?? null
+      if (slot && slot.kind === "news") {
+        try {
+          deps.ledger.recordReadingPending({
+            id: randomUUID(),
+            newsId: slot.payload.id,
+            source: slot.payload.source,
+            headline: slot.payload.headline,
+            url: slot.payload.url,
+            score: slot.payload.score,
+            savedAt: now(),
+          })
+          deps.log.info("news saved", { newsId: slot.payload.id })
+          if (session.currentDisplay) {
+            try {
+              session.currentDisplay.flash()
+            } catch {
+              /* non-fatal */
+            }
+          }
+        } catch (err) {
+          deps.log.warn("reading save failed", { error: (err as Error).message })
+        }
+      } else {
+        deps.log.debug("save key ignored — no active news slot")
+      }
+      return
+    }
+
     const isUserKey =
       event.kind === "discover-key" ||
       event.kind === "skip-key" ||
