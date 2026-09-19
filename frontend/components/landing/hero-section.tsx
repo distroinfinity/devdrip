@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { motion } from "motion/react"
 import { cn } from "@/lib/utils"
-import { TerminalTV } from "./terminal-tv"
+import { TerminalTV, type NewsItem, type TickerItem } from "./terminal-tv"
 import { InstallCommand } from "./install-command"
 
 const CHIPS = [
@@ -12,7 +12,13 @@ const CHIPS = [
   { label: "CH 0? · COMING", state: "dim" as const },
 ]
 
-export function HeroSection() {
+export function HeroSection({
+  marketRows,
+  newsItems,
+}: {
+  marketRows: TickerItem[]
+  newsItems: NewsItem[]
+}) {
   return (
     <section className="relative">
       {/* dot-grid bg */}
@@ -111,55 +117,15 @@ export function HeroSection() {
                   kind: "news",
                   id: "hero-news",
                   title: "CH 01 · NEWS",
-                  status: "12m ago",
-                  items: [
-                    {
-                      source: "TechCrunch",
-                      headline: "Anthropic closes $13B Series F at $183B valuation",
-                      meta: "12m ago",
-                    },
-                    {
-                      source: "HN · 412",
-                      headline: "Show HN: a terminal-native ambient feed for AI idle time",
-                      meta: "28m ago",
-                    },
-                  ],
+                  status: "front page",
+                  items: newsItems,
                 },
                 {
                   kind: "markets",
                   id: "hero-markets",
                   title: "CH 02 · MARKETS",
-                  status: "live · 1s tick",
-                  rows: [
-                    {
-                      symbol: "NVDA",
-                      price: "948.20",
-                      delta: "+2.14%",
-                      direction: "up",
-                      sparkline: "▁▂▃▅▇█▇",
-                    },
-                    {
-                      symbol: "AAPL",
-                      price: "187.65",
-                      delta: "+0.43%",
-                      direction: "up",
-                      sparkline: "▁▂▂▃▃▃▃",
-                    },
-                    {
-                      symbol: "BTC",
-                      price: "73,412",
-                      delta: "+1.07%",
-                      direction: "up",
-                      sparkline: "▁▂▄▃▅▆▇",
-                    },
-                    {
-                      symbol: "TSLA",
-                      price: "352.18",
-                      delta: "-1.22%",
-                      direction: "down",
-                      sparkline: "▇▆▅▄▃▂▁",
-                    },
-                  ],
+                  status: "live · 15m",
+                  rows: marketRows,
                 },
               ]}
               footerKeys="[S]kip   [K]ill   [M]ute 30m"
