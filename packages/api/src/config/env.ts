@@ -95,6 +95,14 @@ export const env = {
     const v = Number(optionalEnv("AD_CPM_RATE", "10"))
     return Number.isFinite(v) && v > 0 ? v : 10
   },
+  // advertiser-submitted ads go live at once only when this is on. defaults on
+  // outside production so the local demo is instant; production must review first.
+  get adAutoApprove(): boolean {
+    const v = process.env["AD_AUTO_APPROVE"]
+    if (v === "1" || v === "true") return true
+    if (v === "0" || v === "false") return false
+    return optionalEnv("NODE_ENV", "development") !== "production"
+  },
   get allowedOrigins(): string[] {
     const origins = requireEnv("ALLOWED_ORIGINS")
       .split(",")

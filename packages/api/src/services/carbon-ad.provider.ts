@@ -5,7 +5,7 @@ import { logger } from "../lib/logger.js"
 
 export interface NormalizedAd {
   adId: string
-  source: "carbon" | "house"
+  source: "carbon" | "house" | "direct"
   advertiser: string
   headline: string
   ctaText: string
