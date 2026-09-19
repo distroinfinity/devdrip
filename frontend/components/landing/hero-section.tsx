@@ -59,7 +59,7 @@ export function HeroSection() {
 
           {/* cta */}
           <BlurFade delay={1.35} direction="up" duration={0.35} inView>
-            <WaitlistButton className="hover:-translate-y-px hover:shadow-md transition-transform" />
+            <WaitlistButton href="#waitlist" className="hover:-translate-y-px hover:shadow-md transition-transform" />
           </BlurFade>
         </div>
 

@@ -40,7 +40,7 @@ export function InlineNavbar() {
           <div className="hidden md:block">
             <ThemeToggle />
           </div>
-          <WaitlistButton className="h-9 px-5 text-[13px]" />
+          <WaitlistButton href="#waitlist" className="h-9 px-5 text-[13px]" />
         </div>
       </nav>
     </BlurFade>
