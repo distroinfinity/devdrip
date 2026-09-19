@@ -34,6 +34,7 @@ const MODE_DESCRIPTIONS: Record<ChannelMode, string> = {
   [ChannelMode.Balanced]: "1:1 — news and ticker alternate evenly",
   [ChannelMode.TickerHeavy]: "1:3 — three ticker slots for every news slot",
   [ChannelMode.TickerOnly]: "ticker only — no news slots in your rotation",
+  [ChannelMode.OnchainOnly]: "lp guard — onchain pool monitoring channel",
 }
 
 export function PreferencesForm({ initial, initialChannels, initialAlerts }: PreferencesFormProps) {

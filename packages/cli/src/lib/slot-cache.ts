@@ -12,6 +12,8 @@ const RATIO_PATTERNS: Record<ChannelMode, ("news" | "ticker")[]> = {
   [ChannelMode.Balanced]: ["news", "ticker"],
   [ChannelMode.TickerHeavy]: ["news", "ticker", "ticker", "ticker"],
   [ChannelMode.TickerOnly]: ["ticker"],
+  // onchain slots bypass the news/ticker picker; channel renderer handles them directly
+  [ChannelMode.OnchainOnly]: [],
 }
 
 export function pickKind(mode: ChannelMode, slotIndex: number): "news" | "ticker" {

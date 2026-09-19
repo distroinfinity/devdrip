@@ -125,6 +125,13 @@ export function renderSlotLine(
     return [...nudge, header, priceLine, chartLine, statsLine, footer].join("\n")
   }
 
+  // onchain — full renderer comes in a later task; stub keeps typecheck green
+  if (slot.kind === "onchain") {
+    const header = `${color("indigo", "▍", mode)} ${color("indigo", "lp guard", mode)} ${dot} ${color("muted", slot.poolLabel, mode)}`
+    const footer = `${LEFT_PAD}${color("muted", "distro tv · onchain", mode)}`
+    return [...nudge, header, footer].join("\n")
+  }
+
   // news
   const header = `${color("indigo", "▍", mode)} ${color("indigo", "news", mode)} ${dot} ${color("muted", "live", mode)}`
 
