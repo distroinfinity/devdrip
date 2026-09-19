@@ -21,7 +21,7 @@ export default function Home() {
             <span className="font-display text-[17px] font-bold tracking-tight">
               dev drip
             </span>
-            <span className="font-data text-[9px] font-medium tracking-[0.06em] border border-[var(--rule-default)] text-[var(--ink-tertiary)] px-1.5 py-0.5 rounded-[3px]">
+            <span className="font-data text-[9px] font-medium tracking-[0.06em] border border-[var(--accent-color)] text-[var(--accent-color)] px-1.5 py-0.5 rounded-[3px]">
               v0.1
             </span>
           </div>
@@ -54,7 +54,7 @@ export default function Home() {
           {/* earnings counter */}
           <section>
             <SectionLabel>EarningsCounter</SectionLabel>
-            <div className="bg-[var(--bg-surface)] border border-[var(--rule-default)] rounded-md p-6 inline-block relative overflow-hidden">
+            <div className="bg-[var(--bg-surface)] border border-[var(--rule-default)] rounded-md p-6 pr-20 inline-block relative overflow-visible">
               <DotGrid opacity={0.2} />
               <div className="relative">
                 <EarningsCounter />

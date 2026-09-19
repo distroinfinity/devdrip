@@ -1,6 +1,6 @@
-# Dev Drip — Design Tokens v1.1 (Monochrome)
+# Dev Drip — Design Tokens v1.2
 
-**All tokens as CSS custom properties. Pure monochrome — no brand color.**
+**All tokens as CSS custom properties. Monochrome + Electric Indigo accent at 8 touchpoints.**
 
 ---
 
@@ -8,8 +8,8 @@
 
 ```css
 /* ============================================
-   DEV DRIP DESIGN TOKENS v1.1
-   Monochrome — "Industrial Paper"
+   DEV DRIP DESIGN TOKENS v1.2
+   "Industrial Paper" + Electric Indigo accent
    ============================================ */
 
 :root {
@@ -135,7 +135,14 @@
   --em-primary:       #0E0E11;
   --em-hover:         #2A2A2F;
   --em-surface:       #F0EFEB;
-  --em-glow:          rgba(14, 14, 17, 0.06);
+  --em-glow:          rgba(79, 70, 229, 0.10);
+
+  /* Accent — Electric Indigo (8 touchpoints only) */
+  --accent-color:     #4F46E5;
+  --accent-hover:     #4338CA;
+  --accent-surface:   rgba(79, 70, 229, 0.06);
+  --accent-glow:      rgba(79, 70, 229, 0.15);
+  --accent-muted:     #C7D2FE;
 
   /* Status (Rare — like Nothing's red dot) */
   --status-negative:         #C13438;
@@ -181,7 +188,14 @@
   --em-primary:       #EDEDF0;
   --em-hover:         #D0D0D6;
   --em-surface:       #1F1F23;
-  --em-glow:          rgba(237, 237, 240, 0.06);
+  --em-glow:          rgba(99, 102, 241, 0.12);
+
+  /* Accent — Electric Indigo */
+  --accent-color:     #6366F1;
+  --accent-hover:     #818CF8;
+  --accent-surface:   rgba(99, 102, 241, 0.08);
+  --accent-glow:      rgba(99, 102, 241, 0.2);
+  --accent-muted:     #312E81;
 
   /* Status */
   --status-negative:         #E8585C;
@@ -251,6 +265,11 @@ module.exports = {
         },
         negative: { DEFAULT: '#C13438', surface: '#FCF0F0' },
         caution:  { DEFAULT: '#B8860B', surface: '#FBF5E6' },
+        indigo: {
+          DEFAULT: '#4F46E5', 50: '#EEF2FF', 100: '#E0E7FF', 200: '#C7D2FE',
+          300: '#A5B4FC', 400: '#818CF8', 500: '#6366F1',
+          600: '#4F46E5', 700: '#4338CA', 800: '#3730A3', 900: '#312E81',
+        },
       },
       borderRadius: {
         'none': '0px', 'sm': '4px', 'md': '8px', 'lg': '12px', 'pill': '9999px',
@@ -304,10 +323,21 @@ module.exports = {
 
 ## How Money Is Communicated
 
-Not through color. Through:
+Primarily through typography; accent highlights the earning moment:
 1. **JetBrains Mono Bold** — the typeface IS the money signal
 2. **Font weight** — 700 for amounts, 400 for context
 3. **Tabular figures** — `font-variant-numeric: tabular-nums`
-4. **Animation** — the +$0.03 fade-in + glow pulse
-5. **Density** — Bloomberg-style tight data layouts
-6. **The "$" symbol** — universal, needs no color code
+4. **Electric Indigo accent** — the +$0.03 delta renders in `--accent`, glow uses `--accent-glow`
+5. **Animation** — the +$0.03 fade-in + indigo glow pulse
+6. **Density** — Bloomberg-style tight data layouts
+7. **The "$" symbol** — universal, needs no color code
+
+## Accent Tokens — Electric Indigo
+
+| Token              | Light                       | Dark                        | Usage                              |
+|--------------------|-----------------------------|-----------------------------|-------------------------------------|
+| `--accent-color`   | #4F46E5                     | #6366F1                     | CTA bg, delta text, link hover     |
+| `--accent-hover`   | #4338CA                     | #818CF8                     | Button hover                       |
+| `--accent-surface` | rgba(79, 70, 229, 0.06)     | rgba(99, 102, 241, 0.08)    | Subtle tinted bg                   |
+| `--accent-glow`    | rgba(79, 70, 229, 0.15)     | rgba(99, 102, 241, 0.2)     | Glow pulse, focus rings            |
+| `--accent-muted`   | #C7D2FE                     | #312E81                     | Subtle borders                     |

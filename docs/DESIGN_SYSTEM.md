@@ -1,6 +1,6 @@
 # Dev Drip — Design System & Brand Guide
 
-**Version:** 1.1 — Monochrome Revision  
+**Version:** 1.2 — Electric Indigo Accent
 **Last Updated:** February 2026
 
 ---
@@ -49,7 +49,7 @@ Our light-first design uses the metaphor of **financial paper** — the physical
 
 In dark mode, the metaphor shifts to **the terminal** — the developer's native habitat. The same precision, the same data density, but now rendered on dark surfaces like a trading floor monitor at 2am.
 
-### 1.5 The Monochrome Conviction
+### 1.5 The Monochrome Conviction (with one exception)
 
 Stripe processes trillions in payments without using green. Nothing makes hardware that literally costs money without using green. Green-for-money is a crutch. It's what crypto scam sites do.
 
@@ -61,6 +61,8 @@ Stripe processes trillions in payments without using green. Nothing makes hardwa
 - The "$" symbol is the universal money signal — it doesn't need a color code
 
 Our palette is intentionally monochrome with warm undertones. The entire product could be printed in black and white on good paper and still feel exactly like itself. Color exists only for functional status states (errors, warnings) and is used with the same restraint Nothing uses for their red indicator dot — tiny, purposeful, almost invisible.
+
+**The Electric Indigo exception.** Like Nothing's single red indicator dot, we allow one accent color — Electric Indigo (`#4F46E5` light / `#6366F1` dark) — at exactly 8 surgical touchpoints: primary CTA buttons, earnings delta text, earnings glow pulse, active indicator dots, text link hovers, focus rings, progress bar fill, and version badge border. This is a warmer, purple-shifted indigo distinct from Base's pure blue. If you desaturate the page, only these 8 elements lose color. Everything else remains fully monochrome.
 
 ---
 
@@ -132,9 +134,9 @@ In **dark mode**: Slightly more visible dots. Feels like terminal phosphor.
 
 ### 4.1 Philosophy
 
-**Monochrome is the brand.** The entire interface is a spectrum of warm grays. There is no "brand color" in the traditional sense — the brand IS the precision, the typography, the dot-grid texture. Just as Nothing's brand is recognized by its monochrome + dot-matrix, Dev Drip is recognized by its monochrome + tabular numbers.
+**Monochrome is the foundation.** The interface is a spectrum of warm grays with one surgical accent — Electric Indigo — applied at exactly 8 touchpoints. The brand IS the precision, the typography, the dot-grid texture. Just as Nothing's brand is recognized by its monochrome + single red dot, Dev Drip is recognized by its monochrome + tabular numbers + indigo accent moments.
 
-Color appears ONLY for functional states (error, warning) and is used like Nothing uses their red dot — sparingly, small, purposeful.
+Color appears for functional states (error, warning) and at 8 accent touchpoints. Both are used like Nothing uses their red dot — sparingly, small, purposeful.
 
 ### 4.2 Light Mode Palette
 
@@ -228,7 +230,39 @@ Color appears ONLY for functional states (error, warning) and is used like Nothi
 | `--status-caution-surface`  | #2A2210 | Warning background                   |
 | `--status-active`    | #EDEDF0   | Active indicator (just ink!)                |
 
-### 4.4 How Money Is Communicated Without Color
+### 4.4 Accent — Electric Indigo
+
+One accent, 8 touchpoints. Inspired by Nothing's single-color approach.
+
+**Light Mode**
+| Token                | Value                       | Usage                               |
+|----------------------|-----------------------------|--------------------------------------|
+| `--accent-color`     | #4F46E5                     | CTA buttons, delta text, link hover  |
+| `--accent-hover`     | #4338CA                     | Button hover state                   |
+| `--accent-surface`   | rgba(79, 70, 229, 0.06)     | Subtle tinted background             |
+| `--accent-glow`      | rgba(79, 70, 229, 0.15)     | Earnings glow pulse, focus rings     |
+| `--accent-muted`     | #C7D2FE                     | Subtle borders (version badge)       |
+
+**Dark Mode**
+| Token                | Value                       | Usage                               |
+|----------------------|-----------------------------|--------------------------------------|
+| `--accent-color`     | #6366F1                     | CTA buttons, delta text, link hover  |
+| `--accent-hover`     | #818CF8                     | Button hover state                   |
+| `--accent-surface`   | rgba(99, 102, 241, 0.08)    | Subtle tinted background             |
+| `--accent-glow`      | rgba(99, 102, 241, 0.2)     | Earnings glow pulse, focus rings     |
+| `--accent-muted`     | #312E81                     | Subtle borders (version badge)       |
+
+**The 8 Accent Touchpoints (exhaustive)**
+1. Primary CTA buttons (bg `--accent-color`, white text)
+2. Earnings counter `+$0.03` delta text
+3. Earnings counter glow pulse (box-shadow)
+4. Active/earning indicator dots (6px circle)
+5. Text link hover states
+6. Focus rings (keyboard a11y)
+7. Progress bar fill
+8. Version badge border (subtle)
+
+### 4.5 How Money Is Communicated
 
 This is the most important section in the design system.
 
@@ -243,11 +277,11 @@ This is the most important section in the design system.
 - Secondary data: JetBrains Mono 400 (regular) at `--ink-secondary`
 - The weight difference is the visual signal, not color
 
-**3. Animation creates moment**
-- The +$0.03 counter appears with a subtle translateY + opacity animation
-- A brief warm glow (box-shadow with `--em-glow`) pulses once
+**3. Animation + accent creates moment**
+- The +$0.03 counter appears in `--accent-color` with a subtle translateY + opacity animation
+- A brief indigo glow (box-shadow with `--accent-glow`) pulses once
 - The running total ticks up digit-by-digit
-- The animation IS the reward feedback — no color needed
+- The combination of motion + accent color IS the reward feedback
 
 **4. Density creates context**
 - Financial data is presented in tight, tabular Bloomberg-style layouts
@@ -259,14 +293,14 @@ This is the most important section in the design system.
 - Combined with monospaced numbers, this creates an unmistakable "financial document" feel
 - The texture does the work that color would do in a lesser design system
 
-### 4.5 Color Rules
+### 4.6 Color Rules
 
-1. **The interface is monochrome.** If you screenshot it and desaturate, nothing changes.
-2. **No "brand color."** The brand is typography + texture + precision. Not a hex value.
+1. **The interface is monochrome + one accent.** If you desaturate a screenshot, only 8 accent touchpoints lose color.
+2. **One accent, 8 touchpoints.** Electric Indigo appears only at the 8 listed touchpoints. Not a hex value slapped everywhere.
 3. **Status colors are rare and small.** Like Nothing's red dot — a 6px indicator, not a full badge.
-4. **CTAs use maximum contrast.** Dark ink on paper (light mode) or bright white on dark (dark mode). No colored buttons.
+4. **CTAs use accent fill.** `--accent` background with white text. The single most visible accent moment.
 5. **No gradients anywhere.** Flat, precise, mechanical surfaces only.
-6. **Dark mode is a recolor, not a redesign.** Same hierarchy, same weights, only values invert.
+6. **Dark mode is a recolor, not a redesign.** Same hierarchy, same weights, only values invert. Accent shifts from `#4F46E5` to `#6366F1`.
 7. **The warm paper tone (#F7F6F3) is intentional.** Pure white (#FFFFFF) is cold and clinical. Our warmth says "paper, ledger, document" — not "hospital, tech, sterile."
 
 ---
@@ -358,10 +392,10 @@ This is the most important section in the design system.
 
 ### 7.1 Buttons
 
-**Primary (Maximum Contrast)**
-- Light mode: bg `--ink-primary` (#0E0E11), text `--ink-inverse`
-- Dark mode: bg `--ink-primary` (#EDEDF0), text `--ink-inverse`
-- This is Stripe's approach: dark button on light page. Clean.
+**Primary (Accent Fill)**
+- Both modes: bg `--accent-color`, text white (#FFFFFF)
+- Hover: `--accent-hover`
+- The single most visible accent touchpoint
 
 **Ghost**
 - Transparent bg, 1px `--rule-default` border, `--ink-primary` text
@@ -371,8 +405,6 @@ This is the most important section in the design system.
 - No bg, no border. `--ink-secondary` text. Underline on hover.
 
 **Disabled**: opacity 0.4, cursor not-allowed.
-
-**No "signal" or "money" colored button.** All buttons are monochrome.
 
 ### 7.2 Cards
 
@@ -384,12 +416,13 @@ This is the most important section in the design system.
 
 ### 7.3 Earnings Counter (Signature Component)
 
-The most recognizable UI moment. No color needed.
+The most recognizable UI moment. Accent color marks the earning moment.
 
 - Font: JetBrains Mono 700
-- Color: `--ink-primary` (same as all text — it's the weight and animation that creates prominence)
+- Main amount color: `--ink-primary`
+- Delta badge (+$0.03) color: `--accent` — the signature indigo moment
 - The "+$0.03" appears with: fade-in + translateY(-4px) over 250ms
-- Brief glow: `box-shadow: 0 0 16px var(--em-glow)` — warm and subtle
+- Brief glow: `box-shadow: 0 0 16px var(--accent-glow)` — indigo-tinted
 - Hold 1.5s, fade out 150ms
 - Running total ticks up digit-by-digit (80ms per digit)
 
@@ -397,9 +430,9 @@ The most recognizable UI moment. No color needed.
 
 **Standard**: bg `--bg-inset`, text `--ink-secondary`, DM Sans 500 11px, 4px radius.
 
-**Active indicator**: Instead of a colored badge, use a small filled circle (6px) at `--ink-primary` + the word "Active" in `--ink-primary` weight 600. Like Nothing's red dot, but in ink.
+**Active indicator**: A small filled circle (6px) at `--accent` + the word "Active" in `--ink-primary` weight 600. Like Nothing's red dot, but in indigo.
 
-**Earning indicator**: A subtle pulse animation on a 6px circle. The animation IS the differentiation, not color.
+**Earning indicator**: A 6px circle at `--accent-color` with a subtle `accent-glow` pulse animation. The accent color + animation together create the earning signal.
 
 ### 7.5 Status Indicators
 
@@ -456,8 +489,9 @@ Encrypted Text, Noise Background, ASCII Art, Moving Border, Dither Shader, Typew
 ## 11. The Anti-Scam Checklist
 
 - [ ] Could this be a crypto scam landing page? (If any doubt, simplify)
-- [ ] Is the palette truly monochrome? (Screenshot and desaturate to verify)
-- [ ] Does color appear ONLY for error/warning states?
+- [ ] Is the palette monochrome + accent only? (Desaturate screenshot — only 8 accent touchpoints lose color)
+- [ ] Does non-accent color appear ONLY for error/warning states?
+- [ ] Is accent used at only the 8 designated touchpoints?
 - [ ] Are earnings labeled as estimates?
 - [ ] Is the USDC/Base relationship stated factually?
 - [ ] Are numbers consistently formatted? (Always 2 decimal, tabular alignment)
@@ -469,8 +503,8 @@ Encrypted Text, Noise Background, ASCII Art, Moving Border, Dither Shader, Typew
 
 **Do:** Say "Powered by Base" factually, use official USDC logo for balances, reference low fees.
 
-**Don't:** Use Coinbase Blue, imply endorsement, make UI look like Coinbase, use Base logo decoratively.
+**Don't:** Imply endorsement, make UI look like Coinbase, use Base logo decoratively. Our Electric Indigo (#4F46E5) is intentionally distinct from Base's pure blue (#0000FF).
 
 ---
 
-*The brand is the precision. The brand is the typography. The brand is the texture. Not a hex code.*
+*The brand is the precision. The brand is the typography. The brand is the texture. One accent, eight touchpoints, and nothing more.*

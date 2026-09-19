@@ -81,7 +81,7 @@ export function EarningsCounter({
         style={{
           transition: "text-shadow 400ms ease",
           textShadow: glowActive
-            ? "0 0 30px var(--em-glow), 0 0 60px var(--em-glow)"
+            ? "0 0 30px var(--accent-glow), 0 0 60px var(--accent-glow)"
             : "none",
         }}
       >
@@ -105,7 +105,7 @@ export function EarningsCounter({
       <AnimatePresence>
         {showDelta && (
           <motion.div
-            className="absolute right-0 top-8 font-data text-[14px] font-bold text-[var(--ink-primary)]"
+            className="absolute -right-16 top-8 font-data text-[14px] font-bold text-[var(--accent-color)]"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}

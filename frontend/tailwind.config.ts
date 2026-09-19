@@ -41,6 +41,12 @@ const config: Config = {
         },
         negative: { DEFAULT: "#C13438", surface: "#FCF0F0" },
         caution: { DEFAULT: "#B8860B", surface: "#FBF5E6" },
+        indigo: {
+          DEFAULT: "#4F46E5",
+          50: "#EEF2FF", 100: "#E0E7FF", 200: "#C7D2FE",
+          300: "#A5B4FC", 400: "#818CF8", 500: "#6366F1",
+          600: "#4F46E5", 700: "#4338CA", 800: "#3730A3", 900: "#312E81",
+        },
         // shadcn required colors
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
@@ -112,6 +118,8 @@ const config: Config = {
         sm: "0 1px 2px rgba(14, 14, 17, 0.04)",
         md: "0 2px 8px rgba(14, 14, 17, 0.06)",
         lg: "0 8px 24px rgba(14, 14, 17, 0.08)",
+        "accent-sm": "0 0 8px var(--accent-glow)",
+        "accent-md": "0 0 20px var(--accent-glow)",
       },
       keyframes: {
         "dot-pulse": {
@@ -126,11 +134,16 @@ const config: Config = {
           "0%": { opacity: "1", transform: "translateY(0)" },
           "100%": { opacity: "0", transform: "translateY(-4px)" },
         },
+        "accent-glow": {
+          "0%, 100%": { boxShadow: "0 0 0 0 var(--accent-glow)" },
+          "50%": { boxShadow: "0 0 20px 4px var(--accent-glow)" },
+        },
       },
       animation: {
         "dot-pulse": "dot-pulse 3s ease-in-out infinite",
         "delta-in": "delta-in 250ms ease-out forwards",
         "delta-out": "delta-out 150ms ease-in forwards",
+        "accent-glow": "accent-glow 2s ease-in-out",
       },
     },
   },

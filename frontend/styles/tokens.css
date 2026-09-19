@@ -1,6 +1,6 @@
 /* ============================================
    DEV DRIP DESIGN TOKENS v1.1
-   Monochrome — "Industrial Paper"
+   "Industrial Paper" + Electric Indigo accent
    ============================================ */
 
 :root {
@@ -121,7 +121,13 @@
   --em-primary: #0e0e11;
   --em-hover: #2a2a2f;
   --em-surface: #f0efeb;
-  --em-glow: rgba(14, 14, 17, 0.06);
+  --em-glow: rgba(79, 70, 229, 0.10);
+
+  --accent-color: #4F46E5;
+  --accent-hover: #4338CA;
+  --accent-surface: rgba(79, 70, 229, 0.06);
+  --accent-glow: rgba(79, 70, 229, 0.15);
+  --accent-muted: #C7D2FE;
 
   --status-negative: #c13438;
   --status-negative-surface: #fcf0f0;
@@ -160,7 +166,13 @@
   --em-primary: #ededf0;
   --em-hover: #d0d0d6;
   --em-surface: #1f1f23;
-  --em-glow: rgba(237, 237, 240, 0.06);
+  --em-glow: rgba(99, 102, 241, 0.12);
+
+  --accent-color: #6366F1;
+  --accent-hover: #818CF8;
+  --accent-surface: rgba(99, 102, 241, 0.08);
+  --accent-glow: rgba(99, 102, 241, 0.2);
+  --accent-muted: #312E81;
 
   --status-negative: #e8585c;
   --status-negative-surface: #2a1214;

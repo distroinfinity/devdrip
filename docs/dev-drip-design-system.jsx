@@ -9,7 +9,8 @@ const light = {
   inkFaint: "#C5C5BF", inkInverse: "#F7F6F3",
   ruleDefault: "#DDDDD8", ruleSubtle: "#EEEEEA", ruleStrong: "#C5C5BF",
   dotGrid: "#D4D4CE",
-  emPrimary: "#0E0E11", emHover: "#2A2A2F", emGlow: "rgba(14,14,17,0.06)",
+  emPrimary: "#0E0E11", emHover: "#2A2A2F", emGlow: "rgba(79,70,229,0.10)",
+  accent: "#4F46E5", accentHover: "#4338CA", accentGlow: "rgba(79,70,229,0.15)", accentMuted: "#C7D2FE",
   statusNeg: "#C13438", statusCau: "#B8860B",
 };
 
@@ -20,7 +21,8 @@ const dark = {
   inkFaint: "#3A3A40", inkInverse: "#0A0A0C",
   ruleDefault: "#27272B", ruleSubtle: "#1E1E22", ruleStrong: "#3A3A40",
   dotGrid: "#1E1E22",
-  emPrimary: "#EDEDF0", emHover: "#D0D0D6", emGlow: "rgba(237,237,240,0.06)",
+  emPrimary: "#EDEDF0", emHover: "#D0D0D6", emGlow: "rgba(99,102,241,0.12)",
+  accent: "#6366F1", accentHover: "#818CF8", accentGlow: "rgba(99,102,241,0.2)", accentMuted: "#312E81",
   statusNeg: "#E8585C", statusCau: "#E0A020",
 };
 
@@ -83,7 +85,7 @@ const EarningsCounter = ({ t }) => {
         fontFamily: "'JetBrains Mono'", fontWeight: 700, fontSize: 40, color: t.inkPrimary,
         lineHeight: 1, fontVariantNumeric: "tabular-nums",
         transition: "text-shadow 400ms ease",
-        textShadow: flash ? `0 0 30px ${t.emGlow.replace(/[\d.]+\)$/, "0.4)")}` : "none",
+        textShadow: flash ? `0 0 30px ${t.accentGlow.replace(/[\d.]+\)$/, "0.4)")}` : "none",
       }}>
         ${val.toFixed(2)}
       </div>
@@ -93,7 +95,7 @@ const EarningsCounter = ({ t }) => {
       }}>USDC</div>
       <div style={{
         position: "absolute", right: -56, top: 24,
-        fontFamily: "'JetBrains Mono'", fontWeight: 700, fontSize: 14, color: t.inkPrimary,
+        fontFamily: "'JetBrains Mono'", fontWeight: 700, fontSize: 14, color: t.accent,
         opacity: showDelta ? 1 : 0,
         transform: showDelta ? "translateY(0)" : "translateY(6px)",
         transition: showDelta
@@ -602,10 +604,9 @@ export default function DesignSystem() {
                 <div style={{ fontFamily: "'Space Mono'", fontWeight: 700, fontSize: 13, color: t.inkPrimary, marginBottom: 10 }}>DON'T</div>
                 {[
                   "No green-for-money (we're not a scam)",
-                  "No brand accent color at all",
+                  "No accent beyond the 8 touchpoints",
                   "No gradient backgrounds",
                   "No emoji in product UI",
-                  "No colored CTA buttons",
                   "No crypto hype language",
                   "No heavy rounded aesthetic",
                 ].map((r, i) => (
@@ -626,10 +627,11 @@ export default function DesignSystem() {
             <DotGrid t={t} opacity={0.18} />
             <div style={{ position: "relative" }}>
               <div style={{ fontFamily: "'Space Mono'", fontWeight: 700, fontSize: 15, color: t.inkPrimary, marginBottom: 8 }}>
-                Why monochrome?
+
+                Why monochrome + one accent?
               </div>
               <div style={{ fontFamily: "'DM Sans'", fontSize: 14, lineHeight: 1.65, color: t.inkSecondary, maxWidth: 560 }}>
-                Stripe processes trillions without green. Nothing ships hardware you buy without green. Bloomberg moves billions on monochrome screens. We convey financial precision through typography, weight, and motion — not color. The{" "}
+                Stripe processes trillions without green. Nothing ships hardware with a single red dot. Bloomberg moves billions on monochrome screens. We convey financial precision through typography, weight, and motion — with Electric Indigo at 8 surgical touchpoints. The{" "}
                 <span style={{ fontFamily: "'JetBrains Mono'", fontWeight: 700, fontSize: 13 }}>$14.72</span>{" "}
                 in JetBrains Mono Bold IS the money signal.
               </div>
