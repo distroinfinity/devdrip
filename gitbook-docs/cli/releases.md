@@ -101,6 +101,10 @@ wild keep working when the Vercel challenge isn't firing.
 3. Watch the Actions tab; the Release CLI workflow should produce the release.
 4. Verify `https://github.com/distroinfinity/devdrip/releases/latest/download/distrotv-cli.tar.gz` returns the tarball.
 
+## cli-v0.2.6 (2026-05-25)
+
+**Changed:** slots now render via Claude Code's **statusLine** instead of the daemon drawing to the TTY. The daemon publishes the current slot as one line to `~/.distro/now-playing.json`; `distro statusline` prints it; `distro init` points Claude's `statusLine` at that command. This pins the slot to the bottom (Claude-owned, replaced in place) with zero terminal contention — fixing both the original corruption and the 0.2.4/0.2.5 inline-scrollback spam. Existing users must re-run `distro init` to wire the `statusLine` config, then restart Claude Code. See `architecture/slot-rendering.md`.
+
 ## cli-v0.2.5 (2026-05-25)
 
 **Fixed:** `distro upgrade` checked the npm registry (`registry.npmjs.org/@distrotv/cli`) which 404s — the CLI ships via GitHub Releases, not npm. The update check now reads the latest release tag from `api.github.com/repos/distroinfinity/devdrip/releases/latest` and the upgrade hint points at the `curl … get.distrotv.xyz/install.sh | sh` one-liner. Users on ≤ 0.2.4 must re-run the install one-liner once to pick up the working check.

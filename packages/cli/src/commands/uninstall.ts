@@ -5,7 +5,12 @@ import { Command } from "commander"
 import { cancel, confirm, intro, isCancel, log, note, outro } from "@clack/prompts"
 import { resolveEnv } from "@distrotv/shared"
 import { reportError } from "../lib/api-client.js"
-import { readSettings, removeDevdripHooks, writeSettingsAtomic } from "../lib/claude-settings.js"
+import {
+  readSettings,
+  removeDevdripHooks,
+  removeStatusLine,
+  writeSettingsAtomic,
+} from "../lib/claude-settings.js"
 import { configDir, readConfig, writeConfig } from "../lib/config.js"
 import { readDaemonStatus } from "../lib/daemon/lifecycle.js"
 import { runStop } from "./daemon.js"
@@ -53,11 +58,13 @@ async function restoreOrStripHooks(): Promise<{ restored: boolean; stripped: boo
     return { restored: true, stripped: false }
   }
 
-  // no backup — surgical strip
+  // no backup — surgical strip (hooks + our statusLine)
   const current = await readSettings(settingsPath)
-  const { next, changed } = removeDevdripHooks(current)
+  const hooks = removeDevdripHooks(current)
+  const status = removeStatusLine(hooks.next)
+  const changed = hooks.changed || status.changed
   if (changed) {
-    await writeSettingsAtomic(settingsPath, next)
+    await writeSettingsAtomic(settingsPath, status.next)
   }
   return { restored: false, stripped: changed }
 }

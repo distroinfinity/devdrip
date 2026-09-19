@@ -5,24 +5,32 @@ The CLI daemon dispatches by `slot.kind` to one of two renderers:
 - **News (`renderNewsBox`)** — single headline + source/age/score line + footer hotkeys. M3.
 - **Ticker (`renderTickerBox`)** — layout B: header row, price + sparkline + 1m label, stats row (d1/w1/m1/52w), footer hotkeys. M4.
 
-Both renderers produce a multi-line string. The renderer dispatch lives in `packages/cli/src/lib/daemon/display.ts` (`showAd`).
+## Rendering model: Claude Code statusLine (cli-v0.2.6+)
 
-## Rendering model: inline, append-only
+**The daemon never writes to the user's TTY.** Two programs driving the same terminal is what corrupted Claude Code's screen, and the interim inline-append fix (0.2.4–0.2.5) spammed the scrollback with one box per rotation. The only way to pin a slot at the bottom that _coexists_ with Claude Code is to let **Claude render it** — via its native `statusLine` hook.
 
-`showAd` writes the rendered block **once** to the user's TTY as ordinary scrolling output, then closes the fd. There is **no** scroll region (DECSTBM), **no** cursor save/restore (DECSC/DECRC), **no** absolute positioning, and **no** repaint timers (pulse / progress / resize poll). The block becomes part of the scrollback and scrolls away naturally as the host produces more output.
+Flow:
 
-```ts
-const block = "\r\n" + text.split("\n").join("\r\n") + "\x1b[0m\r\n"
-writeWithRetry(fd, block)
+1. The daemon's `showAd` (`packages/cli/src/lib/daemon/display.ts`) renders a **single compact line** (`renderSlotLine` in `lib/render-line.ts`) and publishes it to a local file `~/.distro/now-playing.json` (`lib/statusline-state.ts`, `{ line, ts }`). `vanish` clears the file. **No terminal writes at all.**
+2. `distro statusline` (`commands/statusline.ts`) reads that file — printing the line, or nothing when no slot is active or the entry is older than the 30s staleness TTL — and exits fast. Claude pipes session JSON on stdin (ignored).
+3. `distro init` wires Claude Code's `statusLine` to that command via `setStatusLine` (`lib/claude-settings.ts`):
+
+```json
+"statusLine": { "type": "command", "command": "<distro-bin> statusline", "padding": 0 }
 ```
 
-CRLF joins each row so the block lands correctly whether the host left the TTY in cooked or raw mode; the trailing SGR reset prevents color bleed.
+Claude Code owns the bottom line, polls the command on its own cadence, and renders the result in place — zero TTY contention, no scrollback spam, replaced each rotation. `uninstall` strips the entry (only if it's ours) via `removeStatusLine`.
 
-**Why this model.** The previous approach pinned a fixed bottom pane via DECSTBM and repainted it on timers. That fought Claude Code's TUI, which owns the same bottom rows (its input box + footer), shares the single cursor-save register, and periodically resets the scroll region — the two writers clobbered each other and corrupted the host screen. Appending plain text can't: it composes with the host like any other line. The tradeoff is that there is no persistent pane, live progress bar, pulse animation, or in-place vanish — the slot just scrolls by.
+Line format (plain text, capped ~140 chars; Claude truncates to terminal width):
 
-The orchestrator still drives its show / vanish / progress timers (for impression accounting and rotation), so the `DisplayHandle` keeps its shape but `flash` / `updateProgress` / `vanish` / `onResize` are no-ops; `vanish` reports `latencyMs: 0` (nothing to wipe).
+```
+▍ NEWS · BBG · Rubio Says "Significant Progress" Made on Iran Talks · 6h
+▍ AAPL $234.56 ▲ +2.34%
+```
 
-The `as` cast in the dispatch is for the `cacheSource` field on `CachedSlot` and the future `sponsored`/`portfolio` kinds in the `SlotKind` enum that don't have payload types yet.
+The orchestrator still drives its show / vanish / progress timers (for rotation + impression accounting), so the `DisplayHandle` keeps its shape but `flash` / `updateProgress` / `flashHeader` / `shiftChart` / `onResize` are no-ops; `vanish` clears the file and reports `latencyMs: 0`. The multi-line box renderers (`renderNewsBox`, `renderTickerBox`) remain for `distro demo` and possible future surfaces but are no longer used by the daemon.
+
+The `as` casts elsewhere are for the `cacheSource` field on `CachedSlot` and the future `sponsored`/`portfolio` kinds in the `SlotKind` enum that don't have payload types yet.
 
 ## Layout B (single ticker)
 
