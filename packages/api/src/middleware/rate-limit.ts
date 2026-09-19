@@ -1,13 +1,7 @@
-import { Redis } from "@upstash/redis"
 import { Ratelimit } from "@upstash/ratelimit"
 import type { Request, Response, NextFunction } from "express"
-import { env } from "../config/env.js"
-
-// eager init — crashes at startup if env vars are missing
-const redis = new Redis({
-  url: env.upstashRedisRestUrl,
-  token: env.upstashRedisRestToken,
-})
+import { getRedis } from "../lib/redis.js"
+import { logger } from "../lib/logger.js"
 
 // cache ratelimit instances per tier
 const limiterCache = new Map<string, Ratelimit>()
@@ -21,7 +15,7 @@ function getLimiter(name: string, config: LimiterConfig): Ratelimit {
   let limiter = limiterCache.get(name)
   if (!limiter) {
     limiter = new Ratelimit({
-      redis,
+      redis: getRedis(),
       limiter: Ratelimit.slidingWindow(config.requests, config.window),
       prefix: `rl:${name}`,
     })
@@ -66,7 +60,7 @@ function createLimiter(name: string, config: LimiterConfig, extractKey: KeyExtra
 
       next()
     } catch (err) {
-      console.warn(`[rate-limit:${name}] redis error, failing open:`, err)
+      logger.warn({ err, tier: name }, "redis error, failing open")
       next()
     }
   }
