@@ -101,6 +101,16 @@ wild keep working when the Vercel challenge isn't firing.
 3. Watch the Actions tab; the Release CLI workflow should produce the release.
 4. Verify `https://github.com/distroinfinity/devdrip/releases/latest/download/distrotv-cli.tar.gz` returns the tarball.
 
+## cli-v0.2.5 (2026-05-25)
+
+**Fixed:** `distro upgrade` checked the npm registry (`registry.npmjs.org/@distrotv/cli`) which 404s — the CLI ships via GitHub Releases, not npm. The update check now reads the latest release tag from `api.github.com/repos/distroinfinity/devdrip/releases/latest` and the upgrade hint points at the `curl … get.distrotv.xyz/install.sh | sh` one-liner. Users on ≤ 0.2.4 must re-run the install one-liner once to pick up the working check.
+
+## cli-v0.2.4 (2026-05-25)
+
+**Fixed:** slots no longer corrupt Claude Code's TUI — the bottom-pane overlay (scroll-region + cursor save/restore + repaint timers) was replaced with inline append-only rendering. See `architecture/slot-rendering.md`.
+
+**Added:** the daemon reports device `os` / `ide_type` / `device_name` / `cli_version` on startup (`POST /devices`, updated by device id), so admin device analytics populate.
+
 ## cli-v0.2.0 (2026-05-22)
 
 GitHub OAuth becomes the only sign-in path; email magic-link removed.
