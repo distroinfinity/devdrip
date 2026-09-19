@@ -3,6 +3,7 @@ import { env } from "../config/env.js"
 import { getDb } from "../db/index.js"
 import { adCampaigns } from "../db/schema/ad_campaigns.js"
 import { adImpressions } from "../db/schema/ad_impressions.js"
+import { users } from "../db/schema/users.js"
 
 export type AdStatus = "active" | "paused" | "review"
 export type NewAdError = "invalid_brand" | "invalid_line" | "invalid_url" | "invalid_bid"
@@ -168,6 +169,23 @@ export async function listMyAds(userId: string) {
   return rows.map((r) => shape(r, stats.get(r.id) ?? NO_STATS))
 }
 
+// production reviews ads before strangers' text reaches other people's terminals. admins
+// (ADMIN_EMAILS) skip the queue; AD_AUTO_APPROVE skips it for everyone (local/demo only).
+export function initialStatus(args: { autoApprove: boolean; isAdmin: boolean }): AdStatus {
+  return args.autoApprove || args.isAdmin ? "active" : "review"
+}
+
+async function isAdminUser(userId: string): Promise<boolean> {
+  if (env.adminEmails.size === 0) return false
+  const [row] = await getDb()
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  const email = row?.email?.toLowerCase()
+  return !!email && env.adminEmails.has(email)
+}
+
 export async function createAd(userId: string, ad: NewAd) {
   const db = getDb()
   const [count] = await db
@@ -183,8 +201,10 @@ export async function createAd(userId: string, ad: NewAd) {
       line: ad.line,
       url: ad.url,
       bidCpm: String(ad.bidCpm),
-      // auto-approve is a local/demo convenience; production must review first
-      status: env.adAutoApprove ? "active" : "review",
+      status: initialStatus({
+        autoApprove: env.adAutoApprove,
+        isAdmin: await isAdminUser(userId),
+      }),
     })
     .returning()
   if (!row) throw new Error("ad_insert_failed")
@@ -209,4 +229,29 @@ export async function setAdStatus(userId: string, id: string, status: "active" |
   if (!row) return { error: "not_found" as const }
   const stats = await statsFor([row.id])
   return { ad: shape(row, stats.get(row.id) ?? NO_STATS) }
+}
+
+// ── admin review ────────────────────────────────────────────────────────────
+
+export async function listAdsForReview(status: AdStatus) {
+  const rows = await getDb()
+    .select()
+    .from(adCampaigns)
+    .where(eq(adCampaigns.status, status))
+    .orderBy(desc(adCampaigns.createdAt))
+    .limit(100)
+  const stats = await statsFor(rows.map((r) => r.id))
+  return rows.map((r) => ({ ...shape(r, stats.get(r.id) ?? NO_STATS), ownerUserId: r.ownerUserId }))
+}
+
+// an admin can approve (active), pull (paused) or send back (review) any ad
+export async function adminSetAdStatus(id: string, status: AdStatus) {
+  const [row] = await getDb()
+    .update(adCampaigns)
+    .set({ status, updatedAt: sql`now()` })
+    .where(eq(adCampaigns.id, id))
+    .returning()
+  if (!row) return null
+  const stats = await statsFor([row.id])
+  return shape(row, stats.get(row.id) ?? NO_STATS)
 }

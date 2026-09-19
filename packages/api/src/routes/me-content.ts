@@ -8,6 +8,7 @@ import { nextPicksForDevice } from "../services/news-selection.service.js"
 import { nextTickerForDevice } from "../services/ticker-selection.service.js"
 import { touchDeviceHeartbeat } from "../services/device-heartbeat.service.js"
 import {
+  clientRendersAds,
   contentPlan,
   mixSlots,
   normalizeFeeds,
@@ -43,7 +44,9 @@ meContentRouter.get("/next", async (req, res, next) => {
 
     const { mode, feeds } = await getModeAndFeeds(userId)
     const plan = contentPlan(feeds, mode)
-    const counts = splitCounts(n, feeds.includes("ads"), plan !== "none")
+    // ?v= is the cli version. clients that cannot draw the ad panel never get one.
+    const adsOn = feeds.includes("ads") && clientRendersAds(req.query["v"])
+    const counts = splitCounts(n, adsOn, plan !== "none")
 
     const [ads, content] = await Promise.all([
       nextAds({ userId, deviceId, n: counts.ads }),

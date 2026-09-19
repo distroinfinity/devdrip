@@ -47,3 +47,20 @@ export function mixSlots<T>(ads: T[], content: T[]): T[] {
   }
   return out
 }
+
+// the first cli release that can draw a sponsored panel. older clients (and anything that
+// does not declare a version) are never sent one — they would render it as broken news.
+const ADS_MIN_VERSION = [0, 3, 0] as const
+
+export function clientRendersAds(raw: unknown): boolean {
+  if (typeof raw !== "string") return false
+  const m = /^(\d+)\.(\d+)\.(\d+)/.exec(raw.trim())
+  if (!m) return false
+  const v = [Number(m[1]), Number(m[2]), Number(m[3])]
+  for (let i = 0; i < 3; i++) {
+    const have = v[i] ?? 0
+    const need = ADS_MIN_VERSION[i] ?? 0
+    if (have !== need) return have > need
+  }
+  return true
+}

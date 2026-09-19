@@ -5,6 +5,7 @@ import { ChannelMode, type SlotPayload } from "@distrotv/shared"
 import { apiFetch as defaultApiFetch } from "./api-client.js"
 import { DEMO_SLOTS } from "./slot-cache-fixtures.js"
 import { configDir } from "./config.js"
+import { cliVersion } from "./device.js"
 
 const RATIO_PATTERNS: Record<ChannelMode, ("news" | "ticker")[]> = {
   [ChannelMode.NewsOnly]: ["news"],
@@ -163,7 +164,8 @@ export function openSlotCache(deps: SlotCacheDeps): SlotCache {
   async function doRefresh(): Promise<void> {
     try {
       const resp = await apiFetch<ContentResponse>("/me/content/next", {
-        query: { deviceId: deps.deviceId, n: BATCH_SIZE, surface: deps.surface },
+        // v tells the server this client can draw the sponsored panel (0.3.0+)
+        query: { deviceId: deps.deviceId, n: BATCH_SIZE, surface: deps.surface, v: cliVersion() },
       })
       const items = resp.items ?? []
       const slots: CachedSlot[] = items.map((s) => ({ ...s, cacheSource: "api" }))

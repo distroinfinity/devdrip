@@ -19,7 +19,8 @@ function h(
   }
 }
 
-// demo creatives shown when carbon has no fill. not sold inventory.
+// demo creatives for local development: recognisable dev tools so the rotation looks real.
+// never shown in production — a public user would read them as paying advertisers.
 export const HOUSE_ADS: NormalizedAd[] = [
   h(
     "distro-advertise",
@@ -79,8 +80,48 @@ export const HOUSE_ADS: NormalizedAd[] = [
   ),
 ]
 
-export function houseAd(index: number): NormalizedAd {
-  const ad = HOUSE_ADS[((index % HOUSE_ADS.length) + HOUSE_ADS.length) % HOUSE_ADS.length]
+// what fills unsold slots in production: Distro TV's own promos, nothing else
+export const OWN_HOUSE_ADS: NormalizedAd[] = [
+  h(
+    "own-advertise",
+    "Distro TV",
+    "Your ad here. Reach developers while their agent works.",
+    "Advertise",
+    "https://distrotv.xyz/advertisers"
+  ),
+  h(
+    "own-portal",
+    "Distro TV",
+    "Write one line. It runs in developers' terminals within minutes.",
+    "Open the portal",
+    "https://distrotv.xyz/advertisers/portal"
+  ),
+  h(
+    "own-revenue",
+    "Distro TV",
+    "See what your idle agent time has earned so far.",
+    "Open revenue",
+    "https://distrotv.xyz/dashboard/revenue"
+  ),
+  h(
+    "own-channels",
+    "Distro TV",
+    "Prefer no ads? Tune this slot to news or markets instead.",
+    "Preferences",
+    "https://distrotv.xyz/dashboard/preferences"
+  ),
+]
+
+export function houseAdsFor(production: boolean): NormalizedAd[] {
+  return production ? OWN_HOUSE_ADS : HOUSE_ADS
+}
+
+export function houseAd(
+  index: number,
+  production = process.env["NODE_ENV"] === "production"
+): NormalizedAd {
+  const list = houseAdsFor(production)
+  const ad = list[((index % list.length) + list.length) % list.length]
   if (!ad) throw new Error("house_ads_empty")
   return ad
 }

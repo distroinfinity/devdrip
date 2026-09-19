@@ -60,11 +60,17 @@ link and a CPM bid (1–100). It is stored in `ad_campaigns` and served as `sour
 - **Price:** the bid is the impression's `cpm_rate`, so a higher bid also pays the viewer more.
   Nothing is charged in the pilot; `stats.spend` is what the paid views would have cost.
 - **Stats** (`served`, `views`, `clicks`, `ctr`, `spend`) are read straight from `ad_impressions`.
+- **Old clients:** the cli sends its version (`?v=`) with every content request; sponsored
+  slots go only to 0.3.0+, which can draw the panel.
 - **Safety:** https links to a public host only, no credentials in the url, length limits,
   escape sequences and control bytes stripped on write and again at render, 10 ads per user.
   New ads are `active` at once only when `AD_AUTO_APPROVE` is on (default on outside
-  production). **Production must run with it off**: ads then start in `review`, and an advertiser
-  cannot approve their own ad. There is no review UI yet — approve by setting `status` in the DB.
+  production) or the author is an admin (`ADMIN_EMAILS`). **Production runs with it off**: ads
+  start in `review`, and an advertiser cannot approve their own ad. Admins review through
+  `GET /admin/ads?status=review` and `PATCH /admin/ads/:id { status }`; there is no review page yet.
+- **Fill in production:** house ads are Distro TV's own promos only (the recognisable dev-tool
+  creatives are local-only), and Carbon serves only with a real `CARBON_ZONE_KEY` or
+  `CARBON_ENABLED=1` — its sandbox zone must be a deliberate choice for a public audience.
 - Importing from Google Ads / Meta Ads / Amazon Ads is shown as coming soon. The plan is a
   read-only copy of the creative (search ads are text, so they map one to one); it needs each
   platform's API approval and is not built.

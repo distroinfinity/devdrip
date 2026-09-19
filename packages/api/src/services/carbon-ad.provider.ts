@@ -80,6 +80,7 @@ let cached: { at: number; ad: NormalizedAd | null } | null = null
 
 // never throws. 60s in-process cache so /me/content/next doesn't hit carbon per request.
 export async function fetchCarbonAd(): Promise<NormalizedAd | null> {
+  if (!env.carbonEnabled) return null
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.ad
   try {
     const opts: { placement: string; serve?: string } = { placement: env.carbonPlacement }

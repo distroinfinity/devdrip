@@ -79,3 +79,28 @@ describe("pickDirect", () => {
     expect(pickDirect(ads, 0)).toEqual([])
   })
 })
+
+describe("initialStatus", () => {
+  it("goes live at once when auto-approve is on, or when the author is an admin", async () => {
+    const { initialStatus } = await import("../services/advertiser-ads.service.js")
+    expect(initialStatus({ autoApprove: true, isAdmin: false })).toBe("active")
+    expect(initialStatus({ autoApprove: false, isAdmin: true })).toBe("active")
+  })
+  it("everyone else waits for review", async () => {
+    const { initialStatus } = await import("../services/advertiser-ads.service.js")
+    expect(initialStatus({ autoApprove: false, isAdmin: false })).toBe("review")
+  })
+})
+
+describe("house ads in production", () => {
+  it("are Distro TV's own promos only — no third-party brands shown as advertisers", async () => {
+    const { houseAdsFor } = await import("../services/house-ads.js")
+    const prod = houseAdsFor(true)
+    expect(prod.length).toBeGreaterThanOrEqual(3)
+    for (const a of prod) {
+      expect(a.advertiser).toBe("Distro TV")
+      expect(a.targetUrl.startsWith("https://distrotv.xyz")).toBe(true)
+    }
+    expect(houseAdsFor(false).some((a) => a.advertiser !== "Distro TV")).toBe(true)
+  })
+})

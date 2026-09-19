@@ -10,6 +10,7 @@ import { getOverview } from "../services/admin/overview.service.js"
 import { getMetrics } from "../services/admin/metrics.service.js"
 import { getAuditEvents } from "../services/admin/audit.service.js"
 import { sendSlackAlert } from "../lib/slack.js"
+import { adminSetAdStatus, listAdsForReview } from "../services/advertiser-ads.service.js"
 
 const router: ExpressRouter = Router()
 router.use(requireAuth, requireAdmin)
@@ -106,6 +107,40 @@ router.get("/alert-events", async (req, res, next) => {
 })
 
 // debug
+// ── ad review ──────────────────────────────────────────────────────────────
+// GET /admin/ads?status=review|active|paused   ·   PATCH /admin/ads/:id { status }
+const AD_STATUSES = ["review", "active", "paused"] as const
+
+router.get("/ads", async (req, res, next) => {
+  try {
+    const q = String(req.query["status"] ?? "review")
+    const status = AD_STATUSES.find((s) => s === q) ?? "review"
+    res.json({ ads: await listAdsForReview(status) })
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.patch("/ads/:id", async (req, res, next) => {
+  try {
+    const id = String(req.params["id"] ?? "")
+    const want = (req.body as { status?: unknown } | null)?.status
+    const status = AD_STATUSES.find((s) => s === want)
+    if (!/^[0-9a-f-]{36}$/i.test(id) || !status) {
+      res.status(400).json({ error: "invalid_request" })
+      return
+    }
+    const ad = await adminSetAdStatus(id, status)
+    if (!ad) {
+      res.status(404).json({ error: "not_found" })
+      return
+    }
+    res.json({ ad })
+  } catch (err) {
+    next(err)
+  }
+})
+
 router.post("/test-slack-webhook", async (_req, res, next) => {
   try {
     await sendSlackAlert("test ping from admin dashboard", { severity: "info" })
