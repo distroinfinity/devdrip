@@ -96,6 +96,7 @@ export interface UserPreferences {
   enabledSurfaces: AdSurface[]
   quietHoursStart?: number
   quietHoursEnd?: number
+  tzOffsetMinutes: number
   idleSensitivityMs: number
   dataSharingConsent: boolean
 }
@@ -145,6 +146,10 @@ export interface AdPayload {
   body?: string
   url: string
   displayTimeMs: number
+}
+
+export interface ServedAdPayload extends AdPayload {
+  deliveryToken: string
 }
 
 export interface Advertiser {
@@ -207,3 +212,7 @@ export interface Payout {
   createdAt: string
   confirmedAt?: string
 }
+
+// ── ad provider ────────────────────────────────────────────────────────────
+
+export { type AdRequest, type AdProvider } from "./ad-provider.js"

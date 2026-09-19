@@ -13,6 +13,7 @@ export const preferences = pgTable("preferences", {
   maxPerDay: integer("max_per_day").notNull().default(60),
   quietHoursStart: integer("quiet_hours_start"),
   quietHoursEnd: integer("quiet_hours_end"),
+  tzOffsetMinutes: integer("tz_offset_minutes").notNull().default(0),
   idleSensitivityMs: integer("idle_sensitivity_ms").notNull().default(10_000),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

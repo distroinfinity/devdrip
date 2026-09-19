@@ -15,6 +15,13 @@
       "when": 1776082831668,
       "tag": "0001_nervous_skrulls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776263647618,
+      "tag": "0002_smooth_pandemic",
+      "breakpoints": true
     }
   ]
 }
