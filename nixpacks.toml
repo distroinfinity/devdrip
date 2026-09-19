@@ -1,0 +1,21 @@
+# scoped install for the API service. nixpacks' default phase runs a
+# whole-monorepo `pnpm i --frozen-lockfile`, which pulls in the CLI's
+# better-sqlite3 native dep and fails on the Railway nix image (no Python
+# for node-gyp; node 24 has no prebuilt better-sqlite3 binaries yet).
+#
+# scoping to @distrotv/api... installs only the API and its transitive deps.
+# the CLI is published to npm separately and never deployed to Railway.
+
+[phases.setup]
+# pin node 20 — better-sqlite3 has no node 24 prebuilds yet, and even though
+# the scoped install skips it, other native deps benefit from the prebuild path.
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile --filter @distrotv/api..."]
+
+[phases.build]
+cmds = ["pnpm turbo run build --filter=@distrotv/api"]
+
+[start]
+cmd = "node packages/api/dist/index.js"

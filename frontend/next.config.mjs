@@ -12,10 +12,17 @@ const nextConfig = {
   },
 
   async rewrites() {
-    const apiBase = process.env.DISTRO_API_BASE_URL || "http://localhost:3001"
+    // resolve from the same bundle the rest of the app uses, so dev/staging/prod
+    // are driven by DISTRO_ENV alone. ad-hoc override via API_URL still wins.
+    const { resolveEnv } = await import("@distrotv/shared")
+    const { apiUrl } = resolveEnv({
+      distroEnv: process.env.DISTRO_ENV,
+      apiUrl: process.env.API_URL,
+      nodeEnv: process.env.NODE_ENV,
+    })
     return [
-      { source: "/api/me", destination: `${apiBase}/me` },
-      { source: "/api/me/:path*", destination: `${apiBase}/me/:path*` },
+      { source: "/api/me", destination: `${apiUrl}/me` },
+      { source: "/api/me/:path*", destination: `${apiUrl}/me/:path*` },
     ]
   },
 

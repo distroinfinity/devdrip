@@ -40,6 +40,11 @@ In dev, `FINNHUB_API_KEY=dev_placeholder` short-circuits to synthetic stable-per
 5. Computes `TickerStats` (d1Pct from `(price - prevClose)/prevClose`, w1/m1 pct change over the sparkline, w52Hi/Lo as max/min over sparkline + price; all rounded to 1 decimal).
 6. Returns a `TickerPayload` with `kind: "ticker"`, `layout: "single"`, the sparkline, stats, and the `stale` flag.
 
+`stale` is force-flipped to `true` if `now - fetched_at > 5 min` even when the
+DB row says fresh — guards against a silently dead worker. The DB-level `stale`
+column still flips to `true` only on a _failed fetch attempt_, so an offline
+worker would never set it on its own.
+
 ## Watchlist API
 
 `PUT /me/watchlists` is **full replacement** with server-assigned priority — same contract as M3 channels:

@@ -179,11 +179,12 @@ export async function nextPicksForDevice({
   const picks = (unseen.length >= limit ? unseen : scored).slice(0, limit).map((x) => x.c)
   const payloads = picks.map((c) => toPayload(c, nowMs))
 
+  // cache the picks for fast next-call serving, but DO NOT mark them served yet.
+  // dedupe is now driven by /ingest impressions (see markServedOnImpression):
+  // an item only enters the served set if the device actually rendered it,
+  // so cache-evicted-but-never-shown picks remain candidates for next time.
   if (payloads.length > 0) {
     await redis.set(nextPicksKey(deviceId), payloads, { ex: NEXTPICKS_TTL_SEC })
-    const [first, ...rest] = payloads.map((p) => p.id)
-    if (first) await redis.sadd(servedKey(deviceId), first, ...rest)
-    await redis.expire(servedKey(deviceId), SERVED_TTL_SEC)
   }
 
   logger.debug(
@@ -197,4 +198,13 @@ export async function nextPicksForDevice({
     "news.select"
   )
   return payloads
+}
+
+// called from /ingest when a news slot impression lands. only impressions that
+// actually rendered (the CLI sends durationMs > 0) advance the served set, so
+// cache-evicted-but-never-shown picks stay candidates for next time.
+export async function markServedOnImpression(deviceId: string, newsId: string): Promise<void> {
+  const redis = getRedis()
+  await redis.sadd(servedKey(deviceId), newsId)
+  await redis.expire(servedKey(deviceId), SERVED_TTL_SEC)
 }

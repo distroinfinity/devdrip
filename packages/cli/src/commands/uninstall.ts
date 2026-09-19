@@ -4,13 +4,14 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { Command } from "commander"
 import { cancel, confirm, intro, isCancel, log, note, outro } from "@clack/prompts"
+import { resolveEnv } from "@distrotv/shared"
 import { reportError } from "../lib/api-client.js"
 import { readSettings, removeDevdripHooks, writeSettingsAtomic } from "../lib/claude-settings.js"
 import { configDir, readConfig, writeConfig } from "../lib/config.js"
 import { readDaemonStatus } from "../lib/daemon/lifecycle.js"
 import { runStop } from "./daemon.js"
 
-const DASHBOARD_URL = "https://distrotv.xyz/dashboard"
+const DASHBOARD_URL = `${resolveEnv({ distroEnv: process.env["DISTRO_ENV"] ?? "prod" }).webUrl}/dashboard`
 
 function claudeSettingsPath(): string {
   return join(homedir(), ".claude", "settings.json")

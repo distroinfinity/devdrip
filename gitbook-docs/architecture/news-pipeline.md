@@ -40,10 +40,10 @@ On success: source row gets `healthy=true, lastError=null, lastFetchedAt=now`. O
          + 0.05 · is_first_time
    ```
 
-   Per-source `half_life_hours` lets HN (6h) decay faster than RSS (24h), Reuters (1h), or Smashing Magazine (72h).
+   Per-source `half_life_hours` lets HN (6h) decay faster than RSS (24h) or Smashing Magazine (72h).
 
 6. Prefer unseen items at the top of the sorted list. Only fall back to seen items when the unseen pool is shorter than `n` — that's the resurfacing path for power users.
-7. Write the `n` picks to `news:nextpicks:<deviceId>` (5-min TTL); add each id to `news:served:<deviceId>` (SET, 30d TTL); refresh expire.
+7. Write the `n` picks to `news:nextpicks:<deviceId>` (5-min TTL). Items are **not** added to `news:served:<deviceId>` here — that happens on impression ingest (see "Dedupe, on impression" below).
 
 ## Failure modes
 
@@ -52,8 +52,23 @@ On success: source row gets `healthy=true, lastError=null, lastFetchedAt=now`. O
 | Source 4xx/5xx                       | Mark `news_sources.healthy=false`, write `lastError`. Coordinator continues other sources.                          |
 | HTTP stall                           | 15s `AbortSignal.timeout` aborts; same as 4xx path.                                                                 |
 | Empty news_items + empty Redis queue | `/me/content/next` returns `{ items: [] }`. CLI slot-cache falls back to demo fixtures.                             |
-| Bloomberg/Reuters block bot UA       | Marked unhealthy on first tick. HN + TechCrunch + Verge + Smashing + ArsTechnica + Polygon + Reddit carry the demo. |
+| Bloomberg blocks bot UA              | Marked unhealthy on first tick. HN + TechCrunch + Verge + Smashing + ArsTechnica + Polygon + Reddit carry the demo. |
 | Worker process killed mid-fetch      | Per-source Redis lock expires after 90s; next tick proceeds normally.                                               |
+
+## Dedupe, on impression (not on selection)
+
+The served set (`news:served:<deviceId>`, SET, 30d TTL) is **only advanced when the
+device actually renders an item** — the CLI POSTs to `/ingest` after a slot
+displays for ≥1ms, and `recordSlotImpression` calls `markServedOnImpression`.
+
+This means picks that get cached (`news:nextpicks`, 5-min TTL) but never
+displayed (cache eviction, daemon crash, user closes Claude before slot fires)
+remain candidates for the next selection round. The earlier "stamp on cache"
+behavior caused the same item to be 30-day-locked even though the user never
+saw it.
+
+Reuters source was retired by Reuters Agency in 2024; migration `0015` drops
+the row.
 
 ## Adding a source
 

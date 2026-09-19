@@ -11,6 +11,7 @@ import {
   NotAuthenticatedError,
   reportError,
   requestPairingCode,
+  resolveApiUrl,
 } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { defaultDevdripPreferences } from "@distrotv/shared"
@@ -108,7 +109,7 @@ async function ensureDevice(): Promise<{ deviceId: string }> {
     // fresh machine — anon registration; no auth needed
     const { userId, deviceId, deviceSecret } = await registerAnonDevice()
     await writeConfig({
-      apiUrl: process.env["DISTRO_API_URL"] ?? "https://distrotv-api-production.up.railway.app",
+      apiUrl: resolveApiUrl(null),
       auth: null,
       user: { id: userId },
       device: { id: deviceId, secret: deviceSecret },

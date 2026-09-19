@@ -1,3 +1,5 @@
+import { resolveEnv, type EnvBundle } from "@distrotv/shared"
+
 function requireEnv(key: string): string {
   const val = process.env[key]
   if (!val) throw new Error(`${key} is required`)
@@ -8,9 +10,23 @@ function optionalEnv(key: string, fallback: string): string {
   return process.env[key] ?? fallback
 }
 
+// resolved once at import time — DISTRO_ENV (or NODE_ENV fallback) drives
+// every URL/email default. explicit overrides via API_URL / WEB_URL /
+// MAGIC_LINK_FROM_EMAIL still win for ad-hoc testing.
+const bundle: EnvBundle = resolveEnv({
+  distroEnv: process.env["DISTRO_ENV"],
+  apiUrl: process.env["API_URL"],
+  webUrl: process.env["WEB_URL"] ?? process.env["MAGIC_LINK_BASE_URL"],
+  magicLinkFromEmail: process.env["MAGIC_LINK_FROM_EMAIL"],
+  nodeEnv: process.env["NODE_ENV"],
+})
+
 export const env = {
   port: Number(optionalEnv("PORT", "3001")),
   nodeEnv: optionalEnv("NODE_ENV", "development"),
+  distroEnv: bundle.env,
+  apiUrl: bundle.apiUrl,
+  webUrl: bundle.webUrl,
   get dbTarget(): "local" | "neon" {
     const val = optionalEnv("DB_TARGET", "local")
     if (val !== "local" && val !== "neon")
@@ -30,10 +46,10 @@ export const env = {
       : optionalEnv("FINNHUB_API_KEY", "dev_placeholder")
   },
   get magicLinkFromEmail() {
-    return optionalEnv("MAGIC_LINK_FROM_EMAIL", "auth@devdrip.xyz")
+    return bundle.magicLinkFromEmail
   },
   get magicLinkBaseUrl() {
-    return optionalEnv("MAGIC_LINK_BASE_URL", "https://devdrip.xyz")
+    return bundle.webUrl
   },
   get jwtSecret() {
     return requireEnv("JWT_SECRET")

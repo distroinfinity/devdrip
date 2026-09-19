@@ -41,12 +41,31 @@ bash ~/.superset/worktrees/devdrip/setup-worktree.sh
 | Variable                    | development (default)                                   | test                   | staging/production                 |
 | --------------------------- | ------------------------------------------------------- | ---------------------- | ---------------------------------- |
 | `NODE_ENV`                  | `development`                                           | `test` (set by vitest) | `production`                       |
+| `DISTRO_ENV`                | `local`                                                 | `local`                | `staging` / `prod`                 |
 | `DB_TARGET`                 | `local`                                                 | unset (tests mock DB)  | `neon`                             |
 | `DATABASE_URL_LOCAL*`       | `postgres://devdrip:devdrip@localhost:5432/devdrip_dev` | —                      | —                                  |
 | `DATABASE_URL*`             | commented in `.env.shared`                              | —                      | Railway env vars                   |
 | `GITHUB_CLIENT_*`           | DevDrip Local OAuth app                                 | no-op test values      | DevDrip OAuth app                  |
 | `UPSTASH_REDIS_REST_*`      | unset → in-memory `TestRedis` fallback                  | unset → `TestRedis`    | real Upstash creds                 |
 | `DEVDRIP_ALLOW_NEON_IN_DEV` | unset                                                   | —                      | — (guard not active in production) |
+
+### `DISTRO_ENV` — single source of truth for URLs
+
+`packages/shared/src/env-bundle.ts` defines `local | staging | prod` bundles
+(apiUrl, webUrl, magicLinkFromEmail). API, CLI, and frontend all call
+`resolveEnv()` so a hardcoded URL in one place can't drift away from the rest.
+
+- **API**: reads `DISTRO_ENV` (or falls back to `NODE_ENV`); `env.apiUrl`,
+  `env.webUrl`, `env.magicLinkFromEmail` flow through the bundle.
+- **CLI**: defaults to `prod`. Override per command with `DISTRO_ENV=local distro init`,
+  or persist by setting `apiUrl` in `~/.distro/config.json`. Legacy
+  `DISTRO_API_URL` still wins for ad-hoc one-offs.
+- **Frontend**: needs both `DISTRO_ENV` (server) and `NEXT_PUBLIC_DISTRO_ENV` (client)
+  — Next inlines `NEXT_PUBLIC_*` at build time. Production sets both to `prod`
+  on Vercel; local `.env.local` sets both to `local`.
+
+When you add a new environment, edit the bundle in `packages/shared` and rebuild —
+no per-package URL changes needed.
 
 ### Deliberately testing against Neon locally
 

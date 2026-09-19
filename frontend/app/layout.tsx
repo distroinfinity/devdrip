@@ -4,8 +4,9 @@ import { themeInitScript } from "@distrotv/design-system/theme"
 import { Analytics } from "@vercel/analytics/react"
 import "@distrotv/design-system/tokens.css"
 import "./globals.css"
+import { SITE_URL } from "@/lib/env"
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://distrotv.xyz"
+const siteUrl = SITE_URL
 
 const title = "Distro TV"
 const description = "Your terminal's news + market feed, while the agent works."
