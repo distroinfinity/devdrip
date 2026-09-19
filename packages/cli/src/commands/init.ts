@@ -4,8 +4,8 @@ import { homedir } from "node:os"
 import { lstatSync, mkdirSync, symlinkSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
 import { Command } from "commander"
-import { intro, outro, log, note, spinner } from "@clack/prompts"
-import { ChannelMode } from "@distrotv/shared"
+import { intro, outro, log, note, spinner, confirm, isCancel } from "@clack/prompts"
+import { ChannelMode, type Feed } from "@distrotv/shared"
 import {
   ApiError,
   NotAuthenticatedError,
@@ -31,6 +31,8 @@ import { getMyChannels, putMyChannels } from "../lib/channels-client.js"
 import { getMyWatchlists, putMyWatchlists } from "../lib/watchlists-client.js"
 import { pickChannelMode } from "../lib/prompts/preferences.js"
 import { pickChannels } from "../lib/prompts/channels.js"
+import { pickFeeds } from "../lib/prompts/feeds.js"
+import { channelModeForFeeds, describeFeeds } from "../lib/feeds.js"
 import { pickWatchlistTickers } from "../lib/prompts/watchlist.js"
 import { runInitHealthCheck, type Probe } from "../lib/health.js"
 import { runDemo } from "./demo.js"
@@ -205,9 +207,9 @@ async function waitForPair(code: string, ttlSec: number): Promise<PairPollResult
   }
 }
 
-async function savePreferences(channelMode: ChannelMode): Promise<void> {
+async function savePreferences(channelMode: ChannelMode, enabledFeeds: Feed[]): Promise<void> {
   const tzOffsetMinutes = -new Date().getTimezoneOffset()
-  const updated = await putPreferences({ tzOffsetMinutes, channelMode })
+  const updated = await putPreferences({ tzOffsetMinutes, channelMode, enabledFeeds })
   // mirror to local config so daemon/demo/preferences see the new mode without
   // waiting on the next prefs-sync tick
   const cfg = await readConfig()
@@ -221,7 +223,7 @@ async function savePreferences(channelMode: ChannelMode): Promise<void> {
       preferences: { ...cfg.preferences, ...updated },
     })
   }
-  log.success(`preferences saved (mode: ${channelMode})`)
+  log.success(`preferences saved (playing: ${describeFeeds(enabledFeeds)})`)
 }
 
 async function installHooks(): Promise<void> {
@@ -347,11 +349,33 @@ export async function runInit(): Promise<void> {
   await ensureClaudeDir()
   await ensureSignedInOrPair()
 
-  const channelMode = await pickChannelMode()
+  note(
+    [
+      "sponsored slots play in your status line while your agent works.",
+      "you earn an estimated 70% share of every ad you actually see.",
+      "they vanish the moment you type. turn them off anytime: `dtv preferences`.",
+    ].join("\n"),
+    "ads are on"
+  )
 
-  await savePreferences(channelMode)
+  // channels are opt-in: news / markets rotate in alongside ads only if asked for.
+  const wantsChannels = await confirm({
+    message: "also tune in to news or markets channels? (optional)",
+    initialValue: false,
+  })
+  let enabledFeeds: Feed[] = ["ads"]
+  if (!isCancel(wantsChannels) && wantsChannels) {
+    const content = await pickFeeds([], ["news", "markets"])
+    enabledFeeds = ["ads", ...content]
+  }
+  const both = enabledFeeds.includes("news") && enabledFeeds.includes("markets")
+  const channelMode = both
+    ? await pickChannelMode()
+    : channelModeForFeeds(enabledFeeds, ChannelMode.Balanced)
 
-  if (channelMode !== ChannelMode.TickerOnly) {
+  await savePreferences(channelMode, enabledFeeds)
+
+  if (enabledFeeds.includes("news")) {
     try {
       const current = await getMyChannels()
       const next = await pickChannels(current)
@@ -371,7 +395,7 @@ export async function runInit(): Promise<void> {
     }
   }
 
-  if (channelMode !== ChannelMode.NewsOnly) {
+  if (enabledFeeds.includes("markets")) {
     try {
       const tickers = await pickWatchlistTickers()
       if (tickers.length === 0) {
@@ -419,7 +443,9 @@ export async function runInit(): Promise<void> {
     outro("you're all set. a network check didn't pass just now — run `distro doctor` to recheck.")
     return
   }
-  outro("all set — open a new Claude Code session to start earning")
+  outro(
+    "all set — ads play while your agent works and you earn an estimated share. open a new Claude Code session to start."
+  )
 }
 
 export const initCmd = new Command("init")

@@ -9,9 +9,12 @@ import { getMyWatchlists, putMyWatchlists } from "../lib/watchlists-client.js"
 import { getMyAlerts, putMyAlerts } from "../lib/alerts-client.js"
 import { pickChannelMode } from "../lib/prompts/preferences.js"
 import { pickChannels } from "../lib/prompts/channels.js"
+import { pickFeeds } from "../lib/prompts/feeds.js"
+import { channelModeForFeeds, describeFeeds } from "../lib/feeds.js"
 import { pickWatchlistTickers } from "../lib/prompts/watchlist.js"
 
 type Action =
+  | "feeds"
   | "mode"
   | "channels"
   | "watchlist"
@@ -44,11 +47,12 @@ async function mirrorToLocal(updated: SyncedPreferences): Promise<void> {
   })
 }
 
-async function showMenu(currentMode: ChannelMode): Promise<Action> {
+async function showMenu(currentMode: ChannelMode, feeds: string): Promise<Action> {
   const choice = await select<Action>({
     message: "what would you like to change?",
     options: [
-      { value: "mode", label: `channel mode (currently: ${currentMode})` },
+      { value: "feeds", label: `feeds — ads / news / markets (currently: ${feeds})` },
+      { value: "mode", label: `news : markets ratio (currently: ${currentMode})` },
       { value: "channels", label: "channels (tech / finance / crypto / …)" },
       { value: "watchlist", label: "watchlist (add / remove tickers)" },
       { value: "alerts", label: "alerts (global threshold)" },
@@ -167,8 +171,21 @@ async function runPreferences(): Promise<void> {
 
   // loop until cancel so multi-edit in one session works
   while (true) {
-    const action = await showMenu(prefs.channelMode)
+    const action = await showMenu(prefs.channelMode, describeFeeds(prefs.enabledFeeds ?? []))
     if (action === "cancel") break
+
+    if (action === "feeds") {
+      const next = await pickFeeds(prefs.enabledFeeds ?? ["ads"])
+      prefs = await putPreferences({
+        enabledFeeds: next,
+        channelMode: channelModeForFeeds(next, prefs.channelMode),
+      })
+      await mirrorToLocal(prefs)
+      log.success(`now playing: ${describeFeeds(next)}`)
+      if (!next.includes("ads")) log.warn("ads are off — you earn nothing while they're off.")
+      if (next.length === 0) log.warn("nothing will play until you turn a feed back on.")
+      continue
+    }
 
     if (action === "mode") {
       const next = await pickChannelMode(prefs.channelMode)
