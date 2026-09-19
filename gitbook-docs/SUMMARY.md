@@ -31,6 +31,7 @@
 - [Dev Workflow](engineering/dev-workflow.md)
 - [Known Gaps](engineering/known-gaps.md)
 - [Glossary](engineering/glossary.md)
+- [Observability](engineering/observability.md)
 - [Historical: Agent Treasury Pivot](architecture/agent-treasury-pivot.md)
 - [Historical: World Chain Stack](architecture/chain.md)
 - [Historical: Mini App](frontend/mini-app.md)
