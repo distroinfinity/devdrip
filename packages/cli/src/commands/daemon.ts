@@ -10,7 +10,7 @@ import { showAd } from "../lib/daemon/display.js"
 import { cliVersion, refreshDeviceMetadata } from "../lib/device.js"
 import { clearStatusLine } from "../lib/statusline-state.js"
 import { setPendingUpdate } from "../lib/update-nudge.js"
-import { maybeCheck } from "../lib/upgrade-check.js"
+import { checkForUpdate } from "../lib/upgrade-check.js"
 import { createKeyCapture } from "../lib/daemon/input.js"
 import {
   acquireSingletonLock,
@@ -38,7 +38,6 @@ import {
   pruneOldVersions,
   isVersionBad,
   markVersionBad,
-  TARBALL_URL,
 } from "../lib/auto-update.js"
 import { autoUpdateEnabled } from "../lib/auto-update-config.js"
 import {
@@ -266,13 +265,13 @@ export async function runDaemon(): Promise<number> {
     .catch((err) => log.warn("device metadata refresh failed", { error: (err as Error).message }))
 
   // periodic update check drives the status-line "update available" nudge.
-  // every 15 min so a freshly-published release surfaces fast — cheap at our
-  // scale, and maybeCheck's 10-min cache is shorter than this so each poll
-  // actually re-fetches (it also runs once here on daemon boot).
+  // every 15 min so a freshly-published release surfaces fast — the server
+  // call is cheap and stateless (no local cache). runs once on daemon boot,
+  // then on the interval.
   // B. auto-update trigger: when outdated + enabled + version not bad + no
   // update already in flight, download, verify, activate, and restart.
   const runUpdateCheck = (): void => {
-    maybeCheck(cliVersion())
+    checkForUpdate(cliVersion())
       .then(async (r) => {
         setPendingUpdate(r?.outdated ? r.latest : null)
         log.debug("update check", { outdated: r?.outdated ?? false, latest: r?.latest })
@@ -282,7 +281,7 @@ export async function runDaemon(): Promise<number> {
         updateInFlight = true
         try {
           log.info("auto-update: downloading", { version: r.latest })
-          const staged = await downloadAndStage(TARBALL_URL, r.latest)
+          const staged = await downloadAndStage(r.tarballUrl, r.latest)
           if (!(await verifyStaged(staged, r.latest))) {
             rmSync(staged, { recursive: true, force: true })
             markVersionBad(r.latest)

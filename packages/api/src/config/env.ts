@@ -68,6 +68,9 @@ export const env = {
         .filter(Boolean)
     )
   },
+  get latestCliVersion(): string {
+    return process.env["LATEST_CLI_VERSION"] ?? ""
+  },
   get slackWebhookUrl(): string | undefined {
     const v = process.env["SLACK_WEBHOOK_URL"]
     return v && v.length > 0 ? v : undefined
