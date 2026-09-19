@@ -36,6 +36,7 @@ export function Footer() {
             viewBox="0 0 9 9"
             fill="currentColor"
             className="inline-block -mt-px text-[var(--ink-tertiary)]"
+            role="img"
             aria-label="love"
           >
             {/* 9x9 pixel heart on a 1px grid */}
