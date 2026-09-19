@@ -625,27 +625,23 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         if (attempt === 0) deps.log.debug("cache empty", { context })
         return null
       }
-      // TEMPORARY (until Task 20 wires news rendering): skip news slots silently.
-      // without this, news slots reach display.show and throw.
-      if (slot.kind === "news") {
-        deps.log.debug("news slot skipped — render not implemented yet (Task 20)")
-        continue
-      }
       // campaign-cap check only applies to ad slots — news has no campaigns.
-      const ad = slot.payload
-      const cap = ad.campaignMaxImpressionsPerDay
-      if (typeof cap === "number" && cap > 0) {
-        // UTC day, not local — mirrors the backend's utcDate() Redis key so
-        // both sides agree at midnight. see ledger.ts for the full rationale.
-        const seen = deps.ledger.countImpressionsByCampaignOnUtcDay(ad.campaignId, firedAt)
-        if (seen >= cap) {
-          deps.log.debug("campaign-cap hit, trying next cached slot", {
-            campaignId: ad.campaignId,
-            cap,
-            seen,
-            attempt,
-          })
-          continue
+      if (slot.kind === "ad") {
+        const ad = slot.payload
+        const cap = ad.campaignMaxImpressionsPerDay
+        if (typeof cap === "number" && cap > 0) {
+          // UTC day, not local — mirrors the backend's utcDate() Redis key so
+          // both sides agree at midnight. see ledger.ts for the full rationale.
+          const seen = deps.ledger.countImpressionsByCampaignOnUtcDay(ad.campaignId, firedAt)
+          if (seen >= cap) {
+            deps.log.debug("campaign-cap hit, trying next cached slot", {
+              campaignId: ad.campaignId,
+              cap,
+              seen,
+              attempt,
+            })
+            continue
+          }
         }
       }
       return slot
