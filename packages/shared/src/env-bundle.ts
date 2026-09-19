@@ -20,8 +20,8 @@ const BUNDLES: Record<DistroEnv, Omit<EnvBundle, "env">> = {
     webUrl: "https://staging.devdrip.xyz",
   },
   prod: {
-    apiUrl: "https://devdrip-api-production.up.railway.app",
-    webUrl: "https://devdrip.xyz",
+    apiUrl: "https://api.distrotv.xyz",
+    webUrl: "https://distrotv.xyz",
   },
 }
 
