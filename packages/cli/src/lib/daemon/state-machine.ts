@@ -132,8 +132,10 @@ function stepGrace(state: Extract<State, { kind: "GRACE" }>, event: Event): Step
   }
   if (event.kind === "grace-elapsed") {
     if (!event.ad) return { state: { kind: "IDLE" }, effects: [] }
-    const displayTimeMs = event.ad.kind === "news" ? event.ad.displayTimeMs : MAX_AD_DURATION_MS
-    const ms = Math.min(displayTimeMs, MAX_AD_DURATION_MS)
+    // both news + ticker show for MAX_AD_DURATION_MS (the server's per-news
+    // displayTimeMs is intentionally overridden so the two rotate at one rate).
+    const displayTimeMs = MAX_AD_DURATION_MS
+    const ms = displayTimeMs
     return {
       state: { kind: "SHOWING", tty: state.tty, ad: event.ad, shownAt: event.now },
       effects: [
@@ -254,8 +256,10 @@ function stepInterAd(state: Extract<State, { kind: "INTER_AD" }>, event: Event):
     if (!event.ad) {
       return { state: { kind: "IDLE" }, effects: [] }
     }
-    const displayTimeMs = event.ad.kind === "news" ? event.ad.displayTimeMs : MAX_AD_DURATION_MS
-    const ms = Math.min(displayTimeMs, MAX_AD_DURATION_MS)
+    // both news + ticker show for MAX_AD_DURATION_MS (the server's per-news
+    // displayTimeMs is intentionally overridden so the two rotate at one rate).
+    const displayTimeMs = MAX_AD_DURATION_MS
+    const ms = displayTimeMs
     return {
       state: { kind: "SHOWING", tty: state.tty, ad: event.ad, shownAt: event.now },
       effects: [

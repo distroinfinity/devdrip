@@ -7,8 +7,10 @@ import { configPath, readConfig, writeConfig } from "../lib/config.js"
 import { openSlotCache } from "../lib/slot-cache.js"
 import { openLedger } from "../lib/ledger.js"
 import { showAd } from "../lib/daemon/display.js"
-import { refreshDeviceMetadata } from "../lib/device.js"
+import { cliVersion, refreshDeviceMetadata } from "../lib/device.js"
 import { clearStatusLine } from "../lib/statusline-state.js"
+import { setPendingUpdate } from "../lib/update-nudge.js"
+import { maybeCheck } from "../lib/upgrade-check.js"
 import { createKeyCapture } from "../lib/daemon/input.js"
 import {
   acquireSingletonLock,
@@ -204,6 +206,20 @@ export async function runDaemon(): Promise<number> {
     .then(() => log.debug("device metadata refreshed"))
     .catch((err) => log.warn("device metadata refresh failed", { error: (err as Error).message }))
 
+  // periodic update check drives the status-line "update available" nudge.
+  // maybeCheck has its own 7-day fetch cache, so the 6h interval is cheap.
+  const runUpdateCheck = (): void => {
+    maybeCheck(cliVersion())
+      .then((r) => {
+        setPendingUpdate(r?.outdated ? r.latest : null)
+        log.debug("update check", { outdated: r?.outdated ?? false, latest: r?.latest })
+      })
+      .catch((err) => log.debug("update check failed", { error: (err as Error).message }))
+  }
+  runUpdateCheck()
+  const updateCheckInterval = setInterval(runUpdateCheck, 6 * 60 * 60 * 1000)
+  updateCheckInterval.unref?.()
+
   // forward declaration: keyCapture.onKey closes over orchestrator, but
   // orchestrator needs keyCapture passed into createOrchestrator. keys can
   // only arrive after createOrchestrator returns, so the hoist is safe.
@@ -348,6 +364,7 @@ export async function runDaemon(): Promise<number> {
     if (shuttingDown) return
     shuttingDown = true
     clearInterval(heartbeatInterval)
+    clearInterval(updateCheckInterval)
     unwatchFile(watchedConfig)
     clearStatusLine()
     await syncLoop.stop()

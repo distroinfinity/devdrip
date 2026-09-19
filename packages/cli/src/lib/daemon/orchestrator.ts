@@ -420,8 +420,9 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           // don't start key capture (no raw mode, no keystroke reads). re-enable
           // by uncommenting once the open/save/skip/kill actions work reliably.
           // deps.keyCapture.start(effect.tty)
-          const displayTimeMs =
-            effect.ad.kind === "news" ? effect.ad.displayTimeMs : MAX_AD_DURATION_MS
+          // both kinds rotate at MAX_AD_DURATION_MS (see state-machine) — keep
+          // the log + now-playing endsAt consistent with the real vanish timer.
+          const displayTimeMs = MAX_AD_DURATION_MS
           deps.log.info("showing slot", {
             payloadId,
             kind: effect.ad.kind,
