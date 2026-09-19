@@ -6,9 +6,5 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = await getServerUser()
   if (!user) redirect("/sign-in")
 
-  return (
-    <AppShell user={user} activeNav="earnings">
-      {children}
-    </AppShell>
-  )
+  return <AppShell user={user}>{children}</AppShell>
 }

@@ -21,6 +21,7 @@ import { invitesRouter } from "./routes/invites.js"
 import { mePreferencesRouter } from "./routes/me-preferences.js"
 import { meEarningsRouter } from "./routes/me-earnings.js"
 import { meAnalyticsRouter } from "./routes/me-analytics.js"
+import { meImpressionsRouter } from "./routes/me-impressions.js"
 import { adminReportsRouter } from "./routes/admin-reports.js"
 import { requireAuth } from "./middleware/auth.js"
 import { requireAdmin } from "./middleware/admin.js"
@@ -89,6 +90,7 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
 app.use("/me", requireAuth, userLimiter, mePreferencesRouter)
 app.use("/me/earnings", requireAuth, userLimiter, meEarningsRouter)
 app.use("/me/analytics", requireAuth, userLimiter, meAnalyticsRouter)
+app.use("/me/impressions", requireAuth, userLimiter, meImpressionsRouter)
 app.use("/admin/reports", requireAdmin, adminLimiter, adminReportsRouter)
 
 app.use(errorHandler)

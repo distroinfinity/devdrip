@@ -26,6 +26,7 @@ import {
 import { createOrchestrator } from "../lib/daemon/orchestrator.js"
 import { startDaemonServer } from "../lib/daemon/server.js"
 import { createSyncLoop } from "../lib/daemon/sync.js"
+import { syncPreferencesOnce } from "../lib/daemon/prefs-sync.js"
 
 const HEARTBEAT_INTERVAL_MS = 10_000
 const START_POLL_DEADLINE_MS = 2_000
@@ -193,6 +194,13 @@ export async function runDaemon(): Promise<number> {
 
   const syncLoop = createSyncLoop({ ledger, log })
   syncLoop.start()
+
+  // Eager prefs fetch on boot so dashboard changes apply immediately —
+  // without this we'd wait up to 30 min for the first sync tick. Fire and
+  // forget; the ingest loop will retry within 30 min if this one fails.
+  syncPreferencesOnce(log)
+    .then((outcome) => log.debug("prefs startup sync", { outcome }))
+    .catch((err) => log.warn("prefs startup sync failed", { error: (err as Error).message }))
 
   // forward declaration: keyCapture.onKey closes over orchestrator, but
   // orchestrator needs keyCapture passed into createOrchestrator. keys can

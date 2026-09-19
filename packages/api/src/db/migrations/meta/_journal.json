@@ -36,6 +36,13 @@
       "when": 1777026982365,
       "tag": "0004_delivery_jti_and_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777747200000,
+      "tag": "0005_prefs_warmup_nightmode",
+      "breakpoints": true
     }
   ]
 }

@@ -1,17 +1,27 @@
+"use client"
+
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { cn } from "@devdrip/design-system/utils"
 
 interface NavPillProps {
   href: string
   label: string
-  active?: boolean
+  // when href is a prefix that should match deep paths (e.g. /dashboard
+  // shouldn't be active on /dashboard/history). pass exact for exact match,
+  // or omit for prefix match.
+  exact?: boolean
   disabled?: boolean
   soonLabel?: string
 }
 
 // monochrome nav chips — accent color is reserved for surgical touchpoints
 // (earnings number, chart line, links), not wide fills.
-export function NavPill({ href, label, active, disabled, soonLabel }: NavPillProps) {
+export function NavPill({ href, label, exact, disabled, soonLabel }: NavPillProps) {
+  const pathname = usePathname()
+  const active =
+    !disabled && (exact ? pathname === href : pathname === href || pathname.startsWith(href + "/"))
+
   const base =
     "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-body text-[12px] font-medium transition-colors"
 
