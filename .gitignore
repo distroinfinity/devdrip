@@ -45,3 +45,6 @@ pnpm-debug.log*
 # superpowers workflow specs and plans — kept local, not tracked
 docs/superpowers/specs/
 docs/superpowers/plans/
+
+# brainstorming companion
+.superpowers/
