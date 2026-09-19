@@ -3,6 +3,7 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 const NAV_LINKS = [
   { label: "Docs", href: "#" },
   { label: "GitHub", href: "https://github.com/distroinfinity/devdrip" },
+  { label: "Twitter", href: "https://x.com/devdrip_" },
   { label: "Privacy", href: "#" },
   { label: "Terms", href: "#" },
 ] as const;
@@ -56,6 +57,15 @@ export function Footer() {
             <rect x="4" y="7" width="1" height="1" />
           </svg>
           {" "}by{" "}
+          <a
+            href="https://www.linkedin.com/in/yugandhar-tripathi/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--ink-tertiary)] hover:text-[var(--ink-primary)] transition-colors underline underline-offset-2"
+          >
+            yugandhar
+          </a>
+          {" "}&{" "}
           <a
             href="https://www.linkedin.com/in/manurajput2911"
             target="_blank"
