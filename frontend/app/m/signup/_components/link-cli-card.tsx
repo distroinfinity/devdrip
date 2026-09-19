@@ -33,7 +33,7 @@ export function LinkCliCard({ linkCode }: LinkCliCardProps) {
 
   if (status === "linked") {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 rounded-lg border border-[var(--rule-default)] bg-[var(--bg-surface)] p-5">
         <h2 className="text-xl font-semibold">CLI linked ✓</h2>
         <p className="text-[var(--ink-secondary)]">
           Return to your terminal — your <code>devdrip login</code> session is now active.
@@ -41,7 +41,7 @@ export function LinkCliCard({ linkCode }: LinkCliCardProps) {
         <button
           type="button"
           onClick={() => router.push("/m/wallet")}
-          className="rounded-md border border-[var(--border-subtle)] px-4 py-3 font-medium"
+          className="rounded-md border border-[var(--rule-default)] px-4 py-3 font-medium"
         >
           Go to wallet
         </button>
@@ -50,7 +50,7 @@ export function LinkCliCard({ linkCode }: LinkCliCardProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-[var(--rule-default)] bg-[var(--bg-surface)] p-5">
       <h2 className="text-xl font-semibold">Link your CLI?</h2>
       <p className="text-[var(--ink-secondary)]">
         Pair code: <code className="rounded bg-[var(--bg-secondary)] px-2 py-1">{linkCode}</code>
@@ -59,7 +59,7 @@ export function LinkCliCard({ linkCode }: LinkCliCardProps) {
         type="button"
         disabled={status === "loading"}
         onClick={() => void handleLink()}
-        className="rounded-md bg-[var(--accent)] px-4 py-3 font-medium text-[var(--bg-primary)] disabled:opacity-50"
+        className="rounded-md bg-[var(--accent-color)] px-4 py-3 font-medium text-[var(--ink-inverse)] disabled:opacity-50"
       >
         {status === "loading" ? "Linking..." : "Link this CLI"}
       </button>

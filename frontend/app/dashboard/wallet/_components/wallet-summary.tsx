@@ -24,7 +24,7 @@ export function WalletSummary({ walletAddress, available, lifetime, pending }: W
   const truncated = walletAddress ? `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}` : null
 
   return (
-    <section className="grid gap-6 rounded-lg border border-[var(--border-subtle)] p-6 md:grid-cols-2">
+    <section className="grid gap-6 rounded-lg border border-[var(--rule-default)] p-6 md:grid-cols-2">
       <div className="flex flex-col gap-3">
         <span className="text-sm text-[var(--ink-secondary)]">Available</span>
         <span className="text-4xl font-semibold tabular-nums">{formatUsdc(available)}</span>
@@ -48,7 +48,7 @@ export function WalletSummary({ walletAddress, available, lifetime, pending }: W
         <p className="text-sm text-[var(--ink-secondary)]">Claim in DevDrip Mini App</p>
         {qrSvg && (
           <div
-            className="rounded-md border border-[var(--border-subtle)] bg-white p-2"
+            className="rounded-md border border-[var(--rule-default)] bg-white p-2"
             dangerouslySetInnerHTML={{ __html: qrSvg }}
           />
         )}

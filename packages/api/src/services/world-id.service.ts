@@ -29,19 +29,32 @@ export async function verifyWorldId(
   input: VerifyWorldIdInput
 ): Promise<{ verificationLevel: "device" | "orb" }> {
   const action = env.worldIdAction
-  const appId = env.worldAppId
-  if (!appId) throw new ApiError(500, "world_app_id_not_configured")
+  const rpId = env.worldIdRpId
+  if (!rpId) throw new ApiError(500, "world_id_rp_id_not_configured")
 
-  const cloudUrl = `https://developer.world.org/api/v4/verify/${appId}`
+  // World ID v4 verify envelope. The proof MiniKit returns is the legacy v3
+  // shape (single proof + nullifier_hash + merkle_root + proof + verification_level),
+  // which v4 accepts as `protocol_version: "3.0"` with the proof wrapped as a
+  // single-item `responses` array. Field renames: nullifier_hash → nullifier,
+  // verification_level → identifier. The top-level `nonce` is required by the
+  // v4 envelope but its replay protection role is handled server-side via the
+  // (nullifier, action) PK on our nullifiers table — any non-empty value works.
+  const cloudUrl = `https://developer.world.org/api/v4/verify/${rpId}`
   const cloudResp = await fetch(cloudUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      nullifier_hash: input.proof.nullifier_hash,
-      merkle_root: input.proof.merkle_root,
-      proof: input.proof.proof,
-      verification_level: input.proof.verification_level,
+      protocol_version: "3.0",
+      nonce: crypto.randomUUID(),
       action,
+      responses: [
+        {
+          identifier: input.proof.verification_level,
+          merkle_root: input.proof.merkle_root,
+          nullifier: input.proof.nullifier_hash,
+          proof: input.proof.proof,
+        },
+      ],
     }),
   })
 

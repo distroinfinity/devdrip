@@ -35,13 +35,13 @@ export default async function WalletPage() {
     <MiniAppShell title="Wallet">
       <div className="flex flex-col gap-6">
         <BalanceCard
-          available={balance.availableUsdc}
-          lifetime={balance.lifetimeEarnedUsdc}
-          pending={balance.pendingPayoutsUsdc}
+          available={balance?.availableUsdc ?? 0}
+          lifetime={balance?.lifetimeEarnedUsdc ?? 0}
+          pending={balance?.pendingPayoutsUsdc ?? 0}
         />
         <section>
           <h2 className="mb-3 text-sm font-medium text-[var(--ink-secondary)]">Payout history</h2>
-          <PayoutHistory items={payouts.items} />
+          <PayoutHistory items={payouts?.items ?? []} />
         </section>
       </div>
     </MiniAppShell>

@@ -47,13 +47,16 @@ export async function verifyMiniAppSession(
 
 export const MINIAPP_COOKIE_NAME = "dd_miniapp"
 export const MINIAPP_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 days in seconds
-// Cookie Path scopes which API requests carry the cookie. Per RFC 6265 a
-// Path=/m would NOT match /miniapp/... (the next char after /m must be / or
-// end-of-URL), so we scope to /miniapp to cover all backend Mini App routes
-// (/miniapp/wallet-auth/*, /miniapp/world-id/*, /miniapp/github-oauth/*,
-// /miniapp/signup/*, /miniapp/cli-link/*). The frontend pages live at /m/*
-// but they don't read this cookie directly — they fetch /miniapp/* endpoints
-// which need it.
-export const MINIAPP_COOKIE_PATH = "/miniapp"
+// Cookie Path = "/" so the browser sends dd_miniapp on (a) /m/* page loads
+// (needed by the signup wizard's server component to call /api/miniapp/me and
+// decide which step to render) AND (b) /api/miniapp/* fetches that Next.js
+// rewrites to the backend. A narrower Path=/miniapp scope would only match
+// backend rewrite destinations, but the BROWSER decides cookie attach based
+// on the URL it's hitting (/api/miniapp/me), not where the server rewrites
+// to — so /miniapp scope drops the cookie at the browser layer and the
+// server component sees an unauthed user even after walletAuth succeeds.
+// The cross-route surface area is fine: dd_miniapp uses the devdrip-miniapp
+// audience, so it cannot authorize Bearer routes (/me/*, /auth/*).
+export const MINIAPP_COOKIE_PATH = "/"
 
 export { joseErrors as miniAppJoseErrors }

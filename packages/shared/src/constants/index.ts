@@ -4,7 +4,11 @@ import type { DevdripPreferences } from "../types/index.js"
 
 // ── timing ──────────────────────────────────────────────────────────────────
 
-export const GRACE_PERIOD_MS = 1_500
+// Grace before showing the ad once Claude takes over (PreToolUse / prompt
+// submit). Keeping this at 0 means the ad renders on the next event-loop
+// tick, which is what we want — show terminal-tv as soon as control hands
+// off to Claude, regardless of whether it's a fast or slow tool call.
+export const GRACE_PERIOD_MS = 0
 export const MAX_AD_DURATION_MS = 8_000
 
 // ── daemon socket path ─────────────────────────────────────────────────────
