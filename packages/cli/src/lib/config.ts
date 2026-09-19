@@ -3,6 +3,7 @@ import { chmod, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/pro
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { ChannelMode, defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
+import { isTelemetryDisabledByEnv } from "@distrotv/shared/telemetry"
 
 export const CONFIG_VERSION = 6
 
@@ -24,6 +25,9 @@ export interface DevdripConfig {
   // secret is present for anon-registered devices; cleared post-M2 if we swap to JWT-only
   device: { id: string | null; secret?: string }
   cli: { binPath: string }
+  // absent = telemetry on (opt-out model). only written when the user runs
+  // `distro config telemetry off|on`. additive — no config version bump.
+  telemetry?: { enabled: boolean }
   preferences: DevdripPreferences
 }
 
@@ -276,4 +280,11 @@ function isNotFound(err: unknown): boolean {
 // effective expiry timestamp from an access-token TTL (default 1h, matches backend)
 export function accessTokenExpiresAt(ttlSeconds = 3600, now = Date.now()): string {
   return new Date(now + ttlSeconds * 1000).toISOString()
+}
+
+// Resolution order (first wins): DISTRO_TELEMETRY env kill-switch → config flag → default on.
+export function telemetryEnabled(cfg: DevdripConfig | null): boolean {
+  if (isTelemetryDisabledByEnv()) return false
+  if (cfg?.telemetry) return cfg.telemetry.enabled
+  return true
 }
