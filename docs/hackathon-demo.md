@@ -18,7 +18,7 @@ an exchange anyone can bid on.**
 
 ## Script
 
-1. **The problem (20s)** — landing page hero. "Every agent run is dead time. You sit and watch."
+1. **The thesis (25s)** — landing page. Read the headline, then scroll to the lineage table: print, broadcast, web, mobile all grew an ad market; agents have "nothing yet". Type into the hero terminal so the slot clears — "this is the whole product in one gesture."
 2. **The product (60s)** — in Claude Code, give the agent a real multi-step task.
    - A sponsored slot appears in the status line the moment the agent takes over.
    - Point at `+$0.0070` and `est. today`. It rotates every 12 seconds.
