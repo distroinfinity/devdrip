@@ -496,20 +496,24 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         return
       case "openDiscover": {
         try {
-          deps.ledger.recordClick({
-            id: randomUUID(),
-            deliveryToken: effect.deliveryToken,
-            createdAt: now(),
-          })
-        } catch (err) {
-          deps.log.warn("click ledger write failed", { error: (err as Error).message })
-        }
-        const adPayload = effect.ad.kind === "ad" ? effect.ad.payload : null
-        if (adPayload?.clickTrackingUrl) deps.fireBeacon(adPayload.clickTrackingUrl)
-        try {
-          deps.openUrl(adPayload?.url ?? effect.ad.payload.url)
+          deps.openUrl(effect.ad.payload.url)
         } catch (err) {
           deps.log.warn("openUrl failed", { error: (err as Error).message })
+        }
+        // ad-only: ledger click row + click-tracking beacon.
+        // news clicks are recorded server-side via the news impression's openedUrl flag (Task 22).
+        if (effect.ad.kind === "ad") {
+          try {
+            deps.ledger.recordClick({
+              id: randomUUID(),
+              deliveryToken: effect.deliveryToken,
+              createdAt: now(),
+            })
+          } catch (err) {
+            deps.log.warn("click ledger write failed", { error: (err as Error).message })
+          }
+          if (effect.ad.payload.clickTrackingUrl)
+            deps.fireBeacon(effect.ad.payload.clickTrackingUrl)
         }
         return
       }
