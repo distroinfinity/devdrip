@@ -119,7 +119,17 @@ Fetches one real slot from `/me/content/next`, renders with a `[DEMO]` badge. Va
 
 ## `distro upgrade`
 
-Checks the GitHub Releases API for a newer `distrotv-cli.tar.gz`. No auto-install; prints the download URL for the user's package manager / installer. The daemon also runs this check on boot and every 15 min to drive the status-line "update available" nudge, with a short 10-min fetch cache at `~/.distro/upgrade-check.json` (was 7 days — shortened so a fresh release surfaces within ~15 min at our small scale). `distro upgrade --force` bypasses the cache.
+Downloads, verifies, and activates the latest `distrotv-cli.tar.gz` from GitHub Releases. The pipeline: download tarball → extract to a staging dir → `npm install` native deps → verify (`node <staged>/dist/index.js --version` must match the release tag AND `daemon self-check` must exit 0) → atomically move into `~/.distrotv/versions/<v>/` and repoint the `~/.distrotv/current` symlink → restart the daemon through `current`. `distro upgrade --force` bypasses the 10-min fetch cache.
+
+## Auto-update
+
+The daemon runs the update check on boot and every ~15 min. When a newer release is found it runs the same download → verify → activate pipeline automatically, then restarts itself.
+
+**Versioned install layout:** `install.sh` extracts each release into `~/.distrotv/versions/<v>/` and keeps `~/.distrotv/current` pointing at the active version. Shims (`~/.local/bin/distro`, `dtv`) and Claude hook entries always resolve through the stable `~/.distrotv/current/dist/index.js` path, so a version swap is invisible to them. A legacy flat `~/.distrotv/dist` install is self-migrated into the versioned layout on first boot (`migrateFlatInstall`).
+
+**Safety / rollback:** activation writes rollback state (`update-state.json`, phase `probation`, `previousVersion`) before the symlink swap. After restart the new daemon runs on probation; once healthy for ~60s it promotes to `stable` and prunes old versions (keeps last 1, semver-aware). If the new build crash-loops (no heartbeat past a ~90s threshold), the Claude hook respawn path performs an fs-only rollback — reverts `current` to the previous version and marks the bad version for a 1-hour backoff — without ever blocking Claude Code (hooks always exit 0). See [daemon-and-hooks.md](./daemon-and-hooks.md#auto-update--rollback).
+
+**Opt-out:** auto-update is on by default. Disable with `DISTRO_NO_AUTOUPDATE=1` (env) or `cli.autoUpdate: false` in `~/.distro/config.json`. When disabled, the daemon falls back to the passive status-line nudge. There is no server-side gate — to halt a bad release, yank or replace the GitHub release asset.
 
 ## What is missing
 

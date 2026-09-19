@@ -22,14 +22,20 @@ if [ "$NODE_MAJOR" -lt 20 ]; then
   exit 1
 fi
 
-# 2. download and extract
+# 2. download and extract into a temp staging dir
 mkdir -p "$INSTALL_DIR" "$BIN_DIR"
 echo "→ downloading distro tv cli..."
 TMP=$(mktemp -d)
+EXTRACTED="$TMP/extracted"
+mkdir -p "$EXTRACTED"
 curl -fsSL "$TARBALL_URL" -o "$TMP/distrotv-cli.tar.gz"
-tar -xzf "$TMP/distrotv-cli.tar.gz" -C "$INSTALL_DIR"
+tar -xzf "$TMP/distrotv-cli.tar.gz" -C "$EXTRACTED"
 
-# 2a. install the native dep (better-sqlite3). The tarball ships a stripped
+# determine the version from the extracted package.json; fall back to "latest"
+VERSION=$(node -p "require('$EXTRACTED/package.json').version" 2>/dev/null || echo "latest")
+
+# 2a. install into versioned dir so the current symlink can be swapped on upgrade
+# without touching the active installation. the tarball ships a stripped
 # runtime package.json listing only modules that can't be bundled — pure-JS
 # deps are inlined into dist/ by tsup. npm fetches the matching per-platform
 # prebuild so users don't need a C++ toolchain.
@@ -37,18 +43,22 @@ if ! command -v npm >/dev/null 2>&1; then
   echo "✗ npm not found. install node 20+ (ships with npm) and re-run." >&2
   exit 1
 fi
+DEST="$INSTALL_DIR/versions/$VERSION"
+mkdir -p "$DEST"
+cp -R "$EXTRACTED/." "$DEST/"
 echo "→ installing native dependencies..."
-(cd "$INSTALL_DIR" && npm install --omit=dev --no-audit --no-fund --silent)
+(cd "$DEST" && npm install --omit=dev --no-audit --no-fund --silent)
+
+# point current at the just-installed version
+ln -sfn "versions/$VERSION" "$INSTALL_DIR/current"
 
 # 3. wrappers — `distro` is the primary command; `dtv` is a collision-proof
 # alias. the Python `distro` package ships its own `distro` CLI (usage:
 # `distro [-h] [--json] [--root-dir ROOT_DIR]`) that can shadow ours on PATH
 # (e.g. when /opt/homebrew/bin wins), so `dtv` always resolves to us.
+# shims target the stable current/ path so they survive version swaps.
 for name in distro dtv; do
-  cat > "$BIN_DIR/$name" <<EOF
-#!/bin/sh
-exec node "$INSTALL_DIR/dist/index.js" "\$@"
-EOF
+  printf '#!/bin/sh\nexec node "%s/current/dist/index.js" "$@"\n' "$INSTALL_DIR" > "$BIN_DIR/$name"
   chmod +x "$BIN_DIR/$name"
 done
 

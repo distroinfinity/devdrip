@@ -23,7 +23,7 @@ export interface DevdripConfig {
   }
   // secret is present for anon-registered devices; cleared post-M2 if we swap to JWT-only
   device: { id: string | null; secret?: string }
-  cli: { binPath: string }
+  cli: { binPath: string; autoUpdate?: boolean }
   preferences: DevdripPreferences
 }
 
