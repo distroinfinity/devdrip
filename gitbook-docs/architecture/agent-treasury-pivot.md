@@ -1,6 +1,8 @@
 # Agent Treasury Pivot
 
-DevDrip is pivoting away from a World ID + World Chain payout flow toward an **agent-treasury** model on **Base Sepolia** powered by KeeperHub and Uniswap. This page is the engineering-facing summary of the direction. The full design lives in the local-only spec at `docs/superpowers/specs/2026-04-30-agent-treasury-pivot-design.md`.
+> **Status: superseded.** This page documents an intermediate pivot direction (agent-treasury / KeeperHub / Uniswap on Base Sepolia) that was itself superseded in May 2026 when the product pivoted to Distro TV — an ambient channel surface with no on-chain payments. See [Architecture Overview](overview.md) for current state. Kept for historical reference only.
+
+DevDrip was pivoting away from a World ID + World Chain payout flow toward an **agent-treasury** model on **Base Sepolia** powered by KeeperHub and Uniswap. This page is the engineering-facing summary of the direction. The full design lives in the local-only spec at `docs/superpowers/specs/2026-04-30-agent-treasury-pivot-design.md`.
 
 The pivot is being implemented on the `pivot/agent-treasury` branch. World code is preserved on `archive/world-integration` and stripped from main as part of the pivot.
 

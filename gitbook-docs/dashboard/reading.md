@@ -8,11 +8,11 @@ Snapshot fields (headline/url/score) are captured at save time in the `reading_l
 
 ## Mode toggle
 
-Three-segment pill in the dashboard header: 📰 learn / 💰 earn / 🎭 both. Optimistic update via `PUT /me/preferences { channelMode }`. CLI's `prefs-sync.ts` polls the same endpoint and propagates within ~30s.
+Five-position `ModePill` in the dashboard header: news only / news heavy / balanced / ticker heavy / ticker only. Optimistic update via `PUT /me/preferences { channelMode }`. CLI daemon polls preferences every 30s and propagates the change live.
 
 ## Stories-read stat card
 
-Counts `news_impressions` over the last 7 days, with a delta vs the prior 7. For earn-mode users with 0 reads, shows a "switch to mix or learn" nudge.
+Counts `news_impressions` over the last 7 days, with a delta vs the prior 7. For ticker-only users with 0 reads, shows a "switch to balanced or news" nudge.
 
 Endpoint: `GET /me/news-stats` returns `{ thisWeek, lastWeek }`. Cached 60s server-side.
 

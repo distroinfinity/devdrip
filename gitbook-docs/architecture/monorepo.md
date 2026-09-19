@@ -7,7 +7,7 @@ frontend/
 packages/
   api/
   cli/
-  dashboard/
+  dashboard/   (app shell — merged into frontend/ for most product surfaces)
   shared/
 docs/
 gitbook-docs/
@@ -37,36 +37,39 @@ These dispatch through Turbo. Package-level behavior lives inside each workspace
 ## `frontend`
 
 - Next.js 14 app
-- public site and waitlist flow
-- Tailwind-based UI
+- public landing page at `distrotv.xyz`
+- dashboard at `/dashboard/*` (auth-gated)
+- hosts `install.sh` at `frontend/public/install.sh`
+- Tailwind-based UI with `@distrotv/design-system` tokens
 - Vercel analytics
-- direct use of Neon and Resend in the route layer
 
 ## `packages/api`
 
 - Express 5 app
 - Drizzle schema and migrations
-- JWT auth
-- GitHub OAuth integration
-- Upstash-backed rate limiting
+- magic-link auth + device bearer auth
+- Upstash-backed rate limiting and pairing codes
 - Pino logging
+- news fetcher + ticker fetcher workers (node-cron)
+- alert evaluator runs inside ticker tick
 
 ## `packages/cli`
 
 - Commander CLI
-- command tree is defined
-- only `lib/device.ts` contains meaningful operational logic today
+- binary: `distro` (alias: `dtv`)
+- distributed via curl + GitHub Releases (`cli-v*` tag → `release-cli.yml`)
+- daemon on Unix socket: slot cache, key capture, local SQLite ledger
 
 ## `packages/dashboard`
 
-- separate Next.js app
-- app shell only
+- separate Next.js app shell
+- most dashboard product surfaces now live in `frontend/app/dashboard/`
 
 ## `packages/shared`
 
-- shared enums such as ad surface, ad source, campaign status
-- shared domain interfaces such as `Device`, `User`, `Campaign`, `Impression`
-- shared timing and payout constants
+- shared enums: `ChannelMode`, `SlotKind`, `ImpressionResult`, `IDE type`
+- shared slot payload types: `NewsPayload`, `TickerPayload`, `SlotContent`
+- `env-bundle.ts`: `local | staging | prod` URL bundles for API + web + email from address
 
 ## Environment Boundaries
 
@@ -77,16 +80,18 @@ These dispatch through Turbo. Package-level behavior lives inside each workspace
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `IP_HASH_SALT`
+- `DISTRO_ENV` / `NEXT_PUBLIC_DISTRO_ENV`
 
 ## `packages/api/.env.example`
 
 - local and Neon Postgres URLs
-- GitHub OAuth credentials
 - JWT secret
-- client redirect URL
+- Resend API key (magic-link emails)
 - Upstash Redis credentials
 - `ALLOWED_ORIGINS`
 - `DB_TARGET`
+- `DISTRO_ENV`
+- Finnhub and CoinGecko API keys
 
 ## `packages/dashboard/.env.example`
 
@@ -95,5 +100,4 @@ These dispatch through Turbo. Package-level behavior lives inside each workspace
 ## Build and Runtime Notes
 
 - Turbo is required for root-level build, test, and typecheck
-- package dependencies are not installed in the explored environment, so root validation was not runnable here
-- the repo currently contains two separate Next.js apps: `frontend` and `packages/dashboard`
+- the repo contains two Next.js apps (`frontend` and `packages/dashboard`) but the dashboard package is a minimal shell; most product UI lives in `frontend`

@@ -2,19 +2,22 @@
 
 `packages/api` is the current backend runtime.
 
+> **Note on pre-pivot content.** Sections below covering advertisers, campaigns, creatives, ad serving (`/ads/*`, `/ingest` ad impressions), earnings (`/me/earnings/*`), payouts, World Chain endpoints, and the settlement worker are pre-pivot artifacts. The tables and code still exist in the repo (not yet pruned) but are unused at runtime for Distro TV users. The current active surface is: health, magic-link auth, device registration, slot selection (`/me/content/next`), news impressions, reading list, watchlist, alerts, preferences, ticker charts, and the admin dashboard. For active API state, start with the sections below that section.
+
 ## App Structure
 
 - framework: Express 5
-- auth: bearer JWT
-- cookies: used only for GitHub OAuth state
+- auth: device bearer (`Authorization: Bearer device.<secret>`) or magic-link session JWT
+- cookies: HTTP-only `distrotv_session` for dashboard sessions
 - CORS: credentials enabled, origins from `ALLOWED_ORIGINS`
 - security headers: Helmet
 - logs: Pino + `pino-http`
 - rate limit: Upstash Redis, fail-open on Redis errors
+- `DISTRO_ENV` bundle: `local | staging | prod` resolves api/web/email URLs
 
 ## Layered Architecture
 
-Admin routes (advertisers, campaigns, creatives) follow a clean layered pattern:
+All routes follow a clean layered pattern:
 
 | Layer      | Location          | Responsibility                                                                                                                                    |
 | ---------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -36,8 +39,6 @@ On process start:
 - probe DB and Redis in parallel
 - exit if DB probe fails
 - continue if Redis probe fails (warn only)
-- bootstrap Carbon system campaign (deterministic UUID advertiser + campaign, idempotent)
-- schedule stale Carbon creative cleanup (every 12 hours)
 - listen on `PORT`
 - track open sockets for graceful shutdown
 
@@ -73,8 +74,10 @@ Response shape:
 
 ## `GET /auth/github/redirect`
 
+> **Pre-pivot.** GitHub OAuth was the original sign-in method. Replaced by magic-link auth in M2. Routes still exist in code but are not exposed in the Distro TV UI.
+
 Purpose:
-start GitHub OAuth. Used by both the web dashboard and the `devdrip auth` CLI.
+start GitHub OAuth. Used by the original `devdrip auth` flow.
 
 Query params:
 
@@ -207,7 +210,7 @@ Response:
 ## `GET /me`
 
 Purpose:
-return the authenticated user's core profile. Used by the CLI to populate `~/.devdrip/config.json` after sign-in and to render `devdrip status`.
+return the authenticated user's core profile. Used by the CLI to populate `~/.distro/config.json` and to render `distro status`.
 
 Auth:
 
@@ -798,9 +801,11 @@ Query params: `limit`, `offset`
 
 Response: `{ invites, limit, offset }` (unused rows only, newest first).
 
-## Ad Serving Endpoints
+## Ad Serving Endpoints (pre-pivot — unused)
 
-These routes power the CLI ad pipeline. All require bearer token auth and use the user-keyed rate limiter.
+> **Pre-pivot.** These routes (`/ads/*`, `/ingest` ad impressions, `/me/earnings/*`) exist in code but are not called by the Distro TV CLI or dashboard. They will be pruned in a future clean-up milestone.
+
+These routes powered the CLI ad pipeline. All require bearer token auth and use the user-keyed rate limiter.
 
 All ad serving endpoints share the same waterfall behavior:
 
@@ -1190,7 +1195,7 @@ Note: internally re-runs `listCampaignReports()` with no filter then filters in 
 
 ## AdProvider Interface
 
-The `AdProvider` interface in `@devdrip/shared` defines a pluggable ad selection abstraction:
+The `AdProvider` interface in `@distrotv/shared` defines a pluggable ad selection abstraction (pre-pivot, unused):
 
 ```typescript
 interface AdProvider {
@@ -1210,7 +1215,7 @@ The `ad-delivery.service.ts` waterfall orchestrator calls providers in order (Ca
 
 ### System Campaign
 
-A deterministic system advertiser and campaign are bootstrapped at process startup using SHA-256-derived UUIDs (`devdrip:carbon-ads-advertiser`, `devdrip:carbon-ads-campaign`). This avoids DB lookups for the campaign ID and is idempotent across restarts and multi-instance deploys.
+A deterministic system advertiser and campaign are bootstrapped at process startup using SHA-256-derived UUIDs (pre-pivot seed strings). This avoids DB lookups for the campaign ID and is idempotent across restarts and multi-instance deploys.
 
 The system campaign has near-infinite budget (`999,999`) and `asap` pacing so Carbon ads are never rejected by internal budget checks. The CPM rate is synced from the `CARBON_CPM_RATE` env var on each restart.
 
@@ -1231,7 +1236,7 @@ On completed impressions for Carbon-source creatives, the server fires a viewabi
 | Variable           | Default         | Purpose                                                                       |
 | ------------------ | --------------- | ----------------------------------------------------------------------------- |
 | `CARBON_ZONE_KEY`  | `""` (disabled) | Carbon publisher zone ID. Empty string disables Carbon provider.              |
-| `CARBON_PLACEMENT` | `devdrip`       | Placement slug sent to Carbon SDK                                             |
+| `CARBON_PLACEMENT` | `distrotv`      | Placement slug sent to Carbon SDK (pre-pivot, unused)                         |
 | `CARBON_CPM_RATE`  | `0.80`          | CPM rate in USDC for Carbon impressions. Validated as positive finite number. |
 
 ## Frequency Cap Engine
@@ -1289,7 +1294,9 @@ Headers set on limited routes:
 - `X-RateLimit-Reset`
 - `Retry-After` on `429`
 
-## World Chain Endpoints (S4-WC1)
+## World Chain Endpoints (pre-pivot — removed)
+
+> **Pre-pivot.** World Chain / Mini App / USDC payout endpoints were fully removed in May 2026 as part of the Distro TV pivot. Routes, services, and schema below are historical reference only; none exist in the current codebase.
 
 Added across PR1–PR4 of the World Chain Payments epic. Group by surface:
 
@@ -1338,9 +1345,11 @@ Existing fields (`id`, `githubLogin`, `email`, `avatarUrl`) unchanged.
 
 - `POST /__test/setup-paired-link` — mounted only when `nodeEnv !== "production"` (defense-in-depth: also short-circuits in handler if production). Body `{ code, userId, githubLogin }`. Inserts a synthetic user + atomically links the named pair_session. Used by PR2's daemon-compat integration test (`paired-token-prefs-sync.test.ts`) to bypass the full Mini App auth flow which needs real World ID + SIWE infra.
 
-## Settlement Worker (S4-WC1 PR3)
+## Settlement Worker (pre-pivot — removed)
 
-The settlement worker is a **separate Railway service** spawned from `packages/api/src/worker.ts`. Same DB connection as the API; no HTTP listener.
+> **Pre-pivot.** The settlement worker broadcast USDC payouts on World Chain. Removed in May 2026. Documented here for historical reference only.
+
+The settlement worker was a **separate Railway service** spawned from `packages/api/src/worker.ts`. Same DB connection as the API; no HTTP listener.
 
 ### Loop semantics
 

@@ -1,57 +1,61 @@
 # Glossary
 
-## Ad Category
+## Channel
 
-Domain grouping for an ad, such as developer tools, databases, or monitoring.
+A named content stream (e.g. `CH 01 NEWS`, `CH 02 MARKETS`). Users subscribe to channels; the slot selection algorithm draws from subscribed channels. Defined in the `channels` table.
 
-## Ad Source
+## Channel Mode
 
-Origin of a creative, such as `direct`, `carbon`, `google`, or `x402`.
+Controls the news/ticker ratio for slot delivery. Five positions: `news_only`, `news_heavy`, `balanced`, `ticker_heavy`, `ticker_only`. Stored in `preferences.channel_mode`.
 
-## Ad Surface
+## Device
 
-Where an ad experience can appear. Shared enums already define values such as `terminal-tv`, `companion-tab`, and `idle-dashboard`.
+A registered machine belonging to a user. Identified by a stable `machineIdHash` (SHA-256 of platform UUID). Stored in the `devices` table. The daemon runs as a per-user singleton, not per-device.
 
-## Campaign
+## Device Bearer Auth
 
-A budgeted advertiser unit with targeting, pacing, schedule, and status.
+The CLI's anonymous authentication method. `distro init` generates a 256-bit `device_secret`, stores it locally, and uses `Authorization: Bearer device.<secret>` for API calls. No sign-in required.
 
-## Creative
+## Hook
 
-The actual ad payload linked to a campaign. Includes headline, body, CTA, source, surface, category, and rate data.
-
-## Device Registration
-
-Authenticated backend call that records a machine hash, OS, IDE type, and device name for a user.
-
-## Earning
-
-A ledger entry tied to an impression, storing the amount earned in USDC plus classification data.
+A Claude Code settings.json entry that fires the CLI (`distro hook pre-tool`, `distro hook stop`, etc.) on coding tool lifecycle events. Hooks must always exit 0.
 
 ## Impression
 
-A recorded ad display event with duration, result, source, surface, and earned amount.
+A recorded slot display event. News impressions go to `news_impressions`; ticker impressions to `slot_impressions`. Local SQLite ledger is ground truth; backend syncs via `/ingest`.
 
 ## IDE Type
 
-Current shared classification for client context: `terminal`, `vscode`, or `cursor`.
-
-## Idle State
-
-A product concept modeled in `packages/shared` with values `active`, `warming`, and `idle`. The runtime state machine is not implemented yet in the CLI package.
+Client context classification: `terminal`, `vscode`, or `cursor`.
 
 ## Local Ledger
 
-The planned local store of impressions and earnings on the developer machine. It is part of the modeled architecture, but no CLI implementation exists yet.
+SQLite database at `~/.distro/ledger.db`. Stores slot impressions locally before the backend syncs them. Ground truth for what the user has seen.
 
-## Payout
+## Magic Link
 
-A USDC withdrawal record tied to a user and wallet address, with processing status and optional on-chain transaction hash.
+The email-based sign-in method. A 32-byte token is emailed via Resend; the user clicks the link to verify and receive a 7-day session JWT.
 
-## Refresh Token Family
+## Pairing
 
-A group of related refresh tokens used for rotation and reuse detection.
+The CLI ↔ browser handoff that upgrades an anonymous device session to an email-bound user account. The CLI generates a pairing code, opens the browser at `/setup?pair=<code>`, and waits. See [Identity & Auth](../architecture/identity.md).
+
+## Session JWT
+
+The 7-day JWT issued after magic-link verification. Stored as an HTTP-only cookie (`distrotv_session`) in the browser and used as `Authorization: Bearer <jwt>` in CLI/API calls.
+
+## Slot
+
+A single content item displayed in the terminal during AI tool idle time. Two slot kinds: `news` (headlines) and `ticker` (market data). The slot vanishes in <200ms from the `Stop` hook firing.
+
+## Slot Cache
+
+JSON file at `~/.distro/slot-cache.json`. Pre-fetches `SlotContent[]` from the API so hooks can serve in <200ms. See [Slot Cache](../cli/ad-cache.md).
 
 ## Surface
 
-Short form for ad surface. In code and docs, it describes the UI placement or channel where an ad is delivered.
+Short form for the render context where a slot appears. Primary surface: `terminal-tv` (the CLI scroll region during tool use).
+
+## Watchlist
+
+A named list of ticker symbols (up to 25 per list, 3 lists per user). Used by the ticker pipeline to determine which symbols to fetch. Default watchlist is auto-created on first use.

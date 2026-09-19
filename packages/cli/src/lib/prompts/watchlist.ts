@@ -6,7 +6,7 @@ const SEED: { symbol: string; assetClass: AssetClass }[] = [
   { symbol: "MSFT", assetClass: "equity" },
   { symbol: "NVDA", assetClass: "equity" },
   { symbol: "BTC", assetClass: "crypto" },
-  { symbol: "ETH", assetClass: "crypto" },
+  { symbol: "TSLA", assetClass: "equity" },
 ]
 
 const SYMBOL_RE = /^[A-Z0-9.\-]{1,16}$/

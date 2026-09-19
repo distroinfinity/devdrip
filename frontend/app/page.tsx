@@ -1,11 +1,23 @@
+import { Nav } from "@/components/landing/nav"
+import { HeroSection } from "@/components/landing/hero-section"
+import { ChannelsSection } from "@/components/landing/channels-section"
+import { HowItWorksSection } from "@/components/landing/how-it-works-section"
+import { ControlSection } from "@/components/landing/control-section"
+import { InstallSection } from "@/components/landing/install-section"
+import { Footer } from "@/components/landing/footer"
+
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-8">
-      <h1 className="text-4xl font-semibold">Distro TV</h1>
-      <p className="mt-4 text-lg text-muted-foreground">
-        your terminal&apos;s news + market feed, while the agent works
-      </p>
-      <p className="mt-8 text-sm text-muted-foreground">(full landing page lands in M8)</p>
-    </main>
+    <>
+      <Nav />
+      <main>
+        <HeroSection />
+        <ChannelsSection />
+        <HowItWorksSection />
+        <ControlSection />
+        <InstallSection />
+      </main>
+      <Footer />
+    </>
   )
 }
