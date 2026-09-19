@@ -85,10 +85,17 @@ export const env = {
   get worldscanBase() {
     return optionalEnv("WORLDSCAN_BASE", "https://worldchain-sepolia.explorer.alchemy.com")
   },
-  // World developer-portal app_id — needed by Mini App auth (PR2) and links.
-  // Optional in PR1 (chain code path doesn't read it); required from PR2 on.
+  // World developer-portal app_id — used in deeplink URLs (frontend) and
+  // forwarded to MiniKit on the client. Optional in PR1; required from PR2 on.
   get worldAppId() {
     return optionalEnv("WORLD_APP_ID", "")
+  },
+  // World developer-portal rp_id — used in the cloud verify URL
+  // (POST /api/v4/verify/{rp_id}). Per the World 4.0 docs, prefer rp_id; the
+  // verify endpoint still accepts app_id for back-compat, so we fall back to
+  // worldAppId if WORLD_ID_RP_ID is not set.
+  get worldIdRpId() {
+    return optionalEnv("WORLD_ID_RP_ID", optionalEnv("WORLD_APP_ID", ""))
   },
   // World ID action namespace — same string passed to IDKit on the client and
   // forwarded to developer.world.org/api/v4/verify in cloud verification.

@@ -3,6 +3,7 @@
 // Smoke test: prints the configured hot wallet address, ETH balance, and USDC
 // balance on World Chain Sepolia. Run with `pnpm --filter @devdrip/api chain:check`.
 
+import "dotenv/config"
 import { formatEther, formatUnits } from "viem"
 import { env } from "../config/env.js"
 import { getPublicClient, WORLD_CHAIN_SEPOLIA, usdcAbi } from "../chain/index.js"
