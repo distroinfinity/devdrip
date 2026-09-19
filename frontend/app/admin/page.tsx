@@ -26,6 +26,18 @@ export default async function AdminOverview() {
           totalUsers={overview.counts.users}
         />
         <RecentAlertsCard alerts={overview.recentAlerts} />
+        <BreakdownCard
+          title="os"
+          items={overview.osDistribution.map((d) => ({ label: d.os, count: d.count }))}
+        />
+        <BreakdownCard
+          title="ide / terminal"
+          items={overview.ideDistribution.map((d) => ({ label: d.ideType, count: d.count }))}
+        />
+        <BreakdownCard
+          title="languages"
+          items={overview.languageDistribution.map((d) => ({ label: d.language, count: d.count }))}
+        />
       </div>
 
       {/* footer */}
@@ -210,6 +222,56 @@ function ModeDistributionCard({
               }}
             />
             <span className="font-bold">{d.mode}</span>
+            <span className="flex-1 text-[var(--ink-tertiary)]">
+              {Math.round((d.count / total) * 100)}%
+            </span>
+            <span>{d.count}</span>
+          </div>
+        ))}
+      </div>
+    </CardShell>
+  )
+}
+
+// Generic single-dimension distribution: a stacked bar + percentage legend.
+// Used for os / ide / languages. Empty input renders a muted "no data" note.
+function BreakdownCard({
+  title,
+  items,
+}: {
+  title: string
+  items: Array<{ label: string; count: number }>
+}) {
+  const total = items.reduce((s, d) => s + d.count, 0) || 1
+  const colors = ["#A5B4FC", "#818CF8", "#6366F1", "#4F46E5", "#4338CA", "#3730A3"]
+  return (
+    <CardShell title={title}>
+      <div className="flex h-3 mb-3 overflow-hidden">
+        {items.map((d, i) => (
+          <div
+            key={d.label}
+            title={`${d.label}: ${d.count}`}
+            style={{
+              width: `${(d.count / total) * 100}%`,
+              backgroundColor: colors[i % colors.length],
+            }}
+          />
+        ))}
+      </div>
+      {items.length === 0 && <div className="text-[10px] text-[var(--ink-tertiary)]">no data</div>}
+      <div className="space-y-1 font-[var(--font-data)] text-[10px] tabular-nums">
+        {items.map((d, i) => (
+          <div key={d.label} className="flex items-center gap-2">
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                backgroundColor: colors[i % colors.length],
+                display: "inline-block",
+                flexShrink: 0,
+              }}
+            />
+            <span className="font-bold">{d.label}</span>
             <span className="flex-1 text-[var(--ink-tertiary)]">
               {Math.round((d.count / total) * 100)}%
             </span>

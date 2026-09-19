@@ -1,9 +1,24 @@
 import { createHash } from "node:crypto"
 import { execSync } from "node:child_process"
 import { readFileSync } from "node:fs"
+import { createRequire } from "node:module"
 import { hostname, platform } from "node:os"
 import type { Device, IdeType } from "@distrotv/shared"
 import { apiFetch, apiFetchPublic, type MeResponse } from "./api-client.js"
+
+const require = createRequire(import.meta.url)
+
+// the installed CLI version, reported per device so we can see adoption /
+// upgrade spread. mirrors index.ts/status.ts; "../package.json" resolves to
+// the package root from the bundled output in dist/.
+function cliVersion(): string {
+  try {
+    const { version = "0.0.0" } = require("../package.json") as { version?: string }
+    return version
+  } catch {
+    return "0.0.0"
+  }
+}
 
 // platform-specific stable machine ID — survives hostname changes and is
 // unique per physical/virtual machine, unlike hostname+platform+arch
@@ -79,6 +94,7 @@ export async function refreshDeviceMetadata(): Promise<Device> {
       os: platform(),
       ideType: detectIdeType(),
       deviceName: hostname(),
+      cliVersion: cliVersion(),
     },
   })
   return device

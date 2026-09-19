@@ -7,6 +7,9 @@ export interface OverviewDto {
     recent: Array<{ id: string; email: string | null; createdAt: string }>
   }
   modeDistribution: Array<{ mode: string; count: number }>
+  osDistribution: Array<{ os: string; count: number }>
+  ideDistribution: Array<{ ideType: string; count: number }>
+  languageDistribution: Array<{ language: string; count: number }>
   recentAlerts: Array<{
     id: string
     userId: string
@@ -85,6 +88,10 @@ export interface UserListRow {
   email: string | null
   createdAt: string
   mode: string | null
+  reposCount: number | null
+  primaryLanguage: string | null
+  primaryOs: string | null
+  cliVersion: string | null
   lastActivity: string | null
   channelCount: number
   watchlistSize: number

@@ -11,6 +11,9 @@ export interface OverviewDto {
     recent: Array<{ id: string; email: string | null; createdAt: string }>
   }
   modeDistribution: Array<{ mode: string; count: number }>
+  osDistribution: Array<{ os: string; count: number }>
+  ideDistribution: Array<{ ideType: string; count: number }>
+  languageDistribution: Array<{ language: string; count: number }>
   recentAlerts: Array<{
     id: string
     userId: string
@@ -19,6 +22,10 @@ export interface OverviewDto {
     thresholdPct: number
     firedAt: string
   }>
+}
+
+function rowsOf<T>(raw: unknown): T[] {
+  return ((raw as { rows?: unknown[] }).rows ?? (raw as unknown[])) as T[]
 }
 
 export async function getOverview(): Promise<OverviewDto> {
@@ -59,6 +66,27 @@ export async function getOverview(): Promise<OverviewDto> {
     ORDER BY count DESC
   `)
 
+  // audience breakdowns: where devices run + what languages signups write.
+  const osRaw = await db.execute(sql`
+    SELECT COALESCE(os, 'unknown') AS os, COUNT(*)::int AS count
+    FROM devices
+    GROUP BY os
+    ORDER BY count DESC
+  `)
+  const ideRaw = await db.execute(sql`
+    SELECT ide_type AS "ideType", COUNT(*)::int AS count
+    FROM devices
+    GROUP BY ide_type
+    ORDER BY count DESC
+  `)
+  const langRaw = await db.execute(sql`
+    SELECT primary_language AS language, COUNT(*)::int AS count
+    FROM users
+    WHERE primary_language IS NOT NULL
+    GROUP BY primary_language
+    ORDER BY count DESC
+  `)
+
   const recentAlerts = await db
     .select({
       id: alertEvents.id,
@@ -93,6 +121,9 @@ export async function getOverview(): Promise<OverviewDto> {
       })),
     },
     modeDistribution,
+    osDistribution: rowsOf<{ os: string; count: number }>(osRaw),
+    ideDistribution: rowsOf<{ ideType: string; count: number }>(ideRaw),
+    languageDistribution: rowsOf<{ language: string; count: number }>(langRaw),
     recentAlerts: recentAlerts.map((a) => ({
       id: a.id,
       userId: a.userId,
