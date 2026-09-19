@@ -12,8 +12,10 @@ import {
 import { users } from "./users.js"
 import { devices } from "./devices.js"
 
-// one row per served ad that was seen or clicked. seed of the exchange ledger:
-// slot, audience (user/device), impression, click, price.
+// one row per served ad — it is also the delivery record: inserted as "pending"
+// when the ad is handed to a device, then filled in by /ingest (view) and
+// /ads/click (click). seed of the exchange ledger: slot, audience, impression,
+// click, price. lives in postgres (not redis) so deliveries survive restarts.
 export const adImpressions = pgTable(
   "ad_impressions",
   {
@@ -30,8 +32,11 @@ export const adImpressions = pgTable(
     advertiser: text("advertiser").notNull(),
     headline: text("headline").notNull(),
     targetUrl: text("target_url").notNull(),
+    // network tracking urls (carbon statlink / statview); null for house ads
+    clickBeaconUrl: text("click_beacon_url"),
+    viewBeaconUrl: text("view_beacon_url"),
     durationMs: integer("duration_ms").notNull().default(0),
-    // ImpressionResult, or "pending" when a click arrived before the impression synced
+    // "pending" = served, not yet reported as seen; else an ImpressionResult
     result: text("result").notNull().default("pending"),
     clicked: boolean("clicked").notNull().default(false),
     clickedAt: timestamp("clicked_at", { withTimezone: true }),

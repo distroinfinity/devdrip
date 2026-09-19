@@ -83,6 +83,18 @@ export const env = {
       undefined
     )
   },
+  // carbon ads — empty zone key means the sdk's demo zone
+  get carbonZoneKey(): string {
+    return optionalEnv("CARBON_ZONE_KEY", "")
+  },
+  get carbonPlacement(): string {
+    return optionalEnv("CARBON_PLACEMENT", "distrotv")
+  },
+  // estimated usd cpm — carbon returns no price
+  get adCpmRate(): number {
+    const v = Number(optionalEnv("AD_CPM_RATE", "10"))
+    return Number.isFinite(v) && v > 0 ? v : 10
+  },
   get allowedOrigins(): string[] {
     const origins = requireEnv("ALLOWED_ORIGINS")
       .split(",")

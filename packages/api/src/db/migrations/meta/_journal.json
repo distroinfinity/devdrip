@@ -169,6 +169,13 @@
       "when": 1789841152669,
       "tag": "0023_steep_shockwave",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789841196558,
+      "tag": "0024_chemical_enchantress",
+      "breakpoints": true
     }
   ]
 }
