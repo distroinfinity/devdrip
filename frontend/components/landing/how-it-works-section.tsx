@@ -65,6 +65,7 @@ function useDemoStateMachine() {
   const [phase, setPhase] = useState<DemoPhase>("ready");
   const [earningsValue, setEarningsValue] = useState(0);
   const [dismissalMs, setDismissalMs] = useState<number | null>(null);
+  const [runCount, setRunCount] = useState(0);
   const dismissStart = useRef(0);
 
   // active → warming after 2.5s
@@ -81,11 +82,13 @@ function useDemoStateMachine() {
     return () => clearTimeout(t);
   }, [phase]);
 
-  // earnings tick during earning phase
+  // earnings tick during earning phase, capped at $0.99
   useEffect(() => {
     if (phase !== "earning") return;
     const iv = setInterval(() => {
-      setEarningsValue((prev) => Math.round((prev + 0.03) * 100) / 100);
+      setEarningsValue((prev) =>
+        Math.min(Math.round((prev + 0.03) * 100) / 100, 0.99)
+      );
     }, 1800);
     return () => clearInterval(iv);
   }, [phase]);
@@ -94,25 +97,40 @@ function useDemoStateMachine() {
     setEarningsValue(0);
     setDismissalMs(null);
     setPhase("active");
+    setRunCount((c) => c + 1);
   }, []);
 
   const simulateTyping = useCallback(() => {
     if (phase !== "earning") return;
     dismissStart.current = performance.now();
     setPhase("vanished");
-    // measure after exit animation completes (~120ms)
-    setTimeout(() => {
-      setDismissalMs(Math.round(performance.now() - dismissStart.current));
-    }, 130);
   }, [phase]);
+
+  // called by AnimatePresence onExitComplete — measures real animation end
+  const measureDismissal = useCallback(() => {
+    if (dismissStart.current > 0) {
+      setDismissalMs(Math.round(performance.now() - dismissStart.current));
+      dismissStart.current = 0;
+    }
+  }, []);
 
   const reset = useCallback(() => {
     setEarningsValue(0);
     setDismissalMs(null);
     setPhase("active");
+    setRunCount((c) => c + 1);
   }, []);
 
-  return { phase, earningsValue, dismissalMs, start, simulateTyping, reset };
+  return {
+    phase,
+    earningsValue,
+    dismissalMs,
+    runCount,
+    start,
+    simulateTyping,
+    measureDismissal,
+    reset,
+  };
 }
 
 // -- sub-components --
@@ -234,7 +252,6 @@ function StateMachineRail({ activeNode }: { activeNode: number }) {
   return (
     <div
       role="status"
-      aria-live="polite"
       aria-label={`Demo phase: ${activeNode >= 0 ? STATE_NODES[activeNode].label : "ready"}`}
       className="flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-0 px-4 py-3"
       style={{ borderBottom: `1px solid ${tc.border}` }}
@@ -296,6 +313,7 @@ function DemoButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className="font-data text-[12px] font-bold px-4 py-1.5 cursor-pointer transition-[border-color] duration-150"
       style={{
@@ -316,16 +334,26 @@ function DemoButton({
 // -- main section --
 
 export function HowItWorksSection() {
-  const { phase, earningsValue, dismissalMs, start, simulateTyping, reset } =
-    useDemoStateMachine();
+  const {
+    phase,
+    earningsValue,
+    dismissalMs,
+    runCount,
+    start,
+    simulateTyping,
+    measureDismissal,
+    reset,
+  } = useDemoStateMachine();
 
   const activeNode = PHASE_TO_NODE[phase];
   const activeStep = PHASE_TO_STEP[phase];
 
-  // any key triggers vanish during earning phase
+  // any key triggers vanish during earning phase (skip form elements)
   useEffect(() => {
     if (phase !== "earning") return;
     const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key.length === 1 || e.key === "Backspace" || e.key === "Enter") {
         simulateTyping();
       }
@@ -338,6 +366,10 @@ export function HowItWorksSection() {
   const [glowActive, setGlowActive] = useState(false);
   const prevEarnings = useRef(0);
   useEffect(() => {
+    if (earningsValue === 0) {
+      prevEarnings.current = 0;
+      return;
+    }
     if (earningsValue > prevEarnings.current) {
       setGlowActive(true);
       const t = setTimeout(() => setGlowActive(false), 500);
@@ -458,9 +490,9 @@ export function HowItWorksSection() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1px_1fr_1px_0.8fr] gap-4 lg:gap-0">
-                {/* left: agent terminal — always visible during demo */}
+                {/* left: agent terminal — remounts on restart for fresh state */}
                 <div className="lg:pr-4">
-                  <AgentTerminal />
+                  <AgentTerminal key={runCount} />
                 </div>
 
                 {/* vertical divider */}
@@ -486,7 +518,7 @@ export function HowItWorksSection() {
                   )}
 
                   {/* terminal tv — enters on earning, vanishes on dismiss */}
-                  <AnimatePresence>
+                  <AnimatePresence onExitComplete={measureDismissal}>
                     {phase === "earning" && (
                       <motion.div
                         key="tv"
@@ -577,7 +609,6 @@ export function HowItWorksSection() {
                         }}
                       >
                         <div
-                          aria-live="polite"
                           className="font-data text-[14px] font-bold"
                           style={{ color: tokens.accent.dark.DEFAULT }}
                         >
@@ -592,6 +623,13 @@ export function HowItWorksSection() {
                       </motion.div>
                     )}
                   </AnimatePresence>
+
+                  {/* sr-only live region — always mounted so screen readers catch updates */}
+                  <div aria-live="polite" aria-atomic="true" className="sr-only">
+                    {phase === "vanished" && dismissalMs !== null
+                      ? `Content dismissed in ${dismissalMs} milliseconds`
+                      : ""}
+                  </div>
                 </div>
               </div>
             )}
