@@ -5,8 +5,11 @@ import { motion, useInView } from "motion/react";
 import { BlurFade } from "@/components/ui/blur-fade";
 import { DotGrid } from "@/components/shared/dot-grid";
 import { NumberTicker } from "@/components/ui/number-ticker";
+import { cn } from "@/lib/utils";
 
 // --- data ---
+
+const ANNUAL_AI_COST = 20 * 12; // $240/yr
 
 interface MarketData {
   country: string;
@@ -15,11 +18,14 @@ interface MarketData {
 }
 
 const MARKETS: MarketData[] = [
-  { country: "United States", medianSalary: 132_270, percentOfIncome: 0.18 },
-  { country: "India", medianSalary: 6_750, percentOfIncome: 3.56 },
-  { country: "Brazil", medianSalary: 18_000, percentOfIncome: 1.33 },
-  { country: "Nigeria", medianSalary: 7_200, percentOfIncome: 3.33 },
-];
+  { country: "United States", medianSalary: 132_270 },
+  { country: "India", medianSalary: 6_750 },
+  { country: "Brazil", medianSalary: 18_000 },
+  { country: "Nigeria", medianSalary: 7_200 },
+].map((m) => ({
+  ...m,
+  percentOfIncome: parseFloat(((ANNUAL_AI_COST / m.medianSalary) * 100).toFixed(2)),
+}));
 
 const MAX_PERCENT = Math.max(...MARKETS.map((m) => m.percentOfIncome));
 
@@ -38,12 +44,10 @@ function MarketBar({
 
   return (
     <div
-      className={
-        "grid grid-cols-[100px_1fr_56px] lg:grid-cols-[160px_1fr_80px] items-center gap-3 py-3" +
-        (index < MARKETS.length - 1
-          ? " border-b border-[var(--rule-subtle)]"
-          : "")
-      }
+      className={cn(
+        "grid grid-cols-[100px_1fr_56px] lg:grid-cols-[160px_1fr_80px] items-center gap-3 py-3",
+        index < MARKETS.length - 1 && "border-b border-[var(--rule-subtle)]",
+      )}
     >
       {/* country + salary */}
       <div className="min-w-0">
@@ -88,10 +92,10 @@ function MarketBar({
 
 function IncomeComparisonBars() {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "0px" });
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
 
   return (
-    <div ref={ref} className="w-full max-w-[680px]">
+    <div ref={ref} className="w-full max-w-content">
       {MARKETS.map((market, i) => (
         <MarketBar key={market.country} market={market} index={i} isInView={isInView} />
       ))}
@@ -99,7 +103,7 @@ function IncomeComparisonBars() {
       {/* source footnote */}
       <div className="text-right mt-3">
         <span className="text-[11px] text-[var(--ink-faint)]">
-          Median developer salaries — Glassdoor, Levels.fyi, 2024
+          Median developer salaries — Glassdoor, Levels.fyi, 2025
         </span>
       </div>
     </div>
@@ -120,7 +124,7 @@ export function WorldwideSection() {
       <div className="relative mx-auto max-w-grid px-6 py-16 lg:py-24">
         <div className="flex flex-col items-center text-center gap-8 lg:gap-12">
           {/* header */}
-          <BlurFade inView delay={0}>
+          <BlurFade inView>
             <div className="flex flex-col items-center">
               <div className="font-body text-[10px] font-semibold text-[var(--ink-tertiary)] uppercase tracking-[0.1em] mb-3">
                 For Developers Worldwide
@@ -136,7 +140,7 @@ export function WorldwideSection() {
 
           {/* copy block */}
           <BlurFade inView delay={0.1}>
-            <div className="max-w-[var(--content-max)] text-left lg:text-center">
+            <div className="max-w-content text-left lg:text-center">
               <p className="font-body text-body text-[var(--ink-secondary)] mb-4">
                 A $20/month AI subscription is 0.2% of a US developer&apos;s
                 annual income. For a developer in Bangalore, Lagos, or São
