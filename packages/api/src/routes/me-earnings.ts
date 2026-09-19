@@ -1,11 +1,5 @@
 import { Router } from "express"
-import {
-  clampDays,
-  clampLimit,
-  getRecent,
-  getSummary,
-  getTimeseries,
-} from "../services/earnings.service.js"
+import { clampLimit, getRecent, getSummary, getTimeseries } from "../services/earnings.service.js"
 
 export const meEarningsRouter: ReturnType<typeof Router> = Router()
 
@@ -17,10 +11,10 @@ meEarningsRouter.get("/summary", async (_req, res, next) => {
   }
 })
 
+// ?range=1h (per minute) | 24h (per hour) | 30d (per day, default)
 meEarningsRouter.get("/timeseries", async (req, res, next) => {
   try {
-    const days = clampDays(req.query["days"])
-    res.json({ points: await getTimeseries(res.locals["userId"] as string, days) })
+    res.json(await getTimeseries(res.locals["userId"] as string, req.query["range"]))
   } catch (err) {
     next(err)
   }
