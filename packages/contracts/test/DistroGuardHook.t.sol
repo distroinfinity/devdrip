@@ -10,6 +10,7 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
+import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {Deployers} from "@uniswap/v4-core/test/utils/Deployers.sol";
 import {DistroGuardHook} from "../src/DistroGuardHook.sol";
 
@@ -63,5 +64,17 @@ contract DistroGuardHookTest is Test, Deployers {
         (, uint32 vAfter,) = hook.volOf(key.toId());
 
         assertGe(vAfter, vBefore);
+    }
+
+    // a direct external afterSwap (not from the PoolManager) must revert NotPoolManager
+    function test_afterSwap_direct_reverts() public {
+        vm.expectRevert(DistroGuardHook.NotPoolManager.selector);
+        hook.afterSwap(
+            address(0),
+            key,
+            SwapParams({zeroForOne: true, amountSpecified: 0, sqrtPriceLimitX96: 0}),
+            BalanceDelta.wrap(0),
+            ZERO_BYTES
+        );
     }
 }

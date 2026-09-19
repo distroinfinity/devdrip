@@ -36,6 +36,13 @@ contract DistroGuardHook is BaseTestHooks {
     event VolUpdated(PoolId indexed poolId, int24 tick, uint32 ewmaVolBps);
     event FeeApplied(PoolId indexed poolId, uint24 feePips);
 
+    error NotPoolManager();
+
+    modifier onlyPoolManager() {
+        if (msg.sender != address(poolManager)) revert NotPoolManager();
+        _;
+    }
+
     constructor(IPoolManager _poolManager) {
         poolManager = _poolManager;
     }
@@ -43,6 +50,7 @@ contract DistroGuardHook is BaseTestHooks {
     function afterInitialize(address, PoolKey calldata key, uint160, int24 tick)
         external
         override
+        onlyPoolManager
         returns (bytes4)
     {
         require(key.fee == LPFeeLibrary.DYNAMIC_FEE_FLAG, "fee:not-dynamic");
@@ -53,6 +61,7 @@ contract DistroGuardHook is BaseTestHooks {
     function beforeSwap(address, PoolKey calldata key, SwapParams calldata params, bytes calldata)
         external
         override
+        onlyPoolManager
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         uint256 absAmount =
@@ -66,6 +75,7 @@ contract DistroGuardHook is BaseTestHooks {
     function afterSwap(address, PoolKey calldata key, SwapParams calldata, BalanceDelta, bytes calldata)
         external
         override
+        onlyPoolManager
         returns (bytes4, int128)
     {
         PoolId id = key.toId();
@@ -80,6 +90,10 @@ contract DistroGuardHook is BaseTestHooks {
 
         emit VolUpdated(id, tick, v.ewmaVolBps);
         return (IHooks.afterSwap.selector, int128(0));
+    }
+
+    function currentTick(PoolId id) external view returns (int24 tick) {
+        (, tick,,) = poolManager.getSlot0(id);
     }
 
     function _currentFee(PoolId id, uint256 absAmount) internal view returns (uint24) {

@@ -13,7 +13,7 @@ export const publicClient = createPublicClient({
   chain: xlayer as never,
 })
 
-const volOfAbi = [
+const hookAbi = [
   {
     type: "function",
     name: "volOf",
@@ -25,19 +25,38 @@ const volOfAbi = [
       { name: "seeded", type: "bool" },
     ],
   },
+  {
+    type: "function",
+    name: "currentTick",
+    stateMutability: "view",
+    inputs: [{ name: "id", type: "bytes32" }],
+    outputs: [{ name: "tick", type: "int24" }],
+  },
 ] as const
 
 export async function readVol(
   hookAddress: string,
   poolId: string
 ): Promise<{ tick: number; volBps: number }> {
-  const res = (await publicClient.readContract({
-    address: getAddress(hookAddress),
-    abi: volOfAbi,
-    functionName: "volOf",
-    args: [poolId as `0x${string}`],
-  })) as readonly [number, number, boolean]
-  return { tick: Number(res[0]), volBps: Number(res[1]) }
+  const address = getAddress(hookAddress)
+  const id = poolId as `0x${string}`
+  // volBps comes from the ewma accumulator; tick must be the LIVE pool tick
+  // (currentTick view), not the cached volOf.lastTick.
+  const [vol, tick] = await Promise.all([
+    publicClient.readContract({
+      address,
+      abi: hookAbi,
+      functionName: "volOf",
+      args: [id],
+    }) as Promise<readonly [number, number, boolean]>,
+    publicClient.readContract({
+      address,
+      abi: hookAbi,
+      functionName: "currentTick",
+      args: [id],
+    }) as Promise<number>,
+  ])
+  return { tick: Number(tick), volBps: Number(vol[1]) }
 }
 
 // price of token0 in token1 = 1.0001^tick * 10^(dec0 - dec1)

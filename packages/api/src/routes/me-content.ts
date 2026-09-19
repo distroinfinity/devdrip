@@ -36,12 +36,10 @@ meContentRouter.get("/next", async (req, res, next) => {
     if (mode === ChannelMode.NewsOnly) {
       items = await nextPicksForDevice({ userId, deviceId, n })
     } else if (mode === ChannelMode.OnchainOnly) {
-      const out: SlotPayload[] = []
-      for (let i = 0; i < n; i++) {
-        const p = await nextOnchainForDevice({ userId, deviceId })
-        if (p) out.push(p)
-      }
-      items = out
+      // one onchain position renders as a single slot; looping n times just
+      // re-returned the same first active position (n dup slots + n extra RPC reads).
+      const p = await nextOnchainForDevice({ userId, deviceId })
+      items = p ? [p] : []
     } else if (mode === ChannelMode.TickerOnly) {
       items = await onlyTicker(userId, deviceId, n)
     } else {
