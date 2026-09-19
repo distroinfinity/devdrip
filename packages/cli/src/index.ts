@@ -20,6 +20,7 @@ import { preferencesCmd } from "./commands/preferences.js"
 import { watchlistCmd } from "./commands/watchlist.js"
 import { feedbackCmd } from "./commands/feedback.js"
 import { logoutCmd } from "./commands/logout.js"
+import { onchainCmd } from "./commands/onchain.js"
 
 const require = createRequire(import.meta.url)
 const { version = "0.0.0" } = require("../package.json") as {
@@ -53,6 +54,7 @@ program
   .addCommand(watchlistCmd)
   .addCommand(feedbackCmd)
   .addCommand(logoutCmd)
+  .addCommand(onchainCmd)
 
 async function main() {
   await program.parseAsync()
