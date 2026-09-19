@@ -76,27 +76,60 @@ export function mapCarbonAd(ad: CarbonAdLike): NormalizedAd | null {
   }
 }
 
-let cached: { at: number; ad: NormalizedAd | null } | null = null
+export interface PooledAd {
+  ad: NormalizedAd
+  at: number
+}
 
-// never throws. 60s in-process cache so /me/content/next doesn't hit carbon per request.
-export async function fetchCarbonAd(): Promise<NormalizedAd | null> {
-  if (!env.carbonEnabled) return null
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.ad
-  try {
-    const opts: { placement: string; serve?: string } = { placement: env.carbonPlacement }
-    if (env.carbonZoneKey) opts.serve = env.carbonZoneKey
-    const raw = await Promise.race([
-      fetchAd(opts),
-      new Promise<null>((_, reject) =>
-        setTimeout(() => reject(new Error("carbon_fetch_timeout")), FETCH_TIMEOUT_MS)
-      ),
-    ])
-    const ad = raw ? mapCarbonAd(raw as CarbonAdLike) : null
-    cached = { at: Date.now(), ad }
-    return ad
-  } catch (err) {
-    logger.warn({ err }, "carbon ad fetch failed")
-    cached = { at: Date.now(), ad: null }
-    return null
+const POOL_TTL_MS = 30 * 60_000
+const POOL_MAX = 8
+const FETCHES_PER_REFRESH = 3
+
+// distinct ads seen recently, oldest first. carbon returns one ad per call and rotates
+// its inventory, so a few calls a minute build a small, varied pool.
+export function mergeCarbonPool(pool: PooledAd[], fresh: NormalizedAd[], now: number): PooledAd[] {
+  const byId = new Map<string, PooledAd>()
+  for (const p of pool) if (now - p.at < POOL_TTL_MS) byId.set(p.ad.adId, p)
+  for (const ad of fresh) {
+    // a re-seen ad keeps its place but has its clock reset
+    const existing = byId.get(ad.adId)
+    if (existing) existing.at = now
+    else byId.set(ad.adId, { ad, at: now })
   }
+  return [...byId.values()].slice(-POOL_MAX)
+}
+
+let pool: PooledAd[] = []
+let lastRefreshAt = 0
+
+async function fetchOne(): Promise<NormalizedAd | null> {
+  const opts: { placement: string; serve?: string } = { placement: env.carbonPlacement }
+  if (env.carbonZoneKey) opts.serve = env.carbonZoneKey
+  const raw = await Promise.race([
+    fetchAd(opts),
+    new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error("carbon_fetch_timeout")), FETCH_TIMEOUT_MS)
+    ),
+  ])
+  return raw ? mapCarbonAd(raw as CarbonAdLike) : null
+}
+
+// never throws. refreshes at most once a minute, so /me/content/next doesn't hit carbon
+// per request; between refreshes it serves what is already in the pool.
+export async function getCarbonAds(): Promise<NormalizedAd[]> {
+  if (!env.carbonEnabled) return []
+  const now = Date.now()
+  if (now - lastRefreshAt >= CACHE_TTL_MS) {
+    lastRefreshAt = now
+    const results = await Promise.allSettled(
+      Array.from({ length: FETCHES_PER_REFRESH }, () => fetchOne())
+    )
+    const fresh: NormalizedAd[] = []
+    for (const r of results) {
+      if (r.status === "fulfilled" && r.value) fresh.push(r.value)
+      else if (r.status === "rejected") logger.warn({ err: r.reason }, "carbon ad fetch failed")
+    }
+    pool = mergeCarbonPool(pool, fresh, now)
+  }
+  return pool.map((p) => p.ad)
 }

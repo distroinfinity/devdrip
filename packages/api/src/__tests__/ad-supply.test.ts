@@ -70,3 +70,54 @@ describe("displayLabel", () => {
     expect(displayLabel("not a url", "Acme")).toBe("Acme")
   })
 })
+
+describe("fillSlots", () => {
+  const c = (id: string) => ({ adId: `carbon:${id}` })
+  const h = (i: number) => ({ adId: `house:${i}` })
+  it("fills mostly from the carbon pool, rotating through it, with a house ad every fourth slot", async () => {
+    const { fillSlots } = await import("../services/ad-supply.service.js")
+    const out = fillSlots(8, [c("a"), c("b"), c("c")], h, 0).picked.map((x) => x.adId)
+    expect(out).toEqual([
+      "carbon:a",
+      "carbon:b",
+      "carbon:c",
+      "house:0",
+      "carbon:a",
+      "carbon:b",
+      "carbon:c",
+      "house:1",
+    ])
+  })
+  it("continues the rotation across batches so consecutive batches don't restart on the same ad", async () => {
+    const { fillSlots } = await import("../services/ad-supply.service.js")
+    const first = fillSlots(2, [c("a"), c("b"), c("c")], h, 0)
+    const second = fillSlots(2, [c("a"), c("b"), c("c")], h, first.cursor)
+    expect(first.picked.map((x) => x.adId)).toEqual(["carbon:a", "carbon:b"])
+    expect(second.picked.map((x) => x.adId)).toEqual(["carbon:c", "house:0"])
+  })
+  it("falls back to house ads alone when the pool is empty", async () => {
+    const { fillSlots } = await import("../services/ad-supply.service.js")
+    expect(fillSlots(3, [], h, 0).picked.map((x) => x.adId)).toEqual([
+      "house:0",
+      "house:1",
+      "house:2",
+    ])
+  })
+})
+
+describe("carbon pool", () => {
+  it("keeps distinct ads, newest last, drops stale ones and caps its size", async () => {
+    const { mergeCarbonPool } = await import("../services/carbon-ad.provider.js")
+    const ad = (id: string) => ({ adId: id }) as never
+    let pool = mergeCarbonPool([], [ad("a"), ad("b"), ad("a")], 1_000)
+    expect(pool.map((p) => p.ad.adId)).toEqual(["a", "b"])
+    pool = mergeCarbonPool(pool, [ad("c")], 2_000)
+    expect(pool.map((p) => p.ad.adId)).toEqual(["a", "b", "c"])
+    // 31 minutes later everything older than the 30-minute ttl has aged out
+    pool = mergeCarbonPool(pool, [ad("d")], 1_000 + 31 * 60_000)
+    expect(pool.map((p) => p.ad.adId)).toEqual(["d"])
+    // and it never grows past its cap
+    const many = Array.from({ length: 20 }, (_, i) => ad(`x${i}`))
+    expect(mergeCarbonPool([], many, 5_000).length).toBeLessThanOrEqual(8)
+  })
+})
