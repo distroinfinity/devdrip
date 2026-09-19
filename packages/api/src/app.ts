@@ -34,6 +34,7 @@ import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
 import { globalLimiter, userLimiter } from "./middleware/rate-limit.js"
 import { adsClickRouter } from "./routes/ads-click.js"
+import { meEarningsRouter } from "./routes/me-earnings.js"
 import { getDb } from "./db/index.js"
 import { users } from "./db/schema/users.js"
 
@@ -125,6 +126,7 @@ app.use("/me/alerts", requireAuth, userLimiter, meAlertsRouter)
 app.use("/me/activity-summary", requireAuth, userLimiter, meActivitySummaryRouter)
 app.use("/me/devices/:id/now", requireAuth, userLimiter, meNowPlayingRouter)
 app.use("/me/recent-news", requireAuth, userLimiter, meRecentNewsRouter)
+app.use("/me/earnings", requireAuth, userLimiter, meEarningsRouter)
 app.use("/ingest", requireAuth, userLimiter, ingestRouter)
 app.use("/admin", adminRouter)
 
