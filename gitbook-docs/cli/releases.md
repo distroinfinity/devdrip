@@ -46,3 +46,20 @@ Steps the installer performs:
 2. Tag and push: `git tag cli-v0.1.0 -m "cli v0.1.0" && git push origin cli-v0.1.0`.
 3. Watch the Actions tab; the Release CLI workflow should produce the release.
 4. Verify `https://github.com/distroinfinity/devdrip/releases/latest/download/distrotv-cli.tar.gz` returns the tarball.
+
+## cli-v0.2.0 (2026-05-22)
+
+GitHub OAuth becomes the only sign-in path; email magic-link removed.
+
+**Breaking:** users running `cli-v0.1.x` must re-run `distro init` to sign in with GitHub. The CLI no longer registers anonymous devices — `POST /devices/register` returns `410 Gone` server-side.
+
+**Added:**
+
+- `distro login` is implicit in `distro init` — the wizard opens the browser, GitHub OAuth completes, and the CLI receives a device token via `/devices/pair-poll`.
+- `distro logout` — revokes the device on the backend and wipes `~/.distro/config.json`.
+- `distro init --no-browser` — for headless / SSH installs; prints the setup URL + pair code instead of calling `open`.
+
+**Removed:**
+
+- Anonymous device registration. The CLI no longer functions without a GitHub-bound device.
+- `/auth/magic-link/*` endpoints. The Resend dependency is gone.

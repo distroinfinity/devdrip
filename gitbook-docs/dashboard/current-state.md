@@ -5,8 +5,10 @@ The dashboard ships as part of the landing-page Next.js app at `frontend/`. Ther
 ## URL shape
 
 - `/` — landing page (marketing + install CTA)
-- `/sign-in` — magic-link sign-in entry point
-- `/setup` — CLI ↔ browser pairing + magic-link upgrade (4 states)
+- `/sign-in` — GitHub OAuth entry point (single "Continue with GitHub" button)
+- `/setup` — CLI ↔ browser pairing landing (single GitHub button; pair code stashed in cookie)
+- `/auth/github/start` — generates state nonce + 302s to github.com OAuth
+- `/auth/github/callback` — verifies state, calls API s2s, sets session cookie
 - `/dashboard` — activity overview (auth-gated)
 - `/dashboard/account` — email, user/device IDs, sign-out
 - `/dashboard/preferences` — channel mode, quiet hours, watchlist config
@@ -15,7 +17,9 @@ The dashboard ships as part of the landing-page Next.js app at `frontend/`. Ther
 
 ## Auth
 
-`distro init` → CLI calls `POST /devices/register` (anonymous) → opens browser at `/setup?pair=<code>` → user enters email → magic-link email via Resend → user clicks link → `/auth/magic-link/verify` → session JWT in HTTP-only cookie `distrotv_session` (7-day TTL) → redirect to `/dashboard`.
+`distro init` → CLI calls `POST /devices/pair-init` → opens browser at `/setup?pair=<code>` → user clicks "Continue with GitHub" → `/auth/github/start` → github.com OAuth → `/auth/github/callback` → API `POST /auth/github/complete` (s2s) upserts user, creates device, marks pair ready → session JWT in HTTP-only cookie `distrotv_session` (7-day TTL) → redirect to `/setup/channels`. CLI long-polls `/devices/pair-poll` and receives the device token.
+
+See [architecture/auth.md](../architecture/auth.md) for the full flow + state CSRF model.
 
 Middleware (scoped via `matcher: ["/dashboard/:path*"]`) gates `/dashboard/*`:
 

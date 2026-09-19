@@ -18,6 +18,8 @@
 - [Data Model](backend/data-model.md)
 - [Landing Page](frontend/landing-page.md)
 - [CLI Current State](cli/current-state.md)
+- [CLI: distro init](cli/init.md)
+- [CLI: distro logout](cli/logout.md)
 - [CLI UI System](cli/ui-system.md)
 - [CLI Releases](cli/releases.md)
 - [Daemon + Hook IPC](cli/daemon-and-hooks.md)

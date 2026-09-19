@@ -21,7 +21,7 @@ Distro TV is an ambient **channel surface** that runs in the developer's termina
 ## Milestones
 
 - M1: rename + rip — packages renamed to `@distrotv/*`, ads ripped, slot types added
-- M2: auth + device registration
+- M2: auth + device registration (replaced 2026-05-22 by mandatory GitHub OAuth — see `gitbook-docs/architecture/auth.md`; cli-v0.2.0)
 - M3: news slot rendering
 - M4: ticker slot + watchlist
 - M5: demo loop end-to-end → merge to main
