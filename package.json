@@ -12,15 +12,20 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "release": "turbo run build --filter=@devdrip/cli && pnpm publish --filter=@devdrip/cli --access public --no-git-checks",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\" --ignore-path .prettierignore",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\" --ignore-path .prettierignore",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "turbo": "^2.5.0",
-    "typescript": "^5.8.0",
+    "husky": "^9.1.7",
+    "jiti": "^2.0.0",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.5.0",
-    "jiti": "^2.0.0"
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

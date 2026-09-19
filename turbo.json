@@ -9,6 +9,10 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"]
+    },
     "lint": {
       "inputs": ["src/**/*.{ts,tsx}", "eslint.config.*", ".eslintrc*"]
     },

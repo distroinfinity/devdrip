@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   ci:
-    name: lint · typecheck · build
+    name: lint · typecheck · build · test
     runs-on: ubuntu-latest
 
     steps:
@@ -35,3 +35,6 @@ jobs:
 
       - name: build
         run: pnpm build
+
+      - name: test
+        run: pnpm test

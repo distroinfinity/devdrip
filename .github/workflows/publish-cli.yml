@@ -1,0 +1,46 @@
+name: Publish CLI
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (no actual publish)"
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    name: publish @devdrip/cli → npm
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      - name: build
+        run: pnpm turbo run build --filter=@devdrip/cli
+
+      - name: verify dist
+        run: test -f packages/cli/dist/index.js
+
+      - name: publish
+        if: ${{ !inputs.dry_run }}
+        run: pnpm publish --filter=@devdrip/cli --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: dry run
+        if: ${{ inputs.dry_run }}
+        run: pnpm publish --filter=@devdrip/cli --access public --no-git-checks --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

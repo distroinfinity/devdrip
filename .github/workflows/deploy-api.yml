@@ -1,0 +1,46 @@
+name: Deploy API
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: ["main"]
+    types: [completed]
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy api → railway
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: check api/shared changed
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          base: ${{ github.event.workflow_run.head_sha }}~1
+          ref: ${{ github.event.workflow_run.head_sha }}
+          filters: |
+            api:
+              - 'packages/api/**'
+              - 'packages/shared/**'
+
+      - name: install railway cli
+        if: steps.filter.outputs.api == 'true'
+        run: npm install -g @railway/cli
+
+      - name: deploy to railway
+        if: steps.filter.outputs.api == 'true'
+        run: railway up --service api --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
