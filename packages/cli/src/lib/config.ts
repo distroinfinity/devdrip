@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto"
 import { chmod, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
+import { ChannelMode, defaultDevdripPreferences, type DevdripPreferences } from "@distrotv/shared"
 
 export const CONFIG_VERSION = 6
 
@@ -111,13 +111,21 @@ function legacyAuthToV5(auth: LegacyAuth): DevdripConfig["auth"] {
   return { accessToken: auth.accessToken, accessTokenExpiresAt: auth.accessTokenExpiresAt }
 }
 
-// M2: ChannelMode values changed (earn|learn|both → news|markets|mix).
-// For any legacy value, default to mix.
+// M6: ChannelMode values changed (news|markets|mix → news_only|ticker_only|balanced|…).
+// Explicit forward-mapping so users on v5 configs auto-upgrade on next CLI run.
 function migrateChannelMode(saved: Partial<DevdripPreferences> | undefined): DevdripPreferences {
   const merged = mergePreferences(saved)
-  const validModes: readonly string[] = ["news", "markets", "mix"]
-  if (!validModes.includes(merged.channelMode as string)) {
-    merged.channelMode = "mix" as DevdripPreferences["channelMode"]
+  const legacyMap: Record<string, ChannelMode> = {
+    news: ChannelMode.NewsOnly,
+    markets: ChannelMode.TickerOnly,
+    mix: ChannelMode.Balanced,
+  }
+  const validModes = Object.values(ChannelMode) as string[]
+  const m = merged.channelMode as string
+  if (legacyMap[m]) {
+    merged.channelMode = legacyMap[m]
+  } else if (!validModes.includes(m)) {
+    merged.channelMode = ChannelMode.Balanced
   }
   return merged
 }

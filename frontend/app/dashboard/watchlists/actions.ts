@@ -10,8 +10,9 @@ export interface SaveWatchlistsResult {
   error?: string
 }
 
+// PUT /me/watchlists expects { tickers: [{ symbol, assetClass }] } — flat ordered array.
 export async function saveWatchlists(
-  replacement: { name: string; tickers: { symbol: string; assetClass: AssetClass }[] }[]
+  tickers: { symbol: string; assetClass: AssetClass }[]
 ): Promise<SaveWatchlistsResult> {
   try {
     const data = await apiFetchOrRefresh<{ watchlists: WatchlistDto[] }>(
@@ -19,7 +20,7 @@ export async function saveWatchlists(
       "/dashboard/watchlists",
       {
         method: "PUT",
-        body: JSON.stringify({ watchlists: replacement }),
+        body: JSON.stringify({ tickers }),
         headers: { "Content-Type": "application/json" },
       }
     )

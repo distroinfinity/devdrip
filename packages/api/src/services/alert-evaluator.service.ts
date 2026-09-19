@@ -4,11 +4,13 @@ import { getDb } from "../db/index.js"
 import { alerts } from "../db/schema/alerts.js"
 import { alertEvents } from "../db/schema/alert_events.js"
 import { devices } from "../db/schema/devices.js"
+import { preferences } from "../db/schema/preferences.js"
 import { tickerQuotes } from "../db/schema/ticker_quotes.js"
 import { watchlists } from "../db/schema/watchlists.js"
 import { watchlistTickers } from "../db/schema/watchlist_tickers.js"
 import { getRedis } from "../lib/redis.js"
 import { pendingAlertsKey } from "../lib/alert-keys.js"
+import { isInQuietHours } from "../lib/quiet-hours.js"
 import { logger } from "../lib/logger.js"
 
 const PENDING_TTL_SEC = 60 * 60 // 60 minutes — same as the debounce window
@@ -100,6 +102,27 @@ async function loadCandidates(): Promise<AlertCandidate[]> {
 // returns the count of devices the alert was successfully fanned out to.
 async function fireForUser(c: AlertCandidate): Promise<number> {
   const db = getDb()
+
+  const userPrefsRow = await db
+    .select({
+      quietHoursStart: preferences.quietHoursStart,
+      quietHoursEnd: preferences.quietHoursEnd,
+      tzOffsetMinutes: preferences.tzOffsetMinutes,
+    })
+    .from(preferences)
+    .where(eq(preferences.userId, c.userId))
+    .limit(1)
+
+  const userPrefs = userPrefsRow[0] ?? {
+    quietHoursStart: null,
+    quietHoursEnd: null,
+    tzOffsetMinutes: 0,
+  }
+  if (isInQuietHours(userPrefs, new Date())) {
+    // suppress: no lpush, no alert_events row. breach can re-fire after the window.
+    return 0
+  }
+
   const redis = getRedis()
   const userDevices = await db
     .select({ id: devices.id })

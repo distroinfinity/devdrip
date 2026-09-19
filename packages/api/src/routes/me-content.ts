@@ -1,5 +1,6 @@
 import { Router } from "express"
 import { eq } from "drizzle-orm"
+import { ChannelMode } from "@distrotv/shared"
 import type { NewsPayload, SlotPayload, TickerPayload } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { preferences } from "../db/schema/preferences.js"
@@ -10,9 +11,11 @@ export const meContentRouter: ReturnType<typeof Router> = Router()
 
 // GET /me/content/next?n=N&deviceId=...&surface=terminal-tv
 // returns { items: SlotPayload[] } based on user's channelMode.
-//   news    → only news items
-//   markets → only ticker items (n calls with rotationIndex 0..n-1)
-//   mix     → alternating news, ticker, ... up to n
+//   news_only    → 100% news items
+//   ticker_only  → 100% ticker items
+//   news_heavy   → mix-ish (3:1 news:ticker; deterministic pattern deferred to Task 4)
+//   balanced     → mix-ish (1:1 news:ticker; deterministic pattern deferred to Task 4)
+//   ticker_heavy → mix-ish (1:3 news:ticker; deterministic pattern deferred to Task 4)
 meContentRouter.get("/next", async (req, res, next) => {
   try {
     const userId = res.locals["userId"] as string
@@ -29,11 +32,13 @@ meContentRouter.get("/next", async (req, res, next) => {
 
     const mode = await getMode(userId)
     let items: SlotPayload[]
-    if (mode === "news") {
+    if (mode === ChannelMode.NewsOnly) {
       items = await nextPicksForDevice({ userId, deviceId, n })
-    } else if (mode === "markets") {
+    } else if (mode === ChannelMode.TickerOnly) {
       items = await onlyTicker(userId, deviceId, n)
     } else {
+      // news_heavy | balanced | ticker_heavy — all treated as interleaved for now.
+      // Task 4 (slot-cache.ts) will refine per-device ratio using a counter.
       items = await interleave(userId, deviceId, n)
     }
 
@@ -43,16 +48,17 @@ meContentRouter.get("/next", async (req, res, next) => {
   }
 })
 
-async function getMode(userId: string): Promise<"news" | "markets" | "mix"> {
+async function getMode(userId: string): Promise<ChannelMode> {
   const db = getDb()
   const [row] = await db
     .select({ mode: preferences.channelMode })
     .from(preferences)
     .where(eq(preferences.userId, userId))
     .limit(1)
-  const m = row?.mode ?? "mix"
-  if (m === "news" || m === "markets" || m === "mix") return m
-  return "mix"
+  const m = row?.mode as string | undefined
+  const valid = Object.values(ChannelMode) as string[]
+  if (m && valid.includes(m)) return m as ChannelMode
+  return ChannelMode.Balanced
 }
 
 // fetch up to `n` tickers, skipping rotation indices that return null (missing quote

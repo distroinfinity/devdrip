@@ -15,6 +15,7 @@ import type { SlotCache, CachedSlot } from "../slot-cache.js"
 import type { Ledger, LocalNewsImpression } from "../ledger.js"
 import type { KeyCapture } from "./input.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
+import { writeNowPlaying, clearNowPlaying } from "../now-playing-writer.js"
 
 export interface DisplayHandleApi {
   vanish: () => { latencyMs: number }
@@ -411,6 +412,17 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             displayTimeMs,
             tty: session.tty,
           })
+          // fire-and-forget: write now-playing to API so dashboard can mirror
+          if (effect.ad.kind === "news" || effect.ad.kind === "ticker") {
+            const startedAt = new Date(now()).toISOString()
+            const endsAt = new Date(now() + displayTimeMs).toISOString()
+            void writeNowPlaying(deps.deviceId, {
+              kind: effect.ad.kind,
+              payload: effect.ad,
+              startedAt,
+              endsAt,
+            })
+          }
         } catch (err) {
           deps.log.warn("display failed", {
             payloadId,
@@ -488,6 +500,8 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
           adsShownCount += 1
           session.currentDisplay = null
           session.currentSlotKind = null
+          // fire-and-forget: clear now-playing so dashboard knows slot ended
+          void clearNowPlaying(deps.deviceId)
         }
         return
       case "recordImpression":

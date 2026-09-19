@@ -57,15 +57,54 @@ export function validateUpdatePreferences(body: unknown): UpdatePreferencesInput
   }
 
   if (b["quietHoursStart"] !== undefined) {
-    out.quietHoursStart = parseHourOrNull(b["quietHoursStart"], "quiet_hours_start")
+    if (
+      b["quietHoursStart"] !== null &&
+      (typeof b["quietHoursStart"] !== "number" ||
+        b["quietHoursStart"] < 0 ||
+        b["quietHoursStart"] > 1439 ||
+        !Number.isInteger(b["quietHoursStart"]))
+    ) {
+      throw new ValidationError("invalid_quiet_hours_start")
+    }
+    out.quietHoursStart = b["quietHoursStart"] as number | null
   }
 
   if (b["quietHoursEnd"] !== undefined) {
-    out.quietHoursEnd = parseHourOrNull(b["quietHoursEnd"], "quiet_hours_end")
+    if (
+      b["quietHoursEnd"] !== null &&
+      (typeof b["quietHoursEnd"] !== "number" ||
+        b["quietHoursEnd"] < 0 ||
+        b["quietHoursEnd"] > 1439 ||
+        !Number.isInteger(b["quietHoursEnd"]))
+    ) {
+      throw new ValidationError("invalid_quiet_hours_end")
+    }
+    out.quietHoursEnd = b["quietHoursEnd"] as number | null
+  }
+
+  const startProvided = b["quietHoursStart"] !== undefined
+  const endProvided = b["quietHoursEnd"] !== undefined
+  if (startProvided !== endProvided) {
+    throw new ValidationError("quiet_hours_endpoints_must_be_set_together")
+  }
+  if (
+    startProvided &&
+    endProvided &&
+    (b["quietHoursStart"] === null) !== (b["quietHoursEnd"] === null)
+  ) {
+    throw new ValidationError("quiet_hours_endpoints_must_both_be_null_or_both_set")
   }
 
   if (b["tzOffsetMinutes"] !== undefined) {
-    out.tzOffsetMinutes = parseIntInRange(b["tzOffsetMinutes"], -720, 840, "tz_offset_minutes")
+    if (
+      typeof b["tzOffsetMinutes"] !== "number" ||
+      b["tzOffsetMinutes"] < -720 ||
+      b["tzOffsetMinutes"] > 840 ||
+      !Number.isInteger(b["tzOffsetMinutes"])
+    ) {
+      throw new ValidationError("invalid_tz_offset")
+    }
+    out.tzOffsetMinutes = b["tzOffsetMinutes"]
   }
 
   if (b["idleSensitivityMs"] !== undefined) {
@@ -107,9 +146,4 @@ function parseIntInRange(v: unknown, min: number, max: number, field: string): n
     throw new ValidationError(`invalid_${field}`)
   }
   return v
-}
-
-function parseHourOrNull(v: unknown, field: string): number | null {
-  if (v === null) return null
-  return parseIntInRange(v, 0, 23, field)
 }

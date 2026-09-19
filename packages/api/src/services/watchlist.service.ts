@@ -4,6 +4,10 @@ import { getDb } from "../db/index.js"
 import { watchlists } from "../db/schema/watchlists.js"
 import { watchlistTickers } from "../db/schema/watchlist_tickers.js"
 
+interface WatchlistRow {
+  id: string
+}
+
 const DEFAULT_NAME = "Default"
 const DEFAULT_SEED: { symbol: string; assetClass: AssetClass }[] = [
   { symbol: "AAPL", assetClass: "equity" },
@@ -16,7 +20,7 @@ const DEFAULT_SEED: { symbol: string; assetClass: AssetClass }[] = [
 export const WATCHLIST_MAX = 3
 export const TICKERS_PER_WATCHLIST_MAX = 25
 
-export async function ensureDefaultWatchlist(userId: string): Promise<void> {
+export async function ensureDefaultWatchlist(userId: string): Promise<WatchlistRow> {
   const db = getDb()
   // first-time only — gated on EXISTS so an explicit empty save is not silently re-seeded.
   // (mirrors the m3 ensureDefaultSubscriptions WHERE NOT EXISTS pattern.)
@@ -25,10 +29,10 @@ export async function ensureDefaultWatchlist(userId: string): Promise<void> {
     .from(watchlists)
     .where(eq(watchlists.userId, userId))
     .limit(1)
-  if (existing) return
+  if (existing) return existing
 
   try {
-    await db.transaction(async (tx) => {
+    const row = await db.transaction(async (tx) => {
       const [created] = await tx
         .insert(watchlists)
         .values({ userId, name: DEFAULT_NAME, priority: 0 })
@@ -42,11 +46,21 @@ export async function ensureDefaultWatchlist(userId: string): Promise<void> {
           priority: i,
         }))
       )
+      return created
     })
+    return row
   } catch (err) {
     // race: two concurrent first-GETs for the same user both saw zero rows;
-    // the loser hits watchlists_user_name_uq. swallow — the winner wrote the seed.
-    if (isUniqueViolation(err)) return
+    // the loser hits watchlists_user_name_uq. swallow — re-fetch and return winner's row.
+    if (isUniqueViolation(err)) {
+      const [row] = await db
+        .select({ id: watchlists.id })
+        .from(watchlists)
+        .where(eq(watchlists.userId, userId))
+        .limit(1)
+      if (!row) throw new Error("ensureDefaultWatchlist: race-lost but no row found")
+      return row
+    }
     throw err
   }
 }
@@ -153,6 +167,29 @@ export async function setWatchlists(
         }))
       )
       i++
+    }
+  })
+}
+
+// full-replacement of the default watchlist tickers — ordered array contract (M6).
+// position in array is priority. atomically wipes and rewrites.
+export async function setWatchlist(
+  userId: string,
+  tickers: { symbol: string; assetClass: string }[]
+): Promise<void> {
+  const db = getDb()
+  const wl = await ensureDefaultWatchlist(userId)
+  await db.transaction(async (tx) => {
+    await tx.delete(watchlistTickers).where(eq(watchlistTickers.watchlistId, wl.id))
+    if (tickers.length > 0) {
+      await tx.insert(watchlistTickers).values(
+        tickers.map((t, idx) => ({
+          watchlistId: wl.id,
+          symbol: t.symbol,
+          assetClass: t.assetClass,
+          priority: idx,
+        }))
+      )
     }
   })
 }

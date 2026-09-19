@@ -127,6 +127,13 @@
       "when": 1778216400000,
       "tag": "0017_drop_reuters_source",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1778302800000,
+      "tag": "0018_update_channel_mode_to_5_positions",
+      "breakpoints": true
     }
   ]
 }

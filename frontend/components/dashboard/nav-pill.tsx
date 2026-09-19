@@ -13,26 +13,33 @@ interface NavPillProps {
   exact?: boolean
   disabled?: boolean
   soonLabel?: string
+  // sidebar variant: left-border accent active indicator, full-width, no rounded bg pill
+  sidebar?: boolean
 }
 
 // monochrome nav chips — accent color is reserved for surgical touchpoints
 // (earnings number, chart line, links), not wide fills.
-export function NavPill({ href, label, exact, disabled, soonLabel }: NavPillProps) {
+export function NavPill({ href, label, exact, disabled, soonLabel, sidebar }: NavPillProps) {
   const pathname = usePathname()
   const active =
     !disabled && (exact ? pathname === href : pathname === href || pathname.startsWith(href + "/"))
 
-  const base =
-    "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-body text-[12px] font-medium transition-colors"
-
-  const classes = cn(
-    base,
-    active && "border border-[var(--rule-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)]",
-    !active &&
-      !disabled &&
-      "border border-transparent text-[var(--ink-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--ink-primary)]",
-    disabled && "cursor-not-allowed border border-transparent text-[var(--ink-tertiary)] opacity-80"
-  )
+  // sidebar variant uses 2px left-border accent; header variant uses hairline border + bg
+  const classes = sidebar
+    ? cn(
+        "flex w-full items-center px-3 py-1.5 font-body text-[12px] font-medium transition-colors border-l-2",
+        active
+          ? "border-l-[var(--accent-color)] text-[var(--ink-primary)] bg-[var(--bg-surface-hover)]"
+          : "border-l-transparent text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-surface-hover)]",
+        disabled && "cursor-not-allowed opacity-60"
+      )
+    : cn(
+        "inline-flex items-center gap-1.5 rounded-none px-3 py-1.5 font-body text-[12px] font-medium transition-colors border-b-2",
+        active
+          ? "border-b-[var(--accent-color)] text-[var(--ink-primary)]"
+          : "border-b-transparent text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+        disabled && "cursor-not-allowed text-[var(--ink-tertiary)] opacity-80"
+      )
 
   if (disabled) {
     return (

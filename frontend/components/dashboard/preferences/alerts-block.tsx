@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import type { AlertDto } from "@distrotv/shared"
+import { InlineHelp } from "@/components/v5/inline-help"
 
 const SYMBOL_RE = /^[A-Z0-9.\-]{1,16}$/
 
@@ -86,9 +87,15 @@ export function AlertsBlock({ alerts, onChange, disabled }: Props) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-[12px] text-[var(--ink-secondary)]">
-          global threshold (% daily move)
-        </label>
+        <div className="flex items-baseline gap-1">
+          <label className="block text-[12px] text-[var(--ink-secondary)]">
+            global threshold (% daily move)
+          </label>
+          <InlineHelp>
+            fires when a watched ticker moves more than this percentage in a day. per-ticker
+            overrides apply over the global default.
+          </InlineHelp>
+        </div>
         <input
           type="number"
           step="0.5"

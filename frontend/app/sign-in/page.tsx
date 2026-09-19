@@ -2,6 +2,8 @@ import { redirect } from "next/navigation"
 import type { Metadata } from "next"
 import { sendMagicLink } from "@/app/setup/actions"
 import { getSession } from "@/lib/session"
+import { SharpInput } from "@/components/v5/sharp-input"
+import { SharpButton } from "@/components/v5/sharp-button"
 
 export const metadata: Metadata = {
   title: "Sign in — Distro TV",
@@ -21,16 +23,19 @@ export default async function SignInPage({ searchParams }: PageProps) {
 
   if (params.sent === "1" && params.email) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-8">
+      <main className="min-h-screen flex items-center justify-center p-8 bg-[var(--bg-primary)]">
         <div className="max-w-md text-center space-y-3">
-          <h1 className="text-2xl font-semibold">Check your email</h1>
-          <p className="text-sm text-muted-foreground">
-            We sent a sign-in link to <strong>{params.email}</strong>. Click the link to complete
-            sign-in. The link expires in 15 minutes.
+          <h1 className="font-[var(--font-display)] text-[22px] font-bold tracking-[-0.02em] text-[var(--ink-primary)]">
+            Check your email
+          </h1>
+          <p className="text-[13px] font-[var(--font-body)] text-[var(--ink-secondary)]">
+            We sent a sign-in link to{" "}
+            <strong className="text-[var(--ink-primary)]">{params.email}</strong>. Click the link to
+            complete sign-in. The link expires in 15 minutes.
           </p>
-          <p className="text-xs text-muted-foreground pt-4">
+          <p className="font-[var(--font-data)] text-[10px] uppercase tracking-wider text-[var(--ink-tertiary)] pt-4">
             Didn&apos;t get it?{" "}
-            <a href="/sign-in" className="underline">
+            <a href="/sign-in" className="text-[var(--accent-color)] hover:underline">
               Try again
             </a>
             .
@@ -41,15 +46,19 @@ export default async function SignInPage({ searchParams }: PageProps) {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-8">
+    <main className="min-h-screen flex items-center justify-center p-8 bg-[var(--bg-primary)]">
       <div className="max-w-md w-full space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold">Sign in to Distro TV</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Magic-link sign-in — no password.</p>
+          <h1 className="font-[var(--font-display)] text-[22px] font-bold tracking-[-0.02em] text-[var(--ink-primary)]">
+            Sign in to Distro TV
+          </h1>
+          <p className="mt-2 text-[13px] font-[var(--font-body)] text-[var(--ink-secondary)]">
+            Magic-link sign-in — no password.
+          </p>
         </div>
 
         {params.error && (
-          <div className="px-3 py-2 bg-red-50 border border-red-200 text-red-800 rounded text-sm">
+          <div className="px-3 py-2 bg-[var(--status-negative-surface)] border border-[var(--status-negative)] text-[var(--status-negative)] text-[13px] font-[var(--font-body)]">
             {describeError(params.error)}
           </div>
         )}
@@ -67,17 +76,21 @@ export default async function SignInPage({ searchParams }: PageProps) {
           }}
           className="space-y-3"
         >
-          <input
+          <SharpInput
             type="email"
             name="email"
             placeholder="you@email.com"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+            className="w-full"
           />
-          <button type="submit" className="w-full px-4 py-2 bg-black text-white rounded text-sm">
+          <SharpButton type="submit" variant="primary" className="w-full">
             Send sign-in link
-          </button>
+          </SharpButton>
         </form>
+
+        <p className="font-[var(--font-data)] text-[10px] uppercase tracking-wider text-[var(--ink-tertiary)] text-center">
+          No account needed — just your email.
+        </p>
       </div>
     </main>
   )

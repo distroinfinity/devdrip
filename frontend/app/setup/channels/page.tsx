@@ -14,11 +14,13 @@ export default async function SetupChannelsPage() {
   )
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-8">
+    <main className="min-h-screen flex items-center justify-center p-8 bg-[var(--bg-primary)]">
       <div className="max-w-lg w-full space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold">Pick your channels</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <h1 className="font-[var(--font-display)] text-[22px] font-bold tracking-[-0.02em] text-[var(--ink-primary)]">
+            Pick your channels
+          </h1>
+          <p className="mt-2 text-[13px] font-[var(--font-body)] text-[var(--ink-secondary)]">
             These feed your terminal slot. You can change this anytime from the dashboard.
           </p>
         </div>

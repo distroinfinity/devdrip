@@ -244,6 +244,28 @@ Notes:
 - `tzOffsetMinutes` is refreshed from `Date().getTimezoneOffset()` on every save so users who move timezones don't need to edit manually.
 - Interactive mode shows the current JSON in a `note()` block after each edit so you can see a diff before saving.
 
+### `preferences → mode`
+
+Pick one of 5 channel-mode positions:
+
+- `news only` — 100% news slots
+- `news heavy (3:1)` — 3 news for every 1 ticker
+- `balanced (1:1)` — alternating news / ticker
+- `ticker heavy (1:3)` — 1 news for every 3 tickers
+- `ticker only` — 100% ticker slots
+
+Persisted as `preferences.channelMode` enum (`news_only` / `news_heavy` / `balanced` / `ticker_heavy` / `ticker_only`).
+
+### `preferences → quiet hours`
+
+Set a daily window during which alerts are suppressed. Inputs in HH:MM format. Leave start empty to disable.
+
+Suppression is enforced both at the alert evaluator (no lpush, no alert_events row) and at the selection layer (gates LPOP). Alerts re-fire after the window closes if the breach still applies. See `architecture/quiet-hours.md`.
+
+### `preferences → tz offset`
+
+Set the user's local timezone offset in minutes (e.g. `-240` for EDT, `330` for IST). Auto-detect via `Intl` is offered first; manual entry as fallback. Used by the quiet-hours window calculation.
+
 ## devdrip demo (S2-07 → S5-04)
 
 `devdrip demo` fetches one real ad from `GET /ads/next?surface=terminal-tv&deviceId=<id>` and renders it via `renderBox()` with an amber `[DEMO]` badge in the header so a user can't mistake a practice ad for a real logged one. Ad headline/body/url text is sanitized before printing so terminal control sequences cannot corrupt the screen. If the backend returns 204 or errors out, the command falls back to the bundled `DEMO_ADS` fixture so the preview is useful offline.

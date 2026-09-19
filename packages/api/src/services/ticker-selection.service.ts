@@ -1,6 +1,7 @@
 import { eq, and, gte, desc, asc } from "drizzle-orm"
 import type { TickerPayload, TickerStats, PendingAlert } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
+import { preferences } from "../db/schema/preferences.js"
 import { watchlists } from "../db/schema/watchlists.js"
 import { watchlistTickers } from "../db/schema/watchlist_tickers.js"
 import { tickerQuotes } from "../db/schema/ticker_quotes.js"
@@ -8,6 +9,7 @@ import { tickerHistory } from "../db/schema/ticker_history.js"
 import { ensureDefaultWatchlist } from "./watchlist.service.js"
 import { getRedis } from "../lib/redis.js"
 import { pendingAlertsKey } from "../lib/alert-keys.js"
+import { isInQuietHours } from "../lib/quiet-hours.js"
 
 // guard against the worker silently dying: even if quote.stale=false in the DB,
 // any quote older than this is treated as stale on serve. ticker fetcher runs
@@ -25,13 +27,31 @@ export async function nextTickerForDevice(args: NextTickerArgs): Promise<TickerP
 
   // alert-priority bump: pop the oldest pending alert for this device.
   // if a payload comes back, the rotation path is skipped — slot is forced to the alerted symbol.
-  const redis = getRedis()
-  const pending = await redis.lpop<PendingAlert>(pendingAlertsKey(args.deviceId))
-  if (pending) {
-    return await buildTickerPayload(args.userId, pending.symbol, pending)
+  const db = getDb()
+
+  const userPrefsRow = await db
+    .select({
+      quietHoursStart: preferences.quietHoursStart,
+      quietHoursEnd: preferences.quietHoursEnd,
+      tzOffsetMinutes: preferences.tzOffsetMinutes,
+    })
+    .from(preferences)
+    .where(eq(preferences.userId, args.userId))
+    .limit(1)
+  const userPrefs = userPrefsRow[0] ?? {
+    quietHoursStart: null,
+    quietHoursEnd: null,
+    tzOffsetMinutes: 0,
   }
 
-  const db = getDb()
+  if (!isInQuietHours(userPrefs, new Date())) {
+    const redis = getRedis()
+    const pending = await redis.lpop<PendingAlert>(pendingAlertsKey(args.deviceId))
+    if (pending) {
+      return await buildTickerPayload(args.userId, pending.symbol, pending)
+    }
+  }
+  // fall through to regular rotation (existing code)
 
   // primary list = priority-0 watchlist
   const [primary] = await db
