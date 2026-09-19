@@ -1,6 +1,6 @@
 import { access, readFile, statfs } from "node:fs/promises"
 import { platform } from "node:os"
-import { apiFetch, apiFetchPublic, resolveApiUrl } from "./api-client.js"
+import { apiFetch, apiFetchPublic, resolveApiUrl, type MeResponse } from "./api-client.js"
 import { slotCachePath } from "./slot-cache.js"
 import { getMissingDevdripHookEvents, readSettings } from "./claude-settings.js"
 import { configDir, type DevdripConfig } from "./config.js"
@@ -22,14 +22,15 @@ const LEDGER_DISK_WARN_BYTES = 100 * 1024 * 1024
 
 async function probeAuth(): Promise<Probe> {
   try {
-    await apiFetch<unknown>("/me", { timeoutMs: PROBE_TIMEOUT_MS })
-    return { name: "auth valid (GET /me)", ok: true, detail: "" }
+    const me = await apiFetch<MeResponse>("/me", { timeoutMs: PROBE_TIMEOUT_MS })
+    const login = me.githubLogin ? `@${me.githubLogin}` : me.id.slice(0, 8)
+    return { name: "GitHub sign-in", ok: true, detail: login }
   } catch (err) {
     return {
-      name: "auth valid (GET /me)",
+      name: "GitHub sign-in",
       ok: false,
       detail: errDetail(err),
-      fix: "run `distro auth`",
+      fix: "run `distro init` to sign in",
     }
   }
 }

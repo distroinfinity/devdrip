@@ -134,7 +134,12 @@ async function ensureSignedInOrPair(): Promise<{ user: MeResponse }> {
   await writeConfig({
     apiUrl: resolveApiUrl(null),
     auth: null,
-    user: { id: ready.user.id },
+    user: {
+      id: ready.user.id,
+      githubLogin: ready.user.githubLogin,
+      email: ready.user.email,
+      avatarUrl: ready.user.avatarUrl,
+    },
     device: { id: ready.deviceId, secret: ready.deviceToken.replace(/^device\./, "") },
     cli: { binPath: "" },
     preferences: defaultDevdripPreferences(),

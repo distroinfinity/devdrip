@@ -16,6 +16,9 @@ export interface DevdripConfig {
   } | null
   user: {
     id: string
+    githubLogin?: string
+    email?: string
+    avatarUrl?: string | null
   }
   // secret is present for anon-registered devices; cleared post-M2 if we swap to JWT-only
   device: { id: string | null; secret?: string }

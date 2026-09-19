@@ -53,7 +53,7 @@ export const statusCmd = new Command("status")
         process.stdout.write(`${JSON.stringify(payload)}\n`)
         return
       }
-      printHuman(payload)
+      printHuman(payload, cfg)
 
       const upgrade = await upgradePromise
       if (upgrade?.outdated) {
@@ -129,12 +129,15 @@ function formatAge(ms: number): string {
   return `${hours}h ago`
 }
 
-function printHuman(p: StatusPayload): void {
+function printHuman(p: StatusPayload, cfg: DevdripConfig | null): void {
   if (!p.installed) {
     console.log("distro:   not initialized (run `distro init`)")
     printDaemon(p.daemon)
     return
   }
+
+  const login = cfg?.user.githubLogin
+  if (login) console.log(`signed in: @${login}`)
 
   console.log(`mode:     ${p.mode ?? "unknown"}`)
   console.log(`channels: ${p.channels.length > 0 ? p.channels.join(", ") : "none"}`)
