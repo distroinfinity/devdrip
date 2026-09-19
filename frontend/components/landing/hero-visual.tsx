@@ -32,7 +32,10 @@ export function HeroVisual({ className }: HeroVisualProps) {
       <div className="relative grid grid-cols-1 lg:grid-cols-[1.2fr_1px_1fr]">
         {/* left panel: agent terminal + terminal tv */}
         <div className="p-5 lg:p-6 space-y-4">
-          <AgentTerminal />
+          {/* fixed height prevents layout shift when tasks cycle (3–4 files) */}
+          <div className="lg:h-[200px] overflow-hidden">
+            <AgentTerminal />
+          </div>
           {/* horizontal divider */}
           <div className="h-px bg-[var(--rule-default)]" />
           {/* terminal tv — hidden on mobile, visible on lg+ */}
