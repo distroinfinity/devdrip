@@ -1,6 +1,12 @@
-# Local Ad Cache
+# Ad Cache (renamed to Slot Cache)
 
-Pre-fetched ads stored on disk so hooks can serve in <200ms without a network round-trip.
+The daemon's local cache was renamed `ad-cache` → `slot-cache` when news support landed. The cache file is `slot-cache.json` (was `ad-cache.json`); contents are now `CachedSlot[]` (discriminated `AdSlot | NewsSlot`).
+
+The cache file version was bumped 2 → 3, so any pre-existing `ad-cache.json` is silently dropped on first run after upgrade.
+
+See [Channel Modes](../architecture/channel-modes.md) and [Slot Content](../architecture/slot-content.md) for context.
+
+Pre-fetched slots stored on disk so hooks can serve in <200ms without a network round-trip.
 
 ## Why local
 

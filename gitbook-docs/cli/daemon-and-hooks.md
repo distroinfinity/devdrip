@@ -193,6 +193,14 @@ deps.ledger.recordClick({ id: uuid(), deliveryToken: imp.deliveryToken, createdA
 
 The click is queued alongside its parent impression and synced in the next cycle.
 
+## Slot-agnostic delivery
+
+The daemon's cache holds `CachedSlot[]` (discriminated union of ad + news, see [Slot Content](../architecture/slot-content.md)). The orchestrator's `pickNextSlot` returns the next item; render branches on `slot.kind` in `display.ts` with an exhaustiveness check.
+
+Ad-only side effects (campaign cap, hourly/daily fatigue caps, ad ledger writes, click tracking, viewability beacons) are gated on `slot.kind === "ad"`. News slots write to a separate `news_impressions_pending` SQLite table and sync via the same `/ingest` POST.
+
+The save keybind `b` writes to `reading_pending` (local SQLite) and syncs to `/me/reading`.
+
 ## What's next
 
 - **S5-02 `devdrip doctor`** — checks heartbeat age and offers to restart.
