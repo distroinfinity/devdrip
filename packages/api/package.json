@@ -26,6 +26,7 @@
     "@neondatabase/serverless": "^1.0.2",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
+    "@worldcoin/minikit-js": "^1.11.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

@@ -90,6 +90,27 @@ export const env = {
   get worldAppId() {
     return optionalEnv("WORLD_APP_ID", "")
   },
+  // World ID action namespace — same string passed to IDKit on the client and
+  // forwarded to developer.world.org/api/v4/verify in cloud verification.
+  // Hardcoded default; override only for staging environments.
+  get worldIdAction() {
+    return optionalEnv("WORLD_ID_ACTION", "devdrip-signup")
+  },
+  // Public base URL of the Mini App for OAuth callback redirects. In dev this
+  // is the ngrok tunnel pointing at frontend/. In prod this is the Vercel
+  // deploy URL. Falls back to clientRedirectUrl which is already set elsewhere.
+  get miniAppBaseUrl() {
+    return optionalEnv(
+      "MINIAPP_BASE_URL",
+      optionalEnv("CLIENT_REDIRECT_URL", "http://localhost:3000")
+    )
+  },
+  // Cookie domain for the Mini App session JWT. Empty string = no Domain
+  // attribute (cookie scoped to exact host), which is the right default for
+  // local dev and single-host prod.
+  get miniAppCookieDomain() {
+    return optionalEnv("MINIAPP_COOKIE_DOMAIN", "")
+  },
 }
 
 /**

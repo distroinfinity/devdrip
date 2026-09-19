@@ -134,7 +134,7 @@ importers:
     dependencies:
       '@carbonads/sdk':
         specifier: ^0.2.2
-        version: 0.2.2
+        version: 0.2.2(react@18.3.1)
       '@devdrip/shared':
         specifier: workspace:*
         version: link:../shared
@@ -147,6 +147,9 @@ importers:
       '@upstash/redis':
         specifier: ^1.37.0
         version: 1.37.0
+      '@worldcoin/minikit-js':
+        specifier: ^1.11.0
+        version: 1.11.0(@types/react@18.3.28)(react@18.3.1)(typescript@5.9.3)(viem@2.48.4(typescript@5.9.3))
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -2219,6 +2222,18 @@ packages:
   '@vitest/utils@4.1.4':
     resolution: {integrity: sha512-13QMT+eysM5uVGa1rG4kegGYNp6cnQcsTc67ELFbhNLQO+vgsygtYJx2khvdt4gVQqSSpC/KT5FZZxUpP3Oatw==}
 
+  '@worldcoin/idkit-core@2.1.0':
+    resolution: {integrity: sha512-6MOFcOGqpk3iiW1i25NYmRJ6JUO8KetqS5Ic0l2cqnEEKvjMa/NT1+WTuenjTUF//Mqwy5kWgtVBzUqeyEfQ2g==}
+    engines: {node: '>=12.4'}
+    deprecated: Old-versions moved to new ones
+
+  '@worldcoin/minikit-js@1.11.0':
+    resolution: {integrity: sha512-EkkKa0Ei4tBDq75QpyLPEac4N5wpUGX/J990LeyKuKAJWsFqtZltIxHtWPyPY+a9WKbfboW29NL7ZnEl1xg47g==}
+    engines: {node: '>= 16'}
+    peerDependencies:
+      react: ^17 || ^18 || ^19
+      viem: ^2.23.5
+
   abitype@1.2.3:
     resolution: {integrity: sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg==}
     peerDependencies:
@@ -2402,6 +2417,9 @@ packages:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
     engines: {node: '>=8'}
 
+  browser-or-node@3.0.0-pre.0:
+    resolution: {integrity: sha512-J6/RvtjajlHVJMBZ/Xk+5O9E8CKUHOZDz5e/eG8UBjWBSB/d/tgqFOua/xxqP+eGfgZlaJHELHnC3mdsVTTMIQ==}
+
   browserslist@4.28.2:
     resolution: {integrity: sha512-48xSriZYYg+8qXna9kwqjIVzuQxi+KYWp2+5nCYnYKPTr0LvD89Jqk2Or5ogxz0NUMfIjhh2lIUX/LyX9B4oIg==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
@@ -2412,6 +2430,9 @@ packages:
 
   buffer@5.7.1:
     resolution: {integrity: sha512-EHcyIPBQ4BSGlvjB16k5KgAJ27CIsHY/2JBmCRReo48y9rQ3MaUzWX3KVlBa4U7MyX02HdVj0K7C3WaB3ju7FQ==}
+
+  buffer@6.0.3:
+    resolution: {integrity: sha512-FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA==}
 
   bundle-require@5.1.0:
     resolution: {integrity: sha512-3WrrOuZiyaaZPWiEt4G3+IffISVC9HYlWueJEBWED4ZH4aIAC2PnkdnuRrR94M+w6yGWn4AglWtJtBI8YqvgoA==}
@@ -3975,6 +3996,14 @@ packages:
     resolution: {integrity: sha512-qFOyK5PjiWZd+QQIh+1jhdb9LpxTF0qs7Pm8o5QHYZ0M3vKqSqzsZaEB6oWlxZ+q2sJBMI/Ktgd2N5ZwQoRHfg==}
     engines: {node: '>= 0.4'}
 
+  ox@0.1.8:
+    resolution: {integrity: sha512-GJl6uKXxhPq/XgyvAnIokGuGU/pt9CU8reRJjzi4a02HOpLc2CEXXD4bRCITFFAzdRqHj3DQ6GDS7PlCytPM/A==}
+    peerDependencies:
+      typescript: '>=5.4.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   ox@0.14.20:
     resolution: {integrity: sha512-rby38C3nDn8eQkf29Zgw4hkCZJ64Qqi0zRPWL8ENUQ7JVuoITqrVtwWQgM/He19SCMUEc7hS/Sjw0jIOSLJhOw==}
     peerDependencies:
@@ -4816,6 +4845,11 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
+  use-sync-external-store@1.6.0:
+    resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
@@ -5053,6 +5087,21 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zustand@4.5.7:
+    resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
+    engines: {node: '>=12.7.0'}
+    peerDependencies:
+      '@types/react': '>=16.8'
+      immer: '>=9.0.6'
+      react: '>=16.8'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+
 snapshots:
 
   '@adraffy/ens-normalize@1.11.1': {}
@@ -5061,7 +5110,9 @@ snapshots:
 
   '@babel/runtime@7.29.2': {}
 
-  '@carbonads/sdk@0.2.2': {}
+  '@carbonads/sdk@0.2.2(react@18.3.1)':
+    optionalDependencies:
+      react: 18.3.1
 
   '@clack/core@0.4.1':
     dependencies:
@@ -6592,6 +6643,31 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
+  '@worldcoin/idkit-core@2.1.0(@types/react@18.3.28)(react@18.3.1)(typescript@5.9.3)':
+    dependencies:
+      browser-or-node: 3.0.0-pre.0
+      buffer: 6.0.3
+      ox: 0.1.8(typescript@5.9.3)
+      zustand: 4.5.7(@types/react@18.3.28)(react@18.3.1)
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - react
+      - typescript
+      - zod
+
+  '@worldcoin/minikit-js@1.11.0(@types/react@18.3.28)(react@18.3.1)(typescript@5.9.3)(viem@2.48.4(typescript@5.9.3))':
+    dependencies:
+      '@worldcoin/idkit-core': 2.1.0(@types/react@18.3.28)(react@18.3.1)(typescript@5.9.3)
+      abitype: 1.2.3(typescript@5.9.3)
+      react: 18.3.1
+      viem: 2.48.4(typescript@5.9.3)
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - typescript
+      - zod
+
   abitype@1.2.3(typescript@5.9.3):
     optionalDependencies:
       typescript: 5.9.3
@@ -6793,6 +6869,8 @@ snapshots:
     dependencies:
       fill-range: 7.1.1
 
+  browser-or-node@3.0.0-pre.0: {}
+
   browserslist@4.28.2:
     dependencies:
       baseline-browser-mapping: 2.10.18
@@ -6804,6 +6882,11 @@ snapshots:
   buffer-from@1.1.2: {}
 
   buffer@5.7.1:
+    dependencies:
+      base64-js: 1.5.1
+      ieee754: 1.2.1
+
+  buffer@6.0.3:
     dependencies:
       base64-js: 1.5.1
       ieee754: 1.2.1
@@ -8530,6 +8613,20 @@ snapshots:
       object-keys: 1.1.1
       safe-push-apply: 1.0.0
 
+  ox@0.1.8(typescript@5.9.3):
+    dependencies:
+      '@adraffy/ens-normalize': 1.11.1
+      '@noble/curves': 1.9.1
+      '@noble/hashes': 1.8.0
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
+      abitype: 1.2.3(typescript@5.9.3)
+      eventemitter3: 5.0.1
+    optionalDependencies:
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - zod
+
   ox@0.14.20(typescript@5.9.3):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
@@ -9594,6 +9691,10 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
+  use-sync-external-store@1.6.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+
   util-deprecate@1.0.2: {}
 
   uuid@10.0.0: {}
@@ -9818,3 +9919,10 @@ snapshots:
   yaml@2.8.3: {}
 
   yocto-queue@0.1.0: {}
+
+  zustand@4.5.7(@types/react@18.3.28)(react@18.3.1):
+    dependencies:
+      use-sync-external-store: 1.6.0(react@18.3.1)
+    optionalDependencies:
+      '@types/react': 18.3.28
+      react: 18.3.1
