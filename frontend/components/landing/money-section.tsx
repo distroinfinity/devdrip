@@ -1,11 +1,11 @@
 // the revenue structure, in the order the money moves — a real sequence, so it is numbered
 const STEPS = [
   {
-    title: "Advertisers pay Distro.",
+    title: "Advertisers pay Distro TV.",
     body: "They buy slots in front of developers. Only views of a second or more count.",
   },
   {
-    title: "Distro runs the exchange.",
+    title: "Distro TV runs the exchange.",
     body: "We place the ad and keep a margin.",
   },
   {

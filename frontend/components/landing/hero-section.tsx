@@ -28,7 +28,7 @@ export function HeroSection() {
 
             <p className="font-body text-[15px] leading-[1.6] text-[var(--ink-secondary)] mb-8 max-w-[52ch]">
               AI agents do the work. People wait and watch. That attention has no market yet. Distro
-              is building it, starting in the terminal.
+              TV is that market, starting in the terminal.
             </p>
 
             <p className="font-data text-[11px] text-[var(--ink-secondary)] mb-2">

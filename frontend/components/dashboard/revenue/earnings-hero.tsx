@@ -35,8 +35,8 @@ export function EarningsHero({ summary }: { summary: EarningsSummary }) {
       </div>
 
       <p className="mt-4 max-w-[64ch] font-body text-[13px] leading-[1.55] text-[var(--ink-secondary)]">
-        Advertisers pay Distro. Distro pays you a share. These are estimates from sandbox ads. Final
-        rates are set when the exchange opens.
+        Advertisers pay Distro TV. Distro TV pays you a share. These are estimates from sandbox ads.
+        Final rates are set when the exchange opens.
       </p>
     </div>
   )
