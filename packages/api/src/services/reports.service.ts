@@ -4,6 +4,8 @@ import { impressions } from "../db/schema/impressions.js"
 import { clicks } from "../db/schema/clicks.js"
 import { campaigns } from "../db/schema/campaigns.js"
 import { advertisers } from "../db/schema/advertisers.js"
+import { newsImpressions } from "../db/schema/news_impressions.js"
+import { preferences } from "../db/schema/preferences.js"
 import { NotFoundError } from "../errors/index.js"
 
 export type PacingStatus = "underpacing" | "on_track" | "overpacing" | "unknown"
@@ -208,4 +210,95 @@ export async function getAdvertiserReport(advertiserId: string): Promise<{
     },
     campaigns: mine,
   }
+}
+
+// ── news admin reports ────────────────────────────────────────────────────────
+
+export interface NewsCtrResult {
+  totalImpressions: number
+  opens: number
+  ctr: number
+}
+
+export interface NewsSaveRateResult {
+  totalImpressions: number
+  saves: number
+  saveRate: number
+}
+
+export interface ModeDistributionResult {
+  earn: number
+  learn: number
+  mix: number
+  total: number
+}
+
+export interface NewsReports {
+  ctr: NewsCtrResult
+  saveRate: NewsSaveRateResult
+  modeDistribution: ModeDistributionResult
+}
+
+function clampReportDays(days: number | undefined): number {
+  if (typeof days !== "number" || !Number.isFinite(days) || days <= 0) return 30
+  return Math.min(Math.floor(days), 365)
+}
+
+export async function getNewsCtr(daysParam?: number): Promise<NewsCtrResult> {
+  const days = clampReportDays(daysParam)
+  const db = getDb()
+  const rows = await db
+    .select({
+      total: sql<number>`count(*)::int`.as("total"),
+      opens: sql<number>`count(*) FILTER (WHERE ${newsImpressions.openedUrl})::int`.as("opens"),
+    })
+    .from(newsImpressions)
+    .where(sql`${newsImpressions.createdAt} >= now() - interval ${sql.raw(`'${days} days'`)}`)
+  const r = rows[0] ?? { total: 0, opens: 0 }
+  const ctr = r.total > 0 ? r.opens / r.total : 0
+  return { totalImpressions: r.total, opens: r.opens, ctr }
+}
+
+export async function getNewsSaveRate(daysParam?: number): Promise<NewsSaveRateResult> {
+  const days = clampReportDays(daysParam)
+  const db = getDb()
+  const rows = await db
+    .select({
+      total: sql<number>`count(*)::int`.as("total"),
+      saves: sql<number>`count(*) FILTER (WHERE ${newsImpressions.saved})::int`.as("saves"),
+    })
+    .from(newsImpressions)
+    .where(sql`${newsImpressions.createdAt} >= now() - interval ${sql.raw(`'${days} days'`)}`)
+  const r = rows[0] ?? { total: 0, saves: 0 }
+  const saveRate = r.total > 0 ? r.saves / r.total : 0
+  return { totalImpressions: r.total, saves: r.saves, saveRate }
+}
+
+export async function getModeDistribution(): Promise<ModeDistributionResult> {
+  const db = getDb()
+  const rows = await db
+    .select({
+      mode: preferences.channelMode,
+      count: sql<number>`count(*)::int`.as("count"),
+    })
+    .from(preferences)
+    .groupBy(preferences.channelMode)
+
+  const out: ModeDistributionResult = { earn: 0, learn: 0, mix: 0, total: 0 }
+  for (const r of rows) {
+    if (r.mode === "earn") out.earn = r.count
+    else if (r.mode === "learn") out.learn = r.count
+    else if (r.mode === "mix") out.mix = r.count
+    out.total += r.count
+  }
+  return out
+}
+
+export async function getNewsReports(days?: number): Promise<NewsReports> {
+  const [ctr, saveRate, modeDistribution] = await Promise.all([
+    getNewsCtr(days),
+    getNewsSaveRate(days),
+    getModeDistribution(),
+  ])
+  return { ctr, saveRate, modeDistribution }
 }
