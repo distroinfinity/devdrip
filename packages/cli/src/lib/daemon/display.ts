@@ -1,5 +1,5 @@
 import { renderSlotLine } from "../render-line.js"
-import { writeStatusLine, clearStatusLine } from "../statusline-state.js"
+import { writeStatusLine } from "../statusline-state.js"
 import type { CachedSlot } from "../slot-cache.js"
 
 export interface RenderCtx {
@@ -33,10 +33,10 @@ export function showAd(_ttyPath: string, slot: CachedSlot, _ctx: RenderCtx = {})
     /* display must never throw — the daemon stays up no matter what */
   }
   return {
-    vanish: () => {
-      clearStatusLine()
-      return { latencyMs: 0 }
-    },
+    // keep the last line on screen between rotations so the bar stays pinned;
+    // the daemon clears it on clean shutdown and the staleness TTL guards the
+    // rest. clearing here would make the bottom bar flicker blank each gap.
+    vanish: () => ({ latencyMs: 0 }),
     onResize: () => {},
     flash: () => {},
     updateProgress: () => {},
