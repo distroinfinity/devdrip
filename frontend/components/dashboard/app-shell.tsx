@@ -19,6 +19,7 @@ export function AppShell({ user, initialMode, children, configReadout }: AppShel
   const pills = (
     <>
       <NavPill href="/dashboard" label="Overview" exact />
+      <NavPill href="/dashboard/revenue" label="Revenue" />
       <NavPill href="/dashboard/reading" label="Reading" />
       <NavPill href="/dashboard/watchlists" label="Watchlists" />
       <NavPill href="/dashboard/preferences" label="Preferences" />
@@ -44,6 +45,7 @@ export function AppShell({ user, initialMode, children, configReadout }: AppShel
         <aside className="hidden w-48 shrink-0 border-r border-[var(--rule-default)] pr-6 pt-10 md:block">
           <nav className="flex flex-col gap-0.5" aria-label="Sidebar">
             <NavPill href="/dashboard" label="Overview" exact sidebar />
+            <NavPill href="/dashboard/revenue" label="Revenue" sidebar />
             <NavPill href="/dashboard/reading" label="Reading" sidebar />
             <NavPill href="/dashboard/watchlists" label="Watchlists" sidebar />
             <NavPill href="/dashboard/preferences" label="Preferences" sidebar />
