@@ -8,9 +8,9 @@ import { SITE_URL } from "@/lib/env"
 
 const siteUrl = SITE_URL
 
-const title = "Distro TV — get paid while your agent codes"
+const title = "Distro TV — the ad exchange for AI agent surfaces"
 const description =
-  "Sponsored slots in your terminal while your AI agent works, with the revenue shared with you. Prefer no ads? Tune to news and markets channels instead."
+  "AI agents do the work while people wait. Distro is the open exchange for that attention: slots inside agent tools, an opted-in audience, and revenue shared with the viewer. First surface: the terminal."
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

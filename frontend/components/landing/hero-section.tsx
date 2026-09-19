@@ -1,24 +1,8 @@
-"use client"
-
 import Link from "next/link"
-import { motion } from "motion/react"
-import { cn } from "@/lib/utils"
-import { TerminalTV, type NewsItem, type TickerItem } from "./terminal-tv"
 import { InstallCommand } from "./install-command"
+import { TerminalDemo } from "./terminal-demo"
 
-const CHIPS = [
-  { label: "SPONSORED · ON BY DEFAULT", state: "on" as const },
-  { label: "CH 01 · NEWS · OPT-IN", state: "dim" as const },
-  { label: "CH 02 · MARKETS · OPT-IN", state: "dim" as const },
-]
-
-export function HeroSection({
-  marketRows,
-  newsItems,
-}: {
-  marketRows: TickerItem[]
-  newsItems: NewsItem[]
-}) {
+export function HeroSection() {
   return (
     <section className="relative">
       {/* dot-grid bg */}
@@ -35,119 +19,43 @@ export function HeroSection({
         <div className="grid md:grid-cols-[1.05fr_1fr] gap-8 md:gap-12 items-start">
           {/* left column */}
           <div className="min-w-0">
-            <p className="font-data text-[10px] uppercase tracking-[0.1em] text-[var(--ink-secondary)] mb-5 flex items-center">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--accent-color)] mr-2" />
-              ads in your terminal · you keep 70%
-            </p>
-
             <h1
-              className="font-display text-[32px] md:text-[38px] leading-[1.04] tracking-[-0.025em] text-[var(--ink-primary)] mb-4"
+              className="font-display text-[32px] md:text-[40px] leading-[1.06] tracking-[-0.025em] text-[var(--ink-primary)] mb-5 max-w-[16ch]"
               style={{ fontWeight: 400 }}
             >
-              Get paid while
-              <br />
-              your agent codes.
+              The ad exchange for AI agent surfaces.
             </h1>
 
-            <p className="font-body text-[14px] leading-[1.55] text-[var(--ink-secondary)] mb-6 max-w-[46ch]">
-              Distro TV shows a sponsored slot in your terminal while your AI agent works, and
-              shares the revenue with you. It vanishes the instant you type.
+            <p className="font-body text-[15px] leading-[1.6] text-[var(--ink-secondary)] mb-8 max-w-[52ch]">
+              Agents do the work now; people wait and watch. That wait is a new attention surface,
+              and nothing serves it yet. Distro is building the open exchange that does, starting in
+              the terminal.
             </p>
 
-            <div className="mb-3">
+            <p className="font-data text-[11px] text-[var(--ink-secondary)] mb-2">
+              Run the first surface
+            </p>
+            <div className="mb-4">
               <InstallCommand variant="hero" />
             </div>
-            <div className="mb-6 flex flex-wrap gap-x-5 gap-y-2">
+            <div className="mb-8">
               <Link
                 href="/advertisers"
-                className="font-data text-[11px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] no-underline border-b border-[var(--rule-strong)] pb-0.5 transition-colors"
+                className="font-data text-[12px] text-[var(--ink-primary)] no-underline border-b border-[var(--rule-strong)] pb-0.5 transition-colors hover:border-[var(--ink-primary)]"
               >
-                For advertisers →
-              </Link>
-              <Link
-                href="#how-it-works"
-                className="font-data text-[11px] text-[var(--ink-tertiary)] hover:text-[var(--ink-primary)] no-underline border-b border-[var(--rule-default)] pb-0.5 transition-colors"
-              >
-                how it works →
+                For advertisers
               </Link>
             </div>
 
-            <motion.div
-              className="flex flex-wrap gap-2 mb-3"
-              initial="hidden"
-              animate="visible"
-              variants={{
-                visible: { transition: { staggerChildren: 0.05 } },
-                hidden: {},
-              }}
-            >
-              {CHIPS.map((chip) => (
-                <motion.span
-                  key={chip.label}
-                  variants={{
-                    hidden: { opacity: 0, y: 6 },
-                    visible: {
-                      opacity: 1,
-                      y: 0,
-                      transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
-                    },
-                  }}
-                  className={cn(
-                    "font-data text-[10px] uppercase tracking-[0.04em] px-2.5 py-1.5 inline-flex items-center gap-2",
-                    chip.state === "on"
-                      ? "bg-[var(--bg-surface)] text-[var(--ink-primary)] border border-[var(--rule-default)]"
-                      : "bg-transparent text-[var(--ink-secondary)] border border-dashed border-[var(--rule-strong)]"
-                  )}
-                >
-                  {chip.state === "on" && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-color)]" />
-                  )}
-                  {chip.label}
-                </motion.span>
-              ))}
-            </motion.div>
-
-            <p className="font-data text-[10px] tracking-[0.04em] text-[var(--ink-tertiary)]">
-              opt-in · estimated earnings today · payouts coming soon
+            <p className="font-body text-[14px] leading-[1.6] text-[var(--ink-secondary)]">
+              Opt-in audience. 70% goes to the viewer. Gone when you type.
             </p>
           </div>
 
-          {/* right column — terminal tv */}
-          <motion.div
-            className="min-w-0"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <TerminalTV
-              blocks={[
-                {
-                  kind: "sponsored",
-                  id: "hero-sponsored",
-                  title: "sponsored",
-                  status: "via Carbon",
-                  advertiser: "Railway",
-                  copy: "Ship your app in minutes. Infrastructure that gets out of the way.",
-                  host: "railway.com",
-                  est: "+$0.0070 est",
-                },
-                {
-                  kind: "news",
-                  id: "hero-news",
-                  title: "CH 01 · NEWS",
-                  status: "opt-in",
-                  items: newsItems,
-                },
-                {
-                  kind: "markets",
-                  id: "hero-markets",
-                  title: "CH 02 · MARKETS",
-                  status: "opt-in",
-                  rows: marketRows,
-                },
-              ]}
-            />
-          </motion.div>
+          {/* right column — the one moving thing on the page */}
+          <div className="min-w-0">
+            <TerminalDemo />
+          </div>
         </div>
       </div>
     </section>

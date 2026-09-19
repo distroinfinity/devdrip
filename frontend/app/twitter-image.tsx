@@ -1,7 +1,7 @@
 import { cardThemes, renderCard } from "@/lib/og/render"
 
 export const runtime = "edge"
-export const alt = "Distro TV — get paid while your agent codes."
+export const alt = "Distro TV — the ad exchange for AI agent surfaces."
 export const size = { width: 1200, height: 675 }
 export const contentType = "image/png"
 

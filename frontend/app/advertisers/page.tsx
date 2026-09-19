@@ -49,7 +49,7 @@ const CAMPAIGN_ACTIONS = ["Import from Google Ads", "Import from Meta Ads", "Cre
 
 function SectionHead({ tag, children }: { tag?: string; children: ReactNode }) {
   return (
-    <div className="pb-4 mb-8 border-b border-[var(--rule-default)] flex flex-wrap items-center gap-x-3 gap-y-2">
+    <div className="pb-4 mb-8 border-b border-[var(--rule-default)] flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <h2
         className="font-display text-[24px] md:text-[28px] leading-[1.15] tracking-[-0.02em] text-[var(--ink-primary)]"
         style={{ fontWeight: 400 }}
@@ -65,13 +65,10 @@ function Tag({ children, live = false }: { children: ReactNode; live?: boolean }
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap px-1.5 py-0.5 font-data text-[10px] tracking-[0.04em]",
-        live
-          ? "border border-[var(--rule-default)] bg-[var(--bg-surface)] text-[var(--ink-primary)]"
-          : "border border-dashed border-[var(--rule-strong)] text-[var(--ink-tertiary)]"
+        "whitespace-nowrap font-data text-[12px]",
+        live ? "text-[var(--status-positive)]" : "text-[var(--ink-tertiary)]"
       )}
     >
-      {live && <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-color)]" />}
       {children}
     </span>
   )
@@ -96,15 +93,14 @@ export default function AdvertisersPage() {
           <div className="relative mx-auto max-w-[1200px] px-6 py-14 md:py-20">
             <div className="grid md:grid-cols-[1.05fr_1fr] gap-8 md:gap-12 items-start">
               <div>
-                <p className="font-data text-[10px] uppercase tracking-[0.1em] text-[var(--ink-secondary)] mb-5 flex items-center">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--accent-color)] mr-2" />
-                  distro exchange · coming soon
+                <p className="font-data text-[12px] text-[var(--ink-secondary)] mb-5">
+                  distro exchange · pilot
                 </p>
                 <h1
                   className="font-display text-[30px] md:text-[38px] leading-[1.06] tracking-[-0.025em] text-[var(--ink-primary)] mb-4"
                   style={{ fontWeight: 400 }}
                 >
-                  The ad exchange for AI agent surfaces.
+                  Reach developers while their agent works.
                 </h1>
                 <p className="font-body text-[14px] leading-[1.6] text-[var(--ink-secondary)] mb-6 max-w-[52ch]">
                   Developers now spend minutes at a time watching an agent work. Distro turns that
@@ -125,15 +121,13 @@ export default function AdvertisersPage() {
                   {
                     kind: "sponsored",
                     id: "adv-slot",
-                    title: "sponsored",
-                    status: "your ad",
                     advertiser: "Your brand",
                     copy: "One line of copy, in front of a developer waiting on their agent.",
-                    host: "yoursite.com",
-                    est: "70% to the viewer",
+                    url: "https://yoursite.com",
+                    est: "+$0.0070",
                   },
                 ]}
-                footerKeys="text only · one slot · twelve seconds"
+                footerKeys="text only, one slot, twelve seconds"
                 footerRight=""
               />
             </div>
@@ -261,7 +255,7 @@ export default function AdvertisersPage() {
               href={TALK_TO_US}
               className="font-data text-[11px] text-[var(--accent-color)] border-b border-[var(--accent-color)] pb-0.5 hover:text-[var(--accent-hover)] no-underline"
             >
-              Talk to us →
+              Talk to us
             </a>
           </div>
         </section>
