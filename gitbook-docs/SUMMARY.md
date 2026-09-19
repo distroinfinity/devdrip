@@ -18,6 +18,7 @@
 - [Data Model](backend/data-model.md)
 - [Landing Page](frontend/landing-page.md)
 - [CLI Current State](cli/current-state.md)
+- [CLI UI System](cli/ui-system.md)
 - [CLI Releases](cli/releases.md)
 - [Daemon + Hook IPC](cli/daemon-and-hooks.md)
 - [News and Reading (CLI)](cli/news-and-reading.md)

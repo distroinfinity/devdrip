@@ -107,6 +107,13 @@ function sigmoidProgress(elapsedMs: number, displayTimeMs: number): number {
   return Math.min(PROGRESS_CAP, s * PROGRESS_CAP)
 }
 
+function buildBareSymbolUrl(symbol: string, assetClass: "equity" | "crypto"): string {
+  const cleaned = symbol.toUpperCase().replace(/[^A-Z0-9]/g, "")
+  return assetClass === "crypto"
+    ? `https://www.tradingview.com/symbols/${cleaned}USD/`
+    : `https://www.tradingview.com/symbols/${cleaned}/`
+}
+
 // S3-14: sentinel key used when an event arrives without a tty (piped/CI
 // contexts, or single-terminal legacy clients). All such events route to one
 // dedicated session so behavior stays identical to the single-tty daemon.
@@ -330,8 +337,15 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       // fall through to normal flash + applyStep handling
     }
 
+    // [C] chart: only active for ticker slots — silently ignore on news.
+    if (event.kind === "chart-key") {
+      if (session.state.kind !== "SHOWING" || session.state.ad.kind !== "ticker") return
+      // fall through to flash + applyStep handling
+    }
+
     const isUserKey =
       event.kind === "discover-key" ||
+      event.kind === "chart-key" ||
       event.kind === "skip-key" ||
       event.kind === "kill-key" ||
       event.kind === "mute-key"
@@ -554,7 +568,13 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         return
       case "openDiscover": {
         try {
-          if (effect.ad.kind === "news") deps.openUrl(effect.ad.url)
+          if (effect.ad.kind === "news") {
+            deps.openUrl(effect.ad.url)
+          } else if (effect.ad.kind === "ticker") {
+            const url =
+              effect.ad.chartUrl ?? buildBareSymbolUrl(effect.ad.symbol, effect.ad.assetClass)
+            deps.openUrl(url)
+          }
         } catch (err) {
           deps.log.warn("openUrl failed", { error: (err as Error).message })
         }

@@ -1,6 +1,7 @@
-// minimal ANSI color helpers for terminal-tv surfaces. kept tiny on purpose:
-// the renderer already writes raw escape sequences, and we don't want another
-// styling library on the hot path (every 500ms progress tick re-renders).
+// Minimal ANSI color helpers for terminal-tv surfaces. Token-based palette
+// per spec §5. Each token has truecolor + 256-color fallback. New code uses
+// `color(token, ...)`; legacy callers (doctor, upgrade, demo) continue to
+// import the green/red/yellow shims at the bottom of this file.
 
 export type ColorMode = "truecolor" | "256" | "none"
 
@@ -12,9 +13,6 @@ export function detectColor(env: NodeJS.ProcessEnv = process.env): ColorMode {
   const term = (env["TERM"] ?? "").toLowerCase()
   if (term.includes("256color")) return "256"
   if (term === "dumb") return "none"
-  // most modern terminals (iTerm2, kitty, wezterm, Alacritty, macOS Terminal)
-  // default to xterm or xterm-256color without setting COLORTERM. assume 256
-  // is safe rather than dropping to no-color.
   return "256"
 }
 
@@ -24,14 +22,66 @@ function wrap(body: string, prefix: string): string {
   return `${prefix}${body}${RESET}`
 }
 
-// accent green — used sparingly. truecolor value chosen to match the landing
-// page's earnings-counter color (#2EA043, GitHub-style success green) so the
-// CLI and web surfaces feel related without forcing a full palette on the
-// terminal. 256-color fallback is xterm 34 (a deep green).
-export function green(text: string, mode: ColorMode): string {
+interface ColorToken {
+  truecolor: string
+  fallback256: string
+}
+
+// Coinbase dark mode + landing indigo. Tokens chosen per spec §5.
+const TOKENS: Record<string, ColorToken> = {
+  fg: { truecolor: "\x1b[38;2;255;255;255m", fallback256: "\x1b[38;5;231m" },
+  muted: { truecolor: "\x1b[38;2;138;145;158m", fallback256: "\x1b[38;5;247m" },
+  rule: { truecolor: "\x1b[38;2;26;28;32m", fallback256: "\x1b[38;5;235m" },
+  indigo: { truecolor: "\x1b[38;2;129;140;248m", fallback256: "\x1b[38;5;105m" },
+  // Muted indigo — used by the bar-pulse motion at the half-cycle point.
+  indigoDim: { truecolor: "\x1b[38;2;80;84;168m", fallback256: "\x1b[38;5;61m" },
+  positive: { truecolor: "\x1b[38;2;39;173;117m", fallback256: "\x1b[38;5;72m" },
+  negative: { truecolor: "\x1b[38;2;240;97;109m", fallback256: "\x1b[38;5;167m" },
+  warning: { truecolor: "\x1b[38;2;248;150;86m", fallback256: "\x1b[38;5;215m" },
+}
+
+export type TokenName = keyof typeof TOKENS
+
+export function color(token: TokenName, text: string, mode: ColorMode): string {
   if (mode === "none") return text
-  if (mode === "truecolor") return wrap(text, "\x1b[38;2;46;160;67m")
-  return wrap(text, "\x1b[38;5;34m")
+  const t = TOKENS[token]
+  if (!t) return text
+  return wrap(text, mode === "truecolor" ? t.truecolor : t.fallback256)
+}
+
+// Custom-RGB foreground for brand chips (brand-colors.ts table).
+export function rgb(text: string, r: number, g: number, b: number, mode: ColorMode): string {
+  if (mode === "none") return text
+  if (mode === "truecolor") return wrap(text, `\x1b[38;2;${r};${g};${b}m`)
+  const idx = nearest256(r, g, b)
+  return wrap(text, `\x1b[38;5;${idx}m`)
+}
+
+// Custom-RGB background for brand chips.
+export function bgRgb(text: string, r: number, g: number, b: number, mode: ColorMode): string {
+  if (mode === "none") return text
+  if (mode === "truecolor") return wrap(text, `\x1b[48;2;${r};${g};${b}m`)
+  const idx = nearest256(r, g, b)
+  return wrap(text, `\x1b[48;5;${idx}m`)
+}
+
+function nearest256(r: number, g: number, b: number): number {
+  // xterm-256 6×6×6 color cube starts at index 16. Each channel uses the
+  // canonical levels [0, 95, 135, 175, 215, 255].
+  const levels = [0, 95, 135, 175, 215, 255]
+  const nearest = (v: number): number => {
+    let best = 0
+    let bestD = Infinity
+    for (let i = 0; i < levels.length; i++) {
+      const d = Math.abs(v - (levels[i] as number))
+      if (d < bestD) {
+        bestD = d
+        best = i
+      }
+    }
+    return best
+  }
+  return 16 + 36 * nearest(r) + 6 * nearest(g) + nearest(b)
 }
 
 export function dim(text: string, mode: ColorMode): string {
@@ -44,19 +94,14 @@ export function bold(text: string, mode: ColorMode): string {
   return wrap(text, "\x1b[1m")
 }
 
-// red for doctor failures. truecolor picks GitHub's danger-emphasis red
-// (#cf222e) for visual rhyme with the landing page. 256-color fallback is
-// xterm 160.
-export function red(text: string, mode: ColorMode): string {
-  if (mode === "none") return text
-  if (mode === "truecolor") return wrap(text, "\x1b[38;2;207;34;46m")
-  return wrap(text, "\x1b[38;5;160m")
+// Legacy shims — map old `green`/`red`/`yellow` callsites to the new
+// semantic tokens. New code should call `color(...)` directly.
+export function green(text: string, mode: ColorMode): string {
+  return color("positive", text, mode)
 }
-
-// amber for the [DEMO] badge and doctor warn states. truecolor is GitHub's
-// attention fg (#9a6700); 256-color fallback is xterm 172.
+export function red(text: string, mode: ColorMode): string {
+  return color("negative", text, mode)
+}
 export function yellow(text: string, mode: ColorMode): string {
-  if (mode === "none") return text
-  if (mode === "truecolor") return wrap(text, "\x1b[38;2;154;103;0m")
-  return wrap(text, "\x1b[38;5;172m")
+  return color("warning", text, mode)
 }

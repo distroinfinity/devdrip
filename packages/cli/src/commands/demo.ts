@@ -30,12 +30,11 @@ function fallbackNewsPayload(): NewsPayload {
     kind: "news",
     id: "demo-hn:1",
     source: NewsSource.HackerNews,
-    // legacy HN-only path; Batch 4 replaces this entire codepath
     channelKey: "tech",
-    headline: "Distro TV — news demo (offline)",
+    headline: "Show HN: I built a Claude Code plugin that auto-generates PR descriptions",
     url: "https://news.ycombinator.com",
-    score: 0,
-    ageSeconds: 0,
+    score: 418,
+    ageSeconds: 7200, // 2h
     displayTimeMs: 4000,
   }
 }
@@ -96,9 +95,7 @@ async function runNewsDemoOnce(deviceId: string, opts: { ascii?: boolean }): Pro
   const ascii = opts.ascii ?? false
 
   console.log(renderNewsBox(payload, { ...(ascii ? { ascii: true } : {}) }))
-  console.log(
-    `  ${dim("[D] open · [B] save · [S] skip · [K] kill · [M] mute · [Enter] dismiss", color)}`
-  )
+  console.log(`  ${dim("[D] open · [B] save · [S] skip · [K] kill · [Enter] dismiss", color)}`)
 
   if (!process.stdin.isTTY || ascii) {
     console.log(`  ${dim("(run in an interactive terminal to practice keys)", color)}`)

@@ -8,7 +8,7 @@ import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
 import { sendSlackAlert } from "./lib/slack.js"
 import { runFetchTick } from "./services/news-fetchers/coordinator.js"
-import { runTickerTick } from "./services/ticker-fetchers/coordinator.js"
+import { runAlertEvaluation } from "./services/alert-evaluator.service.js"
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("[worker] unhandledRejection at:", promise, "reason:", reason)
@@ -47,19 +47,21 @@ async function start(): Promise<void> {
     }
   })
 
-  void runTickerTick().catch((err) => logger.error({ err }, "initial ticker tick failed"))
-
+  // Per spec §12 we don't persist quote/history data — Yahoo is fetched on
+  // demand by the request path. Alert evaluation still needs a periodic
+  // pulse: it polls upstream per unique watchlist symbol (Redis-cached), so
+  // a 1-min cron is generous without pummeling Yahoo.
   cron.schedule("*/1 * * * *", async () => {
     try {
-      await runTickerTick()
+      await runAlertEvaluation()
     } catch (err) {
-      logger.error({ err }, "ticker tick failed")
+      logger.error({ err }, "alert evaluation tick failed")
     }
   })
 
   const sha = env.commitSha?.slice(0, 7) ?? "unknown"
   void sendSlackAlert(`worker booted · sha=${sha}`, { severity: "info" })
-  logger.info("worker running — news fetch every 5 min, ticker fetch every 1 min")
+  logger.info("worker running — news fetch every 5 min, alert evaluation every 1 min")
 }
 
 start().catch((err) => {

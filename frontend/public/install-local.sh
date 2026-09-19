@@ -1,6 +1,8 @@
 #!/bin/sh
-# distro tv installer — https://distrotv.xyz
-# downloads the latest cli release from GitHub and installs to ~/.local/bin/distro
+# distro tv installer — LOCAL DEV variant
+# Mirrors frontend/public/install.sh but fetches the tarball from the local
+# Next.js dev server (localhost:3000) instead of GitHub Releases. Used for
+# end-to-end install testing against an unreleased branch.
 set -e
 
 TMP=""
@@ -8,8 +10,8 @@ trap '[ -n "$TMP" ] && [ -d "$TMP" ] && rm -rf "$TMP"' EXIT
 
 INSTALL_DIR="${DISTROTV_HOME:-$HOME/.distrotv}"
 BIN_DIR="${DISTROTV_BIN:-$HOME/.local/bin}"
-REPO="distroinfinity/devdrip"
-TARBALL_URL="https://github.com/${REPO}/releases/latest/download/distrotv-cli.tar.gz"
+TARBALL_URL="${DISTROTV_TARBALL_URL:-http://localhost:3000/distrotv-cli.tar.gz}"
+API_URL="${DISTRO_API_URL:-http://localhost:3001}"
 
 # 1. require node 20+
 if ! command -v node >/dev/null 2>&1; then
@@ -24,15 +26,14 @@ fi
 
 # 2. download and extract
 mkdir -p "$INSTALL_DIR" "$BIN_DIR"
-echo "→ downloading distro tv cli..."
+echo "→ downloading distro tv cli from $TARBALL_URL ..."
 TMP=$(mktemp -d)
 curl -fsSL "$TARBALL_URL" -o "$TMP/distrotv-cli.tar.gz"
 tar -xzf "$TMP/distrotv-cli.tar.gz" -C "$INSTALL_DIR"
 
-# 2a. install the native dep (better-sqlite3). The tarball ships a stripped
-# runtime package.json listing only modules that can't be bundled — pure-JS
-# deps are inlined into dist/ by tsup. npm fetches the matching per-platform
-# prebuild so users don't need a C++ toolchain.
+# 2a. install the native dep (better-sqlite3). Same path as the prod
+# install.sh — the tarball ships a stripped runtime package.json listing
+# only native modules; pure-JS deps are bundled into dist/ by tsup.
 if ! command -v npm >/dev/null 2>&1; then
   echo "✗ npm not found. install node 20+ (ships with npm) and re-run." >&2
   exit 1
@@ -40,9 +41,10 @@ fi
 echo "→ installing native dependencies..."
 (cd "$INSTALL_DIR" && npm install --omit=dev --no-audit --no-fund --silent)
 
-# 3. wrapper
+# 3. wrapper — passes DISTRO_API_URL through so the CLI talks to the local API.
 cat > "$BIN_DIR/distro" <<EOF
 #!/bin/sh
+export DISTRO_API_URL="$API_URL"
 exec node "$INSTALL_DIR/dist/index.js" "\$@"
 EOF
 chmod +x "$BIN_DIR/distro"
@@ -53,4 +55,5 @@ case ":$PATH:" in
   *) echo "ⓘ add $BIN_DIR to your PATH (e.g. in ~/.zshrc): export PATH=\"$BIN_DIR:\$PATH\"" ;;
 esac
 
-echo "✓ installed. run: distro init"
+echo "✓ installed (local dev). api: $API_URL"
+echo "  next: distro init"

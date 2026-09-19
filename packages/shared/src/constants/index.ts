@@ -52,6 +52,18 @@ export const PROGRESS_TICK_MS = 500
 export const PROGRESS_CAP = 0.9
 export const PROGRESS_SNAP_HOLD_MS = 120
 
+// ── slot motion (UI refresh) ──────────────────────────────────────────────
+// Per spec §11. v1 motion vocabulary: reveal stagger on appear, vanish wipe
+// on dismiss, indigo bar pulse for ambient liveness, chart shift on price
+// tick, save-flash on action confirmation.
+
+export const REVEAL_STAGGER_MS = 40
+export const VANISH_WIPE_PER_ROW_MS = 20
+export const BAR_PULSE_INTERVAL_MS = 110 // 2.2s loop / 20 frames
+export const CHART_SHIFT_MS = 120
+export const SAVE_FLASH_FADE_MS = 200
+export const SAVE_FLASH_HOLD_MS = 800
+
 // ── earnings toast ────────────────────────────────────────────────────────
 export const VALID_IMPRESSION_FOR_TOAST_MS = 3_000
 export const TOAST_HOLD_MS = 2_000

@@ -40,3 +40,9 @@ export const muteCmd = new Command("mute")
   .action(async () => {
     process.exit(await sendAction("mute"))
   })
+
+export const chartCmd = new Command("chart")
+  .description("open the current ticker on TradingView (fallback for [C])")
+  .action(async () => {
+    process.exit(await sendAction("chart"))
+  })

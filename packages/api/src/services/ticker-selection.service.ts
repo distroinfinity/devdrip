@@ -1,20 +1,14 @@
-import { eq, and, gte, desc, asc } from "drizzle-orm"
+import { eq, and, asc } from "drizzle-orm"
 import type { TickerPayload, TickerStats, PendingAlert } from "@distrotv/shared"
 import { getDb } from "../db/index.js"
 import { preferences } from "../db/schema/preferences.js"
 import { watchlists } from "../db/schema/watchlists.js"
 import { watchlistTickers } from "../db/schema/watchlist_tickers.js"
-import { tickerQuotes } from "../db/schema/ticker_quotes.js"
-import { tickerHistory } from "../db/schema/ticker_history.js"
 import { ensureDefaultWatchlist } from "./watchlist.service.js"
 import { getRedis } from "../lib/redis.js"
 import { pendingAlertsKey } from "../lib/alert-keys.js"
 import { isInQuietHours } from "../lib/quiet-hours.js"
-
-// guard against the worker silently dying: even if quote.stale=false in the DB,
-// any quote older than this is treated as stale on serve. ticker fetcher runs
-// every 1 min, so 5 min is generous (allows transient provider hiccups).
-const STALE_AFTER_MS = 5 * 60 * 1000
+import { fetchTickerSnapshot } from "../lib/yahoo-chart.js"
 
 export interface NextTickerArgs {
   userId: string
@@ -84,63 +78,58 @@ export async function nextTickerForDevice(args: NextTickerArgs): Promise<TickerP
   return await buildTickerPayload(args.userId, pick.symbol)
 }
 
+// Builds the TradingView URL for a ticker, used on [C] chart in the CLI.
+// Per spec §8: equities use the bare-symbol form (TV resolves to the
+// primary exchange for major tickers), crypto uses the symbol + USD pair.
+// Exchange-prefixed URLs (NASDAQ-TSLA) require a per-symbol exchange map
+// that we don't yet maintain — bare-symbol resolves correctly for the
+// curated watchlist universe (top ~500 equities + top ~50 crypto).
+function buildChartUrl(symbol: string, assetClass: "equity" | "crypto"): string {
+  const cleaned = symbol.toUpperCase().replace(/[^A-Z0-9]/g, "")
+  if (assetClass === "crypto") {
+    return `https://www.tradingview.com/symbols/${cleaned}USD/`
+  }
+  return `https://www.tradingview.com/symbols/${cleaned}/`
+}
+
 async function buildTickerPayload(
   userId: string,
   symbol: string,
   alert?: PendingAlert
 ): Promise<TickerPayload | null> {
   const db = getDb()
-  const [quote] = await db
-    .select()
-    .from(tickerQuotes)
-    .where(eq(tickerQuotes.symbol, symbol))
-    .limit(1)
-  if (!quote) return null
 
-  // determine asset_class — preferred from the user's watchlist row; falls back to the quote.
-  // (named wlPick to avoid shadowing the rotation `pick` var in nextTickerForDevice.)
+  // Asset class comes from the user's watchlist row (single source of truth).
+  // Default to equity when there's no row — Yahoo's lookup handles the rest.
   const [wlPick] = await db
     .select({ assetClass: watchlistTickers.assetClass })
     .from(watchlistTickers)
     .innerJoin(watchlists, eq(watchlists.id, watchlistTickers.watchlistId))
     .where(and(eq(watchlists.userId, userId), eq(watchlistTickers.symbol, symbol)))
     .limit(1)
-  const assetClass: "equity" | "crypto" =
-    wlPick?.assetClass === "crypto"
-      ? "crypto"
-      : wlPick?.assetClass === "equity"
-        ? "equity"
-        : quote.assetClass === "crypto"
-          ? "crypto"
-          : "equity"
+  const assetClass: "equity" | "crypto" = wlPick?.assetClass === "crypto" ? "crypto" : "equity"
 
-  const cutoffDate = new Date(Date.now() - 30 * 86400 * 1000).toISOString().slice(0, 10)
-  const candles = await db
-    .select({ close: tickerHistory.close })
-    .from(tickerHistory)
-    .where(and(eq(tickerHistory.symbol, symbol), gte(tickerHistory.date, cutoffDate)))
-    .orderBy(desc(tickerHistory.date))
-    .limit(14)
+  // Per spec §12: we don't persist market data. Quote + sparkline come from
+  // Yahoo on demand (Redis-cached ~5 min). Null on failure so the orchestrator
+  // can move on to the next slot rather than surfacing a broken tile.
+  const snap = await fetchTickerSnapshot(symbol, assetClass)
+  if (!snap) return null
 
-  const sparklinePts =
-    candles.length > 0 ? candles.map((c) => c.close).reverse() : [quote.prevClose, quote.price]
-  const stats = computeStats(quote.price, quote.prevClose, sparklinePts)
-
-  const ageMs = Date.now() - quote.fetchedAt.getTime()
-  const stale = quote.stale || ageMs > STALE_AFTER_MS
+  const stats = computeStats(snap)
 
   return {
     kind: "ticker",
-    symbol: quote.symbol,
+    symbol,
     assetClass,
-    name: null,
-    price: quote.price,
-    changePct: quote.changePct,
-    sparkline: sparklinePts,
+    name: snap.displayName,
+    price: snap.price,
+    changePct: snap.changePct,
+    sparkline: snap.sparkline,
     stats,
     layout: "single",
-    stale,
-    asOf: quote.fetchedAt.toISOString(),
+    stale: false,
+    asOf: new Date(snap.asOfMs).toISOString(),
+    chartUrl: buildChartUrl(symbol, assetClass),
     ...(alert ? { alert } : {}),
   }
 }
@@ -154,20 +143,26 @@ function deviceRotationIndex(deviceId: string, mod: number): number {
   return Math.abs(h + minuteBucket) % mod
 }
 
-function computeStats(price: number, prevClose: number, sparkline: number[]): TickerStats {
-  const safePrev = Math.max(prevClose, 0.01)
-  const d1 = ((price - prevClose) / safePrev) * 100
-  const w1 = pctChange(sparkline, 7)
-  const m1 = pctChange(sparkline, 30)
-  const hi = sparkline.length > 0 ? Math.max(...sparkline, price) : price
-  const lo = sparkline.length > 0 ? Math.min(...sparkline, price) : price
+function computeStats(snap: {
+  price: number
+  prevClose: number
+  changePct: number
+  fiftyTwoWeekHigh: number
+  fiftyTwoWeekLow: number
+  sparkline: number[]
+}): TickerStats {
+  // d1 comes straight from Yahoo (snap.changePct) so the terminal matches
+  // what yahoo.com shows. w1 / m1 are derived from the same 1-month
+  // sparkline Yahoo returned — last 7 trading days for 1w, full window
+  // (~22 trading days) for 1m. 52w hi/lo come from Yahoo's meta, not the
+  // sparkline window, so they reflect the actual year range.
   return {
-    d1Pct: round1(d1),
-    w1Pct: round1(w1),
-    m1Pct: round1(m1),
-    w52Hi: round1(hi),
-    w52Lo: round1(lo),
-    prevClose,
+    d1Pct: round1(snap.changePct),
+    w1Pct: round1(pctChange(snap.sparkline, 7)),
+    m1Pct: round1(pctChange(snap.sparkline, 30)),
+    w52Hi: round1(snap.fiftyTwoWeekHigh),
+    w52Lo: round1(snap.fiftyTwoWeekLow),
+    prevClose: snap.prevClose,
   }
 }
 
