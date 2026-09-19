@@ -1,4 +1,4 @@
-import type { AdCategory, ChannelMode, SyncedPreferences } from "@distrotv/shared"
+import type { AdCategory, ChannelMode, Feed, SyncedPreferences } from "@distrotv/shared"
 import { apiFetch } from "./api-client.js"
 
 export interface PreferencesResponse {
@@ -16,6 +16,7 @@ export interface UpdatePreferencesBody {
   idleSensitivityMs?: number
   sessionWarmupMs?: number
   nightMode?: boolean
+  enabledFeeds?: Feed[]
 }
 
 export async function getPreferences(): Promise<SyncedPreferences> {

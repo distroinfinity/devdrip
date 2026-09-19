@@ -379,10 +379,15 @@ export async function runDaemon(): Promise<number> {
     preferences: cfg.preferences,
   })
 
-  function fingerprintPrefs(p: { blockedCategories: string[]; channelMode: string }): string {
+  function fingerprintPrefs(p: {
+    blockedCategories: string[]
+    channelMode: string
+    enabledFeeds?: string[]
+  }): string {
     return JSON.stringify({
       blockedCategories: [...p.blockedCategories].sort(),
       channelMode: p.channelMode,
+      enabledFeeds: [...(p.enabledFeeds ?? [])].sort(),
     })
   }
 
@@ -397,8 +402,8 @@ export async function runDaemon(): Promise<number> {
       const nextFp = fingerprintPrefs(next.preferences)
       if (nextFp !== lastPrefsFingerprint) {
         lastPrefsFingerprint = nextFp
-        // blocked categories or channelMode changed — the existing cache may
-        // contain now-blocked ads or wrong-mode content. Force a refresh so
+        // blocked categories, channelMode or feeds changed — the existing cache may
+        // contain now-blocked ads or the wrong mix. Force a refresh so
         // the next display reflects the new settings.
         slotCache.refreshNow().catch((err: Error) => {
           log.warn("slot-cache refresh after preference change failed", {
