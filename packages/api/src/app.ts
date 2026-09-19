@@ -13,6 +13,7 @@ import { authMagicLinkRouter } from "./routes/auth-magic-link.js"
 import { devicesPairRouter, authExchangePairRouter } from "./routes/auth-pair.js"
 import { devicesPairInitRouter, devicesPairPollRouter } from "./routes/devices-pair-v2.js"
 import { authGithubCompleteRouter } from "./routes/auth-github.js"
+import { authLogoutRouter } from "./routes/auth-logout.js"
 import { devicesRouter, devicesRegisterRouter } from "./routes/devices.js"
 import { mePreferencesRouter } from "./routes/me-preferences.js"
 import { meReadingRouter } from "./routes/me-reading.js"
@@ -81,6 +82,7 @@ app.use("/devices/pair", devicesPairRouter)
 app.use("/devices/pair-init", devicesPairInitRouter)
 app.use("/devices/pair-poll", devicesPairPollRouter)
 app.use("/auth/github/complete", authGithubCompleteRouter)
+app.use("/auth/logout", authLogoutRouter)
 // authed — list, update, delete devices
 app.use("/devices", requireAuth, userLimiter, devicesRouter)
 
