@@ -56,6 +56,9 @@ export interface OrchestratorDeps {
   deviceId: string
   preferences: DevdripPreferences
   writePreferences?: (next: DevdripPreferences) => Promise<void>
+  // called after an ad impression lands in the ledger, so the daemon can sync
+  // it soon instead of waiting for the 5-minute tick
+  onAdImpression?: () => void
   now?: () => number
 }
 
@@ -656,6 +659,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
     if (slot.kind !== "sponsored") return
     try {
       deps.ledger.record(imp)
+      deps.onAdImpression?.()
       deps.log.info("ad impression recorded", {
         adId: imp.adId,
         result: imp.result,
