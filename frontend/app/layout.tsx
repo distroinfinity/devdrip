@@ -6,7 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Dev Drip — Earn while your agent thinks",
   description:
-    "Opt-in developer content during AI coding tool idle time. Earn USDC micropayments on Base.",
+    "Opt-in developer content during AI coding tool idle time. Earn real money while your agent codes.",
 };
 
 export default function RootLayout({

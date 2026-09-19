@@ -247,6 +247,10 @@ const config: Config = {
   				to: {
   					height: '0'
   				}
+  			},
+  			'float': {
+  				'0%, 100%': { transform: 'translateY(0)' },
+  				'50%': { transform: 'translateY(-6px)' }
   			}
   		},
   		animation: {
@@ -255,7 +259,9 @@ const config: Config = {
   			'delta-out': 'delta-out 150ms ease-in forwards',
   			'accent-glow': 'accent-glow 2s ease-in-out',
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'float': 'float 5s ease-in-out infinite',
+  			'shimmer-line': 'shimmer-line 8s ease-in-out infinite'
   		}
   	}
   },
