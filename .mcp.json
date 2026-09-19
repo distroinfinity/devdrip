@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "notion": {
+      "type": "http",
+      "url": "https://mcp.notion.com/mcp"
+    },
+    "neon": {
+      "type": "http",
+      "url": "https://mcp.neon.tech/mcp",
+      "headers": {
+        "Authorization": "Bearer ${NEON_MCP_TOKEN}"
+      }
+    },
+    "Railway": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@railway/mcp-server"],
+      "env": {
+        "RAILWAY_API_TOKEN": "${RAILWAY_API_TOKEN}"
+      }
+    }
+  }
+}
