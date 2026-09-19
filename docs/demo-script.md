@@ -1,4 +1,4 @@
-# Hackathon demo — 3 minutes
+# Demo script — 3 minutes
 
 Pitch in one line: **developers watch a terminal for minutes at a time while their agent
 works. We turn that attention into ad inventory, pay the developer for it, and open it up as
@@ -46,7 +46,7 @@ an exchange anyone can bid on.**
 | ⌘-click does nothing          | `dtv open` from any terminal opens the ad on screen                                 |
 | API restarted mid-demo        | nothing to do: deliveries live in Postgres                                          |
 
-## Honest answers for judges
+## Questions you will get
 
 - The ads are Carbon's sandbox zone plus demo creatives. No advertiser is paying yet.
 - Advertisers pay Distro; Distro pays the developer a share and keeps a margin. The numbers on screen are estimates from a sandbox rate. The split and rates are not final, so don't quote them. Payouts are not built.

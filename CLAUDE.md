@@ -29,7 +29,7 @@ Distro is **the ad exchange for AI agent surfaces**. Agents do the work while pe
 - M6: dashboard polish (shipped)
 - M7: admin dashboard (shipped)
 - M8: landing page + install vector (shipped — channels positioning, curl/GH Releases install)
-- M9: terminal ads (hackathon, branch `hackathon/terminal-ads`) — sponsored slots on by default, estimated revenue dashboard, channels opt-in, ads-first landing + `/advertisers` exchange page. local only; not released.
+- M9: ad exchange (branch `ad-exchange`) — sponsored slots on by default, estimated revenue dashboard, channels opt-in, ads-first landing + `/advertisers` exchange page. local only; not released.
 
 ## Hard Rules
 
