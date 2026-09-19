@@ -12,8 +12,26 @@ function clampInt(raw: unknown, min: number, max: number, fallback: number): num
   const v = Number.parseInt(String(raw ?? ""), 10)
   return Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback
 }
-export const clampDays = (raw: unknown): number => clampInt(raw, 1, 90, 30)
 export const clampLimit = (raw: unknown): number => clampInt(raw, 1, 100, 20)
+
+// estimated earnings per hour of ad view time ("per agent-hour"). needs a few
+// seconds of view time before it means anything.
+const MIN_RATE_VIEW_MS = 10_000
+export function ratePerHour(earned: number, viewMs: number): number {
+  if (!Number.isFinite(earned) || !Number.isFinite(viewMs) || viewMs < MIN_RATE_VIEW_MS) return 0
+  return earned / (viewMs / 3_600_000)
+}
+
+export type ChartRange = "1h" | "24h" | "30d"
+const RANGES: Record<ChartRange, { step: "minute" | "hour" | "day"; points: number }> = {
+  "1h": { step: "minute", points: 60 },
+  "24h": { step: "hour", points: 24 },
+  "30d": { step: "day", points: 30 },
+}
+export function parseRange(raw: unknown): { range: ChartRange } & (typeof RANGES)[ChartRange] {
+  const range: ChartRange = raw === "1h" || raw === "24h" ? raw : "30d"
+  return { range, ...RANGES[range] }
+}
 
 function extractRows<T>(result: unknown): T[] {
   return ((result as { rows?: unknown[] }).rows ?? (result as unknown[])) as T[]
@@ -31,6 +49,8 @@ export async function getSummary(userId: string) {
       impressions: sql<number>`(count(*) filter (where ${t.result} <> 'pending'))::int`,
       paidImpressions: sql<number>`(count(*) filter (where ${t.earnedAmount} > 0))::int`,
       clicks: sql<number>`(count(*) filter (where ${t.clicked}))::int`,
+      viewMs: sql<string>`coalesce(sum(${t.durationMs}) filter (where ${t.earnedAmount} > 0), 0)`,
+      lastSeenAt: sql<string | null>`max(${t.createdAt}) filter (where ${t.result} <> 'pending')`,
     })
     .from(t)
     .where(eq(t.userId, userId))
@@ -45,38 +65,51 @@ export async function getSummary(userId: string) {
     paidImpressions: row?.paidImpressions ?? 0,
     clicks,
     ctr: ctr(impressions, clicks),
+    // total time paid ads were on screen, and the estimated rate that implies
+    viewMs: Number(row?.viewMs ?? 0),
+    ratePerHour: ratePerHour(Number(row?.allTime ?? 0), Number(row?.viewMs ?? 0)),
+    lastSeenAt: row?.lastSeenAt ? new Date(row.lastSeenAt).toISOString() : null,
     cpmRate: env.adCpmRate,
     revenueShare: REVENUE_SHARE_DEVELOPER,
     estimated: true as const,
   }
 }
 
-export async function getTimeseries(userId: string, days: number) {
+// bucketed earnings for the chart. `date` is the bucket start as an ISO timestamp (utc).
+export async function getTimeseries(userId: string, rawRange: unknown) {
+  const { range, step, points } = parseRange(rawRange)
+  // step/points come from the fixed RANGES table above, never from the request
+  const stepSql = sql.raw(`'${step}'`)
+  const intervalSql = sql.raw(`interval '1 ${step}'`)
   const raw = await getDb().execute(sql`
-    select to_char(d.day, 'YYYY-MM-DD') as date,
+    select to_char(b.ts at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as date,
            coalesce(sum(a.earned_amount), 0)::float8 as earned,
            (count(a.id) filter (where a.result <> 'pending'))::int as impressions,
            (count(a.id) filter (where a.clicked))::int as clicks
     from generate_series(
-           date_trunc('day', now()) - (${days - 1} * interval '1 day'),
-           date_trunc('day', now()),
-           interval '1 day'
-         ) as d(day)
+           date_trunc(${stepSql}, now()) - (${points - 1} * ${intervalSql}),
+           date_trunc(${stepSql}, now()),
+           ${intervalSql}
+         ) as b(ts)
     left join ad_impressions a
       on a.user_id = ${userId}
-     and a.created_at >= d.day
-     and a.created_at < d.day + interval '1 day'
-    group by d.day
-    order by d.day
+     and a.created_at >= b.ts
+     and a.created_at < b.ts + ${intervalSql}
+    group by b.ts
+    order by b.ts
   `)
-  return extractRows<{ date: string; earned: number; impressions: number; clicks: number }>(
+  const rows = extractRows<{ date: string; earned: number; impressions: number; clicks: number }>(
     raw
-  ).map((r) => ({
-    date: r.date,
-    earned: Number(r.earned),
-    impressions: Number(r.impressions),
-    clicks: Number(r.clicks),
-  }))
+  )
+  return {
+    range,
+    points: rows.map((r) => ({
+      date: r.date,
+      earned: Number(r.earned),
+      impressions: Number(r.impressions),
+      clicks: Number(r.clicks),
+    })),
+  }
 }
 
 // ads the user actually saw or clicked — served-but-unseen deliveries stay out of the list
