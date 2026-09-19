@@ -1,24 +1,25 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { motion } from "motion/react"
 
 const BEATS = [
   {
     num: "01",
     headline: "Your agent starts working.",
-    body: "Distro TV picks up the idle moment.",
+    body: "Distro TV catches the idle moment.",
     visualKind: "agent" as const,
   },
   {
     num: "02",
     headline: "A channel lights up.",
-    body: "News headlines, market ticks — whatever you've tuned in.",
+    body: "Your tuned-in channels surface.",
     visualKind: "tv" as const,
   },
   {
     num: "03",
     headline: "You start typing. It vanishes.",
-    body: "< 200ms. No fade. No nag.",
+    body: "Under 200ms. No fade. No nag.",
     visualKind: "vanish" as const,
   },
 ]
@@ -88,38 +89,63 @@ export function HowItWorksSection() {
   )
 }
 
+// one fixed-height terminal "screen" so all three cards line up; each beat is a
+// different state of the same surface.
+function ScreenFrame({
+  label,
+  status,
+  children,
+}: {
+  label: string
+  status: string
+  children: ReactNode
+}) {
+  return (
+    <div className="flex h-[116px] flex-col overflow-hidden border border-[#1E1E22] bg-[#0A0A0C] font-data text-[11px] text-[#EDEDF0]">
+      <div className="flex items-center gap-2 border-b border-[#1E1E22] px-3 py-1.5 text-[10px] text-[#8A8A94]">
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-color)]" />
+        <span>{label}</span>
+        <span className="ml-auto text-[#5C5C66]">{status}</span>
+      </div>
+      <div className="min-h-0 flex-1 px-3 py-2.5">{children}</div>
+    </div>
+  )
+}
+
 function BeatVisual({ kind }: { kind: "agent" | "tv" | "vanish" }) {
   if (kind === "agent") {
     return (
-      <div className="font-data text-[11px] bg-[#0A0A0C] text-[#EDEDF0] px-3 py-2.5 border border-[#1E1E22]">
-        <span className="text-[var(--accent-color)] inline-block animate-spin-slow mr-2">⠋</span>
-        Claude Code: refactoring 4 files...
-      </div>
+      <ScreenFrame label="~ · idle detected" status="stop hook">
+        <div className="space-y-1.5">
+          <div>
+            <span className="mr-2 inline-block animate-spin-slow text-[var(--accent-color)]">
+              ⠋
+            </span>
+            Claude Code · refactoring 4 files…
+          </div>
+          <div className="text-[#5C5C66]">› surface armed</div>
+        </div>
+      </ScreenFrame>
     )
   }
   if (kind === "tv") {
     return (
-      <div className="font-data text-[11px] bg-[#0A0A0C] text-[#EDEDF0] border border-[#1E1E22]">
-        <div className="px-3 py-1.5 border-b border-[#1E1E22] text-[10px] text-[#8A8A94]">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--accent-color)] mr-2 align-middle" />
-          CH 01 · NEWS
+      <ScreenFrame label="CH 01 · NEWS" status="12m ago">
+        <div className="mb-1 text-[10px] uppercase tracking-wider text-[var(--accent-color)]">
+          TechCrunch
         </div>
-        <div className="px-3 py-2.5">
-          <div className="text-[10px] uppercase tracking-wider text-[var(--accent-color)] mb-1">
-            TechCrunch
-          </div>
-          <div className="text-[11px] font-bold leading-snug">
-            Anthropic closes $13B Series F at $183B valuation
-          </div>
-        </div>
-      </div>
+        <div className="text-[11px] font-bold leading-snug">Anthropic closes $13B Series F</div>
+      </ScreenFrame>
     )
   }
-  // vanish
+  // vanish — your terminal returns the instant you type
   return (
-    <div className="relative font-data text-[11px] bg-[var(--bg-primary)] text-[var(--ink-secondary)] px-3 py-2.5 border border-dashed border-[var(--rule-default)] text-center">
-      <span className="text-[var(--ink-tertiary)]">⌨</span>
-      <span className="ml-2">— frame collapsed —</span>
-    </div>
+    <ScreenFrame label="~ · you typed" status="<200ms">
+      <div className="flex h-full items-center text-[#8A8A94]">
+        <span className="text-[#EDEDF0]">$</span>
+        <span className="ml-2 inline-block h-[15px] w-[7px] animate-pulse bg-[#EDEDF0]" />
+        <span className="ml-3 text-[#5C5C66]">surface cleared</span>
+      </div>
+    </ScreenFrame>
   )
 }
