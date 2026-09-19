@@ -117,9 +117,11 @@ function createLimiter(name: string, config: LimiterConfig, extractKey: KeyExtra
 
 // ── exported limiters ───────────────────────────────────────────────────────
 
+// per ip. the dashboard fetches server-side, so every signed-in user's requests share
+// the web host's ip — 100/min was reachable by one open dashboard tab.
 export const globalLimiter = createLimiter(
   "global",
-  { requests: 100, window: "60 s" },
+  { requests: 600, window: "60 s" },
   (req) => `ip:${ipKey(req)}`
 )
 
@@ -143,7 +145,9 @@ export const refreshLimiter = createLimiter(
   (req) => `ip:${ipKey(req)}`
 )
 
-export const userLimiter = createLimiter("user", { requests: 60, window: "60 s" }, (_req, res) => {
+// per user: the daemon (content + ingest every few seconds while ads play) plus live
+// dashboard pages refreshing every 5s. measured peak is ~100/min; 240 leaves headroom.
+export const userLimiter = createLimiter("user", { requests: 240, window: "60 s" }, (_req, res) => {
   const id = userIdKey(_req, res)
   return id ? `uid:${id}` : null
 })

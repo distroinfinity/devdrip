@@ -3,6 +3,22 @@ import { clampLimit, getRecent, getSummary, getTimeseries } from "../services/ea
 
 export const meEarningsRouter: ReturnType<typeof Router> = Router()
 
+// GET /me/earnings/overview?range=&limit= — everything the revenue page shows, in one
+// request. the page refreshes every few seconds, so three calls per refresh added up.
+meEarningsRouter.get("/overview", async (req, res, next) => {
+  try {
+    const userId = res.locals["userId"] as string
+    const [summary, series, recent] = await Promise.all([
+      getSummary(userId),
+      getTimeseries(userId, req.query["range"]),
+      getRecent(userId, clampLimit(req.query["limit"])),
+    ])
+    res.json({ summary, range: series.range, points: series.points, recent })
+  } catch (err) {
+    next(err)
+  }
+})
+
 meEarningsRouter.get("/summary", async (_req, res, next) => {
   try {
     res.json(await getSummary(res.locals["userId"] as string))
