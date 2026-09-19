@@ -20,5 +20,6 @@ export default defineConfig({
   // bundled. Install.sh runs `npm install --omit=dev` against a stripped
   // runtime package.json (built in the release workflow) for those.
   noExternal: ["@distrotv/shared", "@clack/prompts", "cli-table3", "commander", "qrcode-terminal"],
-  external: ["better-sqlite3"],
+  // native modules — ship per-platform prebuilds via npm, can't be bundled.
+  external: ["better-sqlite3", "node-pty"],
 })

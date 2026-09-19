@@ -1,6 +1,10 @@
 export type IdleStartEvent = {
   type: "idle-start"
   tty: string | null
+  // set by hooks running under `dtv run` (DISTRO_PTY=1). tells the daemon the
+  // session's input is owned by the PTY wrapper, so it must NOT open the tty for
+  // its own key capture (that would re-race Claude inside the PTY).
+  wrapped?: boolean
 }
 // S3-14: events that target a specific session carry an optional `tty` so the
 // daemon can route to the right per-tty session when multiple Claude Code
@@ -17,7 +21,14 @@ export type SessionEndEvent = { type: "session-end"; tty?: string | null }
 // User-initiated actions dispatched from CLI subcommands (`distro skip`,
 // etc.). Separate from the raw-mode key path in `input.ts` so users can
 // reliably interact even when their keystrokes lose the tty race with Claude.
-export type ActionKind = "discover" | "skip" | "kill-session" | "mute" | "dismiss" | "chart"
+export type ActionKind =
+  | "discover"
+  | "skip"
+  | "kill-session"
+  | "mute"
+  | "dismiss"
+  | "chart"
+  | "save"
 export type ActionEvent = { type: "action"; action: ActionKind; tty?: string | null }
 
 // Events carried by the hook socket. `kill` and `reload-config` are admin
@@ -39,6 +50,7 @@ const VALID_ACTIONS: readonly ActionKind[] = [
   "mute",
   "dismiss",
   "chart",
+  "save",
 ]
 
 function readOptionalTty(o: Record<string, unknown>): string | null | undefined {
@@ -60,10 +72,13 @@ export function parseWireEvent(line: string): WireEvent | null {
   const o = v as Record<string, unknown>
 
   switch (o["type"]) {
-    case "idle-start":
+    case "idle-start": {
       if (!("tty" in o)) return null
       if (o["tty"] !== null && typeof o["tty"] !== "string") return null
-      return { type: "idle-start", tty: o["tty"] }
+      const evt: IdleStartEvent = { type: "idle-start", tty: o["tty"] }
+      if (o["wrapped"] === true) evt.wrapped = true
+      return evt
+    }
     case "idle-end": {
       const tty = readOptionalTty(o)
       return tty === undefined ? { type: "idle-end" } : { type: "idle-end", tty }

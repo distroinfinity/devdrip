@@ -49,7 +49,7 @@ On success: source row gets `healthy=true, lastError=null, lastFetchedAt=now`. O
 6. **Tiered picks** so the surface always trends toward fresh content:
    - **tier 1 (preferred):** items neither in `news:served:<deviceId>` nor in `news:offered:<deviceId>` (recently offered). Take the top `n`. Serving **fewer than `n` is intentional** — the CLI slot-cache handles partial batches, and a short fresh batch beats padding with repeats.
    - **recycle (only if tier 1 is empty):** fresh inventory is exhausted for this device, so rather than show an empty surface we serve offered-but-never-rendered items, then already-served — both score-ranked — and `DEL` the offered set to start a new cycle.
-7. Write the `n` picks to `news:nextpicks:<deviceId>` (5-min TTL) **and** add their ids to `news:offered:<deviceId>` (`recentlyOfferedKey`, ~4h TTL). Offered is marked **at selection time**; served is still marked on impression (see "Dedupe" below).
+7. Write the `n` picks to `news:nextpicks:<deviceId>` (5-min TTL) **and** `ZADD` their ids to `news:offered:<deviceId>` (`recentlyOfferedKey`) scored by offered-at ms. Offered is marked **at selection time**; served is still marked on impression (see "Dedupe" below).
 
 ## Failure modes
 
@@ -65,7 +65,7 @@ On success: source row gets `healthy=true, lastError=null, lastFetchedAt=now`. O
 
 Repetition ("the same handful over and over") is governed by two Redis sets, on purpose:
 
-- **`news:offered:<deviceId>`** (SET, ~4h TTL) — marked **at selection time**. Hard-excluded from tier-1 picks. This is what guarantees a device doesn't get the same batch back even if impressions never sync (cache eviction, daemon crash, flaky `/ingest`, user closes Claude before a slot fires). Closing that window was the fix for the repeating-handful symptom.
+- **`news:offered:<deviceId>`** (ZSET scored by offered-at ms) — marked **at selection time**. Hard-excluded from tier-1 picks. Each id ages out of the ~4h window on its own clock: every selection prunes members older than the cutoff (`ZREMRANGEBYSCORE 0 now-4h`) before reading the survivors, so an active device that keeps receiving new picks does **not** keep older offers suppressed indefinitely (the bug a whole-key TTL caused). This guarantees a device doesn't get the same batch back even if impressions never sync (cache eviction, daemon crash, flaky `/ingest`, user closes Claude before a slot fires). Closing that window was the fix for the repeating-handful symptom.
 - **`news:served:<deviceId>`** (SET, 30d TTL) — marked **on impression** only. The CLI POSTs to `/ingest` after a slot displays for ≥1ms and `recordSlotImpression` calls `markServedOnImpression`. This is the long-term "don't show me this again for a month" set; it also feeds the `is_first_time` scoring bonus. Failures are logged (`markServedOnImpression failed`) but no longer load-bearing for dedup, since `offered` already covers the short term.
 
 An item the device never rendered ages out of `offered` after ~4h and becomes a candidate again — intended resurfacing once fresh inventory is thin.

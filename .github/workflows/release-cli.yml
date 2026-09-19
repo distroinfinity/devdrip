@@ -40,16 +40,17 @@ jobs:
           cp packages/cli/LICENSE .release-staging/
           test -f packages/cli/README.md && cp packages/cli/README.md .release-staging/ || true
           # Build a runtime package.json with only the native deps that can't
-          # be bundled (better-sqlite3 ships per-platform prebuilds). All
-          # pure-JS deps are bundled into dist/ by tsup's noExternal.
+          # be bundled (better-sqlite3 + node-pty ship per-platform prebuilds).
+          # All pure-JS deps are bundled into dist/ by tsup's noExternal.
           node -e "
             const pkg = require('./packages/cli/package.json');
+            const native = ['better-sqlite3', 'node-pty'];
             const runtime = {
               name: pkg.name,
               version: pkg.version,
               type: pkg.type,
               bin: pkg.bin,
-              dependencies: { 'better-sqlite3': pkg.dependencies['better-sqlite3'] },
+              dependencies: Object.fromEntries(native.map((d) => [d, pkg.dependencies[d]])),
             };
             require('fs').writeFileSync('.release-staging/package.json', JSON.stringify(runtime, null, 2));
           "
