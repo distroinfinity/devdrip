@@ -15,6 +15,7 @@ import { devicesRouter, devicesRegisterRouter } from "./routes/devices.js"
 import { mePreferencesRouter } from "./routes/me-preferences.js"
 import { meReadingRouter } from "./routes/me-reading.js"
 import { meContentRouter } from "./routes/me-content.js"
+import { channelsPublicRouter, meChannelsRouter } from "./routes/news-channels.js"
 import { ingestRouter } from "./routes/ingest.js"
 import { testHelpersRouter } from "./routes/__test-helpers.js"
 import { requireAuth } from "./middleware/auth.js"
@@ -56,6 +57,8 @@ if (env.nodeEnv !== "production") {
 
 app.use(globalLimiter)
 
+app.use("/channels", channelsPublicRouter)
+
 app.use("/auth", authRouter)
 app.use("/auth/magic-link", authLimiter, authMagicLinkRouter)
 app.use("/auth/exchange-pair", globalLimiter, authExchangePairRouter)
@@ -95,6 +98,7 @@ app.get("/me", requireAuth, userLimiter, async (_req, res) => {
 app.use("/me", requireAuth, userLimiter, mePreferencesRouter)
 app.use("/me/reading", requireAuth, userLimiter, meReadingRouter)
 app.use("/me/content", requireAuth, userLimiter, meContentRouter)
+app.use("/me/channels", requireAuth, userLimiter, meChannelsRouter)
 app.use("/ingest", requireAuth, userLimiter, ingestRouter)
 
 app.use(errorHandler)

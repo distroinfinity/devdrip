@@ -1,13 +1,15 @@
-import type { NewsSource } from "./news.js"
+import type { NewsSource, ChannelKey } from "./news.js"
 
 export interface NewsPayload {
   kind: "news"
   // namespaced id: "hn:38291043" — keeps the dedup set source-agnostic
   id: string
   source: NewsSource
+  channelKey: ChannelKey
   headline: string
   url: string
-  score: number
+  // optional: HN/Reddit have engagement scores; plain RSS sources (TechCrunch, Bloomberg, …) don't.
+  score?: number
   commentsUrl?: string
   // server computes at fetch time; daemon renders "1h" / "3d"
   ageSeconds: number

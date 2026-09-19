@@ -1,12 +1,14 @@
 import { Command } from "commander"
 import { intro, outro, select, log, isCancel, cancel } from "@clack/prompts"
-import type { ChannelMode, SyncedPreferences } from "@distrotv/shared"
+import { ChannelMode, type SyncedPreferences } from "@distrotv/shared"
 import { reportError } from "../lib/api-client.js"
 import { readConfig, writeConfig } from "../lib/config.js"
 import { getPreferences, putPreferences } from "../lib/preferences-client.js"
-import { pickChannelMode, pickCategories } from "../lib/prompts/preferences.js"
+import { getMyChannels, putMyChannels } from "../lib/channels-client.js"
+import { pickChannelMode } from "../lib/prompts/preferences.js"
+import { pickChannels } from "../lib/prompts/channels.js"
 
-type Action = "mode" | "categories" | "caps" | "topics" | "cancel"
+type Action = "mode" | "channels" | "caps" | "topics" | "cancel"
 
 async function mirrorToLocal(updated: SyncedPreferences): Promise<void> {
   const cfg = await readConfig()
@@ -26,7 +28,7 @@ async function showMenu(currentMode: ChannelMode): Promise<Action> {
     message: "what would you like to change?",
     options: [
       { value: "mode", label: `channel mode (currently: ${currentMode})` },
-      { value: "categories", label: "ad categories" },
+      { value: "channels", label: "channels (tech / finance / crypto / …)" },
       { value: "caps", label: "caps & quiet hours (coming soon)" },
       { value: "topics", label: "news topics (v1.1 — coming soon)" },
       { value: "cancel", label: "cancel" },
@@ -60,15 +62,19 @@ async function runPreferences(): Promise<void> {
       continue
     }
 
-    if (action === "categories") {
-      const blocked = await pickCategories(prefs.blockedCategories)
-      prefs = await putPreferences({ blockedCategories: blocked })
-      await mirrorToLocal(prefs)
-      log.success(
-        blocked.length === 0
-          ? "all categories allowed"
-          : `${blocked.length} categor${blocked.length === 1 ? "y" : "ies"} blocked`
-      )
+    if (action === "channels") {
+      if (prefs.channelMode === ChannelMode.Markets) {
+        log.warn("channels are unused in markets mode — switch mode first if you want news")
+      }
+      const current = await getMyChannels()
+      const next = await pickChannels(current)
+      if (next.length === 0) {
+        log.warn("at least one channel must stay on — keeping previous selection")
+        continue
+      }
+      await putMyChannels(next)
+      const labels = current.filter((c) => next.includes(c.key)).map((c) => c.label)
+      log.success(labels.join(", "))
       continue
     }
 
@@ -83,7 +89,7 @@ async function runPreferences(): Promise<void> {
 
 export const preferencesCmd = new Command("preferences")
   .alias("prefs")
-  .description("change channel mode, ad categories, and other settings")
+  .description("change channel mode, channels, and other settings")
   .action(async () => {
     try {
       await runPreferences()

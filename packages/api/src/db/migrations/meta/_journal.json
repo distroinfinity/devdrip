@@ -85,6 +85,13 @@
       "when": 1778046484823,
       "tag": "0011_magic_link_and_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1778065867973,
+      "tag": "0012_channels_and_news_pipeline",
+      "breakpoints": true
     }
   ]
 }

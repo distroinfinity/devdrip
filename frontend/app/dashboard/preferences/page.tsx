@@ -2,14 +2,15 @@ import { BlurFade } from "@distrotv/design-system/components/blur-fade"
 import { apiFetchOrRefresh } from "@/lib/api"
 import { PreferencesForm } from "@/components/dashboard/preferences/preferences-form"
 import type { PreferencesPayload } from "@/lib/dashboard-api"
+import type { ChannelDto } from "@distrotv/shared"
 
 export const dynamic = "force-dynamic"
 
 export default async function PreferencesPage() {
-  const { preferences } = await apiFetchOrRefresh<PreferencesPayload>(
-    "/me/preferences",
-    "/dashboard/preferences"
-  )
+  const [{ preferences }, { channels }] = await Promise.all([
+    apiFetchOrRefresh<PreferencesPayload>("/me/preferences", "/dashboard/preferences"),
+    apiFetchOrRefresh<{ channels: ChannelDto[] }>("/me/channels", "/dashboard/preferences"),
+  ])
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,7 +30,7 @@ export default async function PreferencesPage() {
       </BlurFade>
 
       <BlurFade delay={0.04} direction="up" offset={6}>
-        <PreferencesForm initial={preferences} />
+        <PreferencesForm initial={preferences} initialChannels={channels} />
       </BlurFade>
     </div>
   )

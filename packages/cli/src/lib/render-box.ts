@@ -195,7 +195,8 @@ export function renderNewsBox(
   const header = `${c.tl}${left}${middle}${right}${c.tr}`
 
   const sourceLabel = ascii ? payload.source : `📰 ${payload.source}`
-  const meta = `${sourceLabel} · ${payload.score} pts · ${formatAge(payload.ageSeconds)}`
+  const scoreSeg = payload.score != null ? `${payload.score} pts · ` : ""
+  const meta = `${sourceLabel} · ${scoreSeg}${formatAge(payload.ageSeconds)}`
   const headline = sanitize(payload.headline)
   const url = sanitize(payload.url)
 

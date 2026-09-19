@@ -1,14 +1,16 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import type { SyncedPreferences } from "@distrotv/shared"
+import type { ChannelDto, SyncedPreferences } from "@distrotv/shared"
 import { cn } from "@distrotv/design-system/utils"
-import { savePreferences } from "@/app/dashboard/preferences/actions"
+import { savePreferences, saveChannels } from "@/app/dashboard/preferences/actions"
 import { QuietHoursPicker } from "./quiet-hours-picker"
 import { AdvancedBlock } from "./advanced-block"
+import { ChannelsGrid } from "./channels-grid"
 
 interface PreferencesFormProps {
   initial: SyncedPreferences
+  initialChannels: ChannelDto[]
 }
 
 type Status =
@@ -17,13 +19,19 @@ type Status =
   | { kind: "saved"; at: number }
   | { kind: "error"; message: string }
 
-export function PreferencesForm({ initial }: PreferencesFormProps) {
+export function PreferencesForm({ initial, initialChannels }: PreferencesFormProps) {
   const [prefs, setPrefs] = useState<SyncedPreferences>(initial)
   const [savedSnapshot, setSavedSnapshot] = useState<SyncedPreferences>(initial)
+  const [channels, setChannels] = useState<ChannelDto[]>(initialChannels)
+  const [savedChannels, setSavedChannels] = useState<ChannelDto[]>(initialChannels)
   const [status, setStatus] = useState<Status>({ kind: "idle" })
   const [pending, startTransition] = useTransition()
 
-  const dirty = JSON.stringify(prefs) !== JSON.stringify(savedSnapshot)
+  const channelsDirty = channels.some((c, i) => {
+    const s = savedChannels[i]
+    return c.key !== s?.key || c.subscribed !== s?.subscribed || c.priority !== s?.priority
+  })
+  const dirty = JSON.stringify(prefs) !== JSON.stringify(savedSnapshot) || channelsDirty
 
   function patch(p: Partial<SyncedPreferences>): void {
     setPrefs((cur) => ({ ...cur, ...p }))
@@ -33,6 +41,11 @@ export function PreferencesForm({ initial }: PreferencesFormProps) {
   function save(): void {
     if (!dirty || pending) return
     const snapshot = prefs
+    const subscribedKeys = channels.filter((c) => c.subscribed).map((c) => c.key)
+    if (subscribedKeys.length === 0) {
+      setStatus({ kind: "error", message: "pick at least one channel before saving" })
+      return
+    }
     startTransition(async () => {
       setStatus({ kind: "saving" })
       const result = await savePreferences({
@@ -46,21 +59,34 @@ export function PreferencesForm({ initial }: PreferencesFormProps) {
       if (result.ok && result.preferences) {
         setSavedSnapshot(result.preferences)
         setPrefs(result.preferences)
-        setStatus({ kind: "saved", at: Date.now() })
       } else {
         setStatus({ kind: "error", message: result.error ?? "save failed" })
+        return
+      }
+
+      const channelResult = await saveChannels(subscribedKeys)
+      if (channelResult.ok && channelResult.channels) {
+        setSavedChannels(channelResult.channels)
+        setChannels(channelResult.channels)
+        setStatus({ kind: "saved", at: Date.now() })
+      } else {
+        // prefs saved successfully; surface channels error but keep prefs snapshot
+        setStatus({ kind: "error", message: channelResult.error ?? "channels save failed" })
       }
     })
   }
 
   function reset(): void {
     setPrefs(savedSnapshot)
+    setChannels(savedChannels)
     setStatus({ kind: "idle" })
   }
 
   return (
     <div className="flex flex-col gap-6 pb-32">
-      {/* M2 adds: channel mode picker (news/markets/mix) */}
+      <Section title="Channels" subtitle="which feeds appear in your slot rotation">
+        <ChannelsGrid channels={channels} onChange={setChannels} disabled={pending} />
+      </Section>
 
       <Section title="Quiet hours" subtitle="silence specific hours of the day">
         <QuietHoursPicker
