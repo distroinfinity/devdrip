@@ -4,6 +4,7 @@ import { env, assertEnvSafe } from "./config/env.js"
 import { logger } from "./lib/logger.js"
 import { probeDb, probeRedis } from "./lib/probes.js"
 import { sendSlackAlert } from "./lib/slack.js"
+import { startBackgroundJobs } from "./lib/background-jobs.js"
 import type { Socket } from "node:net"
 
 // Catch anything that slips past Express's route-level try/catch or runs
@@ -51,6 +52,12 @@ async function start() {
     const sha = env.commitSha?.slice(0, 7) ?? "unknown"
     void sendSlackAlert(`api booted · sha=${sha}`, { severity: "info" })
   })
+
+  // no dedicated worker service is deployed yet, so run the news fetch + alert
+  // crons in-process. set RUN_WORKER_IN_PROCESS=false once a worker exists.
+  if (process.env["RUN_WORKER_IN_PROCESS"] !== "false") {
+    startBackgroundJobs()
+  }
 
   const openSockets = new Set<Socket>()
   server.on("connection", (socket) => {
