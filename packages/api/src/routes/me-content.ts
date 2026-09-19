@@ -64,20 +64,26 @@ async function getMode(userId: string): Promise<ChannelMode> {
 // fetch up to `n` tickers, skipping rotation indices that return null (missing quote
 // during fetcher warm-up). bounded at 2*n attempts so a fully empty quote table
 // still terminates instead of looping forever.
+// concurrency cap: each nextTickerForDevice runs a db query (ensureDefaultWatchlist)
+// + a yahoo fetch. full parallel (2*n at once) exhausted the postgres-js pool
+// against neon (AggregateError 500s); pure sequential blew past the daemon's 10s
+// timeout. a small fixed concurrency gets the speed without the connection burst.
+const TICKER_CONCURRENCY = 4
+
 async function fetchTickers(userId: string, deviceId: string, n: number): Promise<TickerPayload[]> {
   if (n <= 0) return []
-  // fetch candidates in PARALLEL. the old sequential loop made up to 2*n yahoo
-  // round-trips back-to-back (~5s each on a cold redis cache), pushing the
-  // endpoint past the daemon's 10s fetch timeout → the daemon aborted and fell
-  // back to the offline demo (and the abort cancelled the warm-up, so the cache
-  // never filled). parallel keeps worst-case ≈ one yahoo timeout.
   const maxAttempts = n * 2
-  const candidates = await Promise.all(
-    Array.from({ length: maxAttempts }, (_, i) =>
-      nextTickerForDevice({ userId, deviceId, rotationIndex: i })
+  const out: TickerPayload[] = []
+  for (let start = 0; start < maxAttempts && out.length < n; start += TICKER_CONCURRENCY) {
+    const size = Math.min(TICKER_CONCURRENCY, maxAttempts - start)
+    const batch = await Promise.all(
+      Array.from({ length: size }, (_, k) =>
+        nextTickerForDevice({ userId, deviceId, rotationIndex: start + k })
+      )
     )
-  )
-  return candidates.filter((t): t is TickerPayload => t !== null).slice(0, n)
+    for (const t of batch) if (t) out.push(t)
+  }
+  return out.slice(0, n)
 }
 
 async function onlyTicker(userId: string, deviceId: string, n: number): Promise<SlotPayload[]> {
