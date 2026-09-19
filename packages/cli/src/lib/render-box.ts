@@ -1,5 +1,5 @@
 import type { AdPayload } from "@devdrip/shared"
-import { bold, detectColor, dim, green, type ColorMode } from "./ansi.js"
+import { bold, detectColor, dim, green, yellow, type ColorMode } from "./ansi.js"
 
 const DEFAULT_WIDTH = 72
 const MIN_WIDTH = 40
@@ -224,6 +224,9 @@ export interface RenderBoxOpts {
   // right-aligned on the first body row with a brief pop-then-fade animation
   // driven by the orchestrator tick.
   popup?: EarningsPopup
+  // render a [DEMO] tag in the header next to the title. used by `devdrip
+  // demo` so a user can't mistake a practice ad for a real one being logged.
+  demoBadge?: boolean
 }
 
 function clampWidth(w: number | undefined): number {
@@ -248,14 +251,19 @@ export function renderBox(
   const earningsSegment =
     opts.earningsUsdc !== undefined ? `$${opts.earningsUsdc.toFixed(4)} earned` : ""
   const sourceSegment = opts.source ? `via ${opts.source}` : ""
+  // [DEMO] tag — plain string goes through width math; rendered gets the
+  // amber color so it jumps out against the rest of the header.
+  const demoPlain = opts.demoBadge ? "[DEMO]" : ""
+  const demoRendered = opts.demoBadge ? yellow("[DEMO]", color) : ""
 
   // build header segments separated by " · " when multiple exist. the live
   // dot sits before the title so every 500ms tick from the orchestrator
   // visibly pulses it — signals the TV is alive even when progress is flat.
   const dot = liveDot(opts.elapsedMs ?? 0, ascii, color)
-  const leftSegments = [title, earningsSegment].filter(Boolean)
-  const leftLabelPlain = ` ${dot.plain} ${leftSegments.join(" · ")} `
-  const leftLabelRendered = ` ${dot.rendered} ${leftSegments.join(" · ")} `
+  const leftSegmentsPlain = [title, demoPlain, earningsSegment].filter(Boolean)
+  const leftSegmentsRendered = [title, demoRendered, earningsSegment].filter(Boolean)
+  const leftLabelPlain = ` ${dot.plain} ${leftSegmentsPlain.join(" · ")} `
+  const leftLabelRendered = ` ${dot.rendered} ${leftSegmentsRendered.join(" · ")} `
   // drop the right segment if it would push the header past `width`. need at
   // least 4 fill chars (2 left corner pad + 2 right corner pad) for the box
   // to render cleanly; below that, the right label is dropped entirely so

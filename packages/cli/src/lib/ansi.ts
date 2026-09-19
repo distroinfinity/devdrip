@@ -43,3 +43,20 @@ export function bold(text: string, mode: ColorMode): string {
   if (mode === "none") return text
   return wrap(text, "\x1b[1m")
 }
+
+// red for doctor failures. truecolor picks GitHub's danger-emphasis red
+// (#cf222e) for visual rhyme with the landing page. 256-color fallback is
+// xterm 160.
+export function red(text: string, mode: ColorMode): string {
+  if (mode === "none") return text
+  if (mode === "truecolor") return wrap(text, "\x1b[38;2;207;34;46m")
+  return wrap(text, "\x1b[38;5;160m")
+}
+
+// amber for the [DEMO] badge and doctor warn states. truecolor is GitHub's
+// attention fg (#9a6700); 256-color fallback is xterm 172.
+export function yellow(text: string, mode: ColorMode): string {
+  if (mode === "none") return text
+  if (mode === "truecolor") return wrap(text, "\x1b[38;2;154;103;0m")
+  return wrap(text, "\x1b[38;5;172m")
+}

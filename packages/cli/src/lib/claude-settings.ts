@@ -92,6 +92,64 @@ export function getMissingDevdripHookEvents(settings: Settings, binPath: string)
   }).map(({ event }) => event)
 }
 
+// Reverse of mergeDevdripHooks — strips every hook that matches the devdrip
+// command shape (any binPath, stale or current), drops groups it empties, and
+// drops events whose group arrays it empties. Works even if cfg.cli.binPath
+// drifted away from what's on disk (stale symlink, old install), because
+// detection runs through parseDevdripCommand's regex rather than string match.
+export function removeDevdripHooks(settings: Settings): { next: Settings; changed: boolean } {
+  if (settings.hooks === undefined) return { next: settings, changed: false }
+  if (typeof settings.hooks !== "object" || Array.isArray(settings.hooks)) {
+    throw new Error("settings.hooks must be an object")
+  }
+
+  let changed = false
+  const nextHooks: Record<string, HookGroup[]> = {}
+
+  for (const [event, groups] of Object.entries(settings.hooks)) {
+    if (!Array.isArray(groups)) {
+      // non-standard shape — leave it alone
+      nextHooks[event] = groups as unknown as HookGroup[]
+      continue
+    }
+    const cleanedGroups: HookGroup[] = []
+    for (const g of groups) {
+      if (!g || !Array.isArray(g.hooks)) {
+        cleanedGroups.push(g)
+        continue
+      }
+      const keptHooks = g.hooks.filter(
+        (h) => !(typeof h.command === "string" && parseDevdripCommand(h.command) !== null)
+      )
+      if (keptHooks.length === g.hooks.length) {
+        cleanedGroups.push(g)
+        continue
+      }
+      changed = true
+      if (keptHooks.length > 0) {
+        cleanedGroups.push({ ...g, hooks: keptHooks })
+      }
+    }
+    if (cleanedGroups.length > 0) {
+      nextHooks[event] = cleanedGroups
+    } else if (groups.length > 0) {
+      // every group in this event was ours — drop the event key entirely
+      changed = true
+    }
+  }
+
+  const next: Settings = { ...settings }
+  if (Object.keys(nextHooks).length === 0) {
+    delete next.hooks
+    if (Object.keys(settings.hooks).length > 0 && !changed) {
+      // hooks was an empty object already; safe to keep as-is. don't flip changed.
+    }
+  } else {
+    next.hooks = nextHooks as Settings["hooks"]
+  }
+  return { next, changed }
+}
+
 export function mergeDevdripHooks(
   settings: Settings,
   binPath: string
