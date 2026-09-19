@@ -11,13 +11,12 @@ function optionalEnv(key: string, fallback: string): string {
 }
 
 // resolved once at import time — DISTRO_ENV (or NODE_ENV fallback) drives
-// every URL/email default. explicit overrides via API_URL / WEB_URL /
-// MAGIC_LINK_FROM_EMAIL still win for ad-hoc testing.
+// the apiUrl/webUrl defaults. explicit overrides via API_URL / WEB_URL still
+// win for ad-hoc testing.
 const bundle: EnvBundle = resolveEnv({
   distroEnv: process.env["DISTRO_ENV"],
   apiUrl: process.env["API_URL"],
-  webUrl: process.env["WEB_URL"] ?? process.env["MAGIC_LINK_BASE_URL"],
-  magicLinkFromEmail: process.env["MAGIC_LINK_FROM_EMAIL"],
+  webUrl: process.env["WEB_URL"],
   nodeEnv: process.env["NODE_ENV"],
 })
 
@@ -34,22 +33,10 @@ export const env = {
     return val
   },
 
-  get resendApiKey() {
-    const nodeEnv = optionalEnv("NODE_ENV", "development")
-    return nodeEnv === "production"
-      ? requireEnv("RESEND_API_KEY")
-      : optionalEnv("RESEND_API_KEY", "re_dev_placeholder")
-  },
   get finnhubApiKey(): string {
     return env.nodeEnv === "production"
       ? requireEnv("FINNHUB_API_KEY")
       : optionalEnv("FINNHUB_API_KEY", "dev_placeholder")
-  },
-  get magicLinkFromEmail() {
-    return bundle.magicLinkFromEmail
-  },
-  get magicLinkBaseUrl() {
-    return bundle.webUrl
   },
   get jwtSecret() {
     return requireEnv("JWT_SECRET")
