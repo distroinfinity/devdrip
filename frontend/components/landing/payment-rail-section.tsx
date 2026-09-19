@@ -21,29 +21,16 @@ const TRUST_FACTS = [
 
 // --- brand logos (inline SVG, currentColor) ---
 
-function BaseLogo({ className }: { className?: string }) {
+function UsdcLogo({ className }: { className?: string }) {
   return (
-    <img
-      src="/baselogo.png"
-      alt="Base"
-      width={28}
-      height={28}
-      className={cn("rounded-full object-cover shrink-0", className)}
-      style={{ width: 28, height: 28 }}
-    />
-  )
-}
-
-function CeloLogo({ className }: { className?: string }) {
-  return (
-    <img
-      src="/celochainlogo.jpg"
-      alt="Celo"
-      width={28}
-      height={28}
-      className={cn("rounded-full object-cover shrink-0", className)}
-      style={{ width: 28, height: 28 }}
-    />
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={cn("w-6 h-6", className)}
+      aria-hidden="true"
+    >
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm.75 14.5v1.5h-1.5v-1.46c-1.75-.12-3.08-1.17-3.25-2.79h1.5c.16.83.95 1.42 2 1.42 1.1 0 1.75-.56 1.75-1.29 0-.72-.57-1.1-2.08-1.42-1.97-.4-3.08-1.06-3.08-2.54 0-1.29 1.03-2.27 2.66-2.46V6h1.5v1.46c1.61.2 2.66 1.14 2.79 2.54h-1.5c-.08-.76-.73-1.3-1.79-1.3-1.02 0-1.66.5-1.66 1.17 0 .64.5 1.03 2 1.33 2.12.42 3.17 1.14 3.17 2.6 0 1.37-1.04 2.33-2.75 2.5z" />
+    </svg>
   )
 }
 
@@ -193,7 +180,7 @@ interface RailConfig {
 }
 
 const RAILS: RailConfig[] = [
-  { name: "", logos: [BaseLogo, CeloLogo], active: true, badge: "live" },
+  { name: "USDC", logos: [UsdcLogo], active: true, badge: "live" },
   { name: "Stripe", logos: [StripeLogo], active: false, badge: "soon" },
   { name: "PayPal", logos: [PayPalLogo], active: false, badge: "soon" },
   { name: "UPI", logos: [UpiLogo], active: false, badge: "soon" },
@@ -298,7 +285,7 @@ function DesktopFlow() {
         duration={5}
       />
 
-      {/* active beam — Base */}
+      {/* active beam — USDC */}
       <AnimatedBeam
         containerRef={containerRef}
         fromRef={hubRef}
@@ -388,7 +375,7 @@ export function PaymentRailSection() {
                 Sub-cent fees. Real dollars.
               </h2>
               <p className="font-body text-body text-[var(--ink-secondary)] max-w-[480px]">
-                USD on Base and Celo. Micropayments need sub-cent fees. More rails coming.
+                USDC micropayments with sub-cent fees. More rails coming.
               </p>
             </div>
           </BlurFade>
