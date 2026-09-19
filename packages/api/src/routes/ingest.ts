@@ -2,6 +2,7 @@ import { Router } from "express"
 import type { ImpressionResult, NewsSource } from "@distrotv/shared"
 import { recordSlotImpression } from "../services/slot-impression.service.js"
 import { markServedOnImpression } from "../services/news-selection.service.js"
+import { parseAdImpression, recordAdImpression } from "../services/ad-impression.service.js"
 import { logger } from "../lib/logger.js"
 
 interface RawNewsImpression {
@@ -107,9 +108,38 @@ ingestRouter.post("/", async (req, res) => {
     }
   }
 
-  // return legacy empty arrays so CLI's applyResults loop doesn't throw on index access
+  // ad impressions: index-aligned results. the two error strings are in the cli's
+  // terminal set, so a bad row is tombstoned instead of retried forever.
+  const impressionResults: { ok: boolean; deliveryToken: string; error?: string }[] = []
+  for (const raw of rawImpressions) {
+    const token = String((raw as { deliveryToken?: unknown } | null)?.deliveryToken ?? "")
+    const input = parseAdImpression(raw)
+    if (!input) {
+      impressionResults.push({
+        ok: false,
+        deliveryToken: token,
+        error: "invalid_or_expired_delivery_token",
+      })
+      continue
+    }
+    try {
+      const outcome = await recordAdImpression({ userId, input })
+      impressionResults.push(
+        outcome === "ok"
+          ? { ok: true, deliveryToken: token }
+          : { ok: false, deliveryToken: token, error: outcome }
+      )
+    } catch (err) {
+      logger.warn({ err }, "ingest: recordAdImpression failed")
+      // no error code → the cli treats it as transient and retries
+      impressionResults.push({ ok: false, deliveryToken: token })
+    }
+  }
+
+  // clicks are recorded by GET /ads/click/:deliveryId, not ingested; the array
+  // stays in the response so older clients' result loop keeps working.
   res.json({
-    impressions: rawImpressions.map(() => ({ ok: false, deliveryToken: "" })),
+    impressions: impressionResults,
     clicks: rawClicks.map(() => ({ ok: false, deliveryToken: "" })),
     newsImpressions: newsImpressionResults,
   })
