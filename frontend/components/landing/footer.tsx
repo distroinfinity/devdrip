@@ -1,3 +1,5 @@
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+
 const NAV_LINKS = [
   { label: "Docs", href: "#" },
   { label: "GitHub", href: "https://github.com/distroinfinity/devdrip" },
@@ -25,6 +27,8 @@ export function Footer() {
               {link.label}
             </a>
           ))}
+          <span className="h-3.5 w-px bg-[var(--rule-default)]" />
+          <ThemeToggle className="font-body text-[13px] font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors" />
         </nav>
 
         {/* attribution */}

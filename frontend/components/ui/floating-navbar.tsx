@@ -7,7 +7,6 @@ import {
   useMotionValueEvent,
 } from "motion/react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 export const FloatingNav = ({
   navItems,
@@ -77,10 +76,6 @@ export const FloatingNav = ({
               </a>
             ))}
           </div>
-
-          <div className="hidden sm:block h-5 w-px bg-[var(--rule-default)]" />
-
-          <ThemeToggle className="hidden sm:block px-3 py-1.5 rounded-full text-[12px]" />
 
           <div className="hidden sm:block h-5 w-px bg-[var(--rule-default)]" />
 

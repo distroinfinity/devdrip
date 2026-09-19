@@ -8,6 +8,7 @@ type WaitlistState = "idle" | "submitting" | "success";
 
 interface WaitlistButtonProps {
   onClick?: () => void | Promise<void>;
+  href?: string;
   className?: string;
   idleLabel?: string;
   submittingLabel?: string;
@@ -16,12 +17,29 @@ interface WaitlistButtonProps {
 
 export function WaitlistButton({
   onClick,
+  href,
   className,
-  idleLabel = "Join the Waitlist",
-  submittingLabel = "Joining...",
-  successLabel = "You're in.",
+  idleLabel = "Request Beta Access",
+  submittingLabel = "Requesting...",
+  successLabel = "Request sent.",
 }: WaitlistButtonProps) {
   const [state, setState] = useState<WaitlistState>("idle");
+
+  // when href is provided, render as a simple scroll link — no state machine
+  if (href) {
+    return (
+      <a
+        href={href}
+        className={cn(
+          "relative inline-flex items-center justify-center h-11 px-6 rounded-sm font-body text-sm font-medium transition-all overflow-hidden",
+          "bg-[var(--ink-primary)] text-[var(--ink-inverse)] hover:bg-[var(--em-hover)]",
+          className,
+        )}
+      >
+        {idleLabel}
+      </a>
+    );
+  }
 
   const handleClick = async () => {
     if (state !== "idle") return;
@@ -43,7 +61,7 @@ export function WaitlistButton({
         state === "idle" && "bg-[var(--ink-primary)] text-[var(--ink-inverse)] hover:bg-[var(--em-hover)] cursor-pointer",
         state === "submitting" && "bg-[var(--ink-primary)] text-[var(--ink-inverse)] cursor-wait",
         state === "success" && "bg-[var(--accent-color)] text-white cursor-default",
-        className
+        className,
       )}
       aria-live="polite"
     >
