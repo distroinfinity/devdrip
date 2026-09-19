@@ -7,7 +7,7 @@ import { SharpButton } from "@/components/v5/sharp-button"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = {
-  title: "Advertise on Distro — the ad exchange for AI agent surfaces",
+  title: "Advertise on Distro TV — the ad exchange for AI agent surfaces",
   description:
     "Bid for developer attention during AI agent runs. Open exchange, starting with the terminal. Self-serve coming soon.",
   alternates: { canonical: "/advertisers" },
@@ -103,8 +103,8 @@ export default function AdvertisersPage() {
                   Reach developers while their agent works.
                 </h1>
                 <p className="font-body text-[14px] leading-[1.6] text-[var(--ink-secondary)] mb-6 max-w-[52ch]">
-                  Developers wait while their agent works. Distro turns that wait into ad inventory.
-                  It starts in the terminal.
+                  Developers wait while their agent works. Distro TV turns that wait into ad
+                  inventory. It starts in the terminal.
                 </p>
                 <a
                   href={TALK_TO_US}

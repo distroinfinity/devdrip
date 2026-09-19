@@ -82,10 +82,6 @@ export function LineageSection() {
             </tr>
           </tbody>
         </table>
-
-        <p className="mt-8 max-w-[62ch] font-body text-[15px] leading-[1.65] text-[var(--ink-primary)]">
-          Distro is building it.
-        </p>
       </div>
     </section>
   )

@@ -10,7 +10,7 @@ const siteUrl = SITE_URL
 
 const title = "Distro TV — the ad exchange for AI agent surfaces"
 const description =
-  "AI agents do the work while people wait. Distro is the open exchange for that attention: slots inside agent tools, an opted-in audience, and revenue shared with the viewer. First surface: the terminal."
+  "AI agents do the work while people wait. Distro TV is the open exchange for that attention: slots inside agent tools, an opted-in audience, and revenue shared with the viewer. First surface: the terminal."
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
