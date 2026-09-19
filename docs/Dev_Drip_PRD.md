@@ -2,6 +2,8 @@
 
 ## Ad-Subsidized AI Coding Tools via Opt-In Idle-Time Monetization
 
+> **Note (post-pivot).** Dev Drip became Distro TV, a channel surface. Channels are the verticals: CH 01 NEWS, CH 02 MARKETS, and now **CH 03 ONCHAIN — LP GUARD** (a Uniswap v4 hook piloted from the terminal). See [product/onchain-lp-guard-prd.md](./product/onchain-lp-guard-prd.md) and [product/onchain-lp-guard-feature-spec.md](./product/onchain-lp-guard-feature-spec.md).
+
 ---
 
 ## 1. Problem Statement

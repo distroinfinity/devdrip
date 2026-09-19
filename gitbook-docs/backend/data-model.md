@@ -308,8 +308,42 @@ Indexes: `(user_id, saved_at)`, unique `(user_id, news_id)` (idempotent saves).
 
 Two added columns:
 
-- `channel_mode text NOT NULL DEFAULT 'balanced'` — `news_only | news_heavy | balanced | ticker_heavy | ticker_only`. Migrated from the legacy `earn / learn / mix` enum in M5.
+- `channel_mode text NOT NULL DEFAULT 'balanced'` — `news_only | news_heavy | balanced | ticker_heavy | ticker_only | onchain_only`. Migrated from the legacy `earn / learn / mix` enum in M5. `onchain_only` added by migration `0024_*` (extends the `preferences_channel_mode_check` constraint) for CH 03.
 - `news_topics text[] NOT NULL DEFAULT '{}'` — future-proofed for v1.1 topic filters
+
+## Onchain (CH 03 — LP GUARD)
+
+Three tables for the onchain channel (migration `0023_*`). Independent of the ticker/news tables. See [Onchain LP Guard](../architecture/onchain-lp-guard.md).
+
+### `onchain_pools`
+
+Pool registry the public snapshot route reads.
+
+- `pool_id` PK
+- `chain_id`
+- `hook_address`
+- `label`
+- `token0`, `token1`
+- `decimals`
+- `tick_spacing`
+
+### `onchain_positions`
+
+A user's tracked LP range.
+
+- `id` PK
+- `user_id` FK → users
+- `chain_id`
+- `pool_id`
+- `position_token_id` (nullable)
+- `tick_lower`, `tick_upper`
+- `wallet_address`
+- `label`
+- `status` — `active` rows are the ones actions/eval resolve
+
+### `onchain_events`
+
+Fire log for alert debounce — per `(device, type)`, 60-min window. Mirrors the ticker `alert_events` role for the reused alert pipeline.
 
 ## Important Notes
 

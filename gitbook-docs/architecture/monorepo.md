@@ -7,6 +7,7 @@ frontend/
 packages/
   api/
   cli/
+  contracts/   (Foundry — Uniswap v4 hook for CH 03 ONCHAIN)
   dashboard/   (app shell — merged into frontend/ for most product surfaces)
   shared/
 docs/
@@ -59,6 +60,14 @@ These dispatch through Turbo. Package-level behavior lives inside each workspace
 - binary: `distro` (alias: `dtv`)
 - distributed via curl + GitHub Releases (`cli-v*` tag → `release-cli.yml`)
 - daemon on Unix socket: slot cache, key capture, local SQLite ledger
+
+## `packages/contracts`
+
+- Foundry project for `CH 03 ONCHAIN — LP GUARD`
+- `DistroGuardHook.sol` — Uniswap v4 hook (volatility/size-aware dynamic fee), built on v4-core 1.0.2, extends `BaseTestHooks`
+- vendored `HookMiner` (`script/HookMiner.sol`); v4-core / v4-periphery / forge-std under `lib/`
+- `script/Deploy.s.sol` self-deploys a PoolManager + v4-core test routers, mines + deploys the hook, inits the dynamic-fee pool, writes `export/addresses.<chainId>.json` + the ABI
+- live on X Layer testnet (chainId 1952); see [Onchain LP Guard](onchain-lp-guard.md)
 
 ## `packages/dashboard`
 

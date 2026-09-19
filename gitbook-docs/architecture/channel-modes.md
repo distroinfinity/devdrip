@@ -7,6 +7,7 @@ Distro TV is a content-serving terminal slot. Users pick what content fills the 
 - 🎭 **balanced / mix** — alternates news and ticker 1:1 (default)
 - **news heavy** — 3 news for every 1 ticker
 - **ticker heavy** — 1 news for every 3 tickers
+- ⛓ **onchain only** (`onchain_only`) — CH 03 ONCHAIN LP GUARD; renders a Uniswap v4 LP position + range-breach alerts. Independent of the news/ticker pipeline; see [Onchain LP Guard](onchain-lp-guard.md).
 
 Mode is set per-user in `preferences.channel_mode` and synced across CLI ↔ dashboard.
 
@@ -22,6 +23,7 @@ The CLI fetches from `GET /me/content/next?n=N&deviceId=...`. The server reads `
 
 - `ticker_only` → `n` calls to `nextTickerForDevice(...)`
 - `news_only` → `nextPicksForDevice(...)` (news selection)
+- `onchain_only` → `nextOnchainForDevice(...)` — LPOPs a pending onchain alert, else builds an `OnchainPayload` from a live `readVol` (see [Onchain LP Guard](onchain-lp-guard.md))
 - `balanced` / `news_heavy` / `ticker_heavy` → ratio-based interleaving (see [Ratio Selection](ratio-selection.md))
 
 See [Slot Content](slot-content.md) for the discriminated-union shape.
