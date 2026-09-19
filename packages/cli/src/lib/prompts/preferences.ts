@@ -15,6 +15,10 @@ export async function pickChannelMode(current?: ChannelMode): Promise<ChannelMod
       { value: ChannelMode.Balanced, label: "balanced — 1:1 news + ticker (recommended)" },
       { value: ChannelMode.TickerHeavy, label: "ticker heavy — 1:3 news to ticker" },
       { value: ChannelMode.TickerOnly, label: "ticker only — every slot is a watchlist ticker" },
+      {
+        value: ChannelMode.OnchainOnly,
+        label: "on-chain (LP GUARD) — monitor + act on a v4 position",
+      },
     ],
     initialValue,
   })
