@@ -6,37 +6,45 @@ import { DeadTimeSection } from "@/components/landing/dead-time-section";
 import { HowItWorksSection } from "@/components/landing/how-it-works-section";
 import { SurfacesSection } from "@/components/landing/surfaces-section";
 import { YourRulesSection } from "@/components/landing/your-rules-section";
+import { WaitlistSection } from "@/components/landing/waitlist-section";
+import { Footer } from "@/components/landing/footer";
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen">
-      <DotGrid opacity={0.3} variant="heartbeat" />
+    <>
+      <main className="relative min-h-screen">
+        <DotGrid opacity={0.3} variant="heartbeat" />
 
-      <div className="relative">
-        <InlineNavbar />
+        <div className="relative">
+          <InlineNavbar />
 
-        <FloatingNav
-          navItems={[
-            { name: "How It Works", link: "#how-it-works" },
-            { name: "Surfaces", link: "#surfaces" },
-            { name: "The Math", link: "#the-math" },
-            { name: "FAQ", link: "#faq" },
-          ]}
-          ctaLabel="Join Waitlist"
-        />
+          <FloatingNav
+            navItems={[
+              { name: "How It Works", link: "#how-it-works" },
+              { name: "Surfaces", link: "#surfaces" },
+              { name: "The Math", link: "#the-math" },
+              { name: "FAQ", link: "#faq" },
+            ]}
+            ctaLabel="Join Waitlist"
+            ctaHref="#waitlist"
+          />
 
-        <HeroSection />
+          <HeroSection />
 
-        <DeadTimeSection />
+          <DeadTimeSection />
 
-        <HowItWorksSection />
+          <HowItWorksSection />
 
-        <SurfacesSection />
+          <SurfacesSection />
 
-        <YourRulesSection />
+          <YourRulesSection />
 
-        {/* future sections: P0-008 through P0-013 */}
-      </div>
-    </main>
+          {/* future sections: P0-008 through P0-013 */}
+          <WaitlistSection />
+        </div>
+      </main>
+
+      <Footer />
+    </>
   );
 }
