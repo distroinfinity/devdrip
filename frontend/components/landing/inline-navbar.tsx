@@ -12,7 +12,7 @@ export function InlineNavbar() {
           <div className="w-7 h-7 rounded-[5px] bg-[var(--ink-primary)] flex items-center justify-center">
             <div className="w-1.5 h-2.5 rounded-b-sm bg-[var(--ink-inverse)] opacity-90" />
           </div>
-          <span className="font-display text-[17px] font-bold tracking-tight">
+          <span className="font-display text-[17px] font-bold tracking-tight text-[var(--ink-primary)]">
             dev drip
           </span>
           <span className="font-data text-[9px] font-medium tracking-[0.06em] border border-[var(--accent-color)] text-[var(--accent-color)] px-1.5 py-0.5 rounded-[3px]">

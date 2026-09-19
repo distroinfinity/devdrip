@@ -39,10 +39,10 @@ function CeloLogo({ className }: { className?: string }) {
     <img
       src="/celochainlogo.jpg"
       alt="Celo"
-      width={34}
-      height={34}
+      width={28}
+      height={28}
       className={cn("rounded-full object-cover shrink-0", className)}
-      style={{ width: 34, height: 34 }}
+      style={{ width: 28, height: 28 }}
     />
   );
 }
