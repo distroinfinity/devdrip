@@ -416,7 +416,10 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
             })
             dispatch({ kind: "dismiss", now: now(), tty: session.tty })
           })
-          deps.keyCapture.start(effect.tty)
+          // display-only: interactive key controls are disabled for now, so we
+          // don't start key capture (no raw mode, no keystroke reads). re-enable
+          // by uncommenting once the open/save/skip/kill actions work reliably.
+          // deps.keyCapture.start(effect.tty)
           const displayTimeMs =
             effect.ad.kind === "news" ? effect.ad.displayTimeMs : MAX_AD_DURATION_MS
           deps.log.info("showing slot", {

@@ -74,9 +74,10 @@ function wrapHeadline(text: string, w: number, maxLines: number): string[] {
 }
 
 function newsFooter(innerWidth: number): string {
-  const full = "[D] open · [B] save · [S] skip · [K] kill"
-  const short = "[D] · [B] · [S] · [K]"
-  return innerWidth >= full.length ? full : short
+  // display-only: interactive key controls (open/save/skip/kill) are disabled
+  // for now — the slot just shows info. keep a passive channel tag in the footer.
+  const full = "distro tv · news"
+  return innerWidth >= full.length ? full : "distro tv"
 }
 
 export interface NewsRenderOpts {
