@@ -12,7 +12,7 @@ import {
   type DevdripPreferences,
 } from "@devdrip/shared"
 import type { SlotCache, CachedSlot } from "../slot-cache.js"
-import type { Ledger, LocalImpression } from "../ledger.js"
+import type { Ledger, LocalImpression, LocalNewsImpression } from "../ledger.js"
 import type { KeyCapture } from "./input.js"
 import type { EarningsPopup, PopupPhase } from "../render-box.js"
 import { step, type Effect, type Event, type State } from "./state-machine.js"
@@ -159,6 +159,10 @@ interface Session {
   // re-anchored on every clearSessionState so sessionWarmupMs applies per
   // Claude Code invocation, not per daemon lifetime.
   sessionStartAt: number
+  // set true when discover-key fires while a news slot is showing; carried
+  // into the recordNewsImpression effect so openedUrl is accurate (the state
+  // machine can't know this — it doesn't own key-intercept logic).
+  openedNewsUrl: boolean
 }
 
 export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
@@ -195,6 +199,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       sessionKilled: false,
       adsInCurrentBusyWindow: 0,
       sessionStartAt: now(),
+      openedNewsUrl: false,
     }
     sessions.set(key, s)
     return s
@@ -333,6 +338,15 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         deps.log.debug("save key ignored — no active news slot")
       }
       return
+    }
+
+    // track whether the user opened the URL on a news slot — state machine
+    // doesn't see this; we record it here so recordNewsImpression can set it.
+    if (event.kind === "discover-key") {
+      if (session.state.kind === "SHOWING" && session.state.ad.kind === "news") {
+        session.openedNewsUrl = true
+      }
+      // fall through to normal flash + applyStep handling
     }
 
     const isUserKey =
@@ -512,6 +526,25 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
       case "recordImpression":
         handleRecord(effect.impression, effect.ad)
         return
+      case "recordNewsImpression": {
+        const finalImpression: LocalNewsImpression = {
+          ...effect.impression,
+          openedUrl: session.openedNewsUrl,
+        }
+        try {
+          deps.ledger.recordNewsImpression(finalImpression)
+          deps.log.info("news impression recorded", {
+            newsId: effect.impression.newsId,
+            result: effect.impression.result,
+            durationMs: effect.impression.durationMs,
+            openedUrl: finalImpression.openedUrl,
+          })
+        } catch (err) {
+          deps.log.warn("news impression ledger write failed", { error: (err as Error).message })
+        }
+        session.openedNewsUrl = false
+        return
+      }
       case "setSessionKilled":
         session.sessionKilled = true
         deps.log.info("session ads killed by user", { tty: session.tty })
@@ -521,6 +554,7 @@ export function createOrchestrator(deps: OrchestratorDeps): Orchestrator {
         session.adsInCurrentBusyWindow = 0
         session.currentSlotKind = null
         session.sessionStartAt = now()
+        session.openedNewsUrl = false
         deps.log.info("session state cleared", { tty: session.tty })
         return
       case "writeMuteUntil":

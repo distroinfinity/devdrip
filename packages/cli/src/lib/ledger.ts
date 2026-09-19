@@ -36,6 +36,18 @@ export interface ReadingPending {
   savedAt: number
 }
 
+export interface LocalNewsImpression {
+  id: string
+  newsId: string
+  source: string
+  deviceId: string
+  durationMs: number
+  result: ImpressionResult
+  openedUrl: boolean
+  saved: boolean
+  createdAt: number
+}
+
 export interface Ledger {
   record(i: LocalImpression): void
   listUnsynced(limit: number): LocalImpression[]
@@ -68,10 +80,14 @@ export interface Ledger {
   listPendingReadingItems(limit: number): ReadingPending[]
   markReadingItemsSynced(ids: string[], at: number): void
 
+  recordNewsImpression(item: LocalNewsImpression): void
+  listUnsyncedNewsImpressions(limit: number): LocalNewsImpression[]
+  markNewsImpressionsSynced(ids: string[], at: number): void
+
   close(): void
 }
 
-const SCHEMA_VERSION = 3
+const SCHEMA_VERSION = 4
 
 export function ledgerPath(): string {
   return join(configDir(), "ledger.db")
@@ -199,6 +215,24 @@ function runMigrations(db: Database.Database): void {
         ON reading_pending (synced_at) WHERE synced_at IS NULL;
     `)
   }
+  if (v < 4) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS news_impressions_pending (
+        id           TEXT PRIMARY KEY,
+        news_id      TEXT NOT NULL,
+        source       TEXT NOT NULL,
+        device_id    TEXT NOT NULL,
+        duration_ms  INTEGER NOT NULL,
+        result       TEXT NOT NULL,
+        opened_url   INTEGER NOT NULL DEFAULT 0,
+        saved        INTEGER NOT NULL DEFAULT 0,
+        created_at   INTEGER NOT NULL,
+        synced_at    INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_news_impressions_unsynced
+        ON news_impressions_pending (synced_at) WHERE synced_at IS NULL;
+    `)
+  }
   db.pragma(`user_version = ${SCHEMA_VERSION}`)
 }
 
@@ -320,6 +354,23 @@ export function openLedger(): Ledger {
   `)
   const markReadingSyncedStmt = db.prepare(`
     UPDATE reading_pending SET synced_at = ?
+    WHERE id IN (SELECT value FROM json_each(?))
+  `)
+
+  const insertNewsImpressionStmt = db.prepare(`
+    INSERT OR IGNORE INTO news_impressions_pending
+      (id, news_id, source, device_id, duration_ms, result, opened_url, saved, created_at, synced_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+  `)
+  const listUnsyncedNewsImpressionsStmt = db.prepare(`
+    SELECT id, news_id, source, device_id, duration_ms, result, opened_url, saved, created_at
+    FROM news_impressions_pending
+    WHERE synced_at IS NULL
+    ORDER BY created_at ASC
+    LIMIT ?
+  `)
+  const markNewsImpressionsSyncedStmt = db.prepare(`
+    UPDATE news_impressions_pending SET synced_at = ?
     WHERE id IN (SELECT value FROM json_each(?))
   `)
 
@@ -445,6 +496,47 @@ export function openLedger(): Ledger {
     markReadingItemsSynced(ids, at) {
       if (ids.length === 0) return
       markReadingSyncedStmt.run(at, JSON.stringify(ids))
+    },
+    recordNewsImpression(item) {
+      insertNewsImpressionStmt.run(
+        item.id,
+        item.newsId,
+        item.source,
+        item.deviceId,
+        item.durationMs,
+        item.result,
+        item.openedUrl ? 1 : 0,
+        item.saved ? 1 : 0,
+        item.createdAt
+      )
+    },
+    listUnsyncedNewsImpressions(limit) {
+      const rows = listUnsyncedNewsImpressionsStmt.all(limit) as Array<{
+        id: string
+        news_id: string
+        source: string
+        device_id: string
+        duration_ms: number
+        result: string
+        opened_url: number
+        saved: number
+        created_at: number
+      }>
+      return rows.map((r) => ({
+        id: r.id,
+        newsId: r.news_id,
+        source: r.source,
+        deviceId: r.device_id,
+        durationMs: r.duration_ms,
+        result: r.result as ImpressionResult,
+        openedUrl: r.opened_url !== 0,
+        saved: r.saved !== 0,
+        createdAt: r.created_at,
+      }))
+    },
+    markNewsImpressionsSynced(ids, at) {
+      if (ids.length === 0) return
+      markNewsImpressionsSyncedStmt.run(at, JSON.stringify(ids))
     },
     close() {
       db.close()
