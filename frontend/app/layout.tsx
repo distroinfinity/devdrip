@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
-import { spaceMono, dmSans, jetbrainsMono } from "@/lib/fonts"
+import { spaceMono, dmSans, jetbrainsMono } from "@devdrip/design-system/fonts"
+import { themeInitScript } from "@devdrip/design-system/theme"
 import { Analytics } from "@vercel/analytics/react"
-import "@/styles/tokens.css"
+import "@devdrip/design-system/tokens.css"
 import "./globals.css"
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://devdrip.xyz"
@@ -95,11 +96,7 @@ export default function RootLayout({
       className={`${spaceMono.variable} ${dmSans.variable} ${jetbrainsMono.variable}`}
     >
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var s;try{s=localStorage.getItem("dd-theme")}catch(e){}var t=s==="light"||s==="dark"?s:window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t)})()`,
-          }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
