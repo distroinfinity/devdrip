@@ -1,7 +1,7 @@
 import { chmodSync, mkdirSync, renameSync } from "node:fs"
 import { join } from "node:path"
 import Database, { type Statement } from "better-sqlite3"
-import { REVENUE_SHARE_DEVELOPER } from "@distrotv/shared"
+import { MIN_COMPLETED_DURATION_MS, REVENUE_SHARE_DEVELOPER } from "@distrotv/shared"
 import { configDir } from "./config.js"
 
 export type ImpressionResult = "completed" | "skipped" | "expired" | "interrupted"
@@ -55,10 +55,11 @@ export interface Ledger {
   markSynced(ids: string[], at: number): void
   markImpressionsTerminal(ids: string[]): void
   unsyncedCount(): number
-  // Optimistic running total of developer-share USDC earned today (local day
-  // per tzOffsetMinutes). Sums (cpm_rate / 1000) * REVENUE_SHARE_DEVELOPER over
-  // completed impressions whose started_at falls in today's local window. Used
-  // by the S3-05 earnings toast; backend remains authoritative at sync time.
+  // Optimistic running total of the estimated developer share earned today (local
+  // day per tzOffsetMinutes). Sums (cpm_rate / 1000) * REVENUE_SHARE_DEVELOPER over
+  // viewable impressions (on screen >= 1s, not skipped — same rule as the server)
+  // whose started_at falls in today's local window. Shown on the sponsored panel;
+  // the backend remains authoritative at sync time.
   sumTodayOptimistic(tzOffsetMinutes: number, now?: number): number
   // count of today's UTC-day impressions for a given campaignId (any
   // `result`). used by the daemon to enforce per-campaign daily caps locally,
@@ -290,7 +291,8 @@ export function openLedger(): Ledger {
   const sumTodayStmt = db.prepare(`
     SELECT COALESCE(SUM(cpm_rate), 0) AS total_cpm
     FROM impressions
-    WHERE result = 'completed'
+    WHERE result != 'skipped'
+      AND duration_ms >= ${MIN_COMPLETED_DURATION_MS}
       AND cpm_rate IS NOT NULL
       AND started_at >= ?
       AND started_at < ?

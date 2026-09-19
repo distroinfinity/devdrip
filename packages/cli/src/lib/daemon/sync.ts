@@ -1,6 +1,7 @@
 import type { Ledger, LocalImpression, LocalClick, LocalNewsImpression } from "../ledger.js"
 import { ApiError, postIngest, postReadingSave, type IngestResponse } from "../api-client.js"
 import { syncPreferencesOnce } from "./prefs-sync.js"
+import { toIngestImpression } from "../ad-impression.js"
 
 export interface SyncLogger {
   debug(msg: string, fields?: Record<string, unknown>): void
@@ -109,9 +110,8 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
   }
 
   async function doRunOnce(): Promise<SyncResult> {
-    // post-pivot: ad impressions/clicks are gone. listUnsynced + listUnsyncedClicks
-    // will always return [] but we still call them so the ledger stays coherent if
-    // a legacy ledger row somehow exists.
+    // ad impressions ride the same batch as news impressions. clicks are recorded
+    // server-side by the /ads/click redirect, so that list only drains legacy rows.
     const impressions = deps.ledger.listUnsynced(IMPRESSION_BATCH_CAP)
     const clicks = deps.ledger.listUnsyncedClicks(CLICK_BATCH_CAP)
     const newsImpressions = deps.ledger.listUnsyncedNewsImpressions(NEWS_IMPRESSION_BATCH_CAP)
@@ -124,13 +124,11 @@ export function createSyncLoop(deps: SyncLoopDeps): SyncLoop {
       terminal: 0,
     }
 
-    if (newsImpressions.length > 0) {
+    if (newsImpressions.length > 0 || impressions.length > 0) {
       let res: IngestResponse
       try {
         const body = {
-          // M1: only newsImpressions go to the server. impressions/clicks are
-          // dead post-pivot; omit them to keep the request body clean.
-          impressions: [] as { deliveryToken: string }[],
+          impressions: impressions.map(toIngestImpression),
           clicks: [] as { deliveryToken: string }[],
           newsImpressions: newsImpressions.map((n) => ({
             newsId: n.newsId,

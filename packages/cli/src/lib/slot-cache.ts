@@ -36,16 +36,18 @@ export function resetSlotIndex(): void {
 const CACHE_TTL_MS = 15 * 60 * 1000
 const REFRESH_THRESHOLD = 3
 const BATCH_SIZE = 20
-// Bumped to 3: cache now stores SlotPayload (discriminated union), not just CachedAd.
+// Bumped to 4: sponsored slots joined the union and ads became the default feed —
+// dropping older caches makes the new mix show up immediately.
+// (3: cache stores SlotPayload, a discriminated union, not just CachedAd.)
 // Old "ad-cache.json" (version 2) will fail the check and be silently dropped.
-const CACHE_FILE_VERSION = 3
+const CACHE_FILE_VERSION = 4
 
 // "local" tags slots the daemon builds itself (CH 03 utility panel) — never
 // fetched from /me/content/next and never written to the cache file.
 export type CachedSlot = SlotPayload & { cacheSource: "api" | "demo" | "local" }
 
 interface CacheFile {
-  version: 3
+  version: typeof CACHE_FILE_VERSION
   userId: string
   deviceId: string
   surface: string

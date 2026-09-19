@@ -8,6 +8,7 @@ import {
 } from "@distrotv/shared"
 import type { CachedSlot } from "../slot-cache.js"
 import type { ImpressionResult, LocalImpression, LocalNewsImpression } from "../ledger.js"
+import { buildAdImpression } from "../ad-impression.js"
 
 export type State =
   | { kind: "IDLE" }
@@ -190,8 +191,8 @@ function stepShowing(
     }
   }
   if (event.kind === "discover-key") {
-    // discover opens the advertiser URL in the browser AND keeps rotation
-    // going so the user doesn't lose the ad stream while Claude is still busy.
+    // discover/open: opens the sponsor or story in the browser AND keeps rotation
+    // going so the user doesn't lose the stream while Claude is still busy.
     const base = endShowing(state, event.now, ctx, "completed", /*goToInterAd*/ true)
     const deliveryToken = ""
     return {
@@ -308,6 +309,20 @@ function endShowing(
       createdAt: now,
     }
     cleanup.push({ kind: "recordNewsImpression", impression: newsImpression, ad: slot })
+  }
+  if (slot.kind === "sponsored") {
+    cleanup.push({
+      kind: "recordImpression",
+      impression: buildAdImpression({
+        id: randomUUID(),
+        slot,
+        shownAt: state.shownAt,
+        durationMs,
+        result,
+        deviceId: ctx.deviceId,
+      }),
+      ad: slot,
+    })
   }
 
   if (goToInterAd) {
